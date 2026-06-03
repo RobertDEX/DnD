@@ -101,6 +101,39 @@ function getEffectivePB(c) {
   return c.profBonusOverride != null ? Number(c.profBonusOverride) : profBonus(c.level);
 }
 
+// ── DAMAGE TAKEN ──
+window.previewDamage = () => {
+  const inp = document.getElementById('damageTaken');
+  const prev = document.getElementById('damagePreview');
+  if (!inp || !prev) return;
+  const dmg = parseInt(inp.value);
+  if (!dmg || dmg <= 0) { prev.textContent = ''; prev.className = 'damage-preview'; return; }
+  const c = getChar();
+  const tmp = Number(c.tempHp) || 0;
+  const absorbed = Math.min(tmp, dmg);
+  const hpHit = dmg - absorbed;
+  const newHp = Math.max(0, c.hp.current - hpHit);
+  let msg = '';
+  if (absorbed > 0) msg += `Temp HP absorbs ${absorbed}. `;
+  msg += `HP: ${c.hp.current} → ${newHp}`;
+  prev.textContent = msg;
+  prev.className = 'damage-preview hit';
+};
+window.applyDamage = () => {
+  const inp = document.getElementById('damageTaken');
+  const dmg = parseInt(inp?.value);
+  if (!dmg || dmg <= 0) { alert('Enter a damage amount.'); return; }
+  const c = getChar();
+  const tmp = Number(c.tempHp) || 0;
+  const absorbed = Math.min(tmp, dmg);
+  c.tempHp = tmp - absorbed;
+  c.hp.current = Math.max(0, c.hp.current - (dmg - absorbed));
+  ensureClamp(c); pushState(); render();
+  inp.value = '';
+  const prev = document.getElementById('damagePreview');
+  if (prev) { prev.textContent = ''; prev.className = 'damage-preview'; }
+};
+
 // ================================================================
 // DATA
 // ================================================================

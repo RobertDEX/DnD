@@ -120,6 +120,15 @@
             <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
             <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
           </div>
+          <!-- Damage taken calculator -->
+          <div class="damage-block">
+            <div class="damage-title">Take Damage</div>
+            <div class="damage-row">
+              <div class="field"><label>Damage Amount</label><input id="damageTaken" type="number" min="1" placeholder="e.g. 12" oninput="previewDamage()"></div>
+              <button type="button" class="neo-btn small dmg-confirm-btn" onclick="applyDamage()">Apply</button>
+            </div>
+            <div id="damagePreview" class="damage-preview"></div>
+          </div>
         </section>
 
         <!-- AURA + UNCANNY DODGE -->

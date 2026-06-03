@@ -434,3 +434,24 @@ input[readonly] { color: var(--mana); font-family: var(--F4); font-size: .78rem;
   .stats-grid { grid-template-columns: repeat(2,1fr); }
   .calc-row   { grid-template-columns: repeat(2,1fr); }
 }
+
+/* ── DAMAGE TAKEN ── */
+.damage-block{margin-top:.75rem;padding-top:.7rem;border-top:1px solid rgba(200,80,10,.15)}
+.damage-title{
+  font-family:var(--F4);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--amber);margin-bottom:.45rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.damage-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(200,80,10,.2),transparent)}
+.damage-row{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:flex-end}
+.dmg-confirm-btn{
+  border-color:rgba(200,80,10,.38)!important;
+  color:var(--amber)!important;
+  white-space:nowrap;
+}
+.dmg-confirm-btn:hover{background:rgba(200,80,10,.07)!important;box-shadow:0 0 12px rgba(200,80,10,.12)!important}
+.damage-preview{
+  font-family:var(--F4);font-size:.64rem;color:var(--muted);
+  margin-top:.35rem;min-height:.9rem;
+}
+.damage-preview.hit{color:#ffaa88}

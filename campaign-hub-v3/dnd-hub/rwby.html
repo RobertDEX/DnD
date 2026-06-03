@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RWBY DnD — Remnant</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="rwby.css">
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="glow glow-red"></div>
+<div class="glow glow-white"></div>
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <a href="index.html" class="back-link">← Hub</a>
+  <div class="brand">
+    <div class="micro">HOMEBREW · REMNANT</div>
+    <h1>RWBY DnD</h1>
+    <p>Character Sheets <span class="sync-dot" id="syncDot"></span></p>
+  </div>
+  <div class="sidebar-section">
+    <div class="section-label">Characters</div>
+    <div class="sidebar-buttons">
+      <button id="addCharacterBtn" type="button" class="neo-btn">+ New Character</button>
+      <button id="toggleReserveBtn" type="button" class="neo-btn ghost">Show Reserve</button>
+      <button id="toggleDeadBtn"    type="button" class="neo-btn ghost">Show Dead</button>
+    </div>
+    <div id="characterTabs" class="character-tabs"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="section-label">Dice</div>
+    <div class="sidebar-buttons">
+      <button id="rollHpBtn"      type="button" class="neo-btn">Roll HP (d10+CON)</button>
+      <button id="rollAuraBtn"    type="button" class="neo-btn">Roll Aura (d10+Mastery)</button>
+      <button id="restoreAuraBtn" type="button" class="neo-btn ghost">Restore Full Aura</button>
+      <button id="restoreHpBtn"   type="button" class="neo-btn ghost">Restore Full HP</button>
+    </div>
+  </div>
+  <div class="sidebar-section status-section">
+    <div class="section-label">Status</div>
+    <div class="status-box">
+      <div><span>Selected</span><strong id="selectedNameSmall">—</strong></div>
+      <div><span>State</span><strong id="selectedState">Active</strong></div>
+      <div><span>Ascended</span><strong id="selectedAscendedStatus">Locked</strong></div>
+      <div><span>Techniques</span><strong id="selectedTechniqueCount">0</strong></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <!-- TOPBAR -->
+  <header class="topbar panel">
+    <div>
+      <div class="micro">Active Sheet</div>
+      <div id="topCharacterName" class="top-character-name">—</div>
+    </div>
+    <div class="topbar-resources">
+      <div class="resource-mini"><span>HP</span><strong id="topHpMini">0/0</strong><div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div></div>
+      <div class="resource-mini aura-mini"><span>Aura</span><strong id="topAuraMini">0/0</strong><div class="mini-bar"><div id="topAuraBar" class="mini-bar-fill aura-fill"></div></div></div>
+      <div class="resource-mini"><span>AC</span><strong id="topArmorMini">—</strong></div>
+      <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
+    </div>
+  </header>
+
+  <!-- TWO-COLUMN SHEET -->
+  <div class="sheet-columns">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- IDENTITY -->
+      <section class="panel identity-panel">
+        <div class="identity-header">
+          <div class="identity-name-wrap">
+            <div class="micro" style="margin-bottom:.3rem">Character File</div>
+            <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
+          </div>
+          <div class="level-boxes">
+            <div class="level-box"><label>Level</label><input id="charLevel" type="number" min="1" value="1"></div>
+          </div>
+        </div>
+        <div class="identity-grid">
+          <div class="field"><label>Race</label><input id="charRace" type="text"></div>
+          <div class="field"><label>Class</label><input id="charClass" type="text"></div>
+          <div class="field"><label>Age</label><input id="charAge" type="text"></div>
+          <div class="field"><label>Background</label><input id="charBackground" type="text"></div>
+          <div class="field"><label>Semblance Name</label><input id="charSemblanceName" type="text"></div>
+          <div class="field"><label>Weapon / Form</label><input id="charWeaponName" type="text"></div>
+        </div>
+      </section>
+
+      <!-- HP -->
+      <section class="panel resource-card">
+        <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
+        </div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="hp" data-amt="-10">-10</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-5">-5</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-1">-1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
+        </div>
+      </section>
+
+      <!-- AURA + UNCANNY DODGE -->
+      <section class="panel resource-card">
+        <div class="resource-head"><span>Aura Points</span><strong id="auraDisplay" class="aura-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="auraBar" class="bar-fill aura-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentAura" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxAura" type="number" min="0"></div>
+        </div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="aura" data-amt="-10">-10</button>
+          <button class="adj-btn" data-resource="aura" data-amt="-5">-5</button>
+          <button class="adj-btn" data-resource="aura" data-amt="-1">-1</button>
+          <button class="adj-btn pos" data-resource="aura" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="aura" data-amt="5">+5</button>
+          <button class="adj-btn pos" data-resource="aura" data-amt="10">+10</button>
+        </div>
+        <!-- Uncanny Dodge Calculator -->
+        <div class="uncanny-block">
+          <div class="uncanny-title">Uncanny Dodge</div>
+          <div class="uncanny-row">
+            <div class="field"><label>Incoming Damage</label><input id="uncannyDmg" type="number" min="1" placeholder="e.g. 24" oninput="calcUncanny()"></div>
+            <div class="uncanny-result" id="uncannyResult">
+              <div class="result-cost">— AP</div>
+              <div class="result-half">halved: —</div>
+            </div>
+          </div>
+          <button type="button" class="neo-btn small uncanny-use-btn" onclick="useUncanny()">Use Uncanny Dodge</button>
+        </div>
+      </section>
+
+      <!-- COMBAT STATS -->
+      <section class="panel combat-card">
+        <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
+        <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
+        <div class="field"><label>Temp HP</label><input id="tempHp" type="number" min="0" value="0"></div>
+        <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
+      </section>
+
+      <!-- ABILITY SCORES -->
+      <section class="panel stats-panel">
+        <div class="section-title">Ability Scores</div>
+        <div id="statsGrid" class="stats-grid"></div>
+      </section>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- CALCULATED STATS -->
+      <section class="panel calc-panel">
+        <div class="section-title">Combat Calculations</div>
+        <div id="calcPanel"></div>
+      </section>
+
+      <!-- TABS -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="skills">Skills</button>
+        <button class="tab-btn" data-tab="semblance">Semblance</button>
+        <button class="tab-btn" data-tab="techniques">Techniques</button>
+        <button class="tab-btn" data-tab="dust">Dust</button>
+        <button class="tab-btn" data-tab="loadout">Loadout</button>
+        <button class="tab-btn" data-tab="notes">Notes</button>
+      </div>
+
+      <div class="tab-content active panel tab-panel" data-tab="skills">
+        <div id="skillsMatrix" class="skills-matrix"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="semblance">
+        <div class="section-title" id="semblanceTitleDisplay">Semblance</div>
+        <div id="semblanceStages" class="semblance-stages"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="techniques">
+        <div class="section-title">Aura Techniques</div>
+        <p class="small-note" style="margin-bottom:.85rem">Granted by the DM and assigned per player.</p>
+        <div id="grantedTechniques" class="technique-list"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="dust">
+        <div class="section-title">Dust Inventory</div>
+        <div id="dustInventoryGrid" class="dust-grid"></div>
+        <div class="dust-spell-gap">
+          <div class="section-title">Dust Spells</div>
+          <div class="dust-add-form">
+            <div class="field"><label>Spell Name</label><input id="dustSpellName" type="text" placeholder="e.g. Fire Stream"></div>
+            <div class="field"><label>Dust Type</label><select id="dustSpellType"></select></div>
+            <div class="field span-2"><label>Description</label><textarea id="dustSpellDescription" class="small-textarea" placeholder="What does this spell do?"></textarea></div>
+            <button id="addDustSpellBtn" type="button" class="neo-btn">Add Spell</button>
+          </div>
+          <div id="dustSpellList" class="technique-list"></div>
+        </div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="loadout">
+        <div class="loadout-grid">
+          <div><div class="section-title">Weapons</div><textarea id="weaponsText" placeholder="Weapons and forms…"></textarea></div>
+          <div><div class="section-title">Abilities</div><textarea id="abilitiesText" placeholder="Feats and extra abilities…"></textarea></div>
+          <div><div class="section-title">Inventory</div><textarea id="inventoryText" placeholder="Items carried…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="notes">
+        <div class="section-title">Session Notes</div>
+        <textarea id="notesText" placeholder="Notes from this session…"></textarea>
+      </div>
+
+    </div><!-- /right-col -->
+  </div><!-- /sheet-columns -->
+</main>
+</div><!-- /app -->
+
+<!-- ═══ DM OVERLAY ═══ -->
+<div id="dmOverlay" class="dm-overlay hidden">
+<div class="dm-overlay-inner">
+  <div id="dmLoginPanel" class="dm-login panel">
+    <div class="section-title">DM Access</div>
+    <p class="small-note" style="margin-bottom:.85rem">Enter the DM password to unlock full control.</p>
+    <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••"></div>
+    <div class="dm-overlay-actions" style="margin-top:.85rem">
+      <button id="dmLoginBtn" type="button" class="neo-btn">Unlock</button>
+      <button id="dmCloseBtn" type="button" class="neo-btn ghost">Cancel</button>
+    </div>
+  </div>
+  <div id="dmFullscreenPanel" class="dm-fullscreen panel hidden">
+    <div class="dm-fullscreen-top">
+      <div><div class="micro">DM Panel</div><div class="top-character-name" id="dmSelectedCharacterName">—</div></div>
+      <div class="dm-overlay-actions">
+        <button id="dmLogoutBtn"    type="button" class="neo-btn ghost">Lock</button>
+        <button id="dmCloseFullBtn" type="button" class="neo-btn ghost">Close</button>
+      </div>
+    </div>
+    <div class="dm-sections">
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">Site Theme</summary>
+        <div class="collapse-body">
+          <div class="form-grid">
+            <div class="field"><label>Background</label><input id="themeBgColor" type="color"></div>
+            <div class="field"><label>Panel</label><input id="themePanelColor" type="color"></div>
+            <div class="field"><label>Accent Red</label><input id="themeAccentColor" type="color"></div>
+            <div class="field"><label>Accent 2</label><input id="themeAccentTwoColor" type="color"></div>
+            <div class="field"><label>Aura Cyan</label><input id="themeAuraColor" type="color"></div>
+            <div class="field"><label>Text</label><input id="themeTextColor" type="color"></div>
+          </div>
+          <div class="dm-tech-actions">
+            <button id="saveThemeBtn"  type="button" class="neo-btn">Save Theme</button>
+            <button id="resetThemeBtn" type="button" class="neo-btn ghost">Reset</button>
+          </div>
+        </div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">Character State</summary>
+        <div class="collapse-body">
+          <div class="unlock-grid">
+            <label><input id="stateActive"  type="radio" name="charState" value="active">  Active</label>
+            <label><input id="stateReserve" type="radio" name="charState" value="reserve"> Reserve</label>
+            <label><input id="stateDead"    type="radio" name="charState" value="dead">    Dead</label>
+          </div>
+          <div class="dm-tech-actions">
+            <button id="saveCharacterStateBtn" type="button" class="neo-btn">Save State</button>
+            <button id="deleteCharacterBtn"    type="button" class="neo-btn ghost">Delete</button>
+          </div>
+        </div>
+      </details>
+      <details class="collapse-block">
+        <summary class="collapse-summary">Semblance Progression</summary>
+        <div class="collapse-body">
+          <div class="semblance-dm-grid" id="semblanceDmGrid"></div>
+          <div class="unlock-grid" style="margin-top:.85rem">
+            <label><input id="unlockFirst"    type="checkbox"> Unlock 1st Evolution</label>
+            <label><input id="unlockSecond"   type="checkbox"> Unlock 2nd Evolution</label>
+            <label><input id="unlockThird"    type="checkbox"> Unlock 3rd Evolution</label>
+            <label><input id="unlockAscended" type="checkbox"> Unlock Ascended</label>
+          </div>
+          <button id="saveSemblanceBtn" type="button" class="neo-btn" style="margin-top:.85rem">Save Semblance</button>
+        </div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">Grant Aura Technique</summary>
+        <div class="collapse-body">
+          <div class="form-grid">
+            <div class="field"><label>Assign to Player</label><select id="dmTechTarget"></select></div>
+            <div class="field"><label>Name</label><input id="dmTechName" type="text"></div>
+            <div class="field"><label>Level Req.</label><input id="dmTechLevel" type="number" min="1"></div>
+            <div class="field"><label>Aura Cost</label><input id="dmTechCost" type="number" min="0"></div>
+            <div class="field"><label>Type</label><input id="dmTechType" type="text" placeholder="Offensive / Defensive…"></div>
+          </div>
+          <div class="field" style="margin-top:.55rem"><label>Description</label><textarea id="dmTechDescription" class="small-textarea" placeholder="Describe what this technique does…"></textarea></div>
+          <button id="createTechniqueBtn" type="button" class="neo-btn" style="margin-top:.75rem">Grant Technique</button>
+        </div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">All Players' Techniques</summary>
+        <div class="collapse-body"><div id="dmTechniqueDatabase" class="dm-tech-list"></div></div>
+      </details>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module" src="rwby.js"></script>
+</body>
+</html>

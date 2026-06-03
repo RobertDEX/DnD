@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Campaign Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Cinzel+Decorative:wght@700&family=Share+Tech+Mono&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+
+/* ── SPLIT LAYOUT ── */
+.split{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  height:100vh;
+  width:100vw;
+  position:relative;
+}
+
+/* ── DIVIDER ── */
+.divider{
+  position:absolute;
+  left:50%;top:0;bottom:0;
+  width:1px;
+  transform:translateX(-50%);
+  z-index:20;
+  background:linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255,255,255,.06) 15%,
+    rgba(255,255,255,.18) 50%,
+    rgba(255,255,255,.06) 85%,
+    transparent 100%
+  );
+  pointer-events:none;
+}
+/* The center label */
+.divider-label{
+  position:absolute;
+  left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  z-index:30;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:.5rem;
+  pointer-events:none;
+}
+.divider-vs{
+  font-family:'Orbitron',sans-serif;
+  font-size:.65rem;
+  font-weight:900;
+  letter-spacing:.35em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.22);
+  background:rgba(0,0,0,.6);
+  padding:.4rem .75rem;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(8px);
+}
+
+/* ── SHARED HALF BASE ── */
+.half{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  text-decoration:none;
+  overflow:hidden;
+  transition:flex .5s cubic-bezier(.4,0,.2,1);
+}
+
+/* Hover expansion */
+.split:has(.half-rwby:hover) .half-rwby { flex:1.15; }
+.split:has(.half-ft:hover)   .half-ft   { flex:1.15; }
+
+/* ══════════════════════════════════
+   RWBY SIDE — dark, sinister, cold
+══════════════════════════════════ */
+.half-rwby{
+  background:#000;
+  grid-column:1;
+}
+
+/* Deep red vignette from top-left corner */
+.half-rwby::before{
+  content:'';
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 80% at -10% -10%, rgba(160,0,8,.7) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 60% at 110% 110%, rgba(40,0,4,.8) 0%, transparent 50%),
+    linear-gradient(175deg, #050000 0%, #0a0008 40%, #000 100%);
+  z-index:0;
+}
+
+/* Scanlines */
+.half-rwby::after{
+  content:'';
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,.09) 0px,rgba(0,0,0,.09) 1px,
+    transparent 1px,transparent 3px
+  );
+}
+
+/* Vertical red slit — right edge */
+.rwby-slit{
+  position:absolute;right:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent 0%,rgba(200,0,10,.7) 35%,rgba(255,30,30,.9) 50%,rgba(200,0,10,.7) 65%,transparent 100%);
+  box-shadow: 0 0 20px rgba(200,0,10,.5), 0 0 60px rgba(200,0,10,.2);
+  z-index:15;
+}
+
+.rwby-content{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;
+  gap:1.4rem;text-align:center;
+  padding:3rem 3.5rem;
+  max-width:460px;
+}
+
+/* Broken/cracked circle behind title */
+.rwby-emblem{
+  position:relative;
+  width:120px;height:120px;
+  display:flex;align-items:center;justify-content:center;
+}
+.rwby-emblem-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:1px solid rgba(200,0,10,.35);
+  box-shadow:inset 0 0 30px rgba(200,0,10,.08), 0 0 30px rgba(200,0,10,.1);
+}
+.rwby-emblem-ring::before{
+  content:'';position:absolute;inset:8px;border-radius:50%;
+  border:1px solid rgba(200,0,10,.15);
+}
+/* Crack effect — clip a gap in the ring */
+.rwby-emblem-ring::after{
+  content:'';
+  position:absolute;top:-2px;left:50%;
+  width:30px;height:6px;background:#000;
+  transform:translateX(-50%) rotate(35deg);
+}
+.rwby-symbol{
+  font-size:3.2rem;line-height:1;
+  filter:drop-shadow(0 0 12px rgba(200,0,10,.6)) drop-shadow(0 0 30px rgba(200,0,10,.25));
+  position:relative;z-index:1;
+}
+
+.rwby-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;
+  color:rgba(200,0,10,.65);
+}
+.rwby-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(1.6rem,3.5vw,2.6rem);font-weight:900;
+  letter-spacing:.1em;line-height:1;
+  color:#fff;
+  text-shadow:0 0 40px rgba(200,0,10,.4), 0 2px 0 rgba(0,0,0,.8);
+}
+.rwby-title span{
+  display:block;
+  background:linear-gradient(180deg,#ffffff 0%,#cc8888 60%,#aa0010 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.rwby-enter{
+  display:inline-flex;align-items:center;gap:.65rem;
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(180,0,8,.7);
+  border-top:1px solid rgba(180,0,8,.2);
+  padding-top:1.2rem;width:100%;justify-content:center;
+  transition:color .2s;
+}
+.half-rwby:hover .rwby-enter{color:rgba(255,40,40,.9)}
+.enter-arrow{
+  display:inline-block;transition:transform .2s;
+  font-style:normal;font-size:.9rem;
+}
+.half-rwby:hover .enter-arrow{transform:translateX(6px)}
+
+/* Atmosphere particles — blood drips */
+.rwby-particles{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.rwby-particles span{
+  position:absolute;top:-10px;
+  width:1px;background:linear-gradient(180deg,transparent,rgba(180,0,10,.6),rgba(180,0,10,.2));
+  border-radius:999px;
+  animation:drip linear infinite;
+  opacity:0;
+}
+@keyframes drip{
+  0%{top:-5%;opacity:0}
+  5%{opacity:1}
+  95%{opacity:.4}
+  100%{top:105%;opacity:0}
+}
+
+/* ══════════════════════════════════
+   FAIRY TAIL SIDE — warm, vibrant
+══════════════════════════════════ */
+.half-ft{
+  background:#0a0608;
+  grid-column:2;
+}
+
+.half-ft::before{
+  content:'';
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 70% 70% at 110% -10%, rgba(232,160,48,.35) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 60% at -10% 110%, rgba(180,60,200,.2) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 50%,  rgba(40,10,60,.4) 0%, transparent 100%),
+    linear-gradient(165deg, #0e0810 0%, #080510 50%, #060308 100%);
+  z-index:0;
+}
+
+/* Magic sparkles */
+.half-ft::after{
+  content:'';
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 20%, rgba(240,200,80,.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 25% 70%, rgba(220,180,255,.6) 0%, transparent 100%),
+    radial-gradient(2px 2px at 60% 15%, rgba(255,220,100,.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 55%, rgba(200,160,255,.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 88% 30%, rgba(255,200,80,.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 40% 80%, rgba(240,200,80,.65) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 55% 65%, rgba(200,160,255,.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 82% 78%, rgba(255,220,120,.6) 0%, transparent 100%),
+    radial-gradient(2px 2px at 18% 45%, rgba(220,180,255,.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 60%, rgba(255,200,80,.6) 0%, transparent 100%);
+}
+
+/* Gold left slit */
+.ft-slit{
+  position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent 0%,rgba(200,150,40,.6) 35%,rgba(255,200,60,.85) 50%,rgba(200,150,40,.6) 65%,transparent 100%);
+  box-shadow:0 0 20px rgba(220,170,40,.4), 0 0 60px rgba(220,170,40,.15);
+  z-index:15;
+}
+
+.ft-content{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;
+  gap:1.4rem;text-align:center;
+  padding:3rem 3.5rem;
+  max-width:460px;
+}
+
+/* Guild crest emblem */
+.ft-emblem{
+  position:relative;
+  width:120px;height:120px;
+  display:flex;align-items:center;justify-content:center;
+}
+.ft-emblem-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:1px solid rgba(220,170,50,.4);
+  box-shadow:inset 0 0 30px rgba(220,170,50,.08), 0 0 30px rgba(220,170,50,.15);
+  animation:ft-ring-pulse 3s ease-in-out infinite;
+}
+.ft-emblem-ring::before{
+  content:'';position:absolute;inset:8px;border-radius:50%;
+  border:1px dashed rgba(220,170,50,.2);
+  animation:ft-ring-spin 20s linear infinite;
+}
+.ft-emblem-ring::after{
+  content:'';position:absolute;inset:16px;border-radius:50%;
+  border:1px solid rgba(180,80,220,.2);
+}
+@keyframes ft-ring-pulse{
+  0%,100%{box-shadow:inset 0 0 30px rgba(220,170,50,.08), 0 0 30px rgba(220,170,50,.15)}
+  50%{box-shadow:inset 0 0 40px rgba(220,170,50,.15), 0 0 50px rgba(220,170,50,.25)}
+}
+@keyframes ft-ring-spin{
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
+}
+
+.ft-symbol{
+  font-size:3.2rem;line-height:1;
+  filter:drop-shadow(0 0 12px rgba(220,170,50,.7)) drop-shadow(0 0 30px rgba(220,170,50,.3));
+  position:relative;z-index:1;
+  animation:ft-symbol-bounce 3s ease-in-out infinite;
+}
+@keyframes ft-symbol-bounce{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-4px)}
+}
+
+.ft-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;
+  color:rgba(220,170,50,.65);
+}
+.ft-title{
+  font-family:'Cinzel Decorative',serif;
+  font-size:clamp(1.1rem,2.5vw,1.9rem);font-weight:700;
+  letter-spacing:.06em;line-height:1.2;
+  color:#fff8e0;
+  text-shadow:0 0 40px rgba(220,170,50,.35), 0 2px 0 rgba(0,0,0,.7);
+}
+.ft-title span{
+  display:block;
+  background:linear-gradient(180deg,#fff8e0 0%,#f0c040 40%,#d4850a 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.ft-enter{
+  display:inline-flex;align-items:center;gap:.65rem;
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(200,150,40,.65);
+  border-top:1px solid rgba(200,150,40,.18);
+  padding-top:1.2rem;width:100%;justify-content:center;
+  transition:color .2s;
+}
+.half-ft:hover .ft-enter{color:rgba(255,200,60,.95)}
+.half-ft:hover .enter-arrow{transform:translateX(6px)}
+
+/* Floating orbs */
+.ft-orbs{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.ft-orbs span{
+  position:absolute;bottom:-20px;
+  width:3px;height:3px;border-radius:50%;
+  animation:float-up ease-in infinite;
+  opacity:0;
+}
+@keyframes float-up{
+  0%{bottom:-5%;opacity:0;transform:scale(.5)}
+  10%{opacity:.9}
+  90%{opacity:.6}
+  100%{bottom:110%;opacity:0;transform:scale(1.5)}
+}
+
+/* ── FOOTER ── */
+.hub-footer{
+  position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;font-size:.6rem;
+  color:rgba(255,255,255,.12);letter-spacing:.15em;text-align:center;
+  z-index:40;white-space:nowrap;pointer-events:none;
+}
+
+@media(max-width:640px){
+  .split{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:100vh}
+  .half-rwby{grid-column:1;grid-row:1}
+  .half-ft{grid-column:1;grid-row:2}
+  .rwby-slit{right:auto;bottom:0;top:auto;left:0;width:100%;height:2px}
+  .ft-slit{left:auto;top:0;bottom:auto;right:0;width:100%;height:2px}
+  .divider{left:0;right:0;top:50%;bottom:auto;width:100%;height:1px}
+  .divider-label{top:50%;left:50%}
+}
+</style>
+</head>
+<body>
+
+<div class="split">
+
+  <!-- ═══ RWBY SIDE ═══ -->
+  <a class="half half-rwby" href="rwby.html">
+    <!-- Particles -->
+    <div class="rwby-particles" id="rwbyParticles"></div>
+    <!-- Right edge glow slit -->
+    <div class="rwby-slit"></div>
+
+    <div class="rwby-content">
+      <div class="rwby-emblem">
+        <div class="rwby-emblem-ring"></div>
+        <span class="rwby-symbol">⚔️</span>
+      </div>
+      <div class="rwby-tag">Campaign One</div>
+      <h2 class="rwby-title"><span>RWBY DnD</span></h2>
+      <div class="rwby-enter">
+        Enter Remnant <i class="enter-arrow">→</i>
+      </div>
+    </div>
+  </a>
+
+  <!-- ═══ DIVIDER ═══ -->
+  <div class="divider"></div>
+  <div class="divider-label">
+    <span class="divider-vs">VS</span>
+  </div>
+
+  <!-- ═══ FAIRY TAIL SIDE ═══ -->
+  <a class="half half-ft" href="fairytail.html">
+    <div class="ft-orbs" id="ftOrbs"></div>
+    <div class="ft-slit"></div>
+
+    <div class="ft-content">
+      <div class="ft-emblem">
+        <div class="ft-emblem-ring"></div>
+        <span class="ft-symbol">🐉</span>
+      </div>
+      <div class="ft-tag">Campaign Two</div>
+      <h2 class="ft-title"><span>Fairy Tail DnD</span></h2>
+      <div class="ft-enter">
+        Enter Fiore <i class="enter-arrow">→</i>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<div class="hub-footer">Firebase Synced · DM Password Protected</div>
+
+<script>
+// Blood drip particles — RWBY
+const rwbyP = document.getElementById('rwbyParticles');
+for (let i = 0; i < 12; i++) {
+  const s = document.createElement('span');
+  s.style.left   = (5 + Math.random() * 90) + '%';
+  s.style.height = (40 + Math.random() * 80) + 'px';
+  s.style.animationDuration  = (4 + Math.random() * 8) + 's';
+  s.style.animationDelay     = (Math.random() * 8) + 's';
+  s.style.opacity = '0';
+  rwbyP.appendChild(s);
+}
+
+// Magic orbs — Fairy Tail
+const ftO = document.getElementById('ftOrbs');
+const orbColors = [
+  'rgba(240,200,80,.85)',
+  'rgba(200,160,255,.85)',
+  'rgba(255,220,100,.9)',
+  'rgba(180,140,255,.8)',
+  'rgba(255,180,60,.85)',
+];
+for (let i = 0; i < 18; i++) {
+  const s = document.createElement('span');
+  const size = 2 + Math.random() * 4;
+  s.style.left             = (3 + Math.random() * 94) + '%';
+  s.style.width            = size + 'px';
+  s.style.height           = size + 'px';
+  s.style.background       = orbColors[Math.floor(Math.random() * orbColors.length)];
+  s.style.boxShadow        = `0 0 ${size * 3}px ${orbColors[Math.floor(Math.random() * orbColors.length)]}`;
+  s.style.animationDuration = (3 + Math.random() * 6) + 's';
+  s.style.animationDelay   = (Math.random() * 6) + 's';
+  ftO.appendChild(s);
+}
+</script>
+
+</body>
+</html>

@@ -51,38 +51,46 @@
 
 <!-- ═══ MAIN ═══ -->
 <main class="main">
-  <!-- TOPBAR -->
+
+  <!-- TOP BAR -->
   <header class="topbar panel">
     <div>
       <div class="micro">Active Sheet</div>
       <div id="topCharacterName" class="top-character-name">—</div>
     </div>
     <div class="topbar-resources">
-      <div class="resource-mini"><span>HP</span><strong id="topHpMini">0/0</strong><div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div></div>
-      <div class="resource-mini aura-mini"><span>Aura</span><strong id="topAuraMini">0/0</strong><div class="mini-bar"><div id="topAuraBar" class="mini-bar-fill aura-fill"></div></div></div>
+      <div class="resource-mini">
+        <span>HP</span><strong id="topHpMini">0 / 0</strong>
+        <div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div>
+      </div>
+      <div class="resource-mini aura-mini">
+        <span>Aura</span><strong id="topAuraMini">0 / 0</strong>
+        <div class="mini-bar"><div id="topAuraBar" class="mini-bar-fill aura-fill"></div></div>
+      </div>
       <div class="resource-mini"><span>AC</span><strong id="topArmorMini">—</strong></div>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
   </header>
 
-  <!-- TWO-COLUMN SHEET -->
+  <!-- ══ TWO-COLUMN SHEET ══ -->
   <div class="sheet-columns">
 
-    <!-- LEFT COLUMN -->
+    <!-- ▌LEFT COLUMN — identity, resources, stats -->
     <div class="left-col">
 
       <!-- IDENTITY -->
       <section class="panel identity-panel">
         <div class="identity-header">
           <div class="identity-name-wrap">
-            <div class="micro" style="margin-bottom:.3rem">Character File</div>
+            <div class="micro" style="margin-bottom:.35rem">Character File</div>
             <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
           </div>
           <div class="level-boxes">
             <div class="level-box"><label>Level</label><input id="charLevel" type="number" min="1" value="1"></div>
           </div>
         </div>
-        <div class="identity-grid">
+        <!-- 3-col identity grid for more space -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div class="field"><label>Race</label><input id="charRace" type="text"></div>
           <div class="field"><label>Class</label><input id="charClass" type="text"></div>
           <div class="field"><label>Age</label><input id="charAge" type="text"></div>
@@ -92,55 +100,60 @@
         </div>
       </section>
 
-      <!-- HP -->
-      <section class="panel resource-card">
-        <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
-        <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
-        <div class="resource-inputs">
-          <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
-          <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
-        </div>
-        <div class="quick-adj">
-          <button class="adj-btn" data-resource="hp" data-amt="-10">-10</button>
-          <button class="adj-btn" data-resource="hp" data-amt="-5">-5</button>
-          <button class="adj-btn" data-resource="hp" data-amt="-1">-1</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
-        </div>
-      </section>
+      <!-- HP & AURA side-by-side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
 
-      <!-- AURA + UNCANNY DODGE -->
-      <section class="panel resource-card">
-        <div class="resource-head"><span>Aura Points</span><strong id="auraDisplay" class="aura-val">0 / 0</strong></div>
-        <div class="bar-track"><div id="auraBar" class="bar-fill aura-fill"></div></div>
-        <div class="resource-inputs">
-          <div class="field"><label>Current</label><input id="currentAura" type="number" min="0"></div>
-          <div class="field"><label>Max</label><input id="maxAura" type="number" min="0"></div>
-        </div>
-        <div class="quick-adj">
-          <button class="adj-btn" data-resource="aura" data-amt="-10">-10</button>
-          <button class="adj-btn" data-resource="aura" data-amt="-5">-5</button>
-          <button class="adj-btn" data-resource="aura" data-amt="-1">-1</button>
-          <button class="adj-btn pos" data-resource="aura" data-amt="1">+1</button>
-          <button class="adj-btn pos" data-resource="aura" data-amt="5">+5</button>
-          <button class="adj-btn pos" data-resource="aura" data-amt="10">+10</button>
-        </div>
-        <!-- Uncanny Dodge Calculator -->
-        <div class="uncanny-block">
-          <div class="uncanny-title">Uncanny Dodge</div>
-          <div class="uncanny-row">
-            <div class="field"><label>Incoming Damage</label><input id="uncannyDmg" type="number" min="1" placeholder="e.g. 24" oninput="calcUncanny()"></div>
-            <div class="uncanny-result" id="uncannyResult">
-              <div class="result-cost">— AP</div>
-              <div class="result-half">halved: —</div>
-            </div>
+        <!-- HP -->
+        <section class="panel resource-card">
+          <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
+          <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
+          <div class="resource-inputs">
+            <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
+            <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
           </div>
-          <button type="button" class="neo-btn small uncanny-use-btn" onclick="useUncanny()">Use Uncanny Dodge</button>
-        </div>
-      </section>
+          <div class="quick-adj">
+            <button class="adj-btn" data-resource="hp" data-amt="-10">−10</button>
+            <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
+            <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
+          </div>
+        </section>
 
-      <!-- COMBAT STATS -->
+        <!-- AURA + UNCANNY DODGE -->
+        <section class="panel resource-card">
+          <div class="resource-head"><span>Aura Points</span><strong id="auraDisplay" class="aura-val">0 / 0</strong></div>
+          <div class="bar-track"><div id="auraBar" class="bar-fill aura-fill"></div></div>
+          <div class="resource-inputs">
+            <div class="field"><label>Current</label><input id="currentAura" type="number" min="0"></div>
+            <div class="field"><label>Max</label><input id="maxAura" type="number" min="0"></div>
+          </div>
+          <div class="quick-adj">
+            <button class="adj-btn" data-resource="aura" data-amt="-10">−10</button>
+            <button class="adj-btn" data-resource="aura" data-amt="-5">−5</button>
+            <button class="adj-btn" data-resource="aura" data-amt="-1">−1</button>
+            <button class="adj-btn pos" data-resource="aura" data-amt="1">+1</button>
+            <button class="adj-btn pos" data-resource="aura" data-amt="5">+5</button>
+            <button class="adj-btn pos" data-resource="aura" data-amt="10">+10</button>
+          </div>
+          <!-- Uncanny Dodge -->
+          <div class="uncanny-block">
+            <div class="uncanny-title">Uncanny Dodge</div>
+            <div class="uncanny-row">
+              <div class="field"><label>Incoming Damage</label><input id="uncannyDmg" type="number" min="1" placeholder="e.g. 24" oninput="calcUncanny()"></div>
+              <div class="uncanny-result" id="uncannyResult">
+                <div class="result-cost">— AP</div>
+                <div class="result-half">halved: —</div>
+              </div>
+            </div>
+            <button type="button" class="neo-btn small uncanny-use-btn" onclick="useUncanny()">Use Uncanny Dodge</button>
+          </div>
+        </section>
+
+      </div><!-- /hp+aura row -->
+
+      <!-- COMBAT STATS — 4 in a row -->
       <section class="panel combat-card">
         <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
         <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
@@ -148,7 +161,7 @@
         <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
       </section>
 
-      <!-- ABILITY SCORES -->
+      <!-- ABILITY SCORES — full width, 6 big cards -->
       <section class="panel stats-panel">
         <div class="section-title">Ability Scores</div>
         <div id="statsGrid" class="stats-grid"></div>
@@ -156,10 +169,10 @@
 
     </div><!-- /left-col -->
 
-    <!-- RIGHT COLUMN -->
+    <!-- ▌RIGHT COLUMN — calc + tabs -->
     <div class="right-col">
 
-      <!-- CALCULATED STATS -->
+      <!-- COMBAT CALCULATIONS -->
       <section class="panel calc-panel">
         <div class="section-title">Combat Calculations</div>
         <div id="calcPanel"></div>
@@ -186,7 +199,7 @@
 
       <div class="tab-content panel tab-panel" data-tab="techniques">
         <div class="section-title">Aura Techniques</div>
-        <p class="small-note" style="margin-bottom:.85rem">Granted by the DM and assigned per player.</p>
+        <p class="small-note" style="margin-bottom:.9rem">Granted by the DM and assigned per player.</p>
         <div id="grantedTechniques" class="technique-list"></div>
       </div>
 
@@ -228,9 +241,9 @@
 <div class="dm-overlay-inner">
   <div id="dmLoginPanel" class="dm-login panel">
     <div class="section-title">DM Access</div>
-    <p class="small-note" style="margin-bottom:.85rem">Enter the DM password to unlock full control.</p>
+    <p class="small-note" style="margin-bottom:.9rem">Enter the DM password to unlock full control.</p>
     <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••"></div>
-    <div class="dm-overlay-actions" style="margin-top:.85rem">
+    <div class="dm-overlay-actions" style="margin-top:.9rem">
       <button id="dmLoginBtn" type="button" class="neo-btn">Unlock</button>
       <button id="dmCloseBtn" type="button" class="neo-btn ghost">Cancel</button>
     </div>
@@ -279,13 +292,13 @@
         <summary class="collapse-summary">Semblance Progression</summary>
         <div class="collapse-body">
           <div class="semblance-dm-grid" id="semblanceDmGrid"></div>
-          <div class="unlock-grid" style="margin-top:.85rem">
+          <div class="unlock-grid" style="margin-top:.9rem">
             <label><input id="unlockFirst"    type="checkbox"> Unlock 1st Evolution</label>
             <label><input id="unlockSecond"   type="checkbox"> Unlock 2nd Evolution</label>
             <label><input id="unlockThird"    type="checkbox"> Unlock 3rd Evolution</label>
             <label><input id="unlockAscended" type="checkbox"> Unlock Ascended</label>
           </div>
-          <button id="saveSemblanceBtn" type="button" class="neo-btn" style="margin-top:.85rem">Save Semblance</button>
+          <button id="saveSemblanceBtn" type="button" class="neo-btn" style="margin-top:.9rem">Save Semblance</button>
         </div>
       </details>
       <details class="collapse-block" open>
@@ -298,8 +311,8 @@
             <div class="field"><label>Aura Cost</label><input id="dmTechCost" type="number" min="0"></div>
             <div class="field"><label>Type</label><input id="dmTechType" type="text" placeholder="Offensive / Defensive…"></div>
           </div>
-          <div class="field" style="margin-top:.55rem"><label>Description</label><textarea id="dmTechDescription" class="small-textarea" placeholder="Describe what this technique does…"></textarea></div>
-          <button id="createTechniqueBtn" type="button" class="neo-btn" style="margin-top:.75rem">Grant Technique</button>
+          <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="dmTechDescription" class="small-textarea" placeholder="Describe this technique…"></textarea></div>
+          <button id="createTechniqueBtn" type="button" class="neo-btn" style="margin-top:.8rem">Grant Technique</button>
         </div>
       </details>
       <details class="collapse-block" open>

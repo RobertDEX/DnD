@@ -33,7 +33,7 @@ const SKILL_DEFS = [
   {name:'CON Save',       stat:'CON', isSave:true},
   {name:'Endurance',      stat:'CON'},
   {name:'INT Save',       stat:'INT', isSave:true},
-  {name:'Arcana',  stat:'INT'},
+  {name:'Magic Control',  stat:'INT'},
   {name:'History',        stat:'INT'},
   {name:'Investigation',  stat:'INT'},
   {name:'Arcana',         stat:'INT'},

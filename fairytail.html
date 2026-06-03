@@ -51,15 +51,22 @@
 
 <!-- ═══ MAIN ═══ -->
 <main class="main">
-  <!-- TOPBAR -->
+
+  <!-- TOP BAR -->
   <header class="topbar panel">
     <div>
       <div class="micro">Active Sheet</div>
       <div id="topCharacterName" class="top-character-name">—</div>
     </div>
     <div class="topbar-resources">
-      <div class="resource-mini"><span>HP</span><strong id="topHpMini">0/0</strong><div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div></div>
-      <div class="resource-mini mana-mini"><span>Mana</span><strong id="topManaMini">0/0</strong><div class="mini-bar"><div id="topManaBar" class="mini-bar-fill mana-fill"></div></div></div>
+      <div class="resource-mini">
+        <span>HP</span><strong id="topHpMini">0 / 0</strong>
+        <div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div>
+      </div>
+      <div class="resource-mini mana-mini">
+        <span>Mana</span><strong id="topManaMini">0 / 0</strong>
+        <div class="mini-bar"><div id="topManaBar" class="mini-bar-fill mana-fill"></div></div>
+      </div>
       <div class="resource-mini"><span>AC</span><strong id="topArmorMini">—</strong></div>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
@@ -68,24 +75,25 @@
   <!-- MAGIC TYPE BANNER -->
   <div id="magicTypeBanner" class="magic-type-banner" style="display:none"></div>
 
-  <!-- TWO-COLUMN SHEET -->
+  <!-- ══ TWO-COLUMN SHEET ══ -->
   <div class="sheet-columns">
 
-    <!-- LEFT COLUMN -->
+    <!-- ▌LEFT COLUMN -->
     <div class="left-col">
 
       <!-- IDENTITY -->
       <section class="panel identity-panel">
         <div class="identity-header">
           <div class="identity-name-wrap">
-            <div class="micro" style="margin-bottom:.3rem">Character File</div>
+            <div class="micro" style="margin-bottom:.35rem">Character File</div>
             <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
           </div>
           <div class="level-boxes">
             <div class="level-box"><label>Level</label><input id="charLevel" type="number" min="1" value="1"></div>
           </div>
         </div>
-        <div class="identity-grid">
+        <!-- 3-col for more room -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div class="field"><label>Race / Species</label><input id="charRace" type="text"></div>
           <div class="field"><label>Class / Role</label><input id="charClass" type="text"></div>
           <div class="field"><label>Age</label><input id="charAge" type="text"></div>
@@ -105,58 +113,62 @@
           <div class="field"><label>Guild</label><input id="charGuild" type="text" placeholder="e.g. Fairy Tail"></div>
           <div class="field"><label>Guild Mark</label><input id="charGuildMark" type="text" placeholder="Location · Color"></div>
           <div class="field"><label>Exceed Partner</label><input id="charExceed" type="text" placeholder="Partner name"></div>
-          <div class="field"><label>Magic Power Rank</label>
-            <select id="magicRank">
-              <option value="">— Rank —</option>
-              <option>D-Rank</option><option>C-Rank</option><option>B-Rank</option>
-              <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
-            </select>
+        </div>
+      </section>
+
+      <!-- HP & MANA side-by-side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
+
+        <!-- HP -->
+        <section class="panel resource-card">
+          <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
+          <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
+          <div class="resource-inputs">
+            <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
+            <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
           </div>
-        </div>
-      </section>
+          <div class="quick-adj">
+            <button class="adj-btn" data-resource="hp" data-amt="-10">−10</button>
+            <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
+            <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
+            <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
+          </div>
+        </section>
 
-      <!-- HP -->
-      <section class="panel resource-card">
-        <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
-        <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
-        <div class="resource-inputs">
-          <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
-          <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
-        </div>
-        <div class="quick-adj">
-          <button class="adj-btn" data-resource="hp" data-amt="-10">-10</button>
-          <button class="adj-btn" data-resource="hp" data-amt="-5">-5</button>
-          <button class="adj-btn" data-resource="hp" data-amt="-1">-1</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
-          <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
-        </div>
-      </section>
+        <!-- MANA -->
+        <section class="panel resource-card">
+          <div class="resource-head"><span>Mana</span><strong id="manaDisplay" class="mana-val">0 / 0</strong></div>
+          <div class="bar-track"><div id="manaBar" class="bar-fill mana-fill"></div></div>
+          <div class="resource-inputs">
+            <div class="field"><label>Current</label><input id="currentMana" type="number" min="0"></div>
+            <div class="field"><label>Max</label><input id="maxMana" type="number" min="0"></div>
+          </div>
+          <div class="quick-adj">
+            <button class="adj-btn" data-resource="mana" data-amt="-10">−10</button>
+            <button class="adj-btn" data-resource="mana" data-amt="-5">−5</button>
+            <button class="adj-btn" data-resource="mana" data-amt="-1">−1</button>
+            <button class="adj-btn pos" data-resource="mana" data-amt="1">+1</button>
+            <button class="adj-btn pos" data-resource="mana" data-amt="5">+5</button>
+            <button class="adj-btn pos" data-resource="mana" data-amt="10">+10</button>
+          </div>
+        </section>
 
-      <!-- MANA -->
-      <section class="panel resource-card">
-        <div class="resource-head"><span>Mana</span><strong id="manaDisplay" class="mana-val">0 / 0</strong></div>
-        <div class="bar-track"><div id="manaBar" class="bar-fill mana-fill"></div></div>
-        <div class="resource-inputs">
-          <div class="field"><label>Current</label><input id="currentMana" type="number" min="0"></div>
-          <div class="field"><label>Max</label><input id="maxMana" type="number" min="0"></div>
-        </div>
-        <div class="quick-adj">
-          <button class="adj-btn" data-resource="mana" data-amt="-10">-10</button>
-          <button class="adj-btn" data-resource="mana" data-amt="-5">-5</button>
-          <button class="adj-btn" data-resource="mana" data-amt="-1">-1</button>
-          <button class="adj-btn pos" data-resource="mana" data-amt="1">+1</button>
-          <button class="adj-btn pos" data-resource="mana" data-amt="5">+5</button>
-          <button class="adj-btn pos" data-resource="mana" data-amt="10">+10</button>
-        </div>
-      </section>
+      </div><!-- /hp+mana row -->
 
-      <!-- COMBAT -->
+      <!-- COMBAT STATS -->
       <section class="panel combat-card">
         <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
         <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
+        <div class="field"><label>Magic Power Rank</label>
+          <select id="magicRank">
+            <option value="">— Rank —</option>
+            <option>D-Rank</option><option>C-Rank</option><option>B-Rank</option>
+            <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
+          </select>
+        </div>
         <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
-        <div class="field"><label>Spell Atk Bonus</label><input id="spellAtkDisplay" type="text" readonly placeholder="auto-calc"></div>
       </section>
 
       <!-- ABILITY SCORES -->
@@ -167,10 +179,10 @@
 
     </div><!-- /left-col -->
 
-    <!-- RIGHT COLUMN -->
+    <!-- ▌RIGHT COLUMN -->
     <div class="right-col">
 
-      <!-- CALCULATED STATS -->
+      <!-- CALC PANEL -->
       <section class="panel calc-panel">
         <div class="section-title">Magic Calculations</div>
         <div id="calcPanel"></div>
@@ -192,19 +204,26 @@
       <div class="tab-content panel tab-panel" data-tab="magic">
         <div class="section-title" id="magicSpellTitle">Magic Spells</div>
         <div class="panel-inset">
-          <div style="font-family:var(--F4);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.65rem">Add Spell</div>
+          <div style="font-family:var(--F4);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem">Add Spell</div>
           <div class="form-grid">
             <div class="field"><label>Spell Name</label><input id="spellName" type="text" placeholder="e.g. Fire Dragon's Roar"></div>
             <div class="field"><label>Rank</label>
-              <select id="spellRank"><option value="D">D-Rank</option><option value="C">C-Rank</option><option value="B">B-Rank</option><option value="A">A-Rank</option><option value="S">S-Rank</option><option value="SS">SS-Rank</option></select>
+              <select id="spellRank">
+                <option value="D">D-Rank</option><option value="C">C-Rank</option>
+                <option value="B">B-Rank</option><option value="A">A-Rank</option>
+                <option value="S">S-Rank</option><option value="SS">SS-Rank</option>
+              </select>
             </div>
             <div class="field"><label>Mana Cost</label><input id="spellManaCost" type="number" min="0" placeholder="0"></div>
             <div class="field"><label>Type</label>
-              <select id="spellType"><option>Offensive</option><option>Defensive</option><option>Support</option><option>Utility</option><option>Transformation</option><option>Passive</option></select>
+              <select id="spellType">
+                <option>Offensive</option><option>Defensive</option><option>Support</option>
+                <option>Utility</option><option>Transformation</option><option>Passive</option>
+              </select>
             </div>
           </div>
-          <div class="field" style="margin-top:.55rem"><label>Description</label><textarea id="spellDescription" class="small-textarea" placeholder="Range, damage, effect, duration…"></textarea></div>
-          <button id="addSpellBtn" type="button" class="neo-btn" style="margin-top:.65rem">Add Spell</button>
+          <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="spellDescription" class="small-textarea" placeholder="Range, damage, effect, duration…"></textarea></div>
+          <button id="addSpellBtn" type="button" class="neo-btn" style="margin-top:.7rem">Add Spell</button>
         </div>
         <div class="section-title">Spell List</div>
         <div id="spellList" class="spell-list"></div>
@@ -212,7 +231,7 @@
 
       <div class="tab-content panel tab-panel" data-tab="lostmagic">
         <div class="section-title">Lost Magic &amp; Special Abilities</div>
-        <p class="small-note" style="margin-bottom:.85rem">Granted by the DM only — these appear when assigned via the DM panel.</p>
+        <p class="small-note" style="margin-bottom:.9rem">Granted by the DM only — assigned via the DM panel.</p>
         <div id="lostMagicList" class="spell-list"></div>
       </div>
 
@@ -239,9 +258,9 @@
 <div class="dm-overlay-inner">
   <div id="dmLoginPanel" class="dm-login panel">
     <div class="section-title">DM Access</div>
-    <p class="small-note" style="margin-bottom:.85rem">Enter the DM password to manage characters and grant Lost Magic.</p>
+    <p class="small-note" style="margin-bottom:.9rem">Enter the DM password to manage characters and grant Lost Magic.</p>
     <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••"></div>
-    <div class="dm-overlay-actions" style="margin-top:.85rem">
+    <div class="dm-overlay-actions" style="margin-top:.9rem">
       <button id="dmLoginBtn" type="button" class="neo-btn">Unlock</button>
       <button id="dmCloseBtn" type="button" class="neo-btn ghost">Cancel</button>
     </div>
@@ -294,8 +313,8 @@
             <div class="field"><label>Name</label><input id="dmLMName" type="text" placeholder="e.g. Dragon Force"></div>
             <div class="field"><label>Mana Cost</label><input id="dmLMCost" type="number" min="0" placeholder="0"></div>
           </div>
-          <div class="field" style="margin-top:.55rem"><label>Description</label><textarea id="dmLMDescription" class="small-textarea" placeholder="What does this Lost Magic do?"></textarea></div>
-          <button id="addLostMagicBtn" type="button" class="neo-btn" style="margin-top:.65rem">Grant to Player</button>
+          <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="dmLMDescription" class="small-textarea" placeholder="What does this Lost Magic do?"></textarea></div>
+          <button id="addLostMagicBtn" type="button" class="neo-btn" style="margin-top:.7rem">Grant to Player</button>
         </div>
       </details>
       <details class="collapse-block" open>

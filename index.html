@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Campaign Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Orbitron:wght@400;600;700;800&family=Raleway:wght@300;400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:#030105;color:#fff;font-family:'Raleway',sans-serif;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse at 25% 50%,rgba(180,0,10,.12) 0%,transparent 45%),radial-gradient(ellipse at 75% 50%,rgba(168,85,247,.10) 0%,transparent 45%),radial-gradient(ellipse at 50% 100%,rgba(200,100,0,.08) 0%,transparent 30%),linear-gradient(180deg,#000 0%,#030105 100%)}
+/* shared scale bg */
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='32'%3E%3Cellipse cx='24' cy='32' rx='26' ry='22' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='0.5'/%3E%3Cellipse cx='0' cy='0' rx='26' ry='22' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='0.5'/%3E%3Cellipse cx='48' cy='0' rx='26' ry='22' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='0.5'/%3E%3C/svg%3E");background-size:48px 32px}
+
+.hub{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;gap:2.5rem}
+
+.hub-header{text-align:center}
+.hub-eyebrow{font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.4em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:1rem}
+.hub-title{font-family:'Cinzel Decorative',serif;font-size:clamp(2rem,5vw,4rem);font-weight:900;letter-spacing:.08em;line-height:1;background:linear-gradient(135deg,#fff8e0 0%,#f0c040 25%,#cc3300 55%,#ff6644 75%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 40px rgba(200,100,0,.3))}
+.hub-sub{margin-top:.85rem;font-family:'Share Tech Mono',monospace;font-size:.72rem;color:rgba(255,255,255,.3);letter-spacing:.35em;text-transform:uppercase}
+
+.campaigns{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.5rem;width:100%;max-width:900px}
+
+.c-card{position:relative;overflow:hidden;border-radius:18px;padding:2.5rem 2rem;cursor:pointer;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:1.2rem;transition:transform .3s ease,box-shadow .3s ease}
+.c-card::before{content:'';position:absolute;inset:0;border-radius:inherit;border:1px solid var(--card-border);transition:border-color .3s}
+.c-card::after{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--card-glow);opacity:0;transition:opacity .4s;pointer-events:none}
+.c-card:hover{transform:translateY(-6px);box-shadow:var(--card-shadow)}
+.c-card:hover::after{opacity:1}
+
+.c-rwby{
+  background:linear-gradient(135deg,rgba(12,3,8,.98),rgba(6,2,14,.98));
+  --card-border:rgba(180,0,10,.25);
+  --card-glow:radial-gradient(ellipse at top,rgba(200,0,10,.12),transparent 65%);
+  --card-shadow:0 32px 80px rgba(180,0,10,.25),0 0 0 1px rgba(180,0,10,.3);
+}
+.c-rwby:hover::before{border-color:rgba(200,0,10,.55)!important}
+
+.c-ft{
+  background:linear-gradient(135deg,rgba(12,7,6,.98),rgba(6,4,14,.98));
+  --card-border:rgba(200,130,0,.2);
+  --card-glow:radial-gradient(ellipse at top,rgba(200,100,0,.1),transparent 65%);
+  --card-shadow:0 32px 80px rgba(200,130,0,.2),0 0 0 1px rgba(200,130,0,.3);
+}
+.c-ft:hover::before{border-color:rgba(232,160,48,.5)!important}
+
+/* accent line top */
+.card-accent-bar{position:absolute;top:0;left:0;right:0;height:2px;border-radius:18px 18px 0 0}
+.c-rwby .card-accent-bar{background:linear-gradient(90deg,transparent,#cc0000,#ff2020,#cc0000,transparent);box-shadow:0 0 20px rgba(200,0,10,.5)}
+.c-ft   .card-accent-bar{background:linear-gradient(90deg,transparent,#7a1800,#e8a030,#f0c040,#e8a030,#7a1800,transparent);box-shadow:0 0 20px rgba(200,130,0,.4)}
+
+.card-icon{font-size:2.8rem;line-height:1;filter:drop-shadow(0 0 20px var(--icon-glow))}
+.c-rwby .card-icon{--icon-glow:rgba(200,0,10,.6)}
+.c-ft   .card-icon{--icon-glow:rgba(232,160,48,.6)}
+
+.card-tag{font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:.3em;text-transform:uppercase;color:var(--tag-color);opacity:.8}
+.c-rwby .card-tag{--tag-color:#cc0000}
+.c-ft   .card-tag{--tag-color:#e8a030}
+
+.card-name{font-family:var(--name-font);font-size:1.7rem;font-weight:700;color:#fff;line-height:1.1;letter-spacing:.05em}
+.c-rwby .card-name{--name-font:'Orbitron',sans-serif}
+.c-ft   .card-name{--name-font:'Cinzel Decorative',serif;font-size:1.25rem}
+
+.card-desc{font-size:.9rem;color:rgba(255,255,255,.4);line-height:1.6}
+
+.card-features{display:flex;flex-direction:column;gap:.35rem;margin-top:.25rem}
+.card-feature{display:flex;align-items:center;gap:.6rem;font-size:.82rem;color:rgba(255,255,255,.3)}
+.card-feature-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.c-rwby .card-feature-dot{background:#cc0000;box-shadow:0 0 6px rgba(200,0,10,.6)}
+.c-ft   .card-feature-dot{background:#e8a030;box-shadow:0 0 6px rgba(232,160,48,.5)}
+
+.card-cta{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:1rem;border-top:1px solid rgba(255,255,255,.05)}
+.cta-text{font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;transition:color .2s}
+.c-rwby .cta-text{color:#cc0000}.c-rwby:hover .cta-text{color:#ff4444}
+.c-ft   .cta-text{color:#e8a030}.c-ft:hover .cta-text{color:#f0c040}
+.cta-arrow{font-size:1.1rem;transition:transform .2s}
+.c-card:hover .cta-arrow{transform:translateX(5px)}
+.c-rwby .cta-arrow{color:#cc0000}.c-ft .cta-arrow{color:#e8a030}
+
+.hub-footer{font-family:'Share Tech Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.15);letter-spacing:.15em;text-align:center}
+
+@media(max-width:600px){.campaigns{grid-template-columns:1fr}.hub-title{font-size:2rem}}
+</style>
+</head>
+<body>
+<main class="hub">
+  <header class="hub-header">
+    <div class="hub-eyebrow">Homebrew System · Campaign Hub</div>
+    <h1 class="hub-title">THE CODEX</h1>
+    <p class="hub-sub">Choose your world</p>
+  </header>
+  <div class="campaigns">
+    <a class="c-card c-rwby" href="rwby.html">
+      <div class="card-accent-bar"></div>
+      <div class="card-icon">⚔️</div>
+      <div>
+        <div class="card-tag">Campaign One</div>
+        <div class="card-name">RWBY DnD</div>
+      </div>
+      <p class="card-desc">The world of Remnant is cruel. Monsters hunt in the dark. Aura is all that stands between you and the void.</p>
+      <div class="card-features">
+        <div class="card-feature"><div class="card-feature-dot"></div>Aura & Semblance system</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Uncanny Dodge with scaling Aura cost</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Dust inventory & Dust Spells</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>DM-granted Aura Techniques</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Firebase cloud sync</div>
+      </div>
+      <div class="card-cta"><span class="cta-text">Enter Campaign</span><span class="cta-arrow">→</span></div>
+    </a>
+    <a class="c-card c-ft" href="fairytail.html">
+      <div class="card-accent-bar"></div>
+      <div class="card-icon">🐉</div>
+      <div>
+        <div class="card-tag">Campaign Two</div>
+        <div class="card-name">Fairy Tail DnD</div>
+      </div>
+      <p class="card-desc">The guild calls. Mana flows through your blood like dragon fire. Choose your magic, forge your legend.</p>
+      <div class="card-features">
+        <div class="card-feature"><div class="card-feature-dot"></div>Mana system with Magic Type bonuses</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Custom spell list (D through SS rank)</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Sense / Power / Agility magic types</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Lost Magic — DM-granted only</div>
+        <div class="card-feature"><div class="card-feature-dot"></div>Firebase cloud sync</div>
+      </div>
+      <div class="card-cta"><span class="cta-text">Enter Campaign</span><span class="cta-arrow">→</span></div>
+    </a>
+  </div>
+  <footer class="hub-footer">All data synced to Firebase · No account needed · Password: DM only</footer>
+</main>
+</body>
+</html>

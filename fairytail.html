@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Fairy Tail DnD — Guild of Embers</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Raleway:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ft.css">
+</head>
+<body>
+<div class="bg-stars"></div>
+<div class="glow glow-purple"></div>
+<div class="glow glow-pink"></div>
+<div class="app">
+  <aside class="sidebar panel">
+    <a href="index.html" class="back-link">← Hub</a>
+    <div class="brand">
+      <div class="micro">HOMEBREW · FIORE</div>
+      <h1>Fairy Tail DnD</h1>
+      <p>Character Sheets <span class="sync-dot" id="syncDot" title="Sync status"></span></p>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-label">CHARACTERS</div>
+      <div class="sidebar-buttons">
+        <button id="addCharacterBtn" type="button" class="neo-btn">+ New Character</button>
+        <button id="toggleReserveBtn" type="button" class="neo-btn ghost">Show Reserve</button>
+        <button id="toggleDeadBtn" type="button" class="neo-btn ghost">Show Dead</button>
+      </div>
+      <div id="characterTabs" class="character-tabs"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-label">DICE</div>
+      <div class="sidebar-buttons">
+        <button id="rollHpBtn"    type="button" class="neo-btn">Roll HP</button>
+        <button id="rollManaBtn"  type="button" class="neo-btn">Roll Mana</button>
+        <button id="restoreManaBtn" type="button" class="neo-btn ghost">Restore Full Mana</button>
+        <button id="restoreHpBtn"   type="button" class="neo-btn ghost">Restore Full HP</button>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-label">SAVE DATA</div>
+      <div class="sidebar-buttons">
+        <button id="exportDataBtn" type="button" class="neo-btn">Export Save</button>
+        <button id="importDataBtn" type="button" class="neo-btn ghost">Import Save</button>
+        <input id="importDataInput" type="file" accept=".json" hidden>
+      </div>
+    </div>
+    <div class="sidebar-section status-section">
+      <div class="section-label">STATUS</div>
+      <div class="status-box">
+        <div><span>Selected</span><strong id="selectedNameSmall">—</strong></div>
+        <div><span>State</span><strong id="selectedState">Active</strong></div>
+        <div><span>Magic Type</span><strong id="selectedMagicType">—</strong></div>
+        <div><span>Spells</span><strong id="selectedSpellCount">0</strong></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar panel">
+      <div>
+        <div class="micro">ACTIVE SHEET</div>
+        <div id="topCharacterName" class="top-character-name">—</div>
+      </div>
+      <div class="topbar-resources">
+        <div class="resource-mini"><span>HP</span><strong id="topHpMini">0 / 0</strong><div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div></div>
+        <div class="resource-mini mana-mini"><span>MANA</span><strong id="topManaMini">0 / 0</strong><div class="mini-bar"><div id="topManaBar" class="mini-bar-fill mana-fill"></div></div></div>
+        <div class="resource-mini"><span>ARMOR</span><strong id="topArmorMini">0</strong></div>
+        <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
+      </div>
+    </header>
+
+    <!-- MAGIC TYPE BANNER -->
+    <div id="magicTypeBanner" class="magic-type-banner" style="display:none"></div>
+
+    <section class="panel identity-panel">
+      <div class="identity-header">
+        <div class="identity-left">
+          <div class="micro">CHARACTER FILE</div>
+          <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
+        </div>
+        <div class="identity-right">
+          <div class="level-box"><label>LEVEL</label><input id="charLevel" type="number" min="1" value="1"></div>
+          <div class="level-box"><label>PROF BONUS</label><input id="charPB" type="number" value="2"></div>
+        </div>
+      </div>
+      <div class="identity-grid">
+        <div class="field"><label>Race / Species</label><input id="charRace" type="text"></div>
+        <div class="field"><label>Class / Role</label><input id="charClass" type="text"></div>
+        <div class="field"><label>Age</label><input id="charAge" type="text"></div>
+        <div class="field"><label>Background</label><input id="charBackground" type="text"></div>
+        <div class="field"><label>Magic Type</label><input id="charMagicType" type="text" placeholder="e.g. Fire Dragon Slayer"></div>
+        <div class="field"><label>Magic Category</label>
+          <select id="charMagicCategory">
+            <option value="">— Choose Category —</option>
+            <option value="sense_int">Sense — INT</option>
+            <option value="sense_wis">Sense — WIS</option>
+            <option value="sense_cha">Sense — CHA</option>
+            <option value="power_con">Power — CON</option>
+            <option value="power_str">Power — STR</option>
+            <option value="agility">Agility — DEX</option>
+          </select>
+        </div>
+        <div class="field"><label>Guild / Faction</label><input id="charGuild" type="text" placeholder="e.g. Fairy Tail"></div>
+        <div class="field"><label>Guild Mark</label><input id="charGuildMark" type="text" placeholder="e.g. Left hand, red"></div>
+        <div class="field"><label>Exceed Partner</label><input id="charExceed" type="text" placeholder="Exceed partner name (if any)"></div>
+        <div class="field"><label>Magic Power Rank</label>
+          <select id="magicRank">
+            <option value="">— Rank —</option>
+            <option>D-Rank</option><option>C-Rank</option><option>B-Rank</option>
+            <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <div class="resources-row">
+      <section class="panel resource-card">
+        <div class="resource-head"><span>HIT POINTS</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
+        </div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="hp" data-amt="-10">-10</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-5">-5</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-1">-1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
+        </div>
+      </section>
+      <section class="panel resource-card">
+        <div class="resource-head"><span>MANA</span><strong id="manaDisplay" class="mana-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="manaBar" class="bar-fill mana-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentMana" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxMana" type="number" min="0"></div>
+        </div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="mana" data-amt="-10">-10</button>
+          <button class="adj-btn" data-resource="mana" data-amt="-5">-5</button>
+          <button class="adj-btn" data-resource="mana" data-amt="-1">-1</button>
+          <button class="adj-btn pos" data-resource="mana" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="mana" data-amt="5">+5</button>
+        </div>
+      </section>
+      <section class="panel resource-card armor-card">
+        <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
+        <div class="field"><label>Initiative</label><input id="initiative" type="text" placeholder="+0"></div>
+        <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
+        <div class="field"><label>Spell Atk Bonus</label><input id="spellAtkBonus" type="text" readonly placeholder="auto-calc" id="spellAtkDisplay"></div>
+      </section>
+    </div>
+
+    <section class="panel stats-panel">
+      <div class="section-title">Ability Scores</div>
+      <div id="statsGrid" class="stats-grid"></div>
+    </section>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="skills">Skills</button>
+      <button class="tab-btn" data-tab="magic">Spells</button>
+      <button class="tab-btn" data-tab="lostmagic">Lost Magic</button>
+      <button class="tab-btn" data-tab="loadout">Loadout</button>
+      <button class="tab-btn" data-tab="notes">Notes</button>
+    </div>
+
+    <div class="tab-content active panel tab-panel" data-tab="skills">
+      <div id="skillsMatrix" class="skills-matrix"></div>
+    </div>
+
+    <div class="tab-content panel tab-panel" data-tab="magic">
+      <div class="section-title" id="magicSpellTitle">Magic Spells</div>
+      <div class="panel-inset">
+        <div class="section-label" style="margin-bottom:.75rem">Add Spell</div>
+        <div class="form-grid">
+          <div class="field"><label>Spell Name</label><input id="spellName" type="text" placeholder="e.g. Fire Dragon's Roar"></div>
+          <div class="field"><label>Rank</label>
+            <select id="spellRank"><option value="D">D-Rank</option><option value="C">C-Rank</option><option value="B">B-Rank</option><option value="A">A-Rank</option><option value="S">S-Rank</option><option value="SS">SS-Rank</option></select>
+          </div>
+          <div class="field"><label>Mana Cost</label><input id="spellManaCost" type="number" min="0" placeholder="0"></div>
+          <div class="field"><label>Type</label>
+            <select id="spellType"><option>Offensive</option><option>Defensive</option><option>Support</option><option>Utility</option><option>Transformation</option><option>Passive</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Description</label><textarea id="spellDescription" class="small-textarea" placeholder="What does this spell do? Range, damage, duration, effects…"></textarea></div>
+        <button id="addSpellBtn" type="button" class="neo-btn" style="margin-top:.75rem">Add Spell</button>
+      </div>
+      <div class="section-title">Spell List</div>
+      <div id="spellList" class="spell-list"></div>
+    </div>
+
+    <div class="tab-content panel tab-panel" data-tab="lostmagic">
+      <div class="section-title">Lost Magic &amp; Special Abilities</div>
+      <div class="small-note" style="margin-bottom:1rem">DM-granted only. These appear here when your DM assigns them via the DM panel.</div>
+      <div id="lostMagicList" class="spell-list"></div>
+    </div>
+
+    <div class="tab-content panel tab-panel" data-tab="loadout">
+      <div class="loadout-grid">
+        <div><div class="section-title">Weapons &amp; Equipment</div><textarea id="weaponsText" placeholder="Weapons, armour, enchanted items…"></textarea></div>
+        <div><div class="section-title">Abilities &amp; Feats</div><textarea id="abilitiesText" placeholder="Non-magic abilities, feats, passive skills…"></textarea></div>
+        <div><div class="section-title">Inventory</div><textarea id="inventoryText" placeholder="Everything you're carrying…"></textarea></div>
+      </div>
+    </div>
+
+    <div class="tab-content panel tab-panel" data-tab="notes">
+      <div class="section-title">Session Notes</div>
+      <textarea id="notesText" placeholder="Notes, quest hooks, important names…"></textarea>
+    </div>
+  </main>
+</div>
+
+<!-- DM OVERLAY -->
+<div id="dmOverlay" class="dm-overlay hidden">
+  <div class="dm-overlay-inner">
+    <div id="dmLoginPanel" class="dm-login panel">
+      <div class="section-title">DM Access</div>
+      <p style="color:rgba(255,200,80,.3);margin-bottom:1rem">Enter password to manage characters and spells.</p>
+      <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••"></div>
+      <div class="dm-overlay-actions" style="margin-top:1rem">
+        <button id="dmLoginBtn" type="button" class="neo-btn">Unlock</button>
+        <button id="dmCloseBtn" type="button" class="neo-btn ghost">Cancel</button>
+      </div>
+    </div>
+    <div id="dmFullscreenPanel" class="dm-fullscreen panel hidden">
+      <div class="dm-fullscreen-top">
+        <div><div class="micro">DM PANEL — FAIRY TAIL</div><div class="top-character-name" id="dmSelectedCharacterName">—</div></div>
+        <div class="dm-overlay-actions">
+          <button id="dmLogoutBtn" type="button" class="neo-btn ghost">Lock</button>
+          <button id="dmCloseFullBtn" type="button" class="neo-btn ghost">Close</button>
+        </div>
+      </div>
+      <div class="dm-sections">
+        <details class="collapse-block" open>
+          <summary class="collapse-summary">Site Theme</summary>
+          <div class="collapse-body">
+            <div class="form-grid">
+              <div class="field"><label>Background</label><input id="themeBgColor" type="color"></div>
+              <div class="field"><label>Panel</label><input id="themePanelColor" type="color"></div>
+              <div class="field"><label>Accent</label><input id="themeAccentColor" type="color"></div>
+              <div class="field"><label>Accent 2</label><input id="themeAccentTwoColor" type="color"></div>
+              <div class="field"><label>Mana Color</label><input id="themeManaColor" type="color"></div>
+              <div class="field"><label>Text</label><input id="themeTextColor" type="color"></div>
+            </div>
+            <div class="dm-tech-actions">
+              <button id="saveThemeBtn" type="button" class="neo-btn">Save Theme</button>
+              <button id="resetThemeBtn" type="button" class="neo-btn ghost">Reset</button>
+            </div>
+          </div>
+        </details>
+        <details class="collapse-block" open>
+          <summary class="collapse-summary">Character State</summary>
+          <div class="collapse-body">
+            <div class="unlock-grid">
+              <label><input id="stateActive"  type="radio" name="charState" value="active">  Active</label>
+              <label><input id="stateReserve" type="radio" name="charState" value="reserve"> Reserve</label>
+              <label><input id="stateDead"    type="radio" name="charState" value="dead">    Dead</label>
+            </div>
+            <div class="dm-tech-actions">
+              <button id="saveCharacterStateBtn" type="button" class="neo-btn">Save State</button>
+              <button id="deleteCharacterBtn"    type="button" class="neo-btn ghost">Delete Character</button>
+            </div>
+          </div>
+        </details>
+        <details class="collapse-block" open>
+          <summary class="collapse-summary">Grant Lost Magic / Special Ability</summary>
+          <div class="collapse-body">
+            <div class="form-grid">
+              <div class="field"><label>Assign to Player</label><select id="dmLMTarget"></select></div>
+              <div class="field"><label>Name</label><input id="dmLMName" type="text" placeholder="e.g. Dragon Force"></div>
+              <div class="field"><label>Mana Cost</label><input id="dmLMCost" type="number" min="0" placeholder="0"></div>
+            </div>
+            <div class="field"><label>Description</label><textarea id="dmLMDescription" class="small-textarea" placeholder="What does this Lost Magic do?"></textarea></div>
+            <button id="addLostMagicBtn" type="button" class="neo-btn" style="margin-top:.75rem">Grant to Player</button>
+          </div>
+        </details>
+        <details class="collapse-block" open>
+          <summary class="collapse-summary">All Players' Lost Magic</summary>
+          <div class="collapse-body"><div id="dmLostMagicList" class="dm-tech-list"></div></div>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="ft.js"></script>
+</body>
+</html>

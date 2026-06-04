@@ -92,9 +92,9 @@ function skillTotal(c, skillName) {
 
 // Passive Perception = 10 + Perception total
 function passivePerception(c) {
-  const pb      = getEffectivePB(c);
-  const wisMod  = modFrom(c.stats.WIS);
-  const sk      = c.skills['Perception'] || {bonus:0};
+  const pb     = getEffectivePB(c);
+  const wisMod = mod(c.stats.WIS);
+  const sk     = c.skills['Perception'] || {bonus:0};
   return 10 + pb + wisMod + (Number(sk.bonus)||0);
 }
 

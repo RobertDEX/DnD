@@ -254,7 +254,14 @@ function setSyncDot(s) {
 function normalize(raw) {
   const m = structuredClone(DEF_STATE);
   Object.assign(m, raw || {});
+  // Always merge theme with defaults — old Firebase data may have rgba() strings not hex
   m.theme = {...DEF_THEME, ...(raw?.theme || {})};
+  // Ensure all theme values are hex strings
+  Object.keys(DEF_THEME).forEach(k => {
+    if (!m.theme[k] || typeof m.theme[k] !== 'string' || !m.theme[k].startsWith('#')) {
+      m.theme[k] = DEF_THEME[k];
+    }
+  });
   m.characters = (raw?.characters?.length ? raw.characters : DEF_STATE.characters).map((c,i) => {
     const b = blankChar(i);
     const mc = {...b, ...c};
@@ -301,7 +308,11 @@ function ensureClamp(c) {
 }
 
 function hexRgba(hex, a=1) {
-  const cl=hex.replace('#',''); const r=parseInt(cl.slice(0,2),16),g=parseInt(cl.slice(2,4),16),b=parseInt(cl.slice(4,6),16);
+  if (!hex || typeof hex !== 'string') return `rgba(0,0,0,${a})`;
+  const cl = hex.replace('#','');
+  if (cl.length < 6) return `rgba(0,0,0,${a})`;
+  const r=parseInt(cl.slice(0,2),16), g=parseInt(cl.slice(2,4),16), b=parseInt(cl.slice(4,6),16);
+  if (isNaN(r)||isNaN(g)||isNaN(b)) return `rgba(0,0,0,${a})`;
   return `rgba(${r},${g},${b},${a})`;
 }
 function stageLocked(k,c) { return k !== 'base' && !c.semblance.unlocked[k]; }
@@ -315,18 +326,20 @@ function getEffectivePB(c) {
 // THEME
 // ================================================================
 function applyTheme() {
-  const t = state.theme || DEF_THEME;
-  const r = document.documentElement;
-  r.style.setProperty('--accent',   t.accent);
-  r.style.setProperty('--accent2',  t.accentTwo);
-  r.style.setProperty('--aura',     t.aura);
-  r.style.setProperty('--text',     t.text);
-  r.style.setProperty('--panel',    hexRgba(t.panel, .97));
-  r.style.setProperty('--line-hi',  hexRgba(t.accent, .5));
-  document.body.style.background = `
-    radial-gradient(ellipse at 0% 0%,   ${hexRgba(t.accent,.18)} 0%, transparent 40%),
-    radial-gradient(ellipse at 100% 100%,${hexRgba(t.accentTwo,.15)} 0%, transparent 40%),
-    linear-gradient(180deg, #000 0%, ${t.bg} 50%, ${t.accentTwo} 100%)`;
+  try {
+    const t = {...DEF_THEME, ...(state.theme || {})};
+    const r = document.documentElement;
+    r.style.setProperty('--accent',   t.accent   || DEF_THEME.accent);
+    r.style.setProperty('--accent2',  t.accentTwo|| DEF_THEME.accentTwo);
+    r.style.setProperty('--aura',     t.aura     || DEF_THEME.aura);
+    r.style.setProperty('--text',     t.text     || DEF_THEME.text);
+    r.style.setProperty('--panel',    hexRgba(t.panel || DEF_THEME.panel, .97));
+    r.style.setProperty('--line-hi',  hexRgba(t.accent|| DEF_THEME.accent, .5));
+    document.body.style.background = `
+      radial-gradient(ellipse at 0% 0%,   ${hexRgba(t.accent,.18)} 0%, transparent 40%),
+      radial-gradient(ellipse at 100% 100%,${hexRgba(t.accentTwo,.15)} 0%, transparent 40%),
+      linear-gradient(180deg, #000 0%, ${t.bg} 50%, ${t.accentTwo} 100%)`;
+  } catch(e) { console.warn('applyTheme error:', e); }
 }
 function renderThemeFields() {
   const t = state.theme || DEF_THEME;
@@ -777,13 +790,22 @@ function renderTabs() {
 // MASTER RENDER
 // ================================================================
 function render() {
-  applyTheme();
+  try { applyTheme(); } catch(e) { console.error('applyTheme:', e); }
   const c = getChar(); ensureClamp(c);
-  renderCharacterTabs(); renderHeader(); renderMainFields();
-  renderCalcPanel(); renderStats(); renderSkillsMatrix();
-  renderSemblance(); renderTechniques(); renderDust();
-  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect();
-  renderThemeFields(); renderTabs();
+  try { renderCharacterTabs(); } catch(e) { console.error('renderCharacterTabs:', e); }
+  try { renderHeader(); }        catch(e) { console.error('renderHeader:', e); }
+  try { renderMainFields(); }    catch(e) { console.error('renderMainFields:', e); }
+  try { renderCalcPanel(); }     catch(e) { console.error('renderCalcPanel:', e); }
+  try { renderStats(); }         catch(e) { console.error('renderStats:', e); }
+  try { renderSkillsMatrix(); }  catch(e) { console.error('renderSkillsMatrix:', e); }
+  try { renderSemblance(); }     catch(e) { console.error('renderSemblance:', e); }
+  try { renderTechniques(); }    catch(e) { console.error('renderTechniques:', e); }
+  try { renderDust(); }          catch(e) { console.error('renderDust:', e); }
+  try { renderDmSemblance(); }   catch(e) { console.error('renderDmSemblance:', e); }
+  try { renderDmTechniques(); }  catch(e) { console.error('renderDmTechniques:', e); }
+  try { renderDmTargetSelect(); }catch(e) { console.error('renderDmTargetSelect:', e); }
+  try { renderThemeFields(); }   catch(e) { console.error('renderThemeFields:', e); }
+  try { renderTabs(); }          catch(e) { console.error('renderTabs:', e); }
 }
 
 // ================================================================

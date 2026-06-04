@@ -192,6 +192,9 @@ function setSyncDot(s){
 function normalize(raw){
   const m=structuredClone(DEF_STATE);Object.assign(m,raw||{});
   m.theme={...DEF_THEME,...(raw?.theme||{})};
+  Object.keys(DEF_THEME).forEach(k=>{
+    if(!m.theme[k]||typeof m.theme[k]!=='string'||!m.theme[k].startsWith('#'))m.theme[k]=DEF_THEME[k];
+  });
   m.characters=(raw?.characters?.length?raw.characters:DEF_STATE.characters).map((c,i)=>{
     const b=blankChar(i);const mc={...b,...c};
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
@@ -217,18 +220,31 @@ function ensureClamp(c){
   c.hp.current=clamp(Number(c.hp.current)||0,0,c.hp.max);
   c.mana.current=clamp(Number(c.mana.current)||0,0,c.mana.max);
 }
-function hexRgba(hex,a=1){const cl=hex.replace('#','');const r=parseInt(cl.slice(0,2),16),g=parseInt(cl.slice(2,4),16),b=parseInt(cl.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}
+function hexRgba(hex,a=1){
+  if(!hex||typeof hex!=='string')return `rgba(0,0,0,${a})`;
+  const cl=hex.replace('#','');
+  if(cl.length<6)return `rgba(0,0,0,${a})`;
+  const r=parseInt(cl.slice(0,2),16),g=parseInt(cl.slice(2,4),16),b=parseInt(cl.slice(4,6),16);
+  if(isNaN(r)||isNaN(g)||isNaN(b))return `rgba(0,0,0,${a})`;
+  return `rgba(${r},${g},${b},${a})`;
+}
 const el=id=>document.getElementById(id);
 
 // ================================================================
 // THEME
 // ================================================================
 function applyTheme(){
-  const t=state.theme||DEF_THEME;const root=document.documentElement;
-  root.style.setProperty('--accent',t.accent);root.style.setProperty('--accent2',t.accentTwo);
-  root.style.setProperty('--mana',t.mana);root.style.setProperty('--text',t.text);
-  root.style.setProperty('--panel',hexRgba(t.panel,.97));root.style.setProperty('--line-hi',hexRgba(t.accent,.5));
-  document.body.style.background=`radial-gradient(ellipse at 30% 10%,${hexRgba(t.accent,.18)} 0%,transparent 38%),radial-gradient(ellipse at 80% 80%,${hexRgba(t.mana,.12)} 0%,transparent 38%),linear-gradient(180deg,${t.bg} 0%,${t.bg} 50%,${t.accentTwo} 100%)`;
+  try{
+    const t={...DEF_THEME,...(state.theme||{})};
+    const root=document.documentElement;
+    root.style.setProperty('--accent',  t.accent   ||DEF_THEME.accent);
+    root.style.setProperty('--accent2', t.accentTwo||DEF_THEME.accentTwo);
+    root.style.setProperty('--mana',    t.mana     ||DEF_THEME.mana);
+    root.style.setProperty('--text',    t.text     ||DEF_THEME.text);
+    root.style.setProperty('--panel',   hexRgba(t.panel||DEF_THEME.panel,.97));
+    root.style.setProperty('--line-hi', hexRgba(t.accent||DEF_THEME.accent,.5));
+    document.body.style.background=`radial-gradient(ellipse at 30% 10%,${hexRgba(t.accent,.18)} 0%,transparent 38%),radial-gradient(ellipse at 80% 80%,${hexRgba(t.mana,.12)} 0%,transparent 38%),linear-gradient(180deg,${t.bg} 0%,${t.bg} 50%,${t.accentTwo} 100%)`;
+  }catch(e){console.warn('applyTheme:',e);}
 }
 function renderThemeFields(){
   const t=state.theme||DEF_THEME;
@@ -579,11 +595,21 @@ function renderTabs(){
 // MASTER RENDER
 // ================================================================
 function render(){
-  applyTheme();const c=getChar();ensureClamp(c);
-  renderCharacterTabs();renderHeader();renderMainFields();renderMagicBanner();
-  renderCalcPanel();renderStats();renderSkillsMatrix();
-  renderSpells();renderLostMagic();renderDmLostMagic();renderDmTargetSelect();
-  renderThemeFields();renderTabs();
+  try{applyTheme();}catch(e){console.error('applyTheme:',e);}
+  const c=getChar();ensureClamp(c);
+  try{renderCharacterTabs();}catch(e){console.error('renderCharacterTabs:',e);}
+  try{renderHeader();}       catch(e){console.error('renderHeader:',e);}
+  try{renderMainFields();}   catch(e){console.error('renderMainFields:',e);}
+  try{renderMagicBanner();}  catch(e){console.error('renderMagicBanner:',e);}
+  try{renderCalcPanel();}    catch(e){console.error('renderCalcPanel:',e);}
+  try{renderStats();}        catch(e){console.error('renderStats:',e);}
+  try{renderSkillsMatrix();} catch(e){console.error('renderSkillsMatrix:',e);}
+  try{renderSpells();}       catch(e){console.error('renderSpells:',e);}
+  try{renderLostMagic();}    catch(e){console.error('renderLostMagic:',e);}
+  try{renderDmLostMagic();}  catch(e){console.error('renderDmLostMagic:',e);}
+  try{renderDmTargetSelect();}catch(e){console.error('renderDmTargetSelect:',e);}
+  try{renderThemeFields();}  catch(e){console.error('renderThemeFields:',e);}
+  try{renderTabs();}         catch(e){console.error('renderTabs:',e);}
 }
 
 // ================================================================

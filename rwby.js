@@ -124,16 +124,17 @@ window.calcUncanny = () => {
   if (!res) return;
   if (!dmg || dmg <= 0) { res.innerHTML = '<div class="result-cost">— AP</div><div class="result-half">halved: —</div>'; return; }
   const r = calcUD(dmg);
-  res.innerHTML = `<div class="result-cost">${r.apCost} AP</div><div class="result-half">halved: ${r.halved} dmg</div>`;
+  const total = r.apCost + r.halved;
+  res.innerHTML = `<div class="result-cost">${total} AP</div><div class="result-half">${r.apCost} cost + ${r.halved} dmg</div>`;
 };
 window.useUncanny = () => {
   const dmg = parseInt(document.getElementById('uncannyDmg')?.value);
   if (!dmg || dmg <= 0) { alert('Enter incoming damage first.'); return; }
   const r = calcUD(dmg);
   const c = getChar();
-  if (c.aura.current < r.apCost) { alert(`Not enough Aura! Need ${r.apCost} AP, have ${c.aura.current}.`); return; }
-  c.aura.current -= r.apCost;
-  c.hp.current    = Math.max(0, c.hp.current - r.halved);
+  const totalAuraCost = r.apCost + r.halved;
+  if (c.aura.current < totalAuraCost) { alert(`Not enough Aura! Need ${totalAuraCost} AP (${r.apCost} cost + ${r.halved} halved damage), have ${c.aura.current}.`); return; }
+  c.aura.current -= totalAuraCost;
   ensureClamp(c); pushState(); render();
   document.getElementById('uncannyDmg').value = '';
   window.calcUncanny();

@@ -5,7 +5,7 @@
 // Firebase Firestore sync — no import/export needed
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -256,17 +256,21 @@ function loadLocal() {
 }
 function saveLocal() { try { localStorage.setItem(LOC_KEY, JSON.stringify(state)); } catch {} }
 
-// Push ONLY the current player's character to Firestore
+// Push ONLY the current player's character to Firestore (debounced — waits 800ms after last change)
+let _pushTimer = null;
 async function pushState() {
   saveLocal();
-  const myId = getMyCharId();
-  const mine = state.characters.find(c => c.id === myId);
-  if (!mine) return;
-  setSyncDot('syncing');
-  try {
-    await setDoc(doc(db, CHARS_COLL, myId), { data: JSON.stringify(mine), updated: Date.now() });
-    setSyncDot('synced');
-  } catch(e) { console.error(e); setSyncDot('error'); }
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(async () => {
+    const myId = getMyCharId();
+    const mine = state.characters.find(c => c.id === myId);
+    if (!mine) return;
+    setSyncDot('syncing');
+    try {
+      await setDoc(doc(db, CHARS_COLL, myId), { data: JSON.stringify(mine), updated: Date.now() });
+      setSyncDot('synced');
+    } catch(e) { console.error(e); setSyncDot('error'); }
+  }, 800);
 }
 
 // Push theme separately (DM only)
@@ -278,14 +282,19 @@ async function pushTheme() {
 
 // Listen to a single character doc
 function listenToChar(charId) {
-  if (_charUnsubs[charId]) return; // already listening
+  if (_charUnsubs[charId]) return;
+  const myId = getMyCharId();
   _charUnsubs[charId] = onSnapshot(doc(db, CHARS_COLL, charId), snap => {
     if (!snap.exists()) return;
+    // Skip snapshots for OUR OWN character — we already have live local data.
+    // Firebase echoes our own pushes back; processing them would reset our UI mid-typing.
+    if (charId === myId) { setSyncDot('synced'); return; }
     try {
       const fresh = JSON.parse(snap.data().data);
       const idx   = state.characters.findIndex(c => c.id === charId);
       const blank = blankChar(0);
-      const merged = { ...blank, ...fresh,
+      const merged = {
+        ...blank, ...fresh,
         stats:    {...blank.stats,    ...(fresh.stats    || {})},
         hp:       {...blank.hp,       ...(fresh.hp       || {})},
         aura:     {...blank.aura,     ...(fresh.aura     || {})},
@@ -309,7 +318,15 @@ function listenToChar(charId) {
       };
       if (idx >= 0) state.characters[idx] = merged;
       else          state.characters.push(merged);
-      saveLocal(); render(); setSyncDot('synced');
+      saveLocal();
+      // Only refresh the parts that show OTHER players' data — sidebar tabs, topbar.
+      // Never do a full render() which would disrupt the local player's inputs/scroll/focus.
+      try { renderCharacterTabs(); } catch(e) {}
+      if (state.selectedCharacter === idx) {
+        // The player has this other character selected (viewing mode) — refresh their view
+        try { renderHeader(); } catch(e) {}
+      }
+      setSyncDot('synced');
     } catch(e) { console.error('Snapshot parse error', e); }
   }, e => { console.error(e); setSyncDot('error'); });
 }
@@ -1090,8 +1107,50 @@ function bindAll() {
 }
 
 // ================================================================
-// INIT
+// INIT — migrate old single-doc data then start listeners
 // ================================================================
-bindAll();
-render();
-startListeners();
+async function init() {
+  bindAll();
+  render();
+
+  // Check if any per-character docs already exist
+  // by attempting to load the first known character's doc.
+  // If nothing exists yet, migrate from the old campaigns/rwby-campaign doc.
+  const myId = getMyCharId();
+  const myDocSnap = await getDoc(doc(db, CHARS_COLL, myId)).catch(() => null);
+
+  if (!myDocSnap || !myDocSnap.exists()) {
+    // Try migrating from old doc
+    const oldSnap = await getDoc(doc(db, 'campaigns', 'rwby-campaign')).catch(() => null);
+    if (oldSnap && oldSnap.exists()) {
+      try {
+        const oldState = JSON.parse(oldSnap.data().data);
+        const oldChars = oldState?.characters;
+        if (Array.isArray(oldChars) && oldChars.length) {
+          console.log('Migrating', oldChars.length, 'characters from old doc…');
+          // Write each character to its own doc
+          for (const c of oldChars) {
+            if (c && c.id) {
+              await setDoc(doc(db, CHARS_COLL, c.id), { data: JSON.stringify(c), updated: Date.now() });
+            }
+          }
+          // Update local state with migrated characters
+          state.characters = oldChars;
+          // Claim the first named character as ours if we don't already have one
+          const firstNamed = oldChars.find(c => c.name);
+          if (firstNamed) localStorage.setItem('rwby-my-char-id', firstNamed.id);
+          saveLocal();
+          render();
+        }
+        // Migrate theme too
+        if (oldState?.theme) {
+          await setDoc(doc(db, META_DOC, 'theme'), { data: JSON.stringify(oldState.theme), updated: Date.now() });
+        }
+      } catch(e) { console.error('Migration error:', e); }
+    }
+  }
+
+  startListeners();
+}
+
+init();

@@ -88,7 +88,12 @@ function skillTotal(c, skillName) {
   return total;
 }
 
-function passivePerception(c) { return 10 + skillTotal(c,'Perception'); }
+function passivePerception(c) {
+  const pb     = getEffectivePB(c);
+  const wisMod = mod(c.stats.WIS);
+  const sk     = c.skills['Perception'] || {bonus:0};
+  return 10 + pb + wisMod + (Number(sk.bonus)||0);
+}
 function calcInitiative(c)    { return mod(c.stats.DEX) + Number(c.initiativeBonus||0); }
 
 function getMagicCat(c) { return MAGIC_CATS[c.magicCategory||''] || null; }

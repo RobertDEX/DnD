@@ -91,7 +91,12 @@ function skillTotal(c, skillName) {
 }
 
 // Passive Perception = 10 + Perception total
-function passivePerception(c) { return 10 + skillTotal(c, 'Perception'); }
+function passivePerception(c) {
+  const pb      = getEffectivePB(c);
+  const wisMod  = modFrom(c.stats.WIS);
+  const sk      = c.skills['Perception'] || {bonus:0};
+  return 10 + pb + wisMod + (Number(sk.bonus)||0);
+}
 
 // Initiative = DEX mod + any manual bonus stored in c.initiativeBonus
 function calcInitiative(c) { return mod(c.stats.DEX) + Number(c.initiativeBonus || 0); }

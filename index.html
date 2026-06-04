@@ -127,7 +127,7 @@ html,body{height:100%;overflow:hidden}
 /* Broken/cracked circle behind title */
 .rwby-emblem{
   position:relative;
-  width:120px;height:120px;
+  width:110px;height:110px;
   display:flex;align-items:center;justify-content:center;
 }
 .rwby-emblem-ring{
@@ -150,6 +150,17 @@ html,body{height:100%;overflow:hidden}
   font-size:3.2rem;line-height:1;
   filter:drop-shadow(0 0 12px rgba(200,0,10,.6)) drop-shadow(0 0 30px rgba(200,0,10,.25));
   position:relative;z-index:1;
+}
+.rwby-logo-img{
+  width:96px;height:96px;
+  object-fit:contain;
+  position:relative;z-index:1;
+  filter:drop-shadow(0 0 14px rgba(200,0,10,.8)) drop-shadow(0 0 36px rgba(200,0,10,.4));
+  transition:filter .3s, transform .3s;
+}
+.half-rwby:hover .rwby-logo-img{
+  filter:drop-shadow(0 0 20px rgba(255,30,30,.9)) drop-shadow(0 0 50px rgba(200,0,10,.5));
+  transform:scale(1.06);
 }
 
 .rwby-tag{
@@ -257,7 +268,7 @@ html,body{height:100%;overflow:hidden}
 /* Guild crest emblem */
 .ft-emblem{
   position:relative;
-  width:120px;height:120px;
+  width:110px;height:120px;
   display:flex;align-items:center;justify-content:center;
 }
 .ft-emblem-ring{
@@ -289,6 +300,17 @@ html,body{height:100%;overflow:hidden}
   filter:drop-shadow(0 0 12px rgba(220,170,50,.7)) drop-shadow(0 0 30px rgba(220,170,50,.3));
   position:relative;z-index:1;
   animation:ft-symbol-bounce 3s ease-in-out infinite;
+}
+.ft-logo-img{
+  width:96px;height:80px;
+  object-fit:contain;
+  position:relative;z-index:1;
+  filter:drop-shadow(0 0 14px rgba(220,30,30,.8)) drop-shadow(0 0 36px rgba(180,0,0,.4));
+  animation:ft-symbol-bounce 3s ease-in-out infinite;
+  transition:filter .3s, transform .3s;
+}
+.half-ft:hover .ft-logo-img{
+  filter:drop-shadow(0 0 20px rgba(255,50,30,.9)) drop-shadow(0 0 50px rgba(200,0,0,.5));
 }
 @keyframes ft-symbol-bounce{
   0%,100%{transform:translateY(0)}
@@ -373,7 +395,7 @@ html,body{height:100%;overflow:hidden}
     <div class="rwby-content">
       <div class="rwby-emblem">
         <div class="rwby-emblem-ring"></div>
-        <span class="rwby-symbol">⚔️</span>
+        <img class="rwby-logo-img" src="Rose_Symbole.png" alt="Ruby Rose Emblem">
       </div>
       <div class="rwby-tag">Campaign One</div>
       <h2 class="rwby-title"><span>RWBY DnD</span></h2>
@@ -397,7 +419,7 @@ html,body{height:100%;overflow:hidden}
     <div class="ft-content">
       <div class="ft-emblem">
         <div class="ft-emblem-ring"></div>
-        <span class="ft-symbol">🐉</span>
+        <img class="ft-logo-img" src="FairyTail-Symbol.png" alt="Fairy Tail Guild Mark">
       </div>
       <div class="ft-tag">Campaign Two</div>
       <h2 class="ft-title"><span>Fairy Tail DnD</span></h2>

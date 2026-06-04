@@ -259,9 +259,46 @@ function renderMagicBanner(){
 function renderCalcPanel(){
   const c=getChar();const pb=getEffectivePB(c);const ini=calcInitiative(c);
   const sm=spellMod(c);const atk=spellAtkBonus(c);const dc=spellSaveDC(c);const pp=passivePerception(c);
-  const cat=getMagicCat(c);const manaStatLabel=cat?cat.stat:'INT';
+  const cat=getMagicCat(c);const manaStatLabel=cat?cat.stat:'?';
   const panel=el('calcPanel');if(!panel)return;
+
+  // Magic type info
+  const catKey=c.magicCategory||'';
+  const isSense=catKey.startsWith('sense');
+  const isPower=catKey.startsWith('power');
+  const isAgility=catKey==='agility';
+  const magicName=c.magicType?`<strong style="color:var(--gold)">${esc(c.magicType)}</strong>`:'<em style="color:var(--muted)">No magic type set</em>';
+
+  let typeTag='', typeBonusHtml='', manaRoll='1d10';
+  if(isSense){
+    typeTag=`<span class="calc-type-badge sense">Sense · ${manaStatLabel}</span>`;
+    typeBonusHtml=`<div class="magic-rule-line">✦ Roll <strong>1d10</strong> for your mana pool (instead of 1d8)</div><div class="magic-rule-line">✦ Spell checks use <strong>${manaStatLabel}</strong> modifier</div>`;
+    manaRoll='1d10';
+  } else if(isPower){
+    typeTag=`<span class="calc-type-badge power">Power · ${manaStatLabel}</span>`;
+    typeBonusHtml=`<div class="magic-rule-line">✦ Roll <strong>1d10</strong> Hit Dice instead of 1d8</div><div class="magic-rule-line">✦ You gain <strong>Unarmed Strike</strong></div><div class="magic-rule-line">✦ Spell checks use <strong>${manaStatLabel}</strong> modifier</div>`;
+    manaRoll='1d10';
+  } else if(isAgility){
+    typeTag=`<span class="calc-type-badge agility">Agility · DEX</span>`;
+    typeBonusHtml=`<div class="magic-rule-line">✦ On Attack action: Speed <strong>+10 ft</strong> until end of turn</div><div class="magic-rule-line">✦ Opportunity Attacks have <strong>Disadvantage</strong> against you</div><div class="magic-rule-line">✦ Spell checks use <strong>DEX</strong> modifier</div>`;
+    manaRoll='1d8';
+  } else {
+    typeTag=`<span class="calc-type-badge none">No Category Set</span>`;
+    typeBonusHtml=`<div class="magic-rule-line" style="color:var(--muted)">Select a Magic Category in the Character File to see bonuses.</div>`;
+  }
+
+  // Spell budget based on level
+  const lv=Number(c.level)||1;
+  // Base: basic application + 2 spells + 1 passive = 3 spell slots + passives
+  // Each evolution (every 4 levels) = +2 spells +1 passive
+  const evolutions=Math.floor((lv-1)/4); // 0 at lv1-4, 1 at lv5-8, etc.
+  const totalSpells=2+evolutions*2; // base 2 active spells
+  const totalPassives=1+evolutions;  // base 1 passive
+  const spellsUsed=c.spells.filter(s=>s.type!=='Passive').length;
+  const passivesUsed=c.spells.filter(s=>s.type==='Passive').length;
+
   panel.innerHTML=`
+    <!-- CORE CALC NUMBERS -->
     <div class="calc-row">
       <div class="calc-item"><div class="calc-label">Prof Bonus</div><div class="calc-value accent">${fmtMod(pb)}</div><div class="calc-sub">Lv ${c.level}</div></div>
       <div class="calc-item"><div class="calc-label">Initiative</div><div class="calc-value">${fmtMod(ini)}</div><div class="calc-sub">DEX${c.initiativeBonus?` +${c.initiativeBonus}`:''}</div></div>
@@ -270,20 +307,62 @@ function renderCalcPanel(){
       <div class="calc-item"><div class="calc-label">Spell Save DC</div><div class="calc-value accent">${dc}</div><div class="calc-sub">8+Mod+Prof</div></div>
       <div class="calc-item"><div class="calc-label">Passive Perc.</div><div class="calc-value">${pp}</div><div class="calc-sub">10+Perception</div></div>
     </div>
-    <div class="calc-settings">
+
+    <!-- OVERRIDE INPUTS -->
+    <div class="calc-settings" style="margin-bottom:1.1rem">
       <div class="field">
         <label>Initiative Bonus</label>
         <input type="number" id="initBonusInp" value="${c.initiativeBonus||0}" placeholder="0">
       </div>
       <div class="field">
-        <label>Prof Override <span style="color:var(--muted);font-size:.7rem">(blank = auto)</span></label>
+        <label>Prof Override <span style="color:var(--muted);font-size:.68rem">(blank = auto)</span></label>
         <input type="number" id="pbOverrideInp" value="${c.profBonusOverride??''}" placeholder="auto">
       </div>
       <div class="field">
-        <label>Spell Atk Bonus (calc)</label>
-        <input type="text" id="spellAtkBonusDisp" value="${fmtMod(atk)}" readonly>
+        <label>Mana Roll Die</label>
+        <input type="text" value="${cat?manaRoll:'—'}" readonly style="text-align:center;color:var(--mana);font-family:var(--F4)">
+      </div>
+    </div>
+
+    <!-- MAGIC INFO BLOCK -->
+    <div class="magic-info-block">
+      <div class="magic-info-header">
+        <div class="magic-info-name">${magicName}</div>
+        ${typeTag}
+      </div>
+
+      <div class="magic-rules-list">
+        ${typeBonusHtml}
+      </div>
+
+      <div class="magic-restrictions">
+        <div class="magic-rule-line warn">⚠ Ancient / Lost Magic not allowed as starting magic.</div>
+      </div>
+
+      <div class="magic-spell-budget">
+        <div class="budget-title">Spell Budget — Level ${lv}</div>
+        <div class="budget-row">
+          <div class="budget-item">
+            <div class="budget-label">Active Spells</div>
+            <div class="budget-value ${spellsUsed>totalSpells?'over':''}">${spellsUsed} / ${totalSpells}</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-label">Passives</div>
+            <div class="budget-value ${passivesUsed>totalPassives?'over':''}">${passivesUsed} / ${totalPassives}</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-label">Evolutions</div>
+            <div class="budget-value">${evolutions}</div>
+          </div>
+          <div class="budget-item">
+            <div class="budget-label">Next Evo At</div>
+            <div class="budget-value">${evolutions>=0?`Lv ${(evolutions+1)*4+1}`:'—'}</div>
+          </div>
+        </div>
+        <div class="budget-note">Base: basic application + 2 spells + 1 passive. Each evolution: +2 spells, +1 passive.</div>
       </div>
     </div>`;
+
   el('initBonusInp')?.addEventListener('input',e=>{c.initiativeBonus=Number(e.target.value)||0;pushState();renderCalcPanel();});
   el('pbOverrideInp')?.addEventListener('input',e=>{const v=e.target.value.trim();c.profBonusOverride=v===''?null:Number(v)||null;pushState();renderCalcPanel();renderSkillsMatrix();});
 }

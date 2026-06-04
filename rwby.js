@@ -217,11 +217,38 @@ const DEF_STATE = {
 };
 
 // ================================================================
-// STATE
+// PER-CHARACTER SYNC ARCHITECTURE
+// ─────────────────────────────────────────────────────────────────
+// • Each character = its own Firestore doc at  rwby-chars/{charId}
+// • Each browser claims one character via localStorage 'rwby-my-char-id'
+// • All browsers listen to ALL character docs → full live roster
+// • Theme is a separate shared doc: rwby-meta/theme
+// • dmUnlocked lives in sessionStorage only — NEVER syncs to Firestore
 // ================================================================
+
+const CHARS_COLL = 'rwby-chars';   // collection
+const META_DOC   = 'rwby-meta';    // doc for shared theme
+
 let state      = loadLocal();
-let dmUnlocked = false;
-let _unsub     = null;
+let _charUnsubs = {};  // charId → unsubscribe fn
+let _metaUnsub  = null;
+
+// DM unlock is purely session-local — never touches Firestore
+let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
+
+// The character this browser "owns" and can edit
+function getMyCharId() {
+  let id = localStorage.getItem('rwby-my-char-id');
+  if (!id) {
+    // Claim the first active character slot that has no name yet, or make a new one
+    const unclaimed = state.characters.find(c => !c.name);
+    id = unclaimed ? unclaimed.id : blankChar(state.characters.length).id;
+    localStorage.setItem('rwby-my-char-id', id);
+  }
+  return id;
+}
+
+function isMine(c) { return c.id === getMyCharId(); }
 
 function loadLocal() {
   try { const r = localStorage.getItem(LOC_KEY); return r ? normalize(JSON.parse(r)) : structuredClone(DEF_STATE); }
@@ -229,27 +256,88 @@ function loadLocal() {
 }
 function saveLocal() { try { localStorage.setItem(LOC_KEY, JSON.stringify(state)); } catch {} }
 
+// Push ONLY the current player's character to Firestore
 async function pushState() {
-  saveLocal(); setSyncDot('syncing');
+  saveLocal();
+  const myId = getMyCharId();
+  const mine = state.characters.find(c => c.id === myId);
+  if (!mine) return;
+  setSyncDot('syncing');
   try {
-    await setDoc(doc(db, 'campaigns', DOC), {data: JSON.stringify(state), updated: Date.now()});
+    await setDoc(doc(db, CHARS_COLL, myId), { data: JSON.stringify(mine), updated: Date.now() });
     setSyncDot('synced');
   } catch(e) { console.error(e); setSyncDot('error'); }
 }
 
-function startListener() {
-  if (_unsub) _unsub();
-  _unsub = onSnapshot(doc(db,'campaigns',DOC), snap => {
+// Push theme separately (DM only)
+async function pushTheme() {
+  try {
+    await setDoc(doc(db, META_DOC, 'theme'), { data: JSON.stringify(state.theme), updated: Date.now() });
+  } catch(e) { console.error(e); }
+}
+
+// Listen to a single character doc
+function listenToChar(charId) {
+  if (_charUnsubs[charId]) return; // already listening
+  _charUnsubs[charId] = onSnapshot(doc(db, CHARS_COLL, charId), snap => {
     if (!snap.exists()) return;
-    try { state = normalize(JSON.parse(snap.data().data)); saveLocal(); render(); setSyncDot('synced'); }
-    catch(e) { console.error(e); }
+    try {
+      const fresh = JSON.parse(snap.data().data);
+      const idx   = state.characters.findIndex(c => c.id === charId);
+      const blank = blankChar(0);
+      const merged = { ...blank, ...fresh,
+        stats:    {...blank.stats,    ...(fresh.stats    || {})},
+        hp:       {...blank.hp,       ...(fresh.hp       || {})},
+        aura:     {...blank.aura,     ...(fresh.aura     || {})},
+        dustInventory: {...blank.dustInventory, ...(fresh.dustInventory || {})},
+        dustSpells:  Array.isArray(fresh.dustSpells)  ? fresh.dustSpells  : [],
+        techniques:  Array.isArray(fresh.techniques)  ? fresh.techniques  : [],
+        skills: (() => {
+          const bsk = makeBlankSkills();
+          Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(fresh.skills?.[n] || {})}; });
+          return bsk;
+        })(),
+        semblance: {
+          ...blank.semblance, ...(fresh.semblance || {}),
+          base:     {...blank.semblance.base,     ...(fresh.semblance?.base     || {})},
+          first:    {...blank.semblance.first,    ...(fresh.semblance?.first    || {})},
+          second:   {...blank.semblance.second,   ...(fresh.semblance?.second   || {})},
+          third:    {...blank.semblance.third,    ...(fresh.semblance?.third    || {})},
+          ascended: {...blank.semblance.ascended, ...(fresh.semblance?.ascended || {})},
+          unlocked: {...blank.semblance.unlocked, ...(fresh.semblance?.unlocked || {})}
+        }
+      };
+      if (idx >= 0) state.characters[idx] = merged;
+      else          state.characters.push(merged);
+      saveLocal(); render(); setSyncDot('synced');
+    } catch(e) { console.error('Snapshot parse error', e); }
   }, e => { console.error(e); setSyncDot('error'); });
+}
+
+// Start listening to all known characters + theme
+function startListeners() {
+  // Listen to every character we know about
+  state.characters.forEach(c => listenToChar(c.id));
+
+  // Listen for theme changes (pushed by DM)
+  if (_metaUnsub) _metaUnsub();
+  _metaUnsub = onSnapshot(doc(db, META_DOC, 'theme'), snap => {
+    if (!snap.exists()) return;
+    try {
+      const t = JSON.parse(snap.data().data);
+      state.theme = {...DEF_THEME, ...t};
+      Object.keys(DEF_THEME).forEach(k => {
+        if (!state.theme[k] || !state.theme[k].startsWith('#')) state.theme[k] = DEF_THEME[k];
+      });
+      saveLocal(); applyTheme(); renderThemeFields();
+    } catch(e) { console.error(e); }
+  }, e => console.error(e));
 }
 
 function setSyncDot(s) {
   const d = document.getElementById('syncDot'); if (!d) return;
   d.className = 'sync-dot ' + s;
-  d.title = {synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — data local only'}[s] || s;
+  d.title = {synced:'Synced ✓', syncing:'Syncing…', error:'Sync error — local only'}[s] || s;
 }
 
 function normalize(raw) {
@@ -901,10 +989,15 @@ function openDmOverlay() {
   }
 }
 function closeDmOverlay() { el('dmOverlay')?.classList.add('hidden'); }
-function lockDm()   { dmUnlocked=false; el('dmFullscreenPanel')?.classList.add('hidden'); el('dmLoginPanel')?.classList.remove('hidden'); }
+function lockDm()   {
+  dmUnlocked=false;
+  sessionStorage.removeItem('rwby-dm');
+  el('dmFullscreenPanel')?.classList.add('hidden'); el('dmLoginPanel')?.classList.remove('hidden');
+}
 function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
   dmUnlocked=true;
+  sessionStorage.setItem('rwby-dm','1');
   el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
 }
@@ -953,7 +1046,11 @@ function bindAll() {
 
   el('addCharacterBtn')?.addEventListener('click',()=>{
     const nc=blankChar(state.characters.length); nc.state='reserve';
-    state.characters.push(nc); state.selectedCharacter=state.characters.length-1; state.showReserve=true;
+    state.characters.push(nc);
+    // Claim this new character for THIS browser
+    localStorage.setItem('rwby-my-char-id', nc.id);
+    state.selectedCharacter=state.characters.length-1; state.showReserve=true;
+    listenToChar(nc.id); // start watching its doc
     pushState(); render();
   });
   el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(); render(); });
@@ -988,8 +1085,8 @@ function bindAll() {
     text: el('themeTextColor')?.value  || DEF_THEME.text,
   });
   themeInps.forEach(id=>{ el(id)?.addEventListener('input',()=>{ state.theme=readTheme(); applyTheme(); }); });
-  el('saveThemeBtn')?.addEventListener('click', ()=>{ state.theme=readTheme(); pushState(); render(); });
-  el('resetThemeBtn')?.addEventListener('click',()=>{ state.theme={...DEF_THEME}; pushState(); render(); });
+  el('saveThemeBtn')?.addEventListener('click', ()=>{ state.theme=readTheme(); pushTheme(); render(); });
+  el('resetThemeBtn')?.addEventListener('click',()=>{ state.theme={...DEF_THEME}; pushTheme(); render(); });
 }
 
 // ================================================================
@@ -997,4 +1094,4 @@ function bindAll() {
 // ================================================================
 bindAll();
 render();
-startListener();
+startListeners();

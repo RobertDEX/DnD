@@ -165,29 +165,78 @@ function blankChar(i) {
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
 
 // ================================================================
-// STATE
+// PER-CHARACTER SYNC — same architecture as RWBY
+// Each character = its own Firestore doc at ft-chars/{charId}
+// Each browser owns one character via localStorage 'ft-my-char-id'
+// DM unlock = sessionStorage only, never synced
+// Theme = separate shared doc ft-meta/theme
 // ================================================================
-let state=loadLocal(); let dmUnlocked=false; let _unsub=null;
+const CHARS_COLL = 'ft-chars';
+const META_DOC   = 'ft-meta';
+
+let state=loadLocal();
+let _charUnsubs={};
+let _metaUnsub=null;
+let dmUnlocked=sessionStorage.getItem('ft-dm')==='1';
+
+function getMyCharId(){
+  let id=localStorage.getItem('ft-my-char-id');
+  if(!id){const u=state.characters.find(c=>!c.name);id=u?u.id:blankChar(state.characters.length).id;localStorage.setItem('ft-my-char-id',id);}
+  return id;
+}
+function isMine(c){return c.id===getMyCharId();}
 
 function loadLocal(){try{const r=localStorage.getItem(LOC_KEY);return r?normalize(JSON.parse(r)):structuredClone(DEF_STATE);}catch{return structuredClone(DEF_STATE);}}
 function saveLocal(){try{localStorage.setItem(LOC_KEY,JSON.stringify(state));}catch{}}
+
 async function pushState(){
-  saveLocal();setSyncDot('syncing');
-  try{await setDoc(doc(db,'campaigns',DOC),{data:JSON.stringify(state),updated:Date.now()});setSyncDot('synced');}
+  saveLocal();const myId=getMyCharId();
+  const mine=state.characters.find(c=>c.id===myId);if(!mine)return;
+  setSyncDot('syncing');
+  try{await setDoc(doc(db,CHARS_COLL,myId),{data:JSON.stringify(mine),updated:Date.now()});setSyncDot('synced');}
   catch(e){console.error(e);setSyncDot('error');}
 }
-function startListener(){
-  if(_unsub)_unsub();
-  _unsub=onSnapshot(doc(db,'campaigns',DOC),snap=>{
+async function pushTheme(){
+  try{await setDoc(doc(db,META_DOC,'theme'),{data:JSON.stringify(state.theme),updated:Date.now()});}
+  catch(e){console.error(e);}
+}
+
+function listenToChar(charId){
+  if(_charUnsubs[charId])return;
+  _charUnsubs[charId]=onSnapshot(doc(db,CHARS_COLL,charId),snap=>{
     if(!snap.exists())return;
-    try{state=normalize(JSON.parse(snap.data().data));saveLocal();render();setSyncDot('synced');}
-    catch(e){console.error(e);}
+    try{
+      const fresh=JSON.parse(snap.data().data);
+      const idx=state.characters.findIndex(c=>c.id===charId);
+      const b=blankChar(0);
+      const merged={...b,...fresh,stats:{...b.stats,...(fresh.stats||{})},hp:{...b.hp,...(fresh.hp||{})},mana:{...b.mana,...(fresh.mana||{})},
+        spells:Array.isArray(fresh.spells)?fresh.spells:[],lostMagic:Array.isArray(fresh.lostMagic)?fresh.lostMagic:[],
+        skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(fresh.skills?.[n]||{})};});return bsk;})()
+      };
+      if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
+      saveLocal();render();setSyncDot('synced');
+    }catch(e){console.error('Snapshot parse error',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
+
+function startListeners(){
+  state.characters.forEach(c=>listenToChar(c.id));
+  if(_metaUnsub)_metaUnsub();
+  _metaUnsub=onSnapshot(doc(db,META_DOC,'theme'),snap=>{
+    if(!snap.exists())return;
+    try{
+      const t=JSON.parse(snap.data().data);
+      state.theme={...DEF_THEME,...t};
+      Object.keys(DEF_THEME).forEach(k=>{if(!state.theme[k]||!state.theme[k].startsWith('#'))state.theme[k]=DEF_THEME[k];});
+      saveLocal();applyTheme();renderThemeFields();
+    }catch(e){console.error(e);}
+  },e=>console.error(e));
+}
+
 function setSyncDot(s){
   const d=el('syncDot');if(!d)return;
   d.className='sync-dot '+s;
-  d.title={synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — data local only'}[s]||s;
+  d.title={synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — local only'}[s]||s;
 }
 function normalize(raw){
   const m=structuredClone(DEF_STATE);Object.assign(m,raw||{});
@@ -680,10 +729,11 @@ function openDmOverlay(){
   else{el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');renderDmLostMagic();renderDmTargetSelect();renderThemeFields();}
 }
 function closeDmOverlay(){el('dmOverlay')?.classList.add('hidden');}
-function lockDm(){dmUnlocked=false;el('dmFullscreenPanel')?.classList.add('hidden');el('dmLoginPanel')?.classList.remove('hidden');}
+function lockDm(){dmUnlocked=false;sessionStorage.removeItem('ft-dm');el('dmFullscreenPanel')?.classList.add('hidden');el('dmLoginPanel')?.classList.remove('hidden');}
 function unlockDm(){
   if(el('dmPasswordInput')?.value!==DM_PASS){alert('Wrong password.');return;}
-  dmUnlocked=true;el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');
+  dmUnlocked=true;sessionStorage.setItem('ft-dm','1');
+  el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');
   renderDmLostMagic();renderDmTargetSelect();renderThemeFields();
 }
 
@@ -718,7 +768,7 @@ function bindAll(){
   el('rollManaBtn')?.addEventListener('click',rollMana);
   el('restoreHpBtn')?.addEventListener('click',()=>{const c=getChar();c.hp.current=c.hp.max;pushState();render();});
   el('restoreManaBtn')?.addEventListener('click',()=>{const c=getChar();c.mana.current=c.mana.max;pushState();render();});
-  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);state.selectedCharacter=state.characters.length-1;state.showReserve=true;pushState();render();});
+  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);localStorage.setItem('ft-my-char-id',nc.id);state.selectedCharacter=state.characters.length-1;state.showReserve=true;listenToChar(nc.id);pushState();render();});
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});
   el('addSpellBtn')?.addEventListener('click',addSpell);
@@ -733,7 +783,7 @@ function bindAll(){
   el('dmPasswordInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')unlockDm();});
   const readTheme=()=>({bg:el('themeBgColor')?.value||DEF_THEME.bg,panel:el('themePanelColor')?.value||DEF_THEME.panel,accent:el('themeAccentColor')?.value||DEF_THEME.accent,accentTwo:el('themeAccentTwoColor')?.value||DEF_THEME.accentTwo,mana:el('themeManaColor')?.value||DEF_THEME.mana,text:el('themeTextColor')?.value||DEF_THEME.text});
   ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeManaColor','themeTextColor'].forEach(id=>{el(id)?.addEventListener('input',()=>{state.theme=readTheme();applyTheme();});});
-  el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushState();render();});
+  el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushTheme();render();});
   el('resetThemeBtn')?.addEventListener('click',()=>{state.theme={...DEF_THEME};pushState();render();});
 }
 
@@ -742,4 +792,4 @@ function bindAll(){
 // ================================================================
 bindAll();
 render();
-startListener();
+startListeners();

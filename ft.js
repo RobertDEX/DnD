@@ -4,7 +4,7 @@
 // No import/export — Firebase is the save
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -235,7 +235,37 @@ function listenToChar(charId){
 }
 
 function startListeners(){
-  state.characters.forEach(c=>listenToChar(c.id));
+  const myId=getMyCharId();
+
+  if(_charUnsubs['__collection__'])_charUnsubs['__collection__']();
+  _charUnsubs['__collection__']=onSnapshot(collection(db,CHARS_COLL),snapshot=>{
+    snapshot.docChanges().forEach(change=>{
+      if(change.type==='removed')return;
+      const charId=change.doc.id;
+      if(charId===myId){setSyncDot('synced');return;}
+      try{
+        const fresh=JSON.parse(change.doc.data().data);
+        const idx=state.characters.findIndex(c=>c.id===charId);
+        const b=blankChar(0);
+        const merged={...b,...fresh,
+          stats:{...b.stats,...(fresh.stats||{})},
+          hp:{...b.hp,...(fresh.hp||{})},
+          mana:{...b.mana,...(fresh.mana||{})},
+          spells:Array.isArray(fresh.spells)?fresh.spells:[],
+          lostMagic:Array.isArray(fresh.lostMagic)?fresh.lostMagic:[],
+          skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(fresh.skills?.[n]||{})};});return bsk;})()
+        };
+        if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
+        saveLocal();
+        try{renderCharacterTabs();}catch(e){}
+        const viewIdx=idx>=0?idx:state.characters.length-1;
+        if(state.selectedCharacter===viewIdx){try{renderHeader();renderMainFields();}catch(e){}}
+        else{try{renderHeader();}catch(e){}}
+        setSyncDot('synced');
+      }catch(e){console.error('Collection snapshot error',e);}
+    });
+  },e=>{console.error('Collection listener error',e);setSyncDot('error');});
+
   if(_metaUnsub)_metaUnsub();
   _metaUnsub=onSnapshot(doc(db,META_DOC,'theme'),snap=>{
     if(!snap.exists())return;

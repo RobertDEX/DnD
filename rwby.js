@@ -5,7 +5,7 @@
 // Firebase Firestore sync — no import/export needed
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -333,12 +333,60 @@ function listenToChar(charId) {
   }, e => { console.error(e); setSyncDot('error'); });
 }
 
-// Start listening to all known characters + theme
+// Watch the ENTIRE collection — picks up all characters regardless of who created them
 function startListeners() {
-  // Listen to every character we know about
-  state.characters.forEach(c => listenToChar(c.id));
+  const myId = getMyCharId();
 
-  // Listen for theme changes (pushed by DM)
+  // Single listener on the whole collection — fires whenever any char doc changes
+  if (_charUnsubs['__collection__']) _charUnsubs['__collection__']();
+  _charUnsubs['__collection__'] = onSnapshot(collection(db, CHARS_COLL), snapshot => {
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'removed') return;
+      const charId = change.doc.id;
+      // Skip echo of our own writes
+      if (charId === myId) { setSyncDot('synced'); return; }
+      try {
+        const fresh = JSON.parse(change.doc.data().data);
+        const idx   = state.characters.findIndex(c => c.id === charId);
+        const blank = blankChar(0);
+        const merged = {
+          ...blank, ...fresh,
+          stats:    {...blank.stats,    ...(fresh.stats    || {})},
+          hp:       {...blank.hp,       ...(fresh.hp       || {})},
+          aura:     {...blank.aura,     ...(fresh.aura     || {})},
+          dustInventory: {...blank.dustInventory, ...(fresh.dustInventory || {})},
+          dustSpells: Array.isArray(fresh.dustSpells)  ? fresh.dustSpells  : [],
+          techniques: Array.isArray(fresh.techniques)  ? fresh.techniques  : [],
+          skills: (() => {
+            const bsk = makeBlankSkills();
+            Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(fresh.skills?.[n] || {})}; });
+            return bsk;
+          })(),
+          semblance: {
+            ...blank.semblance, ...(fresh.semblance || {}),
+            base:     {...blank.semblance.base,     ...(fresh.semblance?.base     || {})},
+            first:    {...blank.semblance.first,    ...(fresh.semblance?.first    || {})},
+            second:   {...blank.semblance.second,   ...(fresh.semblance?.second   || {})},
+            third:    {...blank.semblance.third,    ...(fresh.semblance?.third    || {})},
+            ascended: {...blank.semblance.ascended, ...(fresh.semblance?.ascended || {})},
+            unlocked: {...blank.semblance.unlocked, ...(fresh.semblance?.unlocked || {})}
+          }
+        };
+        if (idx >= 0) state.characters[idx] = merged;
+        else          state.characters.push(merged);
+        saveLocal();
+        try { renderCharacterTabs(); } catch(e) {}
+        if (state.selectedCharacter === (idx >= 0 ? idx : state.characters.length - 1)) {
+          try { renderHeader(); renderMainFields(); } catch(e) {}
+        } else {
+          try { renderHeader(); } catch(e) {}
+        }
+        setSyncDot('synced');
+      } catch(e) { console.error('Collection snapshot error', e); }
+    });
+  }, e => { console.error('Collection listener error', e); setSyncDot('error'); });
+
+  // Theme listener
   if (_metaUnsub) _metaUnsub();
   _metaUnsub = onSnapshot(doc(db, META_DOC, 'theme'), snap => {
     if (!snap.exists()) return;

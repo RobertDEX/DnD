@@ -113,7 +113,7 @@ window.previewDamage = () => {
   if (!inp || !prev) return;
   const dmg = parseInt(inp.value);
   if (!dmg || dmg <= 0) { prev.textContent = ''; prev.className = 'damage-preview'; return; }
-  const c = getMyChar();
+  const c = getChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   const hpHit = dmg - absorbed;
@@ -128,7 +128,7 @@ window.applyDamage = () => {
   const inp = document.getElementById('damageTaken');
   const dmg = parseInt(inp?.value);
   if (!dmg || dmg <= 0) { alert('Enter a damage amount.'); return; }
-  const c = getMyChar();
+  const c = getChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   c.tempHp = tmp - absorbed;
@@ -164,45 +164,40 @@ function blankChar(i) {
 }
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
 
-// ================================================================
-// SYNC — simple single doc, full state, debounced push
-// ================================================================
-const COLL     = 'campaigns';
-const DOC_NAME = 'ft-campaign';
-
-let state=structuredClone(DEF_STATE);
-let _unsub=null;
-let dmUnlocked=sessionStorage.getItem('ft-dm')==='1';
-
-function getMyIdx(){const s=localStorage.getItem('ft-my-idx');const i=s!==null?parseInt(s):0;return Math.min(i,state.characters.length-1);}
-function setMyIdx(i){localStorage.setItem('ft-my-idx',i);}
-
-function loadLocal(){return structuredClone(DEF_STATE);}
+let state  = structuredClone(DEF_STATE);
+let _unsub = null;
+let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
 
 async function pushState(){
   setSyncDot('syncing');
   try{
-    await setDoc(doc(db,COLL,DOC_NAME),{data:JSON.stringify(state)});
+    await setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)});
     setSyncDot('synced');
   }catch(e){console.error(e);setSyncDot('error');}
 }
 
 function startListener(){
   if(_unsub)_unsub();
-  _unsub=onSnapshot(doc(db,COLL,DOC_NAME),snap=>{
+  _unsub=onSnapshot(doc(db,'campaigns','ft-campaign'),snap=>{
     if(!snap.exists())return;
     try{
       const remote=normalize(JSON.parse(snap.data().data));
-      const myIdx=getMyIdx();const sel=state.selectedCharacter;
-      remote.characters.forEach((rc,i)=>{if(i!==myIdx)state.characters[i]=rc;});
+      // Update character data only — never touch selectedCharacter or other UI state
+      remote.characters.forEach((rc,i)=>{state.characters[i]=rc;});
       while(state.characters.length<remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme=remote.theme;
+      setSyncDot('synced');
       try{renderCharacterTabs();}catch(e){}
       try{renderHeader();}catch(e){}
       try{applyTheme();}catch(e){}
-      if(sel!==myIdx){try{render();}catch(e){}}
-      setSyncDot('synced');
+      try{renderMainFields();}catch(e){}
+      try{renderCalcPanel();}catch(e){}
+      try{renderStats();}catch(e){}
+      try{renderSkillsMatrix();}catch(e){}
+      try{renderSpells();}catch(e){}
+      try{renderLostMagic();}catch(e){}
+      try{renderMagicBanner();}catch(e){}
     }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
@@ -210,7 +205,7 @@ function startListener(){
 function setSyncDot(s){
   const d=el('syncDot');if(!d)return;
   d.className='sync-dot '+s;
-  d.title={synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — working locally'}[s]||s;
+  d.title={synced:'Synced',syncing:'Syncing…',error:'Offline — changes may not save'}[s]||s;
 }
 
 
@@ -236,7 +231,6 @@ function normalize(raw){
 // HELPERS
 // ================================================================
 function getChar(){return state.characters[state.selectedCharacter]||state.characters[0];}
-function getMyChar(){return state.characters[getMyIdx()]||state.characters[0];}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
@@ -423,10 +417,9 @@ function renderCharacterTabs(){
     if(c.state==='dead'&&!state.showDead)return;
     if(c.state==='reserve'&&!state.showReserve)return;
     const pct=c.hp.max>0?Math.round((c.hp.current/c.hp.max)*100):0;
-    const isOwn=i===getMyIdx();
     const btn=document.createElement('button');btn.type='button';
-    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isOwn?' active':''}`;
-    btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}${isOwn?' <span style="color:var(--gold);font-size:.55rem">YOU</span>':''}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
+    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}`;
+    btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
     btn.addEventListener('click',()=>{state.selectedCharacter=i;render();});
     tabs.appendChild(btn);
   });
@@ -437,28 +430,21 @@ function renderCharacterTabs(){
 // ================================================================
 function renderHeader(){
   const c=getChar();const name=c.name||'—';
-  const mine=getMyChar();
+  const mine=getChar();
   const s=(id,v)=>{const e=el(id);if(e)e.textContent=v;};
-  s('topCharacterName',name+(state.selectedCharacter!==getMyIdx()?' 👁':''));
+  s('topCharacterName',name);
   s('selectedNameSmall',name);
   s('selectedState',c.state.charAt(0).toUpperCase()+c.state.slice(1));
   s('selectedMagicType',c.magicType||'—');s('selectedSpellCount',c.spells.length);
   // Topbar bars always show YOUR OWN character
-  s('topHpMini',`${mine.hp.current} / ${mine.hp.max}`);
-  s('topManaMini',`${mine.mana.current} / ${mine.mana.max}`);
-  s('topArmorMini',mine.armor);
+  s('topHpMini',`${c.hp.current} / ${c.hp.max}`);
+  s('topManaMini',`${c.mana.current} / ${c.mana.max}`);
+  s('topArmorMini',c.armor);
   s('dmSelectedCharacterName',name);
-  const hpPct=mine.hp.max>0?(mine.hp.current/mine.hp.max)*100:0;
-  const mPct=mine.mana.max>0?(mine.mana.current/mine.mana.max)*100:0;
+  const hpPct=c.hp.max>0?(c.hp.current/c.hp.max)*100:0;
+  const mPct=c.mana.max>0?(c.mana.current/c.mana.max)*100:0;
   const hb=el('topHpBar');if(hb)hb.style.width=hpPct+'%';
   const mb=el('topManaBar');if(mb)mb.style.width=mPct+'%';
-  const claimBtn=el('claimCharacterBtn');
-  if(claimBtn){
-    const isOwn=state.selectedCharacter===getMyIdx();
-    claimBtn.textContent=isOwn?'✓ This is Your Character':'⚑ Claim Selected Character';
-    claimBtn.style.opacity=isOwn?'.45':'1';
-    claimBtn.disabled=isOwn;
-  }
 }
 
 // ================================================================
@@ -560,7 +546,7 @@ function renderSkillsMatrix(){
 // SPELLS
 // ================================================================
 function renderSpells(){
-  const c=getMyChar();const cont=el('spellList');if(!cont)return;cont.innerHTML='';
+  const c=getChar();const cont=el('spellList');if(!cont)return;cont.innerHTML='';
   if(!c.spells.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No spells yet. Use the form above.</div>`;return;}
   [...c.spells].sort((a,b)=>(RANK_ORDER[b.rank]||0)-(RANK_ORDER[a.rank]||0)).forEach(sp=>{
     const card=document.createElement('div');card.className='spell-card collapse-block';
@@ -572,7 +558,7 @@ function renderSpells(){
   cont.querySelectorAll('.edit-spell').forEach(btn=>btn.addEventListener('click',()=>openEditSpell(btn.dataset.id)));
 }
 function openEditSpell(id){
-  const c=getMyChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
+  const c=getChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
   const sv=(eid,v)=>{const e=el(eid);if(e)e.value=v;};
   sv('spellName',sp.name);sv('spellRank',sp.rank);sv('spellManaCost',sp.manaCost);sv('spellType',sp.type);sv('spellDescription',sp.description);
   const btn=el('addSpellBtn');if(btn){btn.textContent='Update Spell';btn.dataset.editId=id;}
@@ -583,7 +569,7 @@ function openEditSpell(id){
 // LOST MAGIC
 // ================================================================
 function renderLostMagic(){
-  const c=getMyChar();const cont=el('lostMagicList');if(!cont)return;cont.innerHTML='';
+  const c=getChar();const cont=el('lostMagicList');if(!cont)return;cont.innerHTML='';
   if(!c.lostMagic.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No Lost Magic yet. DM grants via the DM panel.</div>`;return;}
   c.lostMagic.forEach(lm=>{
     const card=document.createElement('div');card.className='spell-card lm-card collapse-block';
@@ -637,7 +623,7 @@ function renderTabs(){
 // ================================================================
 function render(){
   try{applyTheme();}catch(e){console.error('applyTheme:',e);}
-  const c=getMyChar();ensureClamp(c);
+  const c=getChar();ensureClamp(c);
   try{renderCharacterTabs();}catch(e){console.error('renderCharacterTabs:',e);}
   try{renderHeader();}       catch(e){console.error('renderHeader:',e);}
   try{renderMainFields();}   catch(e){console.error('renderMainFields:',e);}
@@ -657,23 +643,23 @@ function render(){
 // ACTIONS
 // ================================================================
 function adjustResource(res,amt){
-  const c=getMyChar();
+  const c=getChar();
   if(res==='hp')c.hp.current=clamp(c.hp.current+amt,0,c.hp.max);
   if(res==='mana')c.mana.current=clamp(c.mana.current+amt,0,c.mana.max);
   pushState();renderHeader();renderMainFields();renderCharacterTabs();
 }
 function castSpell(id){
-  const c=getMyChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
+  const c=getChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
   if(sp.manaCost>0&&c.mana.current<sp.manaCost){alert(`Not enough Mana! Need ${sp.manaCost}, have ${c.mana.current}.`);return;}
   if(sp.manaCost>0){c.mana.current-=sp.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
 }
 function useLostMagic(id){
-  const c=getMyChar();const lm=c.lostMagic.find(l=>l.id===id);if(!lm)return;
+  const c=getChar();const lm=c.lostMagic.find(l=>l.id===id);if(!lm)return;
   if(lm.manaCost>0&&c.mana.current<lm.manaCost){alert(`Not enough Mana! Need ${lm.manaCost}, have ${c.mana.current}.`);return;}
   if(lm.manaCost>0){c.mana.current-=lm.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
 }
 function addSpell(){
-  const c=getMyChar();const name=el('spellName')?.value.trim();const rank=el('spellRank')?.value||'D';
+  const c=getChar();const name=el('spellName')?.value.trim();const rank=el('spellRank')?.value||'D';
   const manaCost=Math.max(0,Number(el('spellManaCost')?.value)||0);const type=el('spellType')?.value||'Offensive';
   const description=el('spellDescription')?.value.trim();
   if(!name||!description){alert('Spell needs a name and description.');return;}
@@ -693,14 +679,14 @@ function addLostMagic(){
   pushState();render();
 }
 function rollHp(){
-  const c=getMyChar();const conM=mod(c.stats.CON);
+  const c=getChar();const conM=mod(c.stats.CON);
   const isPower=c.magicCategory?.startsWith('power');
   const roll=rollD10();const total=Math.max(1,roll+conM);
   c.hp.max+=total;c.hp.current=c.hp.max;pushState();render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}${isPower?'\n[Power magic: 1d10 hit dice]':''}\nNew Max: ${c.hp.max}`);
 }
 function rollMana(){
-  const c=getMyChar();const cat=getMagicCat(c);
+  const c=getChar();const cat=getMagicCat(c);
   const sm=spellMod(c);const mcBonus=skillTotal(c,'Magic Control')-sm;// just extra bonus part
   const fullBonus=spellMod(c)+(c.skills['Magic Control']?.bonus||0);
   const roll=cat?.manaRoll==='1d8'?rollD8():rollD10();
@@ -709,7 +695,7 @@ function rollMana(){
   alert(`Mana Roll: ${cat?.manaRoll||'1d10'}(${roll}) + ${cat?.stat||'INT'} mod & Magic Control = +${total}\nNew Max: ${c.mana.max}`);
 }
 function saveCharState(){
-  const c=getMyChar();
+  const c=getChar();
   if(el('stateActive')?.checked)c.state='active';
   if(el('stateReserve')?.checked)c.state='reserve';
   if(el('stateDead')?.checked){c.state='dead';c.hp.current=0;c.mana.current=0;}
@@ -733,7 +719,7 @@ function unlockDm(){
 // BINDINGS
 // ================================================================
 function updateField(field,value){
-  const c=getMyChar();
+  const c=getChar();
   const mf={maxHp:'hp.max',currentHp:'hp.current',maxMana:'mana.max',currentMana:'mana.current'};
   if(mf[field]){const[o,k]=mf[field].split('.');c[o][k]=Math.max(0,Number(value)||0);}
   else if(['level','armor'].includes(field))c[field]=Math.max(0,Number(value)||0);
@@ -754,24 +740,15 @@ function bindAll(){
   ii('weaponsText','weaponsText');ii('abilitiesText','abilitiesText');ii('inventoryText','inventoryText');ii('notesText','notesText');
 
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.addEventListener('click',()=>{state.activeTab=b.dataset.tab;pushState();renderTabs();}));
-  el('statsGrid')?.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const c=getMyChar();c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);pushState();renderStats();renderSkillsMatrix();renderCalcPanel();renderMagicBanner();});
+  el('statsGrid')?.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const c=getChar();c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);pushState();renderStats();renderSkillsMatrix();renderCalcPanel();renderMagicBanner();});
   document.addEventListener('click',e=>{const btn=e.target.closest('.adj-btn');if(!btn)return;adjustResource(btn.dataset.resource,Number(btn.dataset.amt));});
   el('rollHpBtn')?.addEventListener('click',rollHp);
   el('rollManaBtn')?.addEventListener('click',rollMana);
-  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getMyChar();c.hp.current=c.hp.max;pushState();render();});
-  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getMyChar();c.mana.current=c.mana.max;pushState();render();});
-  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);const ni=state.characters.length-1;setMyIdx(ni);state.selectedCharacter=ni;state.showReserve=true;pushState();render();});
+  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getChar();c.hp.current=c.hp.max;pushState();render();});
+  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getChar();c.mana.current=c.mana.max;pushState();render();});
+  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);const ni=state.characters.length-1;state.selectedCharacter=ni;state.showReserve=true;pushState();render();});
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});
-
-  el('claimCharacterBtn')?.addEventListener('click',()=>{
-    const idx=state.selectedCharacter;
-    const c=state.characters[idx];
-    if(!c)return;
-    setMyIdx(idx);
-    render();
-    alert(`You now own "${c.name||`Player ${idx+1}`}". Your edits will update this character.`);
-  });
   el('addSpellBtn')?.addEventListener('click',addSpell);
   el('addLostMagicBtn')?.addEventListener('click',addLostMagic);
   el('saveCharacterStateBtn')?.addEventListener('click',saveCharState);

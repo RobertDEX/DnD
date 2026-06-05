@@ -304,7 +304,10 @@ function normalize(raw){
 // ================================================================
 // HELPERS
 // ================================================================
-function getChar(){return state.characters[state.selectedCharacter]||state.characters[0];}
+function getChar(){
+  const myId=getMyCharId();
+  return state.characters.find(c=>c.id===myId)||state.characters[state.selectedCharacter]||state.characters[0];
+}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
@@ -487,14 +490,16 @@ function renderCalcPanel(){
 // ================================================================
 function renderCharacterTabs(){
   const tabs=el('characterTabs');if(!tabs)return;tabs.innerHTML='';
+  const myId=getMyCharId();
   state.characters.forEach((c,i)=>{
     if(c.state==='dead'&&!state.showDead)return;
     if(c.state==='reserve'&&!state.showReserve)return;
     const pct=c.hp.max>0?Math.round((c.hp.current/c.hp.max)*100):0;
+    const isOwn=c.id===myId;
     const btn=document.createElement('button');btn.type='button';
-    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${i===state.selectedCharacter?' active':''}`;
-    btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
-    btn.addEventListener('click',()=>{state.selectedCharacter=i;pushState();render();});
+    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isOwn?' active':''}`;
+    btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}${isOwn?' <span style="color:var(--gold);font-size:.55rem">YOU</span>':''}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
+    btn.addEventListener('click',()=>{state.selectedCharacter=i;render();});
     tabs.appendChild(btn);
   });
 }

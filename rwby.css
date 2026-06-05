@@ -714,3 +714,16 @@ input[readonly]{color:var(--aura);font-family:var(--F2);font-size:.78rem;text-al
 .hud-stat strong {
   font-family: var(--F1); font-size: 1rem; color: var(--text);
 }
+
+/* ── CLAIM BUTTON ── */
+.claim-btn{
+  border-color:rgba(0,210,255,.3)!important;
+  color:var(--aura)!important;
+  margin-top:.35rem;
+  font-size:.65rem!important;
+  letter-spacing:.1em;
+}
+.claim-btn:hover{
+  background:rgba(0,210,255,.08)!important;
+  box-shadow:0 0 14px rgba(0,210,255,.15)!important;
+}

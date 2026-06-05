@@ -587,3 +587,16 @@ input[readonly] { color: var(--mana); font-family: var(--F4); font-size: .78rem;
 }
 .hud-stat span   { font-family: var(--F4); font-size: .55rem; color: var(--muted); letter-spacing: .15em; text-transform: uppercase; }
 .hud-stat strong { font-family: var(--F2); font-size: 1rem; color: var(--text); }
+
+/* ── CLAIM BUTTON ── */
+.claim-btn{
+  border-color:rgba(200,150,60,.35)!important;
+  color:var(--gold)!important;
+  margin-top:.35rem;
+  font-size:.65rem!important;
+  letter-spacing:.1em;
+}
+.claim-btn:hover{
+  background:rgba(200,150,60,.07)!important;
+  box-shadow:0 0 14px rgba(200,150,60,.12)!important;
+}

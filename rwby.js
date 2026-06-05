@@ -217,38 +217,25 @@ const DEF_STATE = {
 };
 
 // ================================================================
-// PER-CHARACTER SYNC ARCHITECTURE
-// ─────────────────────────────────────────────────────────────────
-// • Each character = its own Firestore doc at  rwby-chars/{charId}
-// • Each browser claims one character via localStorage 'rwby-my-char-id'
-// • All browsers listen to ALL character docs → full live roster
-// • Theme is a separate shared doc: rwby-meta/theme
-// • dmUnlocked lives in sessionStorage only — NEVER syncs to Firestore
+// SYNC — simple single doc, full state, debounced push
+// Each browser tracks which character index it "owns" for editing.
+// DM panel unlock is sessionStorage only — never goes to Firebase.
 // ================================================================
-
-const CHARS_COLL = 'rwby-chars';   // collection
-const META_DOC   = 'rwby-meta';    // doc for shared theme
+const COLL     = 'campaigns';
+const DOC_NAME = 'rwby-campaign';
 
 let state      = loadLocal();
-let _charUnsubs = {};  // charId → unsubscribe fn
-let _metaUnsub  = null;
-
-// DM unlock is purely session-local — never touches Firestore
+let _unsub     = null;
+let _pushTimer = null;
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
-// The character this browser "owns" and can edit
-function getMyCharId() {
-  let id = localStorage.getItem('rwby-my-char-id');
-  if (!id) {
-    // Claim the first active character slot that has no name yet, or make a new one
-    const unclaimed = state.characters.find(c => !c.name);
-    id = unclaimed ? unclaimed.id : blankChar(state.characters.length).id;
-    localStorage.setItem('rwby-my-char-id', id);
-  }
-  return id;
+// Which character index this browser is editing
+function getMyIdx() {
+  const stored = localStorage.getItem('rwby-my-idx');
+  const idx = stored !== null ? parseInt(stored) : 0;
+  return Math.min(idx, state.characters.length - 1);
 }
-
-function isMine(c) { return c.id === getMyCharId(); }
+function setMyIdx(i) { localStorage.setItem('rwby-my-idx', i); }
 
 function loadLocal() {
   try { const r = localStorage.getItem(LOC_KEY); return r ? normalize(JSON.parse(r)) : structuredClone(DEF_STATE); }
@@ -256,152 +243,66 @@ function loadLocal() {
 }
 function saveLocal() { try { localStorage.setItem(LOC_KEY, JSON.stringify(state)); } catch {} }
 
-// Push ONLY the current player's character to Firestore (debounced — waits 800ms after last change)
-let _pushTimer = null;
+// Debounced push — waits 600ms after last change, then writes full state
 async function pushState() {
   saveLocal();
   clearTimeout(_pushTimer);
   _pushTimer = setTimeout(async () => {
-    const myId = getMyCharId();
-    const mine = state.characters.find(c => c.id === myId);
-    if (!mine) return;
     setSyncDot('syncing');
     try {
-      await setDoc(doc(db, CHARS_COLL, myId), { data: JSON.stringify(mine), updated: Date.now() });
+      await setDoc(doc(db, COLL, DOC_NAME), { data: JSON.stringify(state), ts: Date.now() });
       setSyncDot('synced');
     } catch(e) { console.error(e); setSyncDot('error'); }
-  }, 800);
+  }, 600);
 }
 
-// Push theme separately (DM only)
-async function pushTheme() {
-  try {
-    await setDoc(doc(db, META_DOC, 'theme'), { data: JSON.stringify(state.theme), updated: Date.now() });
-  } catch(e) { console.error(e); }
-}
-
-// Listen to a single character doc
-function listenToChar(charId) {
-  if (_charUnsubs[charId]) return;
-  const myId = getMyCharId();
-  _charUnsubs[charId] = onSnapshot(doc(db, CHARS_COLL, charId), snap => {
+// Listen for changes from OTHER browsers.
+// When a snapshot arrives, merge ONLY characters we are NOT currently editing,
+// so we never overwrite the local player's in-progress typing.
+function startListener() {
+  if (_unsub) _unsub();
+  _unsub = onSnapshot(doc(db, COLL, DOC_NAME), snap => {
     if (!snap.exists()) return;
-    // Skip snapshots for OUR OWN character — we already have live local data.
-    // Firebase echoes our own pushes back; processing them would reset our UI mid-typing.
-    if (charId === myId) { setSyncDot('synced'); return; }
     try {
-      const fresh = JSON.parse(snap.data().data);
-      const idx   = state.characters.findIndex(c => c.id === charId);
-      const blank = blankChar(0);
-      const merged = {
-        ...blank, ...fresh,
-        stats:    {...blank.stats,    ...(fresh.stats    || {})},
-        hp:       {...blank.hp,       ...(fresh.hp       || {})},
-        aura:     {...blank.aura,     ...(fresh.aura     || {})},
-        dustInventory: {...blank.dustInventory, ...(fresh.dustInventory || {})},
-        dustSpells:  Array.isArray(fresh.dustSpells)  ? fresh.dustSpells  : [],
-        techniques:  Array.isArray(fresh.techniques)  ? fresh.techniques  : [],
-        skills: (() => {
-          const bsk = makeBlankSkills();
-          Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(fresh.skills?.[n] || {})}; });
-          return bsk;
-        })(),
-        semblance: {
-          ...blank.semblance, ...(fresh.semblance || {}),
-          base:     {...blank.semblance.base,     ...(fresh.semblance?.base     || {})},
-          first:    {...blank.semblance.first,    ...(fresh.semblance?.first    || {})},
-          second:   {...blank.semblance.second,   ...(fresh.semblance?.second   || {})},
-          third:    {...blank.semblance.third,    ...(fresh.semblance?.third    || {})},
-          ascended: {...blank.semblance.ascended, ...(fresh.semblance?.ascended || {})},
-          unlocked: {...blank.semblance.unlocked, ...(fresh.semblance?.unlocked || {})}
+      const remote = normalize(JSON.parse(snap.data().data));
+      const myIdx  = getMyIdx();
+      // Keep our own character exactly as-is in local state.
+      // Overwrite every OTHER character slot with the remote version.
+      remote.characters.forEach((remoteChar, i) => {
+        if (i !== myIdx) {
+          state.characters[i] = remoteChar;
         }
-      };
-      if (idx >= 0) state.characters[idx] = merged;
-      else          state.characters.push(merged);
-      saveLocal();
-      try { renderCharacterTabs(); } catch(e) {}
-      const viewIdx = idx >= 0 ? idx : state.characters.length - 1;
-      if (state.selectedCharacter === viewIdx) {
-        // Viewing this character's tab — full re-render so everything updates live
-        try { render(); } catch(e) {}
-      } else {
-        try { renderHeader(); } catch(e) {}
-      }
-      setSyncDot('synced');
-    } catch(e) { console.error('Snapshot parse error', e); }
-  }, e => { console.error(e); setSyncDot('error'); });
-}
-
-// Watch the ENTIRE collection — picks up all characters regardless of who created them
-function startListeners() {
-  const myId = getMyCharId();
-
-  // Single listener on the whole collection — fires whenever any char doc changes
-  if (_charUnsubs['__collection__']) _charUnsubs['__collection__']();
-  _charUnsubs['__collection__'] = onSnapshot(collection(db, CHARS_COLL), snapshot => {
-    let needsRender = false;
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'removed') return;
-      const charId = change.doc.id;
-      // On 'added' (initial load / reload), load ALL docs including our own — this restores data after refresh.
-      // On 'modified', skip our own doc — that's just the echo of our own pushState write.
-      if (charId === myId && change.type === 'modified') { setSyncDot('synced'); return; }
-      try {
-        const fresh = JSON.parse(change.doc.data().data);
-        const idx   = state.characters.findIndex(c => c.id === charId);
-        const blank = blankChar(0);
-        const merged = {
-          ...blank, ...fresh,
-          stats:    {...blank.stats,    ...(fresh.stats    || {})},
-          hp:       {...blank.hp,       ...(fresh.hp       || {})},
-          aura:     {...blank.aura,     ...(fresh.aura     || {})},
-          dustInventory: {...blank.dustInventory, ...(fresh.dustInventory || {})},
-          dustSpells: Array.isArray(fresh.dustSpells)  ? fresh.dustSpells  : [],
-          techniques: Array.isArray(fresh.techniques)  ? fresh.techniques  : [],
-          skills: (() => {
-            const bsk = makeBlankSkills();
-            Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(fresh.skills?.[n] || {})}; });
-            return bsk;
-          })(),
-          semblance: {
-            ...blank.semblance, ...(fresh.semblance || {}),
-            base:     {...blank.semblance.base,     ...(fresh.semblance?.base     || {})},
-            first:    {...blank.semblance.first,    ...(fresh.semblance?.first    || {})},
-            second:   {...blank.semblance.second,   ...(fresh.semblance?.second   || {})},
-            third:    {...blank.semblance.third,    ...(fresh.semblance?.third    || {})},
-            ascended: {...blank.semblance.ascended, ...(fresh.semblance?.ascended || {})},
-            unlocked: {...blank.semblance.unlocked, ...(fresh.semblance?.unlocked || {})}
-          }
-        };
-        if (idx >= 0) state.characters[idx] = merged;
-        else          state.characters.push(merged);
-        needsRender = true;
-        setSyncDot('synced');
-      } catch(e) { console.error('Snapshot parse error', e); }
-    });
-    if (needsRender) { saveLocal(); try { render(); } catch(e) {} }
-  }, e => { console.error('Collection listener error', e); setSyncDot('error'); });
-
-  // Theme listener
-  if (_metaUnsub) _metaUnsub();
-  _metaUnsub = onSnapshot(doc(db, META_DOC, 'theme'), snap => {
-    if (!snap.exists()) return;
-    try {
-      const t = JSON.parse(snap.data().data);
-      state.theme = {...DEF_THEME, ...t};
-      Object.keys(DEF_THEME).forEach(k => {
-        if (!state.theme[k] || !state.theme[k].startsWith('#')) state.theme[k] = DEF_THEME[k];
       });
-      saveLocal(); applyTheme(); renderThemeFields();
-    } catch(e) { console.error(e); }
-  }, e => console.error(e));
+      // If remote has MORE characters than us, add them
+      if (remote.characters.length > state.characters.length) {
+        for (let i = state.characters.length; i < remote.characters.length; i++) {
+          state.characters.push(remote.characters[i]);
+        }
+      }
+      // Preserve our local UI state (which tab we're on, which character selected)
+      // but accept remote theme
+      state.theme = remote.theme;
+      saveLocal();
+      // Re-render only the parts that changed — sidebar tabs and topbar always,
+      // full sheet only if we're viewing someone else's character
+      try { renderCharacterTabs(); } catch(e) {}
+      try { renderHeader(); }         catch(e) {}
+      if (state.selectedCharacter !== myIdx) {
+        // Viewing another player — update the sheet to show their latest data
+        try { renderMainFields(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderSemblance(); renderTechniques(); renderDust(); } catch(e) {}
+      }
+      applyTheme();
+    } catch(e) { console.error('Snapshot error:', e); }
+  }, e => { console.error(e); setSyncDot('error'); });
 }
 
 function setSyncDot(s) {
   const d = document.getElementById('syncDot'); if (!d) return;
   d.className = 'sync-dot ' + s;
-  d.title = {synced:'Synced ✓', syncing:'Syncing…', error:'Sync error — local only'}[s] || s;
+  d.title = {synced:'Synced ✓', syncing:'Syncing…', error:'Sync error — working locally'}[s] || s;
 }
+
+
 
 function normalize(raw) {
   const m = structuredClone(DEF_STATE);
@@ -447,11 +348,10 @@ function normalize(raw) {
 // ================================================================
 // HELPERS
 // ================================================================
-// Who you are VIEWING (whatever tab is selected in the sidebar)
-function getChar()     { return state.characters[state.selectedCharacter] || state.characters[0]; }
-// Who YOU OWN — the only character you can edit
-function getMyChar()   { const myId=getMyCharId(); return state.characters.find(c=>c.id===myId) || state.characters[0]; }
-function isViewingOwnChar() { return getChar().id === getMyCharId(); }
+// Who you are VIEWING
+function getChar()   { return state.characters[state.selectedCharacter] || state.characters[0]; }
+// Who YOU are EDITING — your own character slot
+function getMyChar() { return state.characters[getMyIdx()] || state.characters[0]; }
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
 function rollD10()     { return Math.floor(Math.random() * 10) + 1; }
 function esc(s)        { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -581,12 +481,11 @@ function renderCalcPanel() {
 // ================================================================
 function renderCharacterTabs() {
   const tabs = el('characterTabs'); if (!tabs) return; tabs.innerHTML = '';
-  const myId = getMyCharId();
   state.characters.forEach((c,i) => {
     if (c.state==='dead'    && !state.showDead)    return;
     if (c.state==='reserve' && !state.showReserve) return;
     const pct = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
-    const isOwn = c.id === myId;
+    const isOwn = i === getMyIdx();
     const btn = document.createElement('button'); btn.type='button';
     btn.className = `character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isOwn?' active':''}`;
     btn.innerHTML = `<strong>${esc(c.name||`Player ${i+1}`)}${isOwn?' <span style="color:var(--aura);font-size:.55rem">YOU</span>':''}</strong><span>${esc(c.className||'—')} · Lv${c.level} · ${esc(c.race||'—')}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
@@ -599,21 +498,31 @@ function renderCharacterTabs() {
 // RENDER — TOPBAR
 // ================================================================
 function renderHeader() {
-  const c = getChar(); const name = c.name || '—';
+  const c    = getChar(); const name = c.name || '—';
+  const mine = getMyChar();
   const s = (id,v) => { const e=el(id); if(e)e.textContent=v; };
-  s('topCharacterName', name);
+  s('topCharacterName', name + (state.selectedCharacter !== getMyIdx() ? ' 👁' : ''));
   s('selectedNameSmall', name);
   s('selectedState', c.state.charAt(0).toUpperCase()+c.state.slice(1));
   s('selectedAscendedStatus', c.semblance.unlocked.ascended ? 'Unlocked' : 'Locked');
   s('selectedTechniqueCount', c.techniques.length);
-  s('topHpMini',   `${c.hp.current} / ${c.hp.max}`);
-  s('topAuraMini', `${c.aura.current} / ${c.aura.max}`);
-  s('topArmorMini', c.armor);
+  // Topbar bars always show YOUR OWN character's HP/Aura
+  s('topHpMini',   `${mine.hp.current} / ${mine.hp.max}`);
+  s('topAuraMini', `${mine.aura.current} / ${mine.aura.max}`);
+  s('topArmorMini', mine.armor);
   s('dmSelectedCharacterName', name);
-  const hpPct  = c.hp.max   > 0 ? (c.hp.current/c.hp.max)*100     : 0;
-  const aPct   = c.aura.max > 0 ? (c.aura.current/c.aura.max)*100 : 0;
+  const hpPct  = mine.hp.max   > 0 ? (mine.hp.current/mine.hp.max)*100     : 0;
+  const aPct   = mine.aura.max > 0 ? (mine.aura.current/mine.aura.max)*100 : 0;
   const hb=el('topHpBar');   if(hb) hb.style.width = hpPct+'%';
   const ab=el('topAuraBar'); if(ab) ab.style.width = aPct+'%';
+  // Update claim button label
+  const claimBtn = el('claimCharacterBtn');
+  if (claimBtn) {
+    const isOwn = state.selectedCharacter === getMyIdx();
+    claimBtn.textContent = isOwn ? '✓ This is Your Character' : '⚑ Claim Selected Character';
+    claimBtn.style.opacity = isOwn ? '.45' : '1';
+    claimBtn.disabled = isOwn;
+  }
 }
 
 // ================================================================
@@ -1116,14 +1025,22 @@ function bindAll() {
   el('addCharacterBtn')?.addEventListener('click',()=>{
     const nc=blankChar(state.characters.length); nc.state='reserve';
     state.characters.push(nc);
-    // Claim this new character for THIS browser
-    localStorage.setItem('rwby-my-char-id', nc.id);
-    state.selectedCharacter=state.characters.length-1; state.showReserve=true;
-    listenToChar(nc.id); // start watching its doc
+    const newIdx = state.characters.length-1;
+    setMyIdx(newIdx);
+    state.selectedCharacter=newIdx; state.showReserve=true;
     pushState(); render();
   });
   el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(); render(); });
   el('toggleDeadBtn')?.addEventListener('click',  ()=>{ state.showDead=!state.showDead;       pushState(); render(); });
+
+  el('claimCharacterBtn')?.addEventListener('click', () => {
+    const idx = state.selectedCharacter;
+    const c   = state.characters[idx];
+    if (!c) return;
+    setMyIdx(idx);
+    render();
+    alert(`You now own "${c.name || `Player ${idx+1}`}". Your edits will update this character.`);
+  });
 
   el('addDustSpellBtn')?.addEventListener('click',   addDustSpell);
   el('createTechniqueBtn')?.addEventListener('click', createTechnique);
@@ -1159,50 +1076,8 @@ function bindAll() {
 }
 
 // ================================================================
-// INIT — migrate old single-doc data then start listeners
+// INIT
 // ================================================================
-async function init() {
-  bindAll();
-  render();
-
-  // Check if any per-character docs already exist
-  // by attempting to load the first known character's doc.
-  // If nothing exists yet, migrate from the old campaigns/rwby-campaign doc.
-  const myId = getMyCharId();
-  const myDocSnap = await getDoc(doc(db, CHARS_COLL, myId)).catch(() => null);
-
-  if (!myDocSnap || !myDocSnap.exists()) {
-    // Try migrating from old doc
-    const oldSnap = await getDoc(doc(db, 'campaigns', 'rwby-campaign')).catch(() => null);
-    if (oldSnap && oldSnap.exists()) {
-      try {
-        const oldState = JSON.parse(oldSnap.data().data);
-        const oldChars = oldState?.characters;
-        if (Array.isArray(oldChars) && oldChars.length) {
-          console.log('Migrating', oldChars.length, 'characters from old doc…');
-          // Write each character to its own doc
-          for (const c of oldChars) {
-            if (c && c.id) {
-              await setDoc(doc(db, CHARS_COLL, c.id), { data: JSON.stringify(c), updated: Date.now() });
-            }
-          }
-          // Update local state with migrated characters
-          state.characters = oldChars;
-          // Claim the first named character as ours if we don't already have one
-          const firstNamed = oldChars.find(c => c.name);
-          if (firstNamed) localStorage.setItem('rwby-my-char-id', firstNamed.id);
-          saveLocal();
-          render();
-        }
-        // Migrate theme too
-        if (oldState?.theme) {
-          await setDoc(doc(db, META_DOC, 'theme'), { data: JSON.stringify(oldState.theme), updated: Date.now() });
-        }
-      } catch(e) { console.error('Migration error:', e); }
-    }
-  }
-
-  startListeners();
-}
-
-init();
+bindAll();
+render();
+startListener();

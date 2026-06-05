@@ -165,122 +165,62 @@ function blankChar(i) {
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
 
 // ================================================================
-// PER-CHARACTER SYNC — same architecture as RWBY
-// Each character = its own Firestore doc at ft-chars/{charId}
-// Each browser owns one character via localStorage 'ft-my-char-id'
-// DM unlock = sessionStorage only, never synced
-// Theme = separate shared doc ft-meta/theme
+// SYNC — simple single doc, full state, debounced push
 // ================================================================
-const CHARS_COLL = 'ft-chars';
-const META_DOC   = 'ft-meta';
+const COLL     = 'campaigns';
+const DOC_NAME = 'ft-campaign';
 
 let state=loadLocal();
-let _charUnsubs={};
-let _metaUnsub=null;
+let _unsub=null;
+let _pushTimer=null;
 let dmUnlocked=sessionStorage.getItem('ft-dm')==='1';
 
-function getMyCharId(){
-  let id=localStorage.getItem('ft-my-char-id');
-  if(!id){const u=state.characters.find(c=>!c.name);id=u?u.id:blankChar(state.characters.length).id;localStorage.setItem('ft-my-char-id',id);}
-  return id;
-}
-function isMine(c){return c.id===getMyCharId();}
+function getMyIdx(){const s=localStorage.getItem('ft-my-idx');const i=s!==null?parseInt(s):0;return Math.min(i,state.characters.length-1);}
+function setMyIdx(i){localStorage.setItem('ft-my-idx',i);}
 
 function loadLocal(){try{const r=localStorage.getItem(LOC_KEY);return r?normalize(JSON.parse(r)):structuredClone(DEF_STATE);}catch{return structuredClone(DEF_STATE);}}
 function saveLocal(){try{localStorage.setItem(LOC_KEY,JSON.stringify(state));}catch{}}
 
-let _pushTimer=null;
 async function pushState(){
   saveLocal();
   clearTimeout(_pushTimer);
   _pushTimer=setTimeout(async()=>{
-    const myId=getMyCharId();
-    const mine=state.characters.find(c=>c.id===myId);if(!mine)return;
     setSyncDot('syncing');
-    try{await setDoc(doc(db,CHARS_COLL,myId),{data:JSON.stringify(mine),updated:Date.now()});setSyncDot('synced');}
+    try{await setDoc(doc(db,COLL,DOC_NAME),{data:JSON.stringify(state),ts:Date.now()});setSyncDot('synced');}
     catch(e){console.error(e);setSyncDot('error');}
-  },800);
-}
-async function pushTheme(){
-  try{await setDoc(doc(db,META_DOC,'theme'),{data:JSON.stringify(state.theme),updated:Date.now()});}
-  catch(e){console.error(e);}
+  },600);
 }
 
-function listenToChar(charId){
-  if(_charUnsubs[charId])return;
-  const myId=getMyCharId();
-  _charUnsubs[charId]=onSnapshot(doc(db,CHARS_COLL,charId),snap=>{
+function startListener(){
+  if(_unsub)_unsub();
+  _unsub=onSnapshot(doc(db,COLL,DOC_NAME),snap=>{
     if(!snap.exists())return;
-    // Skip our own echoes — would disrupt typing
-    if(charId===myId){setSyncDot('synced');return;}
     try{
-      const fresh=JSON.parse(snap.data().data);
-      const idx=state.characters.findIndex(c=>c.id===charId);
-      const b=blankChar(0);
-      const merged={...b,...fresh,stats:{...b.stats,...(fresh.stats||{})},hp:{...b.hp,...(fresh.hp||{})},mana:{...b.mana,...(fresh.mana||{})},
-        spells:Array.isArray(fresh.spells)?fresh.spells:[],lostMagic:Array.isArray(fresh.lostMagic)?fresh.lostMagic:[],
-        skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(fresh.skills?.[n]||{})};});return bsk;})()
-      };
-      if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
+      const remote=normalize(JSON.parse(snap.data().data));
+      const myIdx=getMyIdx();
+      remote.characters.forEach((rc,i)=>{if(i!==myIdx)state.characters[i]=rc;});
+      if(remote.characters.length>state.characters.length){
+        for(let i=state.characters.length;i<remote.characters.length;i++)state.characters.push(remote.characters[i]);
+      }
+      state.theme=remote.theme;
       saveLocal();
       try{renderCharacterTabs();}catch(e){}
-      if(state.selectedCharacter===idx){
-        try{renderHeader();renderMainFields();}catch(e){}
-      } else {
-        try{renderHeader();}catch(e){}
+      try{renderHeader();}catch(e){}
+      if(state.selectedCharacter!==myIdx){
+        try{renderMainFields();renderStats();renderSkillsMatrix();renderCalcPanel();renderSpells();renderLostMagic();renderMagicBanner();}catch(e){}
       }
-      setSyncDot('synced');
-    }catch(e){console.error('Snapshot parse error',e);}
+      applyTheme();
+    }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
-}
-
-function startListeners(){
-  const myId=getMyCharId();
-
-  if(_charUnsubs['__collection__'])_charUnsubs['__collection__']();
-  _charUnsubs['__collection__']=onSnapshot(collection(db,CHARS_COLL),snapshot=>{
-    snapshot.docChanges().forEach(change=>{
-      if(change.type==='removed')return;
-      const charId=change.doc.id;
-      // Load ALL docs on 'added' (initial/reload). Skip own doc only on 'modified' (echo of our write).
-      if(charId===myId && change.type==='modified'){setSyncDot('synced');return;}
-      try{
-        const fresh=JSON.parse(change.doc.data().data);
-        const idx=state.characters.findIndex(c=>c.id===charId);
-        const b=blankChar(0);
-        const merged={...b,...fresh,
-          stats:{...b.stats,...(fresh.stats||{})},
-          hp:{...b.hp,...(fresh.hp||{})},
-          mana:{...b.mana,...(fresh.mana||{})},
-          spells:Array.isArray(fresh.spells)?fresh.spells:[],
-          lostMagic:Array.isArray(fresh.lostMagic)?fresh.lostMagic:[],
-          skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(fresh.skills?.[n]||{})};});return bsk;})()
-        };
-        if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
-        needsRender=true;
-        setSyncDot('synced');
-      }catch(e){console.error('Snapshot parse error',e);}
-    });
-    if(needsRender){saveLocal();try{render();}catch(e){}}
-  },e=>{console.error('Collection listener error',e);setSyncDot('error');});
-
-  if(_metaUnsub)_metaUnsub();
-  _metaUnsub=onSnapshot(doc(db,META_DOC,'theme'),snap=>{
-    if(!snap.exists())return;
-    try{
-      const t=JSON.parse(snap.data().data);
-      state.theme={...DEF_THEME,...t};
-      Object.keys(DEF_THEME).forEach(k=>{if(!state.theme[k]||!state.theme[k].startsWith('#'))state.theme[k]=DEF_THEME[k];});
-      saveLocal();applyTheme();renderThemeFields();
-    }catch(e){console.error(e);}
-  },e=>console.error(e));
 }
 
 function setSyncDot(s){
   const d=el('syncDot');if(!d)return;
   d.className='sync-dot '+s;
-  d.title={synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — local only'}[s]||s;
+  d.title={synced:'Synced ✓',syncing:'Syncing…',error:'Sync error — working locally'}[s]||s;
 }
+
+
 function normalize(raw){
   const m=structuredClone(DEF_STATE);Object.assign(m,raw||{});
   m.theme={...DEF_THEME,...(raw?.theme||{})};
@@ -303,8 +243,7 @@ function normalize(raw){
 // HELPERS
 // ================================================================
 function getChar(){return state.characters[state.selectedCharacter]||state.characters[0];}
-function getMyChar(){const myId=getMyCharId();return state.characters.find(c=>c.id===myId)||state.characters[0];}
-function isViewingOwnChar(){return getChar().id===getMyCharId();}
+function getMyChar(){return state.characters[getMyIdx()]||state.characters[0];}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
@@ -487,12 +426,11 @@ function renderCalcPanel(){
 // ================================================================
 function renderCharacterTabs(){
   const tabs=el('characterTabs');if(!tabs)return;tabs.innerHTML='';
-  const myId=getMyCharId();
   state.characters.forEach((c,i)=>{
     if(c.state==='dead'&&!state.showDead)return;
     if(c.state==='reserve'&&!state.showReserve)return;
     const pct=c.hp.max>0?Math.round((c.hp.current/c.hp.max)*100):0;
-    const isOwn=c.id===myId;
+    const isOwn=i===getMyIdx();
     const btn=document.createElement('button');btn.type='button';
     btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isOwn?' active':''}`;
     btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}${isOwn?' <span style="color:var(--gold);font-size:.55rem">YOU</span>':''}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
@@ -506,14 +444,28 @@ function renderCharacterTabs(){
 // ================================================================
 function renderHeader(){
   const c=getChar();const name=c.name||'—';
+  const mine=getMyChar();
   const s=(id,v)=>{const e=el(id);if(e)e.textContent=v;};
-  s('topCharacterName',name);s('selectedNameSmall',name);
+  s('topCharacterName',name+(state.selectedCharacter!==getMyIdx()?' 👁':''));
+  s('selectedNameSmall',name);
   s('selectedState',c.state.charAt(0).toUpperCase()+c.state.slice(1));
   s('selectedMagicType',c.magicType||'—');s('selectedSpellCount',c.spells.length);
-  s('topHpMini',`${c.hp.current} / ${c.hp.max}`);s('topManaMini',`${c.mana.current} / ${c.mana.max}`);s('topArmorMini',c.armor);
+  // Topbar bars always show YOUR OWN character
+  s('topHpMini',`${mine.hp.current} / ${mine.hp.max}`);
+  s('topManaMini',`${mine.mana.current} / ${mine.mana.max}`);
+  s('topArmorMini',mine.armor);
   s('dmSelectedCharacterName',name);
-  const hpPct=c.hp.max>0?(c.hp.current/c.hp.max)*100:0;const mPct=c.mana.max>0?(c.mana.current/c.mana.max)*100:0;
-  const hb=el('topHpBar');if(hb)hb.style.width=hpPct+'%';const mb=el('topManaBar');if(mb)mb.style.width=mPct+'%';
+  const hpPct=mine.hp.max>0?(mine.hp.current/mine.hp.max)*100:0;
+  const mPct=mine.mana.max>0?(mine.mana.current/mine.mana.max)*100:0;
+  const hb=el('topHpBar');if(hb)hb.style.width=hpPct+'%';
+  const mb=el('topManaBar');if(mb)mb.style.width=mPct+'%';
+  const claimBtn=el('claimCharacterBtn');
+  if(claimBtn){
+    const isOwn=state.selectedCharacter===getMyIdx();
+    claimBtn.textContent=isOwn?'✓ This is Your Character':'⚑ Claim Selected Character';
+    claimBtn.style.opacity=isOwn?'.45':'1';
+    claimBtn.disabled=isOwn;
+  }
 }
 
 // ================================================================
@@ -818,6 +770,15 @@ function bindAll(){
   el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);localStorage.setItem('ft-my-char-id',nc.id);state.selectedCharacter=state.characters.length-1;state.showReserve=true;listenToChar(nc.id);pushState();render();});
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});
+
+  el('claimCharacterBtn')?.addEventListener('click',()=>{
+    const idx=state.selectedCharacter;
+    const c=state.characters[idx];
+    if(!c)return;
+    setMyIdx(idx);
+    render();
+    alert(`You now own "${c.name||`Player ${idx+1}`}". Your edits will update this character.`);
+  });
   el('addSpellBtn')?.addEventListener('click',addSpell);
   el('addLostMagicBtn')?.addEventListener('click',addLostMagic);
   el('saveCharacterStateBtn')?.addEventListener('click',saveCharState);
@@ -835,37 +796,8 @@ function bindAll(){
 }
 
 // ================================================================
-// INIT — migrate old single-doc data then start listeners
+// INIT
 // ================================================================
-async function init(){
-  bindAll();
-  render();
-
-  const myId=getMyCharId();
-  const myDocSnap=await getDoc(doc(db,CHARS_COLL,myId)).catch(()=>null);
-
-  if(!myDocSnap||!myDocSnap.exists()){
-    const oldSnap=await getDoc(doc(db,'campaigns','ft-campaign')).catch(()=>null);
-    if(oldSnap&&oldSnap.exists()){
-      try{
-        const oldState=JSON.parse(oldSnap.data().data);
-        const oldChars=oldState?.characters;
-        if(Array.isArray(oldChars)&&oldChars.length){
-          console.log('Migrating',oldChars.length,'FT characters from old doc…');
-          for(const c of oldChars){
-            if(c&&c.id) await setDoc(doc(db,CHARS_COLL,c.id),{data:JSON.stringify(c),updated:Date.now()});
-          }
-          state.characters=oldChars;
-          const firstNamed=oldChars.find(c=>c.name);
-          if(firstNamed)localStorage.setItem('ft-my-char-id',firstNamed.id);
-          saveLocal();render();
-        }
-        if(oldState?.theme) await setDoc(doc(db,META_DOC,'theme'),{data:JSON.stringify(oldState.theme),updated:Date.now()});
-      }catch(e){console.error('Migration error:',e);}
-    }
-  }
-
-  startListeners();
-}
-
-init();
+bindAll();
+render();
+startListener();

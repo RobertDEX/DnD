@@ -339,11 +339,13 @@ function startListeners() {
   // Single listener on the whole collection — fires whenever any char doc changes
   if (_charUnsubs['__collection__']) _charUnsubs['__collection__']();
   _charUnsubs['__collection__'] = onSnapshot(collection(db, CHARS_COLL), snapshot => {
+    let needsRender = false;
     snapshot.docChanges().forEach(change => {
       if (change.type === 'removed') return;
       const charId = change.doc.id;
-      // Skip echo of our own writes
-      if (charId === myId) { setSyncDot('synced'); return; }
+      // On 'added' (initial load / reload), load ALL docs including our own — this restores data after refresh.
+      // On 'modified', skip our own doc — that's just the echo of our own pushState write.
+      if (charId === myId && change.type === 'modified') { setSyncDot('synced'); return; }
       try {
         const fresh = JSON.parse(change.doc.data().data);
         const idx   = state.characters.findIndex(c => c.id === charId);
@@ -373,16 +375,11 @@ function startListeners() {
         };
         if (idx >= 0) state.characters[idx] = merged;
         else          state.characters.push(merged);
-        saveLocal();
-        try { renderCharacterTabs(); } catch(e) {}
-        if (state.selectedCharacter === (idx >= 0 ? idx : state.characters.length - 1)) {
-          try { renderHeader(); renderMainFields(); } catch(e) {}
-        } else {
-          try { renderHeader(); } catch(e) {}
-        }
+        needsRender = true;
         setSyncDot('synced');
-      } catch(e) { console.error('Collection snapshot error', e); }
+      } catch(e) { console.error('Snapshot parse error', e); }
     });
+    if (needsRender) { saveLocal(); try { render(); } catch(e) {} }
   }, e => { console.error('Collection listener error', e); setSyncDot('error'); });
 
   // Theme listener

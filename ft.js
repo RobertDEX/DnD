@@ -242,7 +242,8 @@ function startListeners(){
     snapshot.docChanges().forEach(change=>{
       if(change.type==='removed')return;
       const charId=change.doc.id;
-      if(charId===myId){setSyncDot('synced');return;}
+      // Load ALL docs on 'added' (initial/reload). Skip own doc only on 'modified' (echo of our write).
+      if(charId===myId && change.type==='modified'){setSyncDot('synced');return;}
       try{
         const fresh=JSON.parse(change.doc.data().data);
         const idx=state.characters.findIndex(c=>c.id===charId);
@@ -256,14 +257,11 @@ function startListeners(){
           skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(fresh.skills?.[n]||{})};});return bsk;})()
         };
         if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
-        saveLocal();
-        try{renderCharacterTabs();}catch(e){}
-        const viewIdx=idx>=0?idx:state.characters.length-1;
-        if(state.selectedCharacter===viewIdx){try{render();}catch(e){}}
-        else{try{renderHeader();}catch(e){}}
+        needsRender=true;
         setSyncDot('synced');
-      }catch(e){console.error('Collection snapshot error',e);}
+      }catch(e){console.error('Snapshot parse error',e);}
     });
+    if(needsRender){saveLocal();try{render();}catch(e){}}
   },e=>{console.error('Collection listener error',e);setSyncDot('error');});
 
   if(_metaUnsub)_metaUnsub();

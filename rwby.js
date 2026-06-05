@@ -131,7 +131,7 @@ window.useUncanny = () => {
   const dmg = parseInt(document.getElementById('uncannyDmg')?.value);
   if (!dmg || dmg <= 0) { alert('Enter incoming damage first.'); return; }
   const r = calcUD(dmg);
-  const c = getChar();
+  const c = getMyChar();
   const totalAuraCost = r.apCost + r.halved;
   if (c.aura.current < totalAuraCost) { alert(`Not enough Aura! Need ${totalAuraCost} AP (${r.apCost} cost + ${r.halved} halved damage), have ${c.aura.current}.`); return; }
   c.aura.current -= totalAuraCost;
@@ -148,7 +148,7 @@ window.previewDamage = () => {
   if (!inp || !prev) return;
   const dmg = parseInt(inp.value);
   if (!dmg || dmg <= 0) { prev.textContent = ''; prev.className = 'damage-preview'; return; }
-  const c = getChar();
+  const c = getMyChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   const hpHit = dmg - absorbed;
@@ -163,7 +163,7 @@ window.applyDamage = () => {
   const inp = document.getElementById('damageTaken');
   const dmg = parseInt(inp?.value);
   if (!dmg || dmg <= 0) { alert('Enter a damage amount.'); return; }
-  const c = getChar();
+  const c = getMyChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   c.tempHp = tmp - absorbed;
@@ -319,13 +319,12 @@ function listenToChar(charId) {
       if (idx >= 0) state.characters[idx] = merged;
       else          state.characters.push(merged);
       saveLocal();
-      // Refresh sidebar so HP bars and names stay current for all players
       try { renderCharacterTabs(); } catch(e) {}
-      // If the viewer is currently looking at this character, refresh their full view
-      if (state.selectedCharacter === idx || state.selectedCharacter === state.characters.indexOf(merged)) {
-        try { renderHeader(); renderMainFields(); } catch(e) {}
+      const viewIdx = idx >= 0 ? idx : state.characters.length - 1;
+      if (state.selectedCharacter === viewIdx) {
+        // Viewing this character's tab — full re-render so everything updates live
+        try { render(); } catch(e) {}
       } else {
-        // Always refresh topbar — it shows the active player's live HP/Aura
         try { renderHeader(); } catch(e) {}
       }
       setSyncDot('synced');
@@ -451,10 +450,11 @@ function normalize(raw) {
 // ================================================================
 // HELPERS
 // ================================================================
-function getChar() {
-  const myId = getMyCharId();
-  return state.characters.find(c => c.id === myId) || state.characters[state.selectedCharacter] || state.characters[0];
-}
+// Who you are VIEWING (whatever tab is selected in the sidebar)
+function getChar()     { return state.characters[state.selectedCharacter] || state.characters[0]; }
+// Who YOU OWN — the only character you can edit
+function getMyChar()   { const myId=getMyCharId(); return state.characters.find(c=>c.id===myId) || state.characters[0]; }
+function isViewingOwnChar() { return getChar().id === getMyCharId(); }
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
 function rollD10()     { return Math.floor(Math.random() * 10) + 1; }
 function esc(s)        { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -973,42 +973,42 @@ function render() {
 // ACTIONS
 // ================================================================
 function adjustResource(res, amt) {
-  const c = getChar();
+  const c = getMyChar();
   if (res==='hp')   c.hp.current   = clamp(c.hp.current   + amt, 0, c.hp.max);
   if (res==='aura') c.aura.current = clamp(c.aura.current + amt, 0, c.aura.max);
   pushState(); renderHeader(); renderMainFields(); renderCharacterTabs();
 }
 function useTechnique(id) {
-  const c = getChar(); const t = c.techniques.find(t=>t.id===id); if(!t) return;
+  const c = getMyChar(); const t = c.techniques.find(t=>t.id===id); if(!t) return;
   if (c.aura.current < t.cost) { alert(`Not enough Aura. Need ${t.cost}, have ${c.aura.current}.`); return; }
   c.aura.current -= t.cost; ensureClamp(c); pushState(); render();
 }
 function useSemblance(key) {
-  const c = getChar(); if (stageLocked(key,c)) { alert('That stage is locked.'); return; }
+  const c = getMyChar(); if (stageLocked(key,c)) { alert('That stage is locked.'); return; }
   const cost = c.semblance[key].auraCost;
   if (c.aura.current < cost) { alert(`Not enough Aura. Need ${cost}, have ${c.aura.current}.`); return; }
   c.aura.current -= cost; ensureClamp(c); pushState(); render();
 }
 function useDustSpell(id) {
-  const c = getChar(); const sp = c.dustSpells.find(s=>s.id===id); if(!sp) return;
+  const c = getMyChar(); const sp = c.dustSpells.find(s=>s.id===id); if(!sp) return;
   if ((c.dustInventory[sp.type]||0) < 1) { alert(`Not enough ${sp.type}.`); return; }
   c.dustInventory[sp.type]--; pushState(); renderDust();
 }
 function rollHp() {
-  const c = getChar(); const conM = mod(c.stats.CON); const roll = rollD10();
+  const c = getMyChar(); const conM = mod(c.stats.CON); const roll = rollD10();
   const total = Math.max(1, roll + conM); c.hp.max += total; c.hp.current = c.hp.max;
   pushState(); render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}\nNew Max: ${c.hp.max}`);
 }
 function rollAura() {
-  const c = getChar(); const sk = c.skills['Aura Mastery'] || {}; const bonus = skillTotal(c, 'Aura Mastery');
+  const c = getMyChar(); const sk = c.skills['Aura Mastery'] || {}; const bonus = skillTotal(c, 'Aura Mastery');
   const roll = rollD10(); const total = Math.max(1, roll + bonus);
   c.aura.max += total; c.aura.current = c.aura.max;
   pushState(); render();
   alert(`Aura Roll: d10(${roll}) + Aura Mastery(${fmtMod(bonus)}) = +${total}\nNew Max: ${c.aura.max}`);
 }
 function saveSemblance() {
-  const c = getChar();
+  const c = getMyChar();
   el('semblanceDmGrid')?.querySelectorAll('[data-sem]').forEach(inp => {
     const key=inp.dataset.sem, f=inp.dataset.f;
     c.semblance[key][f] = f==='auraCost' ? Math.max(0,Number(inp.value)||0) : inp.value;
@@ -1020,7 +1020,7 @@ function saveSemblance() {
   pushState(); render();
 }
 function saveCharState() {
-  const c = getChar();
+  const c = getMyChar();
   if (el('stateActive')?.checked)  c.state = 'active';
   if (el('stateReserve')?.checked) c.state = 'reserve';
   if (el('stateDead')?.checked)    { c.state='dead'; c.hp.current=0; c.aura.current=0; }
@@ -1078,7 +1078,7 @@ function unlockDm() {
 // INPUT BINDINGS
 // ================================================================
 function updateField(field, value) {
-  const c = getChar();
+  const c = getMyChar();
   const hpF = {maxHp:'hp.max',currentHp:'hp.current',maxAura:'aura.max',currentAura:'aura.current'};
   if (hpF[field]) { const[o,k]=hpF[field].split('.'); c[o][k]=Math.max(0,Number(value)||0); }
   else if (['level','armor','tempHp'].includes(field)) c[field] = Math.max(0,Number(value)||0);
@@ -1103,7 +1103,7 @@ function bindAll() {
   }));
   el('statsGrid')?.addEventListener('click', e => {
     const btn=e.target.closest('button[data-action]'); if(!btn) return;
-    const c=getChar(); c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);
+    const c=getMyChar(); c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);
     pushState(); renderStats(); renderSkillsMatrix(); renderCalcPanel();
   });
   document.addEventListener('click', e => {
@@ -1113,8 +1113,8 @@ function bindAll() {
 
   el('rollHpBtn')?.addEventListener('click',   rollHp);
   el('rollAuraBtn')?.addEventListener('click',  rollAura);
-  el('restoreHpBtn')?.addEventListener('click', ()=>{ const c=getChar(); c.hp.current=c.hp.max; pushState(); render(); });
-  el('restoreAuraBtn')?.addEventListener('click',()=>{ const c=getChar(); c.aura.current=c.aura.max; pushState(); render(); });
+  el('restoreHpBtn')?.addEventListener('click', ()=>{ const c=getMyChar(); c.hp.current=c.hp.max; pushState(); render(); });
+  el('restoreAuraBtn')?.addEventListener('click',()=>{ const c=getMyChar(); c.aura.current=c.aura.max; pushState(); render(); });
 
   el('addCharacterBtn')?.addEventListener('click',()=>{
     const nc=blankChar(state.characters.length); nc.state='reserve';

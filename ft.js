@@ -113,7 +113,7 @@ window.previewDamage = () => {
   if (!inp || !prev) return;
   const dmg = parseInt(inp.value);
   if (!dmg || dmg <= 0) { prev.textContent = ''; prev.className = 'damage-preview'; return; }
-  const c = getChar();
+  const c = getMyChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   const hpHit = dmg - absorbed;
@@ -128,7 +128,7 @@ window.applyDamage = () => {
   const inp = document.getElementById('damageTaken');
   const dmg = parseInt(inp?.value);
   if (!dmg || dmg <= 0) { alert('Enter a damage amount.'); return; }
-  const c = getChar();
+  const c = getMyChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
   c.tempHp = tmp - absorbed;
@@ -259,7 +259,7 @@ function startListeners(){
         saveLocal();
         try{renderCharacterTabs();}catch(e){}
         const viewIdx=idx>=0?idx:state.characters.length-1;
-        if(state.selectedCharacter===viewIdx){try{renderHeader();renderMainFields();}catch(e){}}
+        if(state.selectedCharacter===viewIdx){try{render();}catch(e){}}
         else{try{renderHeader();}catch(e){}}
         setSyncDot('synced');
       }catch(e){console.error('Collection snapshot error',e);}
@@ -304,10 +304,9 @@ function normalize(raw){
 // ================================================================
 // HELPERS
 // ================================================================
-function getChar(){
-  const myId=getMyCharId();
-  return state.characters.find(c=>c.id===myId)||state.characters[state.selectedCharacter]||state.characters[0];
-}
+function getChar(){return state.characters[state.selectedCharacter]||state.characters[0];}
+function getMyChar(){const myId=getMyCharId();return state.characters.find(c=>c.id===myId)||state.characters[0];}
+function isViewingOwnChar(){return getChar().id===getMyCharId();}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
@@ -618,7 +617,7 @@ function renderSkillsMatrix(){
 // SPELLS
 // ================================================================
 function renderSpells(){
-  const c=getChar();const cont=el('spellList');if(!cont)return;cont.innerHTML='';
+  const c=getMyChar();const cont=el('spellList');if(!cont)return;cont.innerHTML='';
   if(!c.spells.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No spells yet. Use the form above.</div>`;return;}
   [...c.spells].sort((a,b)=>(RANK_ORDER[b.rank]||0)-(RANK_ORDER[a.rank]||0)).forEach(sp=>{
     const card=document.createElement('div');card.className='spell-card collapse-block';
@@ -630,7 +629,7 @@ function renderSpells(){
   cont.querySelectorAll('.edit-spell').forEach(btn=>btn.addEventListener('click',()=>openEditSpell(btn.dataset.id)));
 }
 function openEditSpell(id){
-  const c=getChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
+  const c=getMyChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
   const sv=(eid,v)=>{const e=el(eid);if(e)e.value=v;};
   sv('spellName',sp.name);sv('spellRank',sp.rank);sv('spellManaCost',sp.manaCost);sv('spellType',sp.type);sv('spellDescription',sp.description);
   const btn=el('addSpellBtn');if(btn){btn.textContent='Update Spell';btn.dataset.editId=id;}
@@ -641,7 +640,7 @@ function openEditSpell(id){
 // LOST MAGIC
 // ================================================================
 function renderLostMagic(){
-  const c=getChar();const cont=el('lostMagicList');if(!cont)return;cont.innerHTML='';
+  const c=getMyChar();const cont=el('lostMagicList');if(!cont)return;cont.innerHTML='';
   if(!c.lostMagic.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No Lost Magic yet. DM grants via the DM panel.</div>`;return;}
   c.lostMagic.forEach(lm=>{
     const card=document.createElement('div');card.className='spell-card lm-card collapse-block';
@@ -695,7 +694,7 @@ function renderTabs(){
 // ================================================================
 function render(){
   try{applyTheme();}catch(e){console.error('applyTheme:',e);}
-  const c=getChar();ensureClamp(c);
+  const c=getMyChar();ensureClamp(c);
   try{renderCharacterTabs();}catch(e){console.error('renderCharacterTabs:',e);}
   try{renderHeader();}       catch(e){console.error('renderHeader:',e);}
   try{renderMainFields();}   catch(e){console.error('renderMainFields:',e);}
@@ -715,23 +714,23 @@ function render(){
 // ACTIONS
 // ================================================================
 function adjustResource(res,amt){
-  const c=getChar();
+  const c=getMyChar();
   if(res==='hp')c.hp.current=clamp(c.hp.current+amt,0,c.hp.max);
   if(res==='mana')c.mana.current=clamp(c.mana.current+amt,0,c.mana.max);
   pushState();renderHeader();renderMainFields();renderCharacterTabs();
 }
 function castSpell(id){
-  const c=getChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
+  const c=getMyChar();const sp=c.spells.find(s=>s.id===id);if(!sp)return;
   if(sp.manaCost>0&&c.mana.current<sp.manaCost){alert(`Not enough Mana! Need ${sp.manaCost}, have ${c.mana.current}.`);return;}
   if(sp.manaCost>0){c.mana.current-=sp.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
 }
 function useLostMagic(id){
-  const c=getChar();const lm=c.lostMagic.find(l=>l.id===id);if(!lm)return;
+  const c=getMyChar();const lm=c.lostMagic.find(l=>l.id===id);if(!lm)return;
   if(lm.manaCost>0&&c.mana.current<lm.manaCost){alert(`Not enough Mana! Need ${lm.manaCost}, have ${c.mana.current}.`);return;}
   if(lm.manaCost>0){c.mana.current-=lm.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
 }
 function addSpell(){
-  const c=getChar();const name=el('spellName')?.value.trim();const rank=el('spellRank')?.value||'D';
+  const c=getMyChar();const name=el('spellName')?.value.trim();const rank=el('spellRank')?.value||'D';
   const manaCost=Math.max(0,Number(el('spellManaCost')?.value)||0);const type=el('spellType')?.value||'Offensive';
   const description=el('spellDescription')?.value.trim();
   if(!name||!description){alert('Spell needs a name and description.');return;}
@@ -751,14 +750,14 @@ function addLostMagic(){
   pushState();render();
 }
 function rollHp(){
-  const c=getChar();const conM=mod(c.stats.CON);
+  const c=getMyChar();const conM=mod(c.stats.CON);
   const isPower=c.magicCategory?.startsWith('power');
   const roll=rollD10();const total=Math.max(1,roll+conM);
   c.hp.max+=total;c.hp.current=c.hp.max;pushState();render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}${isPower?'\n[Power magic: 1d10 hit dice]':''}\nNew Max: ${c.hp.max}`);
 }
 function rollMana(){
-  const c=getChar();const cat=getMagicCat(c);
+  const c=getMyChar();const cat=getMagicCat(c);
   const sm=spellMod(c);const mcBonus=skillTotal(c,'Magic Control')-sm;// just extra bonus part
   const fullBonus=spellMod(c)+(c.skills['Magic Control']?.bonus||0);
   const roll=cat?.manaRoll==='1d8'?rollD8():rollD10();
@@ -767,7 +766,7 @@ function rollMana(){
   alert(`Mana Roll: ${cat?.manaRoll||'1d10'}(${roll}) + ${cat?.stat||'INT'} mod & Magic Control = +${total}\nNew Max: ${c.mana.max}`);
 }
 function saveCharState(){
-  const c=getChar();
+  const c=getMyChar();
   if(el('stateActive')?.checked)c.state='active';
   if(el('stateReserve')?.checked)c.state='reserve';
   if(el('stateDead')?.checked){c.state='dead';c.hp.current=0;c.mana.current=0;}
@@ -791,7 +790,7 @@ function unlockDm(){
 // BINDINGS
 // ================================================================
 function updateField(field,value){
-  const c=getChar();
+  const c=getMyChar();
   const mf={maxHp:'hp.max',currentHp:'hp.current',maxMana:'mana.max',currentMana:'mana.current'};
   if(mf[field]){const[o,k]=mf[field].split('.');c[o][k]=Math.max(0,Number(value)||0);}
   else if(['level','armor'].includes(field))c[field]=Math.max(0,Number(value)||0);
@@ -812,12 +811,12 @@ function bindAll(){
   ii('weaponsText','weaponsText');ii('abilitiesText','abilitiesText');ii('inventoryText','inventoryText');ii('notesText','notesText');
 
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.addEventListener('click',()=>{state.activeTab=b.dataset.tab;pushState();renderTabs();}));
-  el('statsGrid')?.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const c=getChar();c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);pushState();renderStats();renderSkillsMatrix();renderCalcPanel();renderMagicBanner();});
+  el('statsGrid')?.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const c=getMyChar();c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);pushState();renderStats();renderSkillsMatrix();renderCalcPanel();renderMagicBanner();});
   document.addEventListener('click',e=>{const btn=e.target.closest('.adj-btn');if(!btn)return;adjustResource(btn.dataset.resource,Number(btn.dataset.amt));});
   el('rollHpBtn')?.addEventListener('click',rollHp);
   el('rollManaBtn')?.addEventListener('click',rollMana);
-  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getChar();c.hp.current=c.hp.max;pushState();render();});
-  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getChar();c.mana.current=c.mana.max;pushState();render();});
+  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getMyChar();c.hp.current=c.hp.max;pushState();render();});
+  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getMyChar();c.mana.current=c.mana.max;pushState();render();});
   el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);localStorage.setItem('ft-my-char-id',nc.id);state.selectedCharacter=state.characters.length-1;state.showReserve=true;listenToChar(nc.id);pushState();render();});
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});

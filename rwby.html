@@ -54,20 +54,35 @@
 
   <!-- TOP BAR -->
   <header class="topbar panel">
-    <div>
+    <div class="topbar-left">
       <div class="micro">Active Sheet</div>
       <div id="topCharacterName" class="top-character-name">—</div>
     </div>
-    <div class="topbar-resources">
-      <div class="resource-mini">
-        <span>HP</span><strong id="topHpMini">0 / 0</strong>
-        <div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div>
+    <div class="topbar-bars">
+
+      <!-- HP BAR -->
+      <div class="hud-bar hud-hp">
+        <div class="hud-bar-label">HP</div>
+        <div class="hud-bar-track">
+          <div id="topHpBar" class="hud-bar-fill hud-hp-fill"></div>
+          <div class="hud-bar-segments"></div>
+        </div>
+        <div id="topHpMini" class="hud-bar-value">0 / 0</div>
       </div>
-      <div class="resource-mini aura-mini">
-        <span>Aura</span><strong id="topAuraMini">0 / 0</strong>
-        <div class="mini-bar"><div id="topAuraBar" class="mini-bar-fill aura-fill"></div></div>
+
+      <!-- AURA BAR -->
+      <div class="hud-bar hud-aura">
+        <div class="hud-bar-label">AURA</div>
+        <div class="hud-bar-track">
+          <div id="topAuraBar" class="hud-bar-fill hud-aura-fill"></div>
+          <div class="hud-bar-segments"></div>
+        </div>
+        <div id="topAuraMini" class="hud-bar-value hud-aura-value">0 / 0</div>
       </div>
-      <div class="resource-mini"><span>AC</span><strong id="topArmorMini">—</strong></div>
+
+    </div>
+    <div class="topbar-right">
+      <div class="hud-stat"><span>AC</span><strong id="topArmorMini">—</strong></div>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
   </header>

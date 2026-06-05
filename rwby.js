@@ -319,11 +319,13 @@ function listenToChar(charId) {
       if (idx >= 0) state.characters[idx] = merged;
       else          state.characters.push(merged);
       saveLocal();
-      // Only refresh the parts that show OTHER players' data — sidebar tabs, topbar.
-      // Never do a full render() which would disrupt the local player's inputs/scroll/focus.
+      // Refresh sidebar so HP bars and names stay current for all players
       try { renderCharacterTabs(); } catch(e) {}
-      if (state.selectedCharacter === idx) {
-        // The player has this other character selected (viewing mode) — refresh their view
+      // If the viewer is currently looking at this character, refresh their full view
+      if (state.selectedCharacter === idx || state.selectedCharacter === state.characters.indexOf(merged)) {
+        try { renderHeader(); renderMainFields(); } catch(e) {}
+      } else {
+        // Always refresh topbar — it shows the active player's live HP/Aura
         try { renderHeader(); } catch(e) {}
       }
       setSyncDot('synced');

@@ -224,7 +224,11 @@ function listenToChar(charId){
       if(idx>=0)state.characters[idx]=merged;else state.characters.push(merged);
       saveLocal();
       try{renderCharacterTabs();}catch(e){}
-      if(state.selectedCharacter===idx){try{renderHeader();}catch(e){}}
+      if(state.selectedCharacter===idx){
+        try{renderHeader();renderMainFields();}catch(e){}
+      } else {
+        try{renderHeader();}catch(e){}
+      }
       setSyncDot('synced');
     }catch(e){console.error('Snapshot parse error',e);}
   },e=>{console.error(e);setSyncDot('error');});

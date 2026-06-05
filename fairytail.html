@@ -32,7 +32,7 @@
   <div class="sidebar-section">
     <div class="section-label">Dice</div>
     <div class="sidebar-buttons">
-      <button id="rollHpBtn"      type="button" class="neo-btn">Roll HP</button>
+      <button id="rollHpBtn"      type="button" class="neo-btn">Roll HP (d10+CON)</button>
       <button id="rollManaBtn"    type="button" class="neo-btn">Roll Mana</button>
       <button id="restoreManaBtn" type="button" class="neo-btn ghost">Restore Full Mana</button>
       <button id="restoreHpBtn"   type="button" class="neo-btn ghost">Restore Full HP</button>
@@ -54,20 +54,30 @@
 
   <!-- TOP BAR -->
   <header class="topbar panel">
-    <div>
+    <div class="topbar-left">
       <div class="micro">Active Sheet</div>
       <div id="topCharacterName" class="top-character-name">—</div>
     </div>
-    <div class="topbar-resources">
-      <div class="resource-mini">
-        <span>HP</span><strong id="topHpMini">0 / 0</strong>
-        <div class="mini-bar"><div id="topHpBar" class="mini-bar-fill hp-fill"></div></div>
+    <div class="topbar-bars">
+      <div class="hud-bar hud-hp">
+        <div class="hud-bar-label">HP</div>
+        <div class="hud-bar-track">
+          <div id="topHpBar" class="hud-bar-fill hud-hp-fill"></div>
+          <div class="hud-bar-segments"></div>
+        </div>
+        <div id="topHpMini" class="hud-bar-value">0 / 0</div>
       </div>
-      <div class="resource-mini mana-mini">
-        <span>Mana</span><strong id="topManaMini">0 / 0</strong>
-        <div class="mini-bar"><div id="topManaBar" class="mini-bar-fill mana-fill"></div></div>
+      <div class="hud-bar hud-mana">
+        <div class="hud-bar-label">MANA</div>
+        <div class="hud-bar-track">
+          <div id="topManaBar" class="hud-bar-fill hud-mana-fill"></div>
+          <div class="hud-bar-segments"></div>
+        </div>
+        <div id="topManaMini" class="hud-bar-value hud-mana-value">0 / 0</div>
       </div>
-      <div class="resource-mini"><span>AC</span><strong id="topArmorMini">—</strong></div>
+    </div>
+    <div class="topbar-right">
+      <div class="hud-stat"><span>AC</span><strong id="topArmorMini">—</strong></div>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
   </header>

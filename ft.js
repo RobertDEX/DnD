@@ -170,25 +170,21 @@ const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,show
 const COLL     = 'campaigns';
 const DOC_NAME = 'ft-campaign';
 
-let state=loadLocal();
+let state=structuredClone(DEF_STATE);
 let _unsub=null;
-let _pushTimer=null;
 let dmUnlocked=sessionStorage.getItem('ft-dm')==='1';
 
 function getMyIdx(){const s=localStorage.getItem('ft-my-idx');const i=s!==null?parseInt(s):0;return Math.min(i,state.characters.length-1);}
 function setMyIdx(i){localStorage.setItem('ft-my-idx',i);}
 
-function loadLocal(){try{const r=localStorage.getItem(LOC_KEY);return r?normalize(JSON.parse(r)):structuredClone(DEF_STATE);}catch{return structuredClone(DEF_STATE);}}
-function saveLocal(){try{localStorage.setItem(LOC_KEY,JSON.stringify(state));}catch{}}
+function loadLocal(){return structuredClone(DEF_STATE);}
 
 async function pushState(){
-  saveLocal();
-  clearTimeout(_pushTimer);
-  _pushTimer=setTimeout(async()=>{
-    setSyncDot('syncing');
-    try{await setDoc(doc(db,COLL,DOC_NAME),{data:JSON.stringify(state),ts:Date.now()});setSyncDot('synced');}
-    catch(e){console.error(e);setSyncDot('error');}
-  },600);
+  setSyncDot('syncing');
+  try{
+    await setDoc(doc(db,COLL,DOC_NAME),{data:JSON.stringify(state)});
+    setSyncDot('synced');
+  }catch(e){console.error(e);setSyncDot('error');}
 }
 
 function startListener(){
@@ -197,19 +193,16 @@ function startListener(){
     if(!snap.exists())return;
     try{
       const remote=normalize(JSON.parse(snap.data().data));
-      const myIdx=getMyIdx();
+      const myIdx=getMyIdx();const sel=state.selectedCharacter;
       remote.characters.forEach((rc,i)=>{if(i!==myIdx)state.characters[i]=rc;});
-      if(remote.characters.length>state.characters.length){
-        for(let i=state.characters.length;i<remote.characters.length;i++)state.characters.push(remote.characters[i]);
-      }
+      while(state.characters.length<remote.characters.length)
+        state.characters.push(remote.characters[state.characters.length]);
       state.theme=remote.theme;
-      saveLocal();
       try{renderCharacterTabs();}catch(e){}
       try{renderHeader();}catch(e){}
-      if(state.selectedCharacter!==myIdx){
-        try{renderMainFields();renderStats();renderSkillsMatrix();renderCalcPanel();renderSpells();renderLostMagic();renderMagicBanner();}catch(e){}
-      }
-      applyTheme();
+      try{applyTheme();}catch(e){}
+      if(sel!==myIdx){try{render();}catch(e){}}
+      setSyncDot('synced');
     }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
@@ -767,7 +760,7 @@ function bindAll(){
   el('rollManaBtn')?.addEventListener('click',rollMana);
   el('restoreHpBtn')?.addEventListener('click',()=>{const c=getMyChar();c.hp.current=c.hp.max;pushState();render();});
   el('restoreManaBtn')?.addEventListener('click',()=>{const c=getMyChar();c.mana.current=c.mana.max;pushState();render();});
-  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);localStorage.setItem('ft-my-char-id',nc.id);state.selectedCharacter=state.characters.length-1;state.showReserve=true;listenToChar(nc.id);pushState();render();});
+  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);const ni=state.characters.length-1;setMyIdx(ni);state.selectedCharacter=ni;state.showReserve=true;pushState();render();});
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});
 

@@ -224,9 +224,8 @@ const DEF_STATE = {
 const COLL     = 'campaigns';
 const DOC_NAME = 'rwby-campaign';
 
-let state      = loadLocal();
+let state = structuredClone(DEF_STATE);
 let _unsub     = null;
-let _pushTimer = null;
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
 // Which character index this browser is editing
@@ -237,28 +236,19 @@ function getMyIdx() {
 }
 function setMyIdx(i) { localStorage.setItem('rwby-my-idx', i); }
 
-function loadLocal() {
-  try { const r = localStorage.getItem(LOC_KEY); return r ? normalize(JSON.parse(r)) : structuredClone(DEF_STATE); }
-  catch { return structuredClone(DEF_STATE); }
-}
-function saveLocal() { try { localStorage.setItem(LOC_KEY, JSON.stringify(state)); } catch {} }
+function loadLocal() { return structuredClone(DEF_STATE); }
 
 // Debounced push — waits 600ms after last change, then writes full state
+// Write straight to Firebase — no debounce, no local storage.
+// Firebase IS the source of truth. Everyone sees every change immediately.
 async function pushState() {
-  saveLocal();
-  clearTimeout(_pushTimer);
-  _pushTimer = setTimeout(async () => {
-    setSyncDot('syncing');
-    try {
-      await setDoc(doc(db, COLL, DOC_NAME), { data: JSON.stringify(state), ts: Date.now() });
-      setSyncDot('synced');
-    } catch(e) { console.error(e); setSyncDot('error'); }
-  }, 600);
+  setSyncDot('syncing');
+  try {
+    await setDoc(doc(db, COLL, DOC_NAME), { data: JSON.stringify(state) });
+    setSyncDot('synced');
+  } catch(e) { console.error(e); setSyncDot('error'); }
 }
 
-// Listen for changes from OTHER browsers.
-// When a snapshot arrives, merge ONLY characters we are NOT currently editing,
-// so we never overwrite the local player's in-progress typing.
 function startListener() {
   if (_unsub) _unsub();
   _unsub = onSnapshot(doc(db, COLL, DOC_NAME), snap => {
@@ -266,32 +256,22 @@ function startListener() {
     try {
       const remote = normalize(JSON.parse(snap.data().data));
       const myIdx  = getMyIdx();
-      // Keep our own character exactly as-is in local state.
-      // Overwrite every OTHER character slot with the remote version.
-      remote.characters.forEach((remoteChar, i) => {
-        if (i !== myIdx) {
-          state.characters[i] = remoteChar;
-        }
+      const sel    = state.selectedCharacter;
+      // Update every character slot except our own (so typing isn't interrupted)
+      remote.characters.forEach((rc, i) => {
+        if (i !== myIdx) state.characters[i] = rc;
       });
-      // If remote has MORE characters than us, add them
-      if (remote.characters.length > state.characters.length) {
-        for (let i = state.characters.length; i < remote.characters.length; i++) {
-          state.characters.push(remote.characters[i]);
-        }
+      while (state.characters.length < remote.characters.length) {
+        state.characters.push(remote.characters[state.characters.length]);
       }
-      // Preserve our local UI state (which tab we're on, which character selected)
-      // but accept remote theme
       state.theme = remote.theme;
-      saveLocal();
-      // Re-render only the parts that changed — sidebar tabs and topbar always,
-      // full sheet only if we're viewing someone else's character
+      // Refresh sidebar and topbar for everyone
       try { renderCharacterTabs(); } catch(e) {}
-      try { renderHeader(); }         catch(e) {}
-      if (state.selectedCharacter !== myIdx) {
-        // Viewing another player — update the sheet to show their latest data
-        try { renderMainFields(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderSemblance(); renderTechniques(); renderDust(); } catch(e) {}
-      }
-      applyTheme();
+      try { renderHeader();        } catch(e) {}
+      try { applyTheme();          } catch(e) {}
+      // If viewing someone else's tab, re-render the full sheet live
+      if (sel !== myIdx) { try { render(); } catch(e) {} }
+      setSyncDot('synced');
     } catch(e) { console.error('Snapshot error:', e); }
   }, e => { console.error(e); setSyncDot('error'); });
 }

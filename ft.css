@@ -594,3 +594,169 @@ input[readonly] { color:var(--mana); font-family:var(--F4); font-size:.78rem; te
   border-radius: inherit;
 }
 .portrait-slot:hover .portrait-edit-overlay { opacity: 1; }
+
+/* ════════════════════════════════════════════════════════
+   FAIRY TAIL — MAGICAL POLISH PASS
+   More warmth, more glow, more arcane life
+   ════════════════════════════════════════════════════════ */
+
+* { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* ── PANELS: parchment depth + warm glow ── */
+.panel {
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.04),
+    inset 0 0 40px rgba(200,130,40,.015),
+    0 8px 32px rgba(0,0,0,.5),
+    0 2px 8px rgba(80,30,0,.2);
+  backdrop-filter: blur(4px);
+  transition: border-color .3s, box-shadow .3s;
+}
+.panel:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.06),
+    inset 0 0 50px rgba(200,130,40,.025),
+    0 12px 40px rgba(0,0,0,.55),
+    0 0 30px rgba(200,130,40,.06);
+}
+
+/* ── BRAND: golden ember glow ── */
+.brand h1 {
+  animation: ftBrandGlow 4s ease-in-out infinite;
+}
+@keyframes ftBrandGlow {
+  0%,100% { filter: drop-shadow(0 0 10px rgba(232,160,48,.3)); }
+  50% { filter: drop-shadow(0 0 18px rgba(232,160,48,.5)) drop-shadow(0 0 8px rgba(255,100,30,.3)); }
+}
+
+/* ── BUTTONS: warm glossy shine ── */
+.neo-btn {
+  position: relative; overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,220,160,.06), 0 2px 8px rgba(0,0,0,.3);
+}
+.neo-btn::after {
+  content:'';
+  position:absolute; top:0; left:-100%; width:60%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(255,220,160,.1), transparent);
+  transition: left .5s;
+}
+.neo-btn:hover::after { left:150%; }
+
+/* ── CHARACTER TABS: gold accent slide ── */
+.character-tab { position: relative; overflow: hidden; }
+.character-tab::after {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:2px;
+  background: linear-gradient(180deg, transparent, var(--gold), transparent);
+  opacity:0; transition: opacity .25s;
+}
+.character-tab.active::after { opacity:1; }
+
+/* ── HUD bars: flowing magic energy ── */
+.hud-hp-fill::before, .hud-mana-fill::before {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, transparent, rgba(255,240,200,.18), transparent);
+  background-size: 200% 100%;
+  animation: ftEnergyFlow 3.5s linear infinite;
+}
+@keyframes ftEnergyFlow {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ── CALC ITEMS: lift + glow ── */
+.calc-item { transition: transform .18s, border-color .18s, box-shadow .18s; }
+.calc-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.4), 0 0 18px rgba(200,130,40,.12);
+}
+.calc-item::before { content:''; position:absolute; top:5px; right:5px; width:4px; height:4px; border-radius:50%; background:rgba(200,130,40,.3); animation: ftDotPulse 2.5s ease-in-out infinite; }
+@keyframes ftDotPulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+/* ── STAT CARDS: golden hover glow ── */
+.stat-card { transition: transform .18s, border-color .2s, box-shadow .2s; }
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card:hover .stat-score-input { color:#fff; text-shadow:0 0 12px rgba(232,160,48,.5); }
+
+/* ── SKILL ROWS: warm slide ── */
+.skill-row { transition: background .15s, transform .15s, box-shadow .15s; }
+.skill-row:hover { transform: translateX(3px); box-shadow:-2px 0 0 var(--gold); }
+
+/* ── TABS: golden underline ── */
+.tab-btn { position: relative; }
+.tab-btn.active::after {
+  content:'';
+  position:absolute; left:15%; right:15%; bottom:-1px; height:2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  box-shadow: 0 0 8px var(--gold);
+}
+
+/* ── INPUTS: warm glow focus ── */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 2px rgba(200,130,40,.1), 0 0 16px rgba(200,130,40,.08) !important;
+}
+
+/* ── SCROLLBAR: golden ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,.2); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(200,130,40,.3), rgba(200,130,40,.12));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(200,130,40,.45); }
+
+/* ── SPELL CARDS: rank glow on hover ── */
+.spell-card { transition: transform .18s, border-color .18s, box-shadow .18s; }
+.spell-card:hover { transform: translateY(-2px); }
+
+/* ── MAGIC BANNER: shimmer sweep ── */
+.magic-type-banner { position: relative; overflow: hidden; }
+.magic-type-banner::after {
+  content:'';
+  position:absolute; top:0; left:-100%; width:50%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(176,96,255,.08), transparent);
+  animation: ftBannerSweep 6s ease-in-out infinite;
+}
+@keyframes ftBannerSweep {
+  0%,100% { left:-100%; }
+  50% { left:200%; }
+}
+
+/* ── DM PANEL: arcane glow ── */
+.dm-overlay { backdrop-filter: blur(12px) saturate(.85); }
+.dm-fullscreen, .dm-login {
+  box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(200,130,40,.08), 0 0 60px rgba(200,130,40,.06);
+}
+
+/* ── RESOURCE cards: top accent ── */
+.resource-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--ember), transparent);
+  opacity:.4;
+}
+.resource-card:nth-child(2)::before {
+  background: linear-gradient(90deg, transparent, var(--mana), transparent);
+}
+
+/* ── Fade-in on load ── */
+.main > * { animation: ftFadeUp .5s ease backwards; }
+.main > *:nth-child(1) { animation-delay: .05s; }
+.main > *:nth-child(2) { animation-delay: .1s; }
+.main > *:nth-child(3) { animation-delay: .15s; }
+@keyframes ftFadeUp {
+  from { opacity:0; transform: translateY(12px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+/* ── Enhanced magic particles: glowing runes ── */
+.magic-particle {
+  filter: blur(.3px);
+}
+
+/* ── Book modal: warm parchment feel (FT version override) ── */
+.book-modal-inner {
+  background: linear-gradient(160deg, rgba(18,10,6,.99) 0%, rgba(10,5,3,.99) 100%) !important;
+  border-color: rgba(200,130,40,.25) !important;
+}

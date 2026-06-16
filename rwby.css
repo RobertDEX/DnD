@@ -1079,3 +1079,203 @@ input[readonly]{color:var(--aura);font-family:var(--F2);font-size:.78rem;text-al
 }
 .book-access-check:hover { color: var(--text); }
 .book-access-check input { accent-color: var(--aura); }
+
+/* ════════════════════════════════════════════════════════
+   VISUAL POLISH PASS — depth, glow, motion, refinement
+   ════════════════════════════════════════════════════════ */
+
+/* Smoother global font rendering */
+* { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* Richer animated background layer */
+body {
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 0%,   rgba(140,0,8,.28),  transparent),
+    radial-gradient(ellipse 60% 60% at 100% 100%, rgba(0,30,60,.5),  transparent),
+    radial-gradient(ellipse 40% 40% at 50% 120%, rgba(0,80,140,.12), transparent),
+    #020106 !important;
+}
+
+/* ── PANELS: more depth + animated edge sheen ── */
+.panel {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.03),
+    inset 0 0 30px rgba(0,210,255,.012),
+    0 8px 32px rgba(0,0,0,.45),
+    0 2px 8px rgba(0,0,0,.3);
+  backdrop-filter: blur(4px);
+  transition: border-color .3s, box-shadow .3s;
+}
+.panel:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 0 40px rgba(0,210,255,.02),
+    0 12px 40px rgba(0,0,0,.5),
+    0 0 24px rgba(0,210,255,.04);
+}
+
+/* Animated scan-line that sweeps across panels occasionally */
+.panel::after {
+  content:'';
+  position:absolute; left:0; right:0; top:0; height:1px;
+  background: linear-gradient(90deg, transparent, rgba(0,210,255,.4), transparent);
+  opacity:0;
+  animation: panelSheen 8s ease-in-out infinite;
+}
+@keyframes panelSheen {
+  0%, 100% { opacity:0; transform:translateY(0); }
+  50% { opacity:.5; transform:translateY(2px); }
+}
+
+/* ── SIDEBAR brand glow pulse ── */
+.brand h1 {
+  filter: drop-shadow(0 0 12px rgba(0,210,255,.25));
+  animation: brandGlow 4s ease-in-out infinite;
+}
+@keyframes brandGlow {
+  0%,100% { filter: drop-shadow(0 0 12px rgba(0,210,255,.25)); }
+  50% { filter: drop-shadow(0 0 20px rgba(0,210,255,.4)) drop-shadow(0 0 8px rgba(200,0,10,.2)); }
+}
+
+/* ── CHARACTER TABS: sleeker active state ── */
+.character-tab {
+  position: relative;
+  overflow: hidden;
+}
+.character-tab::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:2px;
+  background: linear-gradient(180deg, transparent, var(--aura), transparent);
+  opacity:0; transition: opacity .25s;
+}
+.character-tab.active::before { opacity:1; }
+.character-tab.active {
+  background: linear-gradient(90deg, rgba(0,210,255,.1), rgba(0,210,255,.02)) !important;
+}
+
+/* ── BUTTONS: glossy depth + shine sweep ── */
+.neo-btn {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 8px rgba(0,0,0,.3);
+}
+.neo-btn::after {
+  content:'';
+  position:absolute; top:0; left:-100%; width:60%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  transition: left .5s;
+}
+.neo-btn:hover::after { left:150%; }
+
+/* ── TOPBAR: stronger presence ── */
+.topbar {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 8px 32px rgba(0,0,0,.5),
+    0 0 0 1px rgba(0,210,255,.04);
+}
+
+/* ── HUD BARS: animated energy shimmer in the fill ── */
+.hud-hp-fill::before, .hud-aura-fill::before {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+  background-size: 200% 100%;
+  animation: energyFlow 3s linear infinite;
+}
+@keyframes energyFlow {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ── CALC ITEMS: hover lift + pulse the status dot ── */
+.calc-item {
+  transition: transform .18s, border-color .18s, box-shadow .18s;
+}
+.calc-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.4), 0 0 18px rgba(0,210,255,.1);
+}
+.calc-item::before {
+  content:''; position:absolute; top:5px; right:5px;
+  width:4px; height:4px; border-radius:50%;
+  background:rgba(0,210,255,.3);
+  animation: dotPulse 2.5s ease-in-out infinite;
+}
+@keyframes dotPulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+/* ── STAT CARDS: cleaner hover ── */
+.stat-card {
+  transition: transform .18s, border-color .2s, box-shadow .2s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-score-input { transition: color .2s; }
+.stat-card:hover .stat-score-input { color: #fff; text-shadow: 0 0 12px rgba(0,210,255,.4); }
+
+/* ── SKILL ROWS: subtle slide on hover ── */
+.skill-row { transition: background .15s, transform .15s, box-shadow .15s; border-radius:6px; }
+.skill-row:hover {
+  transform: translateX(3px);
+  box-shadow: -2px 0 0 var(--aura);
+}
+
+/* ── TABS: animated underline ── */
+.tab-btn { position: relative; }
+.tab-btn.active::after {
+  content:'';
+  position:absolute; left:15%; right:15%; bottom:-1px; height:2px;
+  background: linear-gradient(90deg, transparent, var(--aura), transparent);
+  box-shadow: 0 0 8px var(--aura);
+}
+
+/* ── INPUTS: glow focus ── */
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 2px rgba(0,210,255,.1), 0 0 16px rgba(0,210,255,.08) !important;
+}
+
+/* ── SCROLLBAR refinement ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,.2); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0,210,255,.25), rgba(0,210,255,.1));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0,210,255,.4); }
+
+/* ── BOOK ICONS: cleaner sidebar cards ── */
+.book-icon-btn {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 2px 6px rgba(0,0,0,.3);
+}
+
+/* ── DM PANEL: richer overlay ── */
+.dm-overlay { backdrop-filter: blur(12px) saturate(.8); }
+.dm-fullscreen, .dm-login {
+  box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(0,210,255,.06), 0 0 60px rgba(0,210,255,.05);
+}
+
+/* ── PRESENCE dots: glassy ── */
+.presence-dot {
+  backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ── Resource cards: gradient top accent ── */
+.resource-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity:.4;
+}
+.resource-card:nth-child(2)::before {
+  background: linear-gradient(90deg, transparent, var(--aura), transparent);
+}
+
+/* Subtle fade-in on load */
+.main > * { animation: fadeUp .5s ease backwards; }
+.main > *:nth-child(1) { animation-delay: .05s; }
+.main > *:nth-child(2) { animation-delay: .1s; }
+.main > *:nth-child(3) { animation-delay: .15s; }
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(12px); }
+  to { opacity:1; transform: translateY(0); }
+}

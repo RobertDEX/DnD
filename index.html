@@ -379,6 +379,13 @@ html,body{height:100%;overflow:hidden}
   .divider{left:0;right:0;top:50%;bottom:auto;width:100%;height:1px}
   .divider-label{top:50%;left:50%}
 }
+/* ── POLISH PASS ── */
+*{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+.split:has(.half-rwby:hover) .half-ft{filter:brightness(.6) saturate(.7)}
+.split:has(.half-ft:hover) .half-rwby{filter:brightness(.6) saturate(.7)}
+.rwby-enter,.ft-enter{transition:color .25s, letter-spacing .25s}
+.half-rwby:hover .rwby-enter{letter-spacing:.3em}
+.half-ft:hover .ft-enter{letter-spacing:.3em}
 </style>
 </head>
 <body>
@@ -396,7 +403,7 @@ html,body{height:100%;overflow:hidden}
       <div class="rwby-emblem">
         <div class="rwby-emblem-ring"></div>
         <img class="rwby-logo-img" src="Rose_Symbole.png" alt="Ruby Rose Emblem">
-      </div>
+      </div>div>
       <div class="rwby-tag">Campaign One</div>
       <h2 class="rwby-title"><span>RWBY DnD</span></h2>
       <div class="rwby-enter">
@@ -408,7 +415,7 @@ html,body{height:100%;overflow:hidden}
   <!-- ═══ DIVIDER ═══ -->
   <div class="divider"></div>
   <div class="divider-label">
-    <span class="divider-vs">Or</span>
+    <span class="divider-vs">VS</span>
   </div>
 
   <!-- ═══ FAIRY TAIL SIDE ═══ -->
@@ -420,7 +427,7 @@ html,body{height:100%;overflow:hidden}
       <div class="ft-emblem">
         <div class="ft-emblem-ring"></div>
         <img class="ft-logo-img" src="FairyTail-Symbol.png" alt="Fairy Tail Guild Mark">
-      </div>
+      </div>div>
       <div class="ft-tag">Campaign Two</div>
       <h2 class="ft-title"><span>Fairy Tail DnD</span></h2>
       <div class="ft-enter">

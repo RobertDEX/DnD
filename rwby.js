@@ -1225,6 +1225,7 @@ bindDeathSaves();
 bindBroadcast();
 bindGrant();
 render();
+renderBookIcons(); // show locked icons immediately, listener will unlock them
 startListener();
 startPresenceListener();
 startBroadcastListener();
@@ -1277,17 +1278,22 @@ async function pushBooks() {
 function startBooksListener() {
   if (_booksUnsub) _booksUnsub();
   _booksUnsub = onSnapshot(doc(db, 'rwby-meta', 'books'), snap => {
-    if (!snap.exists()) return;
-    try {
-      const remote = JSON.parse(snap.data().data);
-      // Merge — preserve book names, update pages/buff/access
-      booksState.books = BOOK_NAMES.map((name, i) => {
-        const rb = remote.books?.[i] || {};
-        return { name, pages: rb.pages || [], buff: rb.buff || '', access: rb.access || [] };
-      });
-    } catch(e) { console.error('booksListener:', e); }
+    if (snap.exists()) {
+      try {
+        const remote = JSON.parse(snap.data().data);
+        booksState.books = BOOK_NAMES.map((name, i) => {
+          const rb = remote.books?.[i] || {};
+          return { name, pages: rb.pages || [], buff: rb.buff || '', access: rb.access || [] };
+        });
+      } catch(e) { console.error('booksListener:', e); }
+    }
+    // Always re-render icons — even on first load with no doc (shows all locked)
+    renderBookIcons();
+    if (dmUnlocked) renderDmBooks();
   }, () => {});
 }
+window.openBook = openBook;
+window.closeBookModal = closeBookModal;
 
 // ── BOOK MODAL (local only) ──
 function openBook(bookIdx) {
@@ -1350,7 +1356,6 @@ function closeBookModal() {
   const m = document.getElementById('bookModal');
   if (m) { m.classList.remove('open'); setTimeout(() => m.remove(), 300); }
 }
-window.closeBookModal = closeBookModal;
 
 // ── RENDER BOOK ICONS IN TOPBAR ──
 function renderBookIcons() {
@@ -1360,10 +1365,12 @@ function renderBookIcons() {
   bar.innerHTML = booksState.books.map((book, i) => {
     const hasAccess = dmUnlocked || book.access.includes(charIdx) || book.access.includes('all');
     const isGrimm = i === 6;
+    const delay = (i * 0.6).toFixed(1);
     return `<button class="book-icon-btn ${hasAccess ? 'unlocked' : 'locked'} ${isGrimm ? 'grimm' : ''}"
+      style="animation-delay:${delay}s"
       onclick="openBook(${i})" title="${esc(book.name)}">
       ${isGrimm ? '📋' : '📖'}
-      <span class="book-icon-label">${esc(book.name.split(' ')[0])}</span>
+      <span class="book-icon-label">${esc(book.name.split(/[-\s]/)[0])}</span>
     </button>`;
   }).join('');
 }

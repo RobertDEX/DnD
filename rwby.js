@@ -305,6 +305,9 @@ function showBroadcast(msg) {
 }
 
 async function pushState() {
+  // Safety guard: never push if all characters are blank (no names)
+  const hasData = state.characters.some(c => c.name && c.name.trim());
+  if (!hasData) { console.warn('pushState blocked — all characters blank, refusing to overwrite Firebase'); return; }
   setSyncDot('syncing');
   try {
     await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
@@ -1023,6 +1026,7 @@ function unlockDm() {
   sessionStorage.setItem('rwby-dm','1');
   el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
+  renderDmBooks();
 }
 
 // ================================================================
@@ -1238,12 +1242,19 @@ bindDeathSaves();
 bindBroadcast();
 bindGrant();
 render();
-renderBookIcons(); // show locked icons immediately, listener will unlock them
+renderBookIcons();
 startListener();
 startPresenceListener();
 startBroadcastListener();
 startBooksListener();
 pushPresence();
+// If DM was already unlocked (sessionStorage persists), restore the DM panel
+if (dmUnlocked) {
+  el('dmLoginPanel')?.classList.add('hidden');
+  el('dmFullscreenPanel')?.classList.remove('hidden');
+  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
+  renderDmBooks();
+}
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {
@@ -1378,7 +1389,7 @@ function renderBookIcons() {
 // ── DM BOOK MANAGEMENT ──
 function renderDmBooks() {
   const container = document.getElementById('dmBooksSection');
-  if (!container || !dmUnlocked) return;
+  if (!container) return;
   container.innerHTML = booksState.books.map((book, bi) => `
     <details class="collapse-block">
       <summary class="collapse-summary">${bi === 6 ? '📋' : '📖'} ${esc(book.name)}</summary>

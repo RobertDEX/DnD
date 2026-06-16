@@ -221,6 +221,19 @@ let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
+// Books must be declared early — renderBookIcons() is called before the books section
+const BOOK_NAMES = [
+  'Soul-Calming',
+  'Intent-Carving',
+  'World-Will',
+  'Yielding Sutra',
+  'Human Will Scripture',
+  'Void-Severing Art',
+  'Grimm Studies w/ Port'
+];
+function blankBook(name) { return { name, pages:[], buff:'', access:[] }; }
+let booksState = { books: BOOK_NAMES.map(n => blankBook(n)) };
+
 // ── PRESENCE ── each browser gets a random color + tab ID
 const MY_PRESENCE_ID = Math.random().toString(36).slice(2);
 const PRESENCE_COLORS = ['#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#55efc4','#fdcb6e','#74b9ff'];
@@ -1252,21 +1265,6 @@ pushPresence();
 // Modal is purely local — never synced
 // ================================================================
 
-const BOOK_NAMES = [
-  'Soul-Calming',
-  'Intent-Carving',
-  'World-Will',
-  'Yielding Sutra',
-  'Human Will Scripture',
-  'Void-Severing Art',
-  'Grimm Studies w/ Port'
-];
-
-function blankBook(name) {
-  return { name, pages: [], buff: '', access: [] }; // access = array of char indices
-}
-
-let booksState = { books: BOOK_NAMES.map(n => blankBook(n)) };
 let _booksUnsub = null;
 
 async function pushBooks() {

@@ -83,6 +83,8 @@
 
     </div>
     <div class="topbar-right">
+      <!-- BOOK ICONS -->
+      <div id="bookIconBar" class="book-icon-bar"></div>
       <div class="hud-stat"><span>AC</span><strong id="topArmorMini">—</strong></div>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
@@ -387,6 +389,13 @@
           </div>
           <div class="field" style="margin-top:.6rem"><label>Item / Note to grant</label><input id="grantItem" type="text" placeholder="e.g. Aura Crystal x2"></div>
           <button id="grantBtn" type="button" class="neo-btn" style="margin-top:.7rem">Grant to Player</button>
+        </div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">📚 Sacred Books</summary>
+        <div class="collapse-body">
+          <p class="small-note" style="margin-bottom:.85rem">Manage pages, buffs, and player access for all 7 books.</p>
+          <div id="dmBooksSection"></div>
         </div>
       </details>
     </div>

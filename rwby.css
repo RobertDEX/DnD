@@ -865,3 +865,179 @@ input[readonly]{color:var(--aura);font-family:var(--F2);font-size:.78rem;text-al
   border-radius: inherit;
 }
 .portrait-slot:hover .portrait-edit-overlay { opacity: 1; }
+
+/* ═══════════════════════════════
+   BOOKS SYSTEM
+═══════════════════════════════ */
+
+/* ── BOOK ICONS IN TOPBAR ── */
+.book-icon-bar {
+  display: flex; gap: .3rem; align-items: center; flex-wrap: wrap;
+}
+.book-icon-btn {
+  display: flex; flex-direction: column; align-items: center; gap: .08rem;
+  padding: .3rem .35rem; border-radius: 7px; cursor: pointer;
+  border: 1px solid transparent;
+  background: rgba(0,0,0,.4);
+  font-size: 1.1rem; line-height: 1;
+  transition: .15s;
+  position: relative;
+}
+.book-icon-btn .book-icon-label {
+  font-family: var(--F2); font-size: .5rem; letter-spacing: .06em;
+  color: var(--muted); white-space: nowrap; max-width: 44px; overflow: hidden; text-overflow: ellipsis;
+}
+.book-icon-btn.unlocked {
+  border-color: rgba(0,210,255,.18);
+}
+.book-icon-btn.unlocked:hover {
+  border-color: rgba(0,210,255,.5);
+  background: rgba(0,210,255,.07);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,210,255,.12);
+}
+.book-icon-btn.unlocked .book-icon-label { color: var(--aura); }
+.book-icon-btn.locked {
+  opacity: .32; filter: grayscale(1); cursor: default;
+}
+.book-icon-btn.grimm.unlocked {
+  border-color: rgba(200,0,10,.28);
+}
+.book-icon-btn.grimm.unlocked:hover {
+  border-color: rgba(200,0,10,.6);
+  background: rgba(200,0,10,.07);
+  box-shadow: 0 4px 12px rgba(200,0,10,.15);
+}
+.book-icon-btn.grimm .book-icon-label { color: var(--accent); }
+
+/* ── BOOK MODAL ── */
+.book-modal {
+  position: fixed; inset: 0; z-index: 9995;
+  background: rgba(0,0,0,.88);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity .28s;
+}
+.book-modal.open { opacity: 1; pointer-events: all; }
+
+.book-modal-inner {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,210,255,.2) transparent;
+  background: linear-gradient(160deg, rgba(10,6,20,.99) 0%, rgba(4,2,10,.99) 100%);
+  border: 1px solid rgba(0,210,255,.18);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  position: relative;
+  transform: translateY(20px);
+  transition: transform .28s;
+  box-shadow:
+    0 0 0 1px rgba(0,210,255,.06),
+    0 0 60px rgba(0,210,255,.08),
+    0 32px 80px rgba(0,0,0,.7);
+}
+.book-modal.open .book-modal-inner { transform: translateY(0); }
+
+.book-close {
+  position: absolute; top: 1rem; right: 1rem;
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px; color: var(--muted); font-size: 1.2rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: .15s;
+}
+.book-close:hover { color: var(--text); background: rgba(255,255,255,.1); }
+
+.book-header {
+  display: flex; align-items: center; justify-content: center;
+  gap: 1rem; margin-bottom: 1.2rem;
+}
+.book-ornament {
+  color: rgba(0,210,255,.4); font-size: 1rem;
+  animation: ornamentPulse 3s ease-in-out infinite;
+}
+@keyframes ornamentPulse { 0%,100%{opacity:.4} 50%{opacity:.9} }
+.book-title {
+  font-family: var(--F1); font-size: 1.4rem; font-weight: 700;
+  background: linear-gradient(135deg, #fff 0%, #80e8ff 50%, var(--aura) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-align: center; letter-spacing: .08em;
+}
+.book-buff {
+  text-align: center;
+  font-family: var(--F2); font-size: .82rem;
+  color: var(--aura); margin-bottom: 1.5rem;
+  padding: .5rem 1rem;
+  background: rgba(0,210,255,.06);
+  border: 1px solid rgba(0,210,255,.15);
+  border-radius: 8px;
+}
+
+.book-pages-container {
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+.book-page {
+  padding: 1.5rem;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(0,210,255,.08);
+  border-radius: 10px;
+  position: relative;
+}
+.book-page::before {
+  content: '';
+  position: absolute; left: 0; top: 15%; bottom: 15%; width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(0,210,255,.3), transparent);
+  border-radius: 1px;
+}
+.book-page-num {
+  font-family: var(--F2); font-size: .65rem;
+  color: var(--muted); text-align: center; letter-spacing: .2em;
+  margin-bottom: .75rem;
+}
+.book-page-title {
+  font-family: var(--F1); font-size: 1rem; color: #fff;
+  text-align: center; margin-bottom: 1rem; letter-spacing: .06em;
+}
+.book-page-body {
+  font-family: var(--F3); font-size: .95rem; color: var(--text);
+  line-height: 1.75; white-space: pre-wrap;
+}
+.book-page-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,210,255,.15), transparent);
+}
+.book-empty {
+  text-align: center; font-family: var(--F2); font-size: .8rem;
+  color: var(--muted); padding: 2rem; font-style: italic;
+}
+
+/* Locked state */
+.book-locked {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; padding: 3rem;
+}
+.book-lock-icon { font-size: 3rem; opacity: .6; }
+.book-lock-text { font-family: var(--F1); font-size: 1.1rem; color: var(--muted); letter-spacing: .08em; }
+.book-lock-sub  { font-family: var(--F3); font-size: .9rem; color: var(--muted); opacity: .6; }
+
+/* ── DM BOOK MANAGEMENT ── */
+.dm-book-page-row {
+  background: rgba(0,0,0,.25); border: 1px solid rgba(0,210,255,.07);
+  border-radius: 8px; padding: .8rem; margin-bottom: .6rem;
+}
+.book-access-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: .4rem; margin-top: .3rem;
+}
+.book-access-check {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .85rem; color: var(--muted);
+  padding: .3rem .5rem; border-radius: 5px;
+  background: rgba(0,210,255,.02); cursor: pointer;
+}
+.book-access-check:hover { color: var(--text); }
+.book-access-check input { accent-color: var(--aura); }

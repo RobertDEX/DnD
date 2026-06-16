@@ -902,6 +902,8 @@ function render() {
   try { renderGrantTargetSelect(); }catch(e) {}
   try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
+  try { renderBookIcons(); }       catch(e) {}
+  try { renderDmBooks(); }         catch(e) {}
   try { pushPresence(); }          catch(e) {}
 }
 
@@ -1102,19 +1104,21 @@ function initPortrait() {
   if (!upload) return;
   upload.addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
+    // Reset input so same file can be re-selected
+    upload.value = '';
     const reader = new FileReader();
     reader.onload = ev => {
-      // Compress to max 200x200 before storing
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX = 200;
+        const MAX = 240;
         const ratio = Math.min(MAX/img.width, MAX/img.height);
         canvas.width  = Math.round(img.width  * ratio);
         canvas.height = Math.round(img.height * ratio);
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Save to the CURRENTLY VIEWED character
         const c = getChar();
-        c.portrait = canvas.toDataURL('image/jpeg', 0.75);
+        c.portrait = canvas.toDataURL('image/jpeg', 0.82);
         renderPortrait(c);
         pushState();
       };
@@ -1224,6 +1228,7 @@ render();
 startListener();
 startPresenceListener();
 startBroadcastListener();
+startBooksListener();
 pushPresence();
 
 // ── MOBILE SIDEBAR TOGGLE ──
@@ -1238,3 +1243,231 @@ pushPresence();
     }
   });
 })();
+
+// ================================================================
+// BOOKS SYSTEM
+// 7 sacred texts — DM manages pages, buffs, access per player
+// Data in Firebase: rwby-meta/books  (shared)
+// Modal is purely local — never synced
+// ================================================================
+
+const BOOK_NAMES = [
+  'Soul-Calming',
+  'Intent-Carving',
+  'World-Will',
+  'Yielding Sutra',
+  'Human Will Scripture',
+  'Void-Severing Art',
+  'Grimm Studies w/ Port'
+];
+
+function blankBook(name) {
+  return { name, pages: [], buff: '', access: [] }; // access = array of char indices
+}
+
+let booksState = { books: BOOK_NAMES.map(n => blankBook(n)) };
+let _booksUnsub = null;
+
+async function pushBooks() {
+  try {
+    await setDoc(doc(db, 'rwby-meta', 'books'), { data: JSON.stringify(booksState) });
+  } catch(e) { console.error('pushBooks:', e); }
+}
+
+function startBooksListener() {
+  if (_booksUnsub) _booksUnsub();
+  _booksUnsub = onSnapshot(doc(db, 'rwby-meta', 'books'), snap => {
+    if (!snap.exists()) return;
+    try {
+      const remote = JSON.parse(snap.data().data);
+      // Merge — preserve book names, update pages/buff/access
+      booksState.books = BOOK_NAMES.map((name, i) => {
+        const rb = remote.books?.[i] || {};
+        return { name, pages: rb.pages || [], buff: rb.buff || '', access: rb.access || [] };
+      });
+    } catch(e) { console.error('booksListener:', e); }
+  }, () => {});
+}
+
+// ── BOOK MODAL (local only) ──
+function openBook(bookIdx) {
+  const book = booksState.books[bookIdx];
+  if (!book) return;
+  // Check access — DM can always open, players only if in access list
+  const charIdx = state.selectedCharacter;
+  if (!dmUnlocked && !book.access.includes(charIdx) && !book.access.includes('all')) {
+    showBookLocked();
+    return;
+  }
+  showBookModal(book);
+}
+
+function showBookLocked() {
+  let m = document.getElementById('bookModal');
+  if (!m) { m = document.createElement('div'); m.id = 'bookModal'; document.body.appendChild(m); }
+  m.className = 'book-modal';
+  m.innerHTML = `
+    <div class="book-modal-inner book-locked">
+      <div class="book-lock-icon">🔒</div>
+      <div class="book-lock-text">This tome is sealed.</div>
+      <div class="book-lock-sub">You have not yet discovered this book.</div>
+      <button class="neo-btn" onclick="closeBookModal()">Close</button>
+    </div>`;
+  m.classList.add('open');
+}
+
+function showBookModal(book) {
+  let m = document.getElementById('bookModal');
+  if (!m) { m = document.createElement('div'); m.id = 'bookModal'; document.body.appendChild(m); }
+  const pages = book.pages || [];
+  const pagesHtml = pages.length
+    ? pages.map((p, i) => `
+        <div class="book-page">
+          <div class="book-page-num">— Page ${i+1} —</div>
+          <div class="book-page-title">${esc(p.title || '')}</div>
+          <div class="book-page-body">${esc(p.content || '').replace(/\n/g,'<br>')}</div>
+        </div>`).join('<div class="book-page-divider"></div>')
+    : '<div class="book-empty">This tome has no pages yet.</div>';
+
+  m.className = 'book-modal';
+  m.innerHTML = `
+    <div class="book-modal-inner">
+      <button class="book-close" onclick="closeBookModal()">×</button>
+      <div class="book-header">
+        <div class="book-ornament">✦</div>
+        <h2 class="book-title">${esc(book.name)}</h2>
+        <div class="book-ornament">✦</div>
+      </div>
+      ${book.buff ? `<div class="book-buff">✨ ${esc(book.buff)}</div>` : ''}
+      <div class="book-pages-container">${pagesHtml}</div>
+    </div>`;
+  m.classList.add('open');
+  // Close on backdrop click
+  m.addEventListener('click', e => { if (e.target === m) closeBookModal(); }, { once: true });
+}
+
+function closeBookModal() {
+  const m = document.getElementById('bookModal');
+  if (m) { m.classList.remove('open'); setTimeout(() => m.remove(), 300); }
+}
+window.closeBookModal = closeBookModal;
+
+// ── RENDER BOOK ICONS IN TOPBAR ──
+function renderBookIcons() {
+  const bar = document.getElementById('bookIconBar');
+  if (!bar) return;
+  const charIdx = state.selectedCharacter;
+  bar.innerHTML = booksState.books.map((book, i) => {
+    const hasAccess = dmUnlocked || book.access.includes(charIdx) || book.access.includes('all');
+    const isGrimm = i === 6;
+    return `<button class="book-icon-btn ${hasAccess ? 'unlocked' : 'locked'} ${isGrimm ? 'grimm' : ''}"
+      onclick="openBook(${i})" title="${esc(book.name)}">
+      ${isGrimm ? '📋' : '📖'}
+      <span class="book-icon-label">${esc(book.name.split(' ')[0])}</span>
+    </button>`;
+  }).join('');
+}
+
+// ── DM BOOK MANAGEMENT ──
+function renderDmBooks() {
+  const container = document.getElementById('dmBooksSection');
+  if (!container || !dmUnlocked) return;
+  container.innerHTML = booksState.books.map((book, bi) => `
+    <details class="collapse-block">
+      <summary class="collapse-summary">${bi === 6 ? '📋' : '📖'} ${esc(book.name)}</summary>
+      <div class="collapse-body">
+
+        <!-- Buff -->
+        <div class="field" style="margin-bottom:.8rem">
+          <label>Buff / Bonus granted</label>
+          <input type="text" class="dm-book-buff" data-book="${bi}"
+            value="${esc(book.buff)}" placeholder="e.g. +2 to Aura Mastery checks">
+        </div>
+
+        <!-- Player Access -->
+        <div class="field" style="margin-bottom:.8rem">
+          <label>Player Access</label>
+          <div class="book-access-grid">
+            <label class="book-access-check">
+              <input type="checkbox" class="dm-book-access" data-book="${bi}" data-player="all"
+                ${book.access.includes('all') ? 'checked' : ''}> All Players
+            </label>
+            ${state.characters.map((c, ci) => `
+              <label class="book-access-check">
+                <input type="checkbox" class="dm-book-access" data-book="${bi}" data-player="${ci}"
+                  ${book.access.includes(ci) || book.access.includes('all') ? 'checked' : ''}>
+                ${esc(c.name || `Player ${ci+1}`)}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Pages -->
+        <div class="section-title" style="font-size:.65rem;margin-bottom:.6rem">Pages</div>
+        <div class="dm-book-pages" id="dmBookPages${bi}">
+          ${book.pages.map((p, pi) => `
+            <div class="dm-book-page-row">
+              <div class="form-grid" style="margin-bottom:.4rem">
+                <div class="field"><label>Page Title</label>
+                  <input type="text" class="dm-page-title" data-book="${bi}" data-page="${pi}"
+                    value="${esc(p.title || '')}" placeholder="Title…">
+                </div>
+                <div style="display:flex;align-items:flex-end">
+                  <button class="neo-btn small ghost dm-del-page" data-book="${bi}" data-page="${pi}">✕ Remove</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>Content</label>
+                <textarea class="small-textarea dm-page-content" data-book="${bi}" data-page="${pi}"
+                  placeholder="Page content…">${esc(p.content || '')}</textarea>
+              </div>
+            </div>`).join('')}
+        </div>
+        <button class="neo-btn small dm-add-page" data-book="${bi}" style="margin-top:.6rem">+ Add Page</button>
+        <button class="neo-btn dm-save-book" data-book="${bi}" style="margin-top:.6rem">Save Book</button>
+      </div>
+    </details>`).join('');
+
+  // Bind events
+  container.querySelectorAll('.dm-add-page').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bi = parseInt(btn.dataset.book);
+      booksState.books[bi].pages.push({ title: '', content: '' });
+      pushBooks(); renderDmBooks(); renderBookIcons();
+    });
+  });
+  container.querySelectorAll('.dm-del-page').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bi = parseInt(btn.dataset.book), pi = parseInt(btn.dataset.page);
+      booksState.books[bi].pages.splice(pi, 1);
+      pushBooks(); renderDmBooks(); renderBookIcons();
+    });
+  });
+  container.querySelectorAll('.dm-save-book').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bi = parseInt(btn.dataset.book);
+      const book = booksState.books[bi];
+      // Collect buff
+      const buffEl = container.querySelector(`.dm-book-buff[data-book="${bi}"]`);
+      if (buffEl) book.buff = buffEl.value.trim();
+      // Collect access
+      book.access = [];
+      container.querySelectorAll(`.dm-book-access[data-book="${bi}"]`).forEach(cb => {
+        if (cb.checked) {
+          const p = cb.dataset.player;
+          book.access.push(p === 'all' ? 'all' : parseInt(p));
+        }
+      });
+      if (book.access.includes('all')) book.access = ['all'];
+      // Collect pages
+      book.pages.forEach((p, pi) => {
+        const titleEl   = container.querySelector(`.dm-page-title[data-book="${bi}"][data-page="${pi}"]`);
+        const contentEl = container.querySelector(`.dm-page-content[data-book="${bi}"][data-page="${pi}"]`);
+        if (titleEl)   p.title   = titleEl.value;
+        if (contentEl) p.content = contentEl.value;
+      });
+      pushBooks(); renderBookIcons();
+      btn.textContent = '✓ Saved';
+      setTimeout(() => btn.textContent = 'Save Book', 1800);
+    });
+  });
+}

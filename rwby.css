@@ -853,3 +853,15 @@ input[readonly]{color:var(--aura);font-family:var(--F2);font-size:.78rem;text-al
   .stats-grid { grid-template-columns: repeat(3,1fr) !important; }
 }
 .sidebar-toggle { display: none; }
+
+/* ── PORTRAIT EDIT OVERLAY ── */
+.portrait-edit-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55);
+  color: var(--aura); font-size: 1.5rem;
+  opacity: 0; cursor: pointer;
+  transition: opacity .18s;
+  border-radius: inherit;
+}
+.portrait-slot:hover .portrait-edit-overlay { opacity: 1; }

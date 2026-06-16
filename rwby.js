@@ -1130,11 +1130,13 @@ function renderPortrait(c) {
   if (c.portrait) {
     img.src = c.portrait;
     img.style.display = 'block';
-    label.style.display = 'none';
+    label.style.display = 'none';   // hide the "Photo" placeholder
   } else {
+    img.src = '';
     img.style.display = 'none';
-    label.style.display = 'flex';
+    label.style.display = 'flex';   // show the "Photo" placeholder
   }
+  // Edit overlay is always in the DOM — CSS handles hover visibility
 }
 
 // ── DEATH SAVES ──

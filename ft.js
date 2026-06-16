@@ -188,7 +188,16 @@ function showBroadcast(msg){let b=document.getElementById('broadcastBanner');if(
 
 // ── PORTRAIT ──
 function initPortrait(){const upload=document.getElementById('portraitUpload');if(!upload)return;upload.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas');const MAX=200;const ratio=Math.min(MAX/img.width,MAX/img.height);canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const c=getChar();c.portrait=canvas.toDataURL('image/jpeg',.75);renderPortrait(c);pushState();};img.src=ev.target.result;};reader.readAsDataURL(file);});}
-function renderPortrait(c){const img=document.getElementById('portraitImg');const label=document.getElementById('portraitLabel');if(!img||!label)return;if(c.portrait){img.src=c.portrait;img.style.display='block';label.style.display='none';}else{img.style.display='none';label.style.display='flex';}}
+function renderPortrait(c){
+  const img=document.getElementById('portraitImg');
+  const label=document.getElementById('portraitLabel');
+  if(!img||!label)return;
+  if(c.portrait){
+    img.src=c.portrait;img.style.display='block';label.style.display='none';
+  }else{
+    img.src='';img.style.display='none';label.style.display='flex';
+  }
+}
 
 // ── DEATH SAVES ──
 function renderDeathSaves(c){const ds=c.deathSaves||{successes:0,failures:0,stable:false};['deathSuccesses','deathFailures'].forEach((id,fi)=>{const el2=document.getElementById(id);if(!el2)return;el2.innerHTML=[0,1,2].map(i=>{const filled=i<(fi===0?ds.successes:ds.failures);return`<button class="ds-pip ${filled?(fi===0?'pip-success':'pip-failure'):''}" data-type="${fi===0?'success':'failure'}" data-i="${i}"></button>`;}).join('');el2.querySelectorAll('.ds-pip').forEach(btn=>{btn.addEventListener('click',()=>{const c2=getChar();if(!c2.deathSaves)c2.deathSaves={successes:0,failures:0,stable:false};const type=btn.dataset.type;const idx=parseInt(btn.dataset.i);const key=type==='success'?'successes':'failures';c2.deathSaves[key]=c2.deathSaves[key]===idx+1?idx:idx+1;pushState();render();});});});}

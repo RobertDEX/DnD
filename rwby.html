@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="rwby.css">
 </head>
 <body>
+<button class="sidebar-toggle" id="sidebarToggle">☰</button>
 <div class="bg-grid"></div>
 <div class="glow glow-red"></div>
 <div class="glow glow-white"></div>
@@ -87,6 +88,11 @@
     </div>
   </header>
 
+  <!-- PRESENCE BAR -->
+  <div id="presenceBar" class="presence-bar"></div>
+
+  <!-- BROADCAST BANNER injected by JS -->
+
   <!-- ══ TWO-COLUMN SHEET ══ -->
   <div class="sheet-columns">
 
@@ -97,6 +103,13 @@
       <section class="panel identity-panel">
         <div class="neon-top"></div>
         <div class="identity-header">
+          <div class="portrait-slot">
+            <img id="portraitImg" class="portrait-img" src="" alt="" style="display:none">
+            <label class="portrait-upload" id="portraitLabel" for="portraitUpload">
+              <span>Photo</span>
+              <input id="portraitUpload" type="file" accept="image/*" style="display:none">
+            </label>
+          </div>
           <div class="identity-name-wrap">
             <div class="micro" style="margin-bottom:.35rem">Character File</div>
             <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
@@ -178,12 +191,24 @@
 
       </div><!-- /hp+aura row -->
 
-      <!-- COMBAT STATS — 4 in a row -->
+      <!-- COMBAT STATS -->
       <section class="panel combat-card">
         <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
         <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
         <div class="field"><label>Temp HP</label><input id="tempHp" type="number" min="0" value="0"></div>
         <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
+        <!-- Death Saves -->
+        <div class="death-saves-block" style="grid-column:1/-1">
+          <div class="death-saves-title">Death Saves</div>
+          <div class="death-saves-row">
+            <span class="ds-label success">Successes</span>
+            <div class="ds-pips" id="deathSuccesses"></div>
+            <span class="ds-label failure">Failures</span>
+            <div class="ds-pips" id="deathFailures"></div>
+            <button id="stableBtn" type="button" class="neo-btn small">Stable</button>
+            <button id="resetDeathBtn" type="button" class="neo-btn small ghost">Reset</button>
+          </div>
+        </div>
       </section>
 
       <!-- ABILITY SCORES — full width, 6 big cards -->
@@ -344,6 +369,24 @@
       <details class="collapse-block" open>
         <summary class="collapse-summary">All Players' Techniques</summary>
         <div class="collapse-body"><div id="dmTechniqueDatabase" class="dm-tech-list"></div></div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">📡 Broadcast Message</summary>
+        <div class="collapse-body">
+          <div class="field"><label>Message to all players</label><textarea id="broadcastInput" class="small-textarea" placeholder="Attention players…"></textarea></div>
+          <button id="broadcastBtn" type="button" class="neo-btn" style="margin-top:.7rem">Send to Everyone</button>
+        </div>
+      </details>
+      <details class="collapse-block" open>
+        <summary class="collapse-summary">🎁 Grant XP / Items</summary>
+        <div class="collapse-body">
+          <div class="form-grid">
+            <div class="field"><label>Target Player</label><select id="grantTarget"></select></div>
+            <div class="field"><label>XP Amount</label><input id="grantXp" type="number" min="0" placeholder="0"></div>
+          </div>
+          <div class="field" style="margin-top:.6rem"><label>Item / Note to grant</label><input id="grantItem" type="text" placeholder="e.g. Aura Crystal x2"></div>
+          <button id="grantBtn" type="button" class="neo-btn" style="margin-top:.7rem">Grant to Player</button>
+        </div>
       </details>
     </div>
   </div>

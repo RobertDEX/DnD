@@ -192,14 +192,15 @@ function blankChar(i) {
     id: `char-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'', race:'', className:'', age:'', level:1, background:'',
     semblanceName:'', weaponName:'',
-    // profBonus is now auto-calculated from level; we keep a manual override
-    profBonusOverride: null, // null = auto
+    portrait: '',   // base64 image data URL
+    profBonusOverride: null,
     attackStat: 'STR', initiativeBonus: 0,
     state: i < 4 ? 'active' : 'reserve',
     stats: {STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
     skills: makeBlankSkills(),
     hp:{current:0,max:0}, aura:{current:0,max:0},
     armor:0, speed:'30 ft', tempHp:0,
+    deathSaves: {successes:0, failures:0, stable:false},
     weaponsText:'', abilitiesText:'', inventoryText:'', notesText:'',
     dustInventory: dust, dustSpells:[], techniques:[],
     semblance:{
@@ -219,6 +220,76 @@ const DEF_STATE = {
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
+
+// ── PRESENCE ── each browser gets a random color + tab ID
+const MY_PRESENCE_ID = Math.random().toString(36).slice(2);
+const PRESENCE_COLORS = ['#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#55efc4','#fdcb6e','#74b9ff'];
+const MY_COLOR = PRESENCE_COLORS[Math.floor(Math.random()*PRESENCE_COLORS.length)];
+let _presenceUnsub = null;
+
+async function pushPresence() {
+  try {
+    const name = getChar()?.name || 'Unknown';
+    await setDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID), {
+      id: MY_PRESENCE_ID, name, color: MY_COLOR,
+      tab: state.selectedCharacter, ts: Date.now()
+    });
+  } catch(e) {}
+}
+function startPresenceListener() {
+  if (_presenceUnsub) _presenceUnsub();
+  _presenceUnsub = onSnapshot(collection(db, 'rwby-presence'), snap => {
+    const now = Date.now();
+    const active = [];
+    snap.forEach(d => {
+      const p = d.data();
+      if (now - p.ts < 30000) active.push(p); // active in last 30s
+    });
+    renderPresence(active);
+  }, ()=>{});
+}
+function renderPresence(players) {
+  const el2 = document.getElementById('presenceBar'); if (!el2) return;
+  el2.innerHTML = players.map(p =>
+    `<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}40" title="${esc(p.name)} — viewing char ${p.tab+1}">
+      <span style="background:${p.color}"></span>${esc(p.name.split(' ')[0]||'?')}
+    </div>`
+  ).join('');
+}
+// Heartbeat every 15s
+setInterval(pushPresence, 15000);
+
+// ── BROADCAST (DM message to all) ──
+async function sendBroadcast(msg) {
+  if (!msg.trim()) return;
+  await setDoc(doc(db,'rwby-meta','broadcast'),{msg, ts:Date.now(), from:'DM'});
+}
+let _broadcastUnsub = null;
+let _lastBroadcastTs = 0;
+function startBroadcastListener() {
+  if (_broadcastUnsub) _broadcastUnsub();
+  _broadcastUnsub = onSnapshot(doc(db,'rwby-meta','broadcast'), snap => {
+    if (!snap.exists()) return;
+    const d = snap.data();
+    if (d.ts > _lastBroadcastTs) {
+      _lastBroadcastTs = d.ts;
+      showBroadcast(d.msg);
+    }
+  },()=>{});
+}
+function showBroadcast(msg) {
+  let banner = document.getElementById('broadcastBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'broadcastBanner';
+    banner.className = 'broadcast-banner';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML = `<span class="broadcast-from">📡 DM:</span> ${esc(msg)} <button onclick="this.parentElement.remove()">×</button>`;
+  banner.classList.add('show');
+  clearTimeout(banner._t);
+  banner._t = setTimeout(()=>banner.remove(), 12000);
+}
 
 async function pushState() {
   setSyncDot('syncing');
@@ -814,20 +885,24 @@ function renderTabs() {
 function render() {
   try { applyTheme(); } catch(e) { console.error('applyTheme:', e); }
   const c = getChar(); ensureClamp(c);
-  try { renderCharacterTabs(); } catch(e) { console.error('renderCharacterTabs:', e); }
-  try { renderHeader(); }        catch(e) { console.error('renderHeader:', e); }
-  try { renderMainFields(); }    catch(e) { console.error('renderMainFields:', e); }
-  try { renderCalcPanel(); }     catch(e) { console.error('renderCalcPanel:', e); }
-  try { renderStats(); }         catch(e) { console.error('renderStats:', e); }
-  try { renderSkillsMatrix(); }  catch(e) { console.error('renderSkillsMatrix:', e); }
-  try { renderSemblance(); }     catch(e) { console.error('renderSemblance:', e); }
-  try { renderTechniques(); }    catch(e) { console.error('renderTechniques:', e); }
-  try { renderDust(); }          catch(e) { console.error('renderDust:', e); }
-  try { renderDmSemblance(); }   catch(e) { console.error('renderDmSemblance:', e); }
-  try { renderDmTechniques(); }  catch(e) { console.error('renderDmTechniques:', e); }
-  try { renderDmTargetSelect(); }catch(e) { console.error('renderDmTargetSelect:', e); }
-  try { renderThemeFields(); }   catch(e) { console.error('renderThemeFields:', e); }
-  try { renderTabs(); }          catch(e) { console.error('renderTabs:', e); }
+  try { renderCharacterTabs(); }   catch(e) { console.error('renderCharacterTabs:', e); }
+  try { renderHeader(); }          catch(e) { console.error('renderHeader:', e); }
+  try { renderMainFields(); }      catch(e) { console.error('renderMainFields:', e); }
+  try { renderPortrait(c); }       catch(e) {}
+  try { renderDeathSaves(c); }     catch(e) {}
+  try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
+  try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
+  try { renderSkillsMatrix(); }    catch(e) { console.error('renderSkillsMatrix:', e); }
+  try { renderSemblance(); }       catch(e) { console.error('renderSemblance:', e); }
+  try { renderTechniques(); }      catch(e) { console.error('renderTechniques:', e); }
+  try { renderDust(); }            catch(e) { console.error('renderDust:', e); }
+  try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
+  try { renderDmTechniques(); }    catch(e) { console.error('renderDmTechniques:', e); }
+  try { renderDmTargetSelect(); }  catch(e) { console.error('renderDmTargetSelect:', e); }
+  try { renderGrantTargetSelect(); }catch(e) {}
+  try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
+  try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
+  try { pushPresence(); }          catch(e) {}
 }
 
 // ================================================================
@@ -1021,9 +1096,143 @@ function bindAll() {
   el('resetThemeBtn')?.addEventListener('click',()=>{ state.theme={...DEF_THEME}; pushTheme(); render(); });
 }
 
+// ── PORTRAIT ──
+function initPortrait() {
+  const upload = document.getElementById('portraitUpload');
+  if (!upload) return;
+  upload.addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      // Compress to max 200x200 before storing
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 200;
+        const ratio = Math.min(MAX/img.width, MAX/img.height);
+        canvas.width  = Math.round(img.width  * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const c = getChar();
+        c.portrait = canvas.toDataURL('image/jpeg', 0.75);
+        renderPortrait(c);
+        pushState();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function renderPortrait(c) {
+  const img   = document.getElementById('portraitImg');
+  const label = document.getElementById('portraitLabel');
+  if (!img || !label) return;
+  if (c.portrait) {
+    img.src = c.portrait;
+    img.style.display = 'block';
+    label.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    label.style.display = 'flex';
+  }
+}
+
+// ── DEATH SAVES ──
+function renderDeathSaves(c) {
+  const ds = c.deathSaves || {successes:0,failures:0,stable:false};
+  ['deathSuccesses','deathFailures'].forEach((id,fi) => {
+    const el2 = document.getElementById(id); if (!el2) return;
+    el2.innerHTML = [0,1,2].map(i => {
+      const filled = i < (fi===0 ? ds.successes : ds.failures);
+      return `<button class="ds-pip ${filled?(fi===0?'pip-success':'pip-failure'):''}" data-type="${fi===0?'success':'failure'}" data-i="${i}"></button>`;
+    }).join('');
+    el2.querySelectorAll('.ds-pip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c2 = getChar();
+        if (!c2.deathSaves) c2.deathSaves = {successes:0,failures:0,stable:false};
+        const type = btn.dataset.type;
+        const idx  = parseInt(btn.dataset.i);
+        const key  = type === 'success' ? 'successes' : 'failures';
+        c2.deathSaves[key] = c2.deathSaves[key] === idx+1 ? idx : idx+1;
+        pushState(); render();
+      });
+    });
+  });
+}
+function bindDeathSaves() {
+  document.getElementById('stableBtn')?.addEventListener('click', ()=>{
+    const c = getChar(); if (!c.deathSaves) c.deathSaves={successes:0,failures:0,stable:false};
+    c.deathSaves.stable=true; c.deathSaves.successes=3; pushState(); render();
+  });
+  document.getElementById('resetDeathBtn')?.addEventListener('click', ()=>{
+    const c = getChar(); c.deathSaves={successes:0,failures:0,stable:false}; pushState(); render();
+  });
+}
+
+// ── BROADCAST ──
+function bindBroadcast() {
+  document.getElementById('broadcastBtn')?.addEventListener('click', ()=>{
+    const msg = document.getElementById('broadcastInput')?.value.trim();
+    if (!msg) return;
+    sendBroadcast(msg);
+    document.getElementById('broadcastInput').value = '';
+  });
+}
+
+// ── GRANT XP / ITEMS ──
+function bindGrant() {
+  document.getElementById('grantBtn')?.addEventListener('click', ()=>{
+    const targetIdx = parseInt(document.getElementById('grantTarget')?.value ?? '0');
+    const xp   = parseInt(document.getElementById('grantXp')?.value) || 0;
+    const item = document.getElementById('grantItem')?.value.trim() || '';
+    if (!xp && !item) return;
+    const c = state.characters[targetIdx]; if (!c) return;
+    if (!c.notesText) c.notesText = '';
+    const grant = [];
+    if (xp)   grant.push(`+${xp} XP`);
+    if (item)  grant.push(item);
+    const note = `\n[DM Grant] ${grant.join(' · ')}`;
+    c.notesText += note;
+    // Also add item to inventory
+    if (item) c.inventoryText = (c.inventoryText||'') + `\n${item}`;
+    pushState();
+    document.getElementById('grantXp').value = '';
+    document.getElementById('grantItem').value = '';
+    alert(`Granted to ${c.name||`Player ${targetIdx+1}`}: ${grant.join(', ')}`);
+    render();
+  });
+}
+
+function renderGrantTargetSelect() {
+  const sel = document.getElementById('grantTarget'); if (!sel) return;
+  sel.innerHTML = state.characters.map((c,i)=>
+    `<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`
+  ).join('');
+}
+
 // ================================================================
 // INIT
 // ================================================================
 bindAll();
+initPortrait();
+bindDeathSaves();
+bindBroadcast();
+bindGrant();
 render();
 startListener();
+startPresenceListener();
+startBroadcastListener();
+pushPresence();
+
+// ── MOBILE SIDEBAR TOGGLE ──
+(function() {
+  const btn = document.getElementById('sidebarToggle');
+  const sb  = document.querySelector('.sidebar');
+  if (!btn || !sb) return;
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.addEventListener('click', e => {
+    if (sb.classList.contains('open') && !sb.contains(e.target) && e.target !== btn) {
+      sb.classList.remove('open');
+    }
+  });
+})();

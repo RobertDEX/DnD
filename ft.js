@@ -154,10 +154,12 @@ function blankChar(i) {
     magicType:'',magicCategory:'',guild:'',guildMark:'',exceed:'',magicRank:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
+    portrait: '',
     stats:{STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
     skills:makeBlankSkills(),
     hp:{current:0,max:0}, mana:{current:0,max:0},
-    armor:0, speed:'30 ft',
+    armor:0, speed:'30 ft', tempHp:0,
+    deathSaves:{successes:0,failures:0,stable:false},
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     spells:[],lostMagic:[]
   };
@@ -167,6 +169,35 @@ const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,show
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
+
+// ── PRESENCE ──
+const MY_PRESENCE_ID = Math.random().toString(36).slice(2);
+const PRESENCE_COLORS = ['#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#55efc4','#fdcb6e','#74b9ff'];
+const MY_COLOR = PRESENCE_COLORS[Math.floor(Math.random()*PRESENCE_COLORS.length)];
+let _presenceUnsub=null;
+async function pushPresence(){try{const name=getChar()?.name||'Unknown';await setDoc(doc(db,'ft-presence',MY_PRESENCE_ID),{id:MY_PRESENCE_ID,name,color:MY_COLOR,tab:state.selectedCharacter,ts:Date.now()});}catch(e){}}
+function startPresenceListener(){if(_presenceUnsub)_presenceUnsub();_presenceUnsub=onSnapshot(collection(db,'ft-presence'),snap=>{const now=Date.now();const active=[];snap.forEach(d=>{const p=d.data();if(now-p.ts<30000)active.push(p);});renderPresence(active);},()=>{});}
+function renderPresence(players){const el2=document.getElementById('presenceBar');if(!el2)return;el2.innerHTML=players.map(p=>`<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}40" title="${esc(p.name)} — char ${p.tab+1}"><span style="background:${p.color}"></span>${esc(p.name.split(' ')[0]||'?')}</div>`).join('');}
+setInterval(pushPresence,15000);
+
+// ── BROADCAST ──
+async function sendBroadcast(msg){if(!msg.trim())return;await setDoc(doc(db,'ft-meta','broadcast'),{msg,ts:Date.now(),from:'DM'});}
+let _broadcastUnsub=null,_lastBroadcastTs=0;
+function startBroadcastListener(){if(_broadcastUnsub)_broadcastUnsub();_broadcastUnsub=onSnapshot(doc(db,'ft-meta','broadcast'),snap=>{if(!snap.exists())return;const d=snap.data();if(d.ts>_lastBroadcastTs){_lastBroadcastTs=d.ts;showBroadcast(d.msg);}},()=>{});}
+function showBroadcast(msg){let b=document.getElementById('broadcastBanner');if(!b){b=document.createElement('div');b.id='broadcastBanner';b.className='broadcast-banner';document.body.appendChild(b);}b.innerHTML=`<span class="broadcast-from">📡 DM:</span> ${esc(msg)} <button onclick="this.parentElement.remove()">×</button>`;b.classList.add('show');clearTimeout(b._t);b._t=setTimeout(()=>b.remove(),12000);}
+
+// ── PORTRAIT ──
+function initPortrait(){const upload=document.getElementById('portraitUpload');if(!upload)return;upload.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas');const MAX=200;const ratio=Math.min(MAX/img.width,MAX/img.height);canvas.width=Math.round(img.width*ratio);canvas.height=Math.round(img.height*ratio);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const c=getChar();c.portrait=canvas.toDataURL('image/jpeg',.75);renderPortrait(c);pushState();};img.src=ev.target.result;};reader.readAsDataURL(file);});}
+function renderPortrait(c){const img=document.getElementById('portraitImg');const label=document.getElementById('portraitLabel');if(!img||!label)return;if(c.portrait){img.src=c.portrait;img.style.display='block';label.style.display='none';}else{img.style.display='none';label.style.display='flex';}}
+
+// ── DEATH SAVES ──
+function renderDeathSaves(c){const ds=c.deathSaves||{successes:0,failures:0,stable:false};['deathSuccesses','deathFailures'].forEach((id,fi)=>{const el2=document.getElementById(id);if(!el2)return;el2.innerHTML=[0,1,2].map(i=>{const filled=i<(fi===0?ds.successes:ds.failures);return`<button class="ds-pip ${filled?(fi===0?'pip-success':'pip-failure'):''}" data-type="${fi===0?'success':'failure'}" data-i="${i}"></button>`;}).join('');el2.querySelectorAll('.ds-pip').forEach(btn=>{btn.addEventListener('click',()=>{const c2=getChar();if(!c2.deathSaves)c2.deathSaves={successes:0,failures:0,stable:false};const type=btn.dataset.type;const idx=parseInt(btn.dataset.i);const key=type==='success'?'successes':'failures';c2.deathSaves[key]=c2.deathSaves[key]===idx+1?idx:idx+1;pushState();render();});});});}
+function bindDeathSaves(){document.getElementById('stableBtn')?.addEventListener('click',()=>{const c=getChar();if(!c.deathSaves)c.deathSaves={successes:0,failures:0,stable:false};c.deathSaves.stable=true;c.deathSaves.successes=3;pushState();render();});document.getElementById('resetDeathBtn')?.addEventListener('click',()=>{const c=getChar();c.deathSaves={successes:0,failures:0,stable:false};pushState();render();});}
+
+// ── GRANT ──
+function renderGrantTargetSelect(){const sel=document.getElementById('grantTarget');if(!sel)return;sel.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');}
+function bindGrant(){document.getElementById('grantBtn')?.addEventListener('click',()=>{const targetIdx=parseInt(document.getElementById('grantTarget')?.value??'0');const xp=parseInt(document.getElementById('grantXp')?.value)||0;const item=document.getElementById('grantItem')?.value.trim()||'';if(!xp&&!item)return;const c=state.characters[targetIdx];if(!c)return;const grant=[];if(xp)grant.push(`+${xp} XP`);if(item)grant.push(item);c.notesText=(c.notesText||'')+`\n[DM Grant] ${grant.join(' · ')}`;if(item)c.inventoryText=(c.inventoryText||'')+`\n${item}`;pushState();document.getElementById('grantXp').value='';document.getElementById('grantItem').value='';alert(`Granted to ${c.name||`Player ${targetIdx+1}`}: ${grant.join(', ')}`);render();});}
+function bindBroadcast(){document.getElementById('broadcastBtn')?.addEventListener('click',()=>{const msg=document.getElementById('broadcastInput')?.value.trim();if(!msg)return;sendBroadcast(msg);document.getElementById('broadcastInput').value='';});}
 
 async function pushState(){
   setSyncDot('syncing');
@@ -624,19 +655,23 @@ function renderTabs(){
 function render(){
   try{applyTheme();}catch(e){console.error('applyTheme:',e);}
   const c=getChar();ensureClamp(c);
-  try{renderCharacterTabs();}catch(e){console.error('renderCharacterTabs:',e);}
-  try{renderHeader();}       catch(e){console.error('renderHeader:',e);}
-  try{renderMainFields();}   catch(e){console.error('renderMainFields:',e);}
-  try{renderMagicBanner();}  catch(e){console.error('renderMagicBanner:',e);}
-  try{renderCalcPanel();}    catch(e){console.error('renderCalcPanel:',e);}
-  try{renderStats();}        catch(e){console.error('renderStats:',e);}
-  try{renderSkillsMatrix();} catch(e){console.error('renderSkillsMatrix:',e);}
-  try{renderSpells();}       catch(e){console.error('renderSpells:',e);}
-  try{renderLostMagic();}    catch(e){console.error('renderLostMagic:',e);}
-  try{renderDmLostMagic();}  catch(e){console.error('renderDmLostMagic:',e);}
-  try{renderDmTargetSelect();}catch(e){console.error('renderDmTargetSelect:',e);}
-  try{renderThemeFields();}  catch(e){console.error('renderThemeFields:',e);}
-  try{renderTabs();}         catch(e){console.error('renderTabs:',e);}
+  try{renderCharacterTabs();}catch(e){}
+  try{renderHeader();}catch(e){}
+  try{renderMainFields();}catch(e){}
+  try{renderPortrait(c);}catch(e){}
+  try{renderDeathSaves(c);}catch(e){}
+  try{renderMagicBanner();}catch(e){}
+  try{renderCalcPanel();}catch(e){}
+  try{renderStats();}catch(e){}
+  try{renderSkillsMatrix();}catch(e){}
+  try{renderSpells();}catch(e){}
+  try{renderLostMagic();}catch(e){}
+  try{renderDmLostMagic();}catch(e){}
+  try{renderDmTargetSelect();}catch(e){}
+  try{renderGrantTargetSelect();}catch(e){}
+  try{renderThemeFields();}catch(e){}
+  try{renderTabs();}catch(e){}
+  try{pushPresence();}catch(e){}
 }
 
 // ================================================================
@@ -769,5 +804,46 @@ function bindAll(){
 // INIT
 // ================================================================
 bindAll();
+initPortrait();
+bindDeathSaves();
+bindBroadcast();
+bindGrant();
 render();
 startListener();
+startPresenceListener();
+startBroadcastListener();
+pushPresence();
+
+// ── MOBILE SIDEBAR TOGGLE ──
+(function() {
+  const btn = document.getElementById('sidebarToggle');
+  const sb  = document.querySelector('.sidebar');
+  if (!btn || !sb) return;
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.addEventListener('click', e => {
+    if (sb.classList.contains('open') && !sb.contains(e.target) && e.target !== btn) {
+      sb.classList.remove('open');
+    }
+  });
+})();
+
+// ── MAGIC PARTICLES ──
+(function() {
+  const container = document.getElementById('bgMagic'); if (!container) return;
+  const colors = ['rgba(232,160,48,.7)','rgba(176,96,255,.6)','rgba(255,120,60,.65)','rgba(255,220,120,.5)','rgba(200,120,255,.55)'];
+  for (let i = 0; i < 25; i++) {
+    const el = document.createElement('div');
+    el.className = 'magic-particle';
+    const size = 2 + Math.random() * 5;
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      bottom:-10px;
+      width:${size}px; height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      box-shadow:0 0 ${size*2}px ${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${4+Math.random()*8}s;
+      animation-delay:${Math.random()*8}s;
+    `;
+    container.appendChild(el);
+  }
+})();

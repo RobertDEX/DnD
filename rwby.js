@@ -1364,12 +1364,13 @@ function renderBookIcons() {
   const charIdx = state.selectedCharacter;
   bar.innerHTML = booksState.books.map((book, i) => {
     const hasAccess = dmUnlocked || book.access.includes(charIdx) || book.access.includes('all');
-    const isGrimm = i === 6;
-    const delay = (i * 0.6).toFixed(1);
+    const isGrimm   = i === 6;
+    const delay     = (i * 0.6).toFixed(1);
     const shortName = book.name.length > 14 ? book.name.slice(0,13)+'…' : book.name;
-    return `<button class="book-icon-btn ${hasAccess ? 'unlocked' : 'locked'} ${isGrimm ? 'grimm' : ''}"
+    const clickFn   = hasAccess ? `openBook(${i})` : `openBook(${i})`;  // locked shows sealed msg
+    return `<button class="book-icon-btn ${hasAccess?'unlocked':'locked'} ${isGrimm?'grimm':''}"
       style="animation-delay:${delay}s"
-      onclick="${hasAccess ? `openBook(${i})` : ''}" title="${esc(book.name)}">
+      onclick="${clickFn}" title="${esc(book.name)}">
       <span>${isGrimm ? '📋' : '📖'}</span>
       <span class="book-icon-label">${esc(shortName)}</span>
     </button>`;

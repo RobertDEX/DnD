@@ -1736,31 +1736,26 @@ function closeBookModal() {
   if (m) { m.classList.remove('open'); setTimeout(() => m.remove(), 320); }
 }
 
-// ── RENDER BOOK ICONS IN TOPBAR ──
+// ── RENDER BOOK ICONS IN SIDEBAR ──
 function renderBookIcons() {
   const bar = document.getElementById('bookIconBar');
   if (!bar) return;
   const charIdx = state.selectedCharacter;
-  bar.innerHTML = booksState.books.map((book, i) => {
+  bar.innerHTML = '';
+  booksState.books.forEach((book, i) => {
     const restricted = book.access.length > 0 && !book.access.includes('all');
     const hasAccess  = !restricted || dmUnlocked || book.access.includes(charIdx);
     const isGrimm    = i === 7;
-    const delay      = (i * 0.6).toFixed(1);
-    const shortName  = book.name.length > 14 ? book.name.slice(0,13)+'…' : book.name;
-    return `<button class="book-icon-btn ${hasAccess?'unlocked':'locked'} ${isGrimm?'grimm':''}"
-      style="animation-delay:${delay}s"
-      data-book-idx="${i}" title="${esc(book.name)}">
-      <span>${i === 0 ? '📓' : isGrimm ? '📋' : '📖'}</span>
-      <span class="book-icon-label">${esc(shortName)}</span>
-    </button>`;
-  }).join('');
-
-  // Use event delegation — no onclick attributes needed (module scope safe)
-  bar.onclick = e => {
-    const btn = e.target.closest('[data-book-idx]');
-    if (!btn) return;
-    openBook(parseInt(btn.dataset.bookIdx));
-  };
+    const isRowanNB  = i === 0;
+    const icon       = isRowanNB ? '📓' : isGrimm ? '📋' : '📖';
+    const btn = document.createElement('button');
+    btn.className = `book-shelf-sidebar ${hasAccess ? 'unlocked' : 'locked'} ${isGrimm ? 'grimm' : ''} ${isRowanNB ? 'rowan' : ''}`;
+    btn.title = book.name;
+    btn.style.animationDelay = (i * 0.4) + 's';
+    btn.innerHTML = `<span class="bss-icon">${icon}</span><span class="bss-name">${esc(book.name)}</span>`;
+    btn.addEventListener('click', () => openBook(i));
+    bar.appendChild(btn);
+  });
 }
 
 // ── DM BOOK MANAGEMENT ──

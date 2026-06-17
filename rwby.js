@@ -225,12 +225,12 @@ let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
 // Books must be declared early — renderBookIcons() is called before the books section
 const BOOK_NAMES = [
-    'Rowans Notebook',
+  'Rowan Roses Notebook',
   'Soul-Calming',
   'Intent-Carving',
   'World-Will',
   'Yielding',
-  'Human Will ',
+  'Human Will',
   'Void-Severing',
   'Grimm Studies w/ Port'
 ];
@@ -1564,15 +1564,17 @@ function showBookLocked(book) {
   m.className = 'book-modal';
   m.innerHTML = `
     <div class="book-reader book-locked-reader">
-      <button class="book-close" onclick="closeBookModal()">×</button>
+      <button class="book-close" data-action="close">×</button>
       <div class="book-locked-inner">
         <div class="book-lock-icon">🔒</div>
         <div class="book-lock-text">${esc(book?.name || 'Sealed Tome')}</div>
         <div class="book-lock-sub">This knowledge remains hidden from you.</div>
       </div>
     </div>`;
+  m.onclick = e => {
+    if (e.target === m || e.target.closest('[data-action="close"]')) closeBookModal();
+  };
   requestAnimationFrame(()=>m.classList.add('open'));
-  m.addEventListener('click', e => { if (e.target === m) closeBookModal(); });
 }
 
 function showBookModal() {
@@ -1582,7 +1584,7 @@ function showBookModal() {
   if (!m) { m = document.createElement('div'); m.id = 'bookModal'; document.body.appendChild(m); }
 
   const pages = book.pages || [];
-  const isGrimm = _currentBookIdx === 6;
+  const isGrimm = _currentBookIdx === 7;
 
   // Which books can this viewer see (for the right-side shelf)
   const accessible = booksState.books
@@ -1596,7 +1598,7 @@ function showBookModal() {
   // Table of contents (left page list)
   const tocHtml = pages.length
     ? pages.map((p, i) => `
-        <button class="book-toc-item ${i === _currentPageIdx ? 'active' : ''}" onclick="goToPage(${i})">
+        <button class="book-toc-item ${i === _currentPageIdx ? 'active' : ''}" data-goto-page="${i}">
           <span class="book-toc-num">${String(i+1).padStart(2,'0')}</span>
           <span class="book-toc-title">${esc(p.title || `Page ${i+1}`)}</span>
         </button>`).join('')
@@ -1623,20 +1625,20 @@ function showBookModal() {
   // Book shelf (right side — other books)
   const shelfHtml = accessible.map(({ b, i }) => `
     <button class="book-shelf-item ${i === _currentBookIdx ? 'active' : ''} ${i===6?'grimm':''}"
-      onclick="switchBook(${i})" title="${esc(b.name)}">
-      <span class="book-shelf-icon">${i === 6 ? '📋' : '📖'}</span>
+      data-switch-book="${i}" title="${esc(b.name)}">
+      <span class="book-shelf-icon">${i === 7 ? '📋' : '📖'}</span>
       <span class="book-shelf-name">${esc(b.name)}</span>
     </button>`).join('');
 
   m.className = 'book-modal' + (isGrimm ? ' grimm-modal' : '');
   m.innerHTML = `
     <div class="book-reader ${isGrimm ? 'grimm-reader' : ''}">
-      <button class="book-close" onclick="closeBookModal()">×</button>
+      <button class="book-close" data-action="close">×</button>
 
       <!-- LEFT: Title + Table of Contents -->
       <div class="book-left-page">
         <div class="book-header">
-          <div class="book-ornament">${isGrimm ? '🜏' : '✦'}</div>
+          <div class="book-ornament">${_currentBookIdx === 0 ? '🌹' : isGrimm ? '🜏' : '✦'}</div>
           <h2 class="book-title">${esc(book.name)}</h2>
         </div>
         ${book.buff ? `<div class="book-buff">✨ ${esc(book.buff)}</div>` : ''}
@@ -1649,9 +1651,9 @@ function showBookModal() {
         ${pageContentHtml}
         ${pages.length > 1 ? `
           <div class="book-page-nav">
-            <button class="book-nav-btn" onclick="prevPage()" ${_currentPageIdx === 0 ? 'disabled' : ''}>‹ Prev</button>
+            <button class="book-nav-btn" data-action="prev" ${_currentPageIdx === 0 ? 'disabled' : ''}>‹ Prev</button>
             <span class="book-page-indicator">${_currentPageIdx + 1} / ${pages.length}</span>
-            <button class="book-nav-btn" onclick="nextPage()" ${_currentPageIdx >= pages.length-1 ? 'disabled' : ''}>Next ›</button>
+            <button class="book-nav-btn" data-action="next" ${_currentPageIdx >= pages.length-1 ? 'disabled' : ''}>Next ›</button>
           </div>` : ''}
       </div>
 
@@ -1662,8 +1664,19 @@ function showBookModal() {
       </div>
     </div>`;
 
+  // Event delegation — all interactions handled here, no onclick= attributes
+  m.onclick = e => {
+    if (e.target === m) { closeBookModal(); return; }
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (action === 'close') { closeBookModal(); return; }
+    if (action === 'prev')  { prevPage(); return; }
+    if (action === 'next')  { nextPage(); return; }
+    const tocBtn = e.target.closest('[data-goto-page]');
+    if (tocBtn) { goToPage(parseInt(tocBtn.dataset.gotoPage)); return; }
+    const shelfBtn = e.target.closest('[data-switch-book]');
+    if (shelfBtn) { switchBook(parseInt(shelfBtn.dataset.switchBook)); return; }
+  };
   requestAnimationFrame(()=>m.classList.add('open'));
-  m.onclick = e => { if (e.target === m) closeBookModal(); };
 }
 
 function goToPage(i)  { _currentPageIdx = i; showBookModal(); }
@@ -1685,16 +1698,23 @@ function renderBookIcons() {
   bar.innerHTML = booksState.books.map((book, i) => {
     const restricted = book.access.length > 0 && !book.access.includes('all');
     const hasAccess  = !restricted || dmUnlocked || book.access.includes(charIdx);
-    const isGrimm    = i === 6;
+    const isGrimm    = i === 7;
     const delay      = (i * 0.6).toFixed(1);
     const shortName  = book.name.length > 14 ? book.name.slice(0,13)+'…' : book.name;
     return `<button class="book-icon-btn ${hasAccess?'unlocked':'locked'} ${isGrimm?'grimm':''}"
       style="animation-delay:${delay}s"
-      onclick="openBook(${i})" title="${esc(book.name)}">
-      <span>${isGrimm ? '📋' : '📖'}</span>
+      data-book-idx="${i}" title="${esc(book.name)}">
+      <span>${i === 0 ? '📓' : isGrimm ? '📋' : '📖'}</span>
       <span class="book-icon-label">${esc(shortName)}</span>
     </button>`;
   }).join('');
+
+  // Use event delegation — no onclick attributes needed (module scope safe)
+  bar.onclick = e => {
+    const btn = e.target.closest('[data-book-idx]');
+    if (!btn) return;
+    openBook(parseInt(btn.dataset.bookIdx));
+  };
 }
 
 // ── DM BOOK MANAGEMENT ──
@@ -1703,7 +1723,7 @@ function renderDmBooks() {
   if (!container) return;
   container.innerHTML = booksState.books.map((book, bi) => `
     <details class="collapse-block">
-      <summary class="collapse-summary">${bi === 6 ? '📋' : '📖'} ${esc(book.name)}</summary>
+      <summary class="collapse-summary">${bi === 7 ? '📋' : '📖'} ${esc(book.name)}</summary>
       <div class="collapse-body">
 
         <!-- Buff -->

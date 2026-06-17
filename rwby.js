@@ -223,31 +223,20 @@ let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
-// Books must be declared early — renderBookIcons() is called before the books section
-const BOOK_NAMES = [
-  'Rowan Roses Notebook',
-  'Soul-Calming',
-  'Intent-Carving',
-  'World-Will',
-  'Yielding Sutra',
-  'Human Will Scripture',
-  'Void-Severing Art',
-  'Grimm Studies w/ Port'
-];
-function blankBook(name) { return { name, pages:[], buff:'', access:[] }; }
-let booksState = { books: BOOK_NAMES.map(n => blankBook(n)) };
 
 // ── PRESENCE ── each browser gets a random color + tab ID
-const MY_PRESENCE_ID = Math.random().toString(36).slice(2);
+const MY_PRESENCE_ID = localStorage.getItem('rwby-pid') || (() => { const id = Math.random().toString(36).slice(2); localStorage.setItem('rwby-pid', id); return id; })();
 const PRESENCE_COLORS = ['#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#55efc4','#fdcb6e','#74b9ff'];
 const MY_COLOR = PRESENCE_COLORS[Math.floor(Math.random()*PRESENCE_COLORS.length)];
 let _presenceUnsub = null;
 
 async function pushPresence() {
   try {
-    const name = getChar()?.name || 'Unknown';
+    const mine = getMyCharacter();
+    const name = mine?.name || 'Unknown';
+    const color = mine?.accentColor || MY_COLOR;
     await setDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID), {
-      id: MY_PRESENCE_ID, name, color: MY_COLOR,
+      id: MY_PRESENCE_ID, name, color,
       tab: state.selectedCharacter, ts: Date.now()
     });
   } catch(e) {}
@@ -343,9 +332,10 @@ function startListener() {
       try { applyCharacterAccents(); } catch(e) {}
       try { checkLowHp(getChar()); }   catch(e) {}
       recheckWelcomeIfNeeded();
-      // If this is the first real data load and no character picked, show welcome
-      const storedName = localStorage.getItem('rwby-my-name');
-      if (!storedName && !document.getElementById('welcomeOverlay')) checkWelcome();
+      // Show welcome if not claimed and no overlay showing
+      if (!getMyCharacter() && !localStorage.getItem('rwby-observer') && !document.getElementById('welcomeOverlay')) {
+        checkWelcome();
+      }
     } catch(e) { console.error('Snapshot error:', e); }
   }, e => { console.error(e); setSyncDot('error'); });
 }
@@ -925,8 +915,6 @@ function render() {
   try { renderGrantTargetSelect(); }catch(e) {}
   try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
-  try { renderBookIcons(); }       catch(e) {}
-  try { renderDmBooks(); }         catch(e) {}
   try { pushPresence(); }          catch(e) {}
 }
 
@@ -1038,7 +1026,7 @@ function unlockDm() {
   document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
-  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields(); renderDmBooks();
+  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
 }
 
 // ================================================================
@@ -1124,7 +1112,6 @@ function bindAll() {
       // Render tab-specific content
       if (tab === 'semblance')  { renderDmSemblance(); }
       if (tab === 'techniques') { renderDmTechniques(); }
-      if (tab === 'books')      { renderDmBooks(); }
     });
   });
 
@@ -1436,13 +1423,44 @@ function checkStateChanges(remote) {
 // ================================================================
 // #40 — WELCOME SCREEN
 // ================================================================
-function checkWelcome() {
-  // Show if never picked, or if name stored doesn't match any character
-  const storedName = localStorage.getItem('rwby-my-name') || '';
-  const alreadyPicked = storedName && state.characters.some(c => c.name === storedName);
-  if (alreadyPicked) return;
+// ================================================================
+// CHARACTER CLAIMING
+// Each character has a claimedBy field = MY_PRESENCE_ID of owner.
+// One character per browser. Refresh reconnects via stored ID.
+// ================================================================
 
-  // Remove any existing overlay
+function getMyCharacter() {
+  // Find the character this browser has claimed
+  return state.characters.find(c => c.claimedBy === MY_PRESENCE_ID) || null;
+}
+
+function isCharacterTaken(c) {
+  if (!c.claimedBy) return false;
+  // Check if the claimer is currently active in presence
+  return c.claimedBy !== MY_PRESENCE_ID; // other browser owns it
+}
+
+function claimCharacter(realIdx) {
+  const c = state.characters[realIdx];
+  if (!c) return;
+  // Release any previous claim by this browser
+  state.characters.forEach(ch => { if (ch.claimedBy === MY_PRESENCE_ID) ch.claimedBy = ''; });
+  c.claimedBy = MY_PRESENCE_ID;
+  state.selectedCharacter = realIdx;
+  pushState();
+  pushPresence();
+  render();
+}
+
+function checkWelcome() {
+  // Already claimed a character? Skip.
+  if (getMyCharacter()) return;
+  // Already watching? Skip.
+  if (localStorage.getItem('rwby-observer') === '1') return;
+  // No characters loaded yet? Wait.
+  const activeChars = state.characters.filter(c => c.state === 'active');
+  if (!activeChars.length) return;
+
   document.getElementById('welcomeOverlay')?.remove();
 
   const overlay = document.createElement('div');
@@ -1453,7 +1471,7 @@ function checkWelcome() {
       <div class="welcome-logo">RWBY DnD</div>
       <div class="welcome-sub">Homebrew · Remnant</div>
       <h2 class="welcome-title">Who are you?</h2>
-      <p class="welcome-text">Pick your character to get started. This tells everyone who you are in the campaign.</p>
+      <p class="welcome-text">Choose your character. Each person can only claim one.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
       <div class="welcome-actions">
         <button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
@@ -1468,37 +1486,44 @@ function checkWelcome() {
   }
 
   const list = document.getElementById('welcomeCharList');
-  // Show ALL characters (active ones), preserving their real index in state.characters
   state.characters.forEach((c, realIdx) => {
     if (c.state !== 'active') return;
+    const taken = c.claimedBy && c.claimedBy !== MY_PRESENCE_ID;
     const btn = document.createElement('button');
-    btn.className = 'welcome-char-btn';
+    btn.className = `welcome-char-btn ${taken ? 'taken' : ''}`;
+    btn.disabled = taken;
     btn.innerHTML = `
       ${c.portrait ? `<img src="${c.portrait}" class="welcome-portrait">` : `<div class="welcome-portrait-empty">${c.name ? c.name[0].toUpperCase() : '?'}</div>`}
-      <span>${esc(c.name || `Player ${realIdx + 1}`)}</span>`;
+      <span>${esc(c.name || `Player ${realIdx + 1}`)}</span>
+      ${taken ? '<span class="taken-label">Taken</span>' : ''}`;
     btn.addEventListener('click', () => {
-      state.selectedCharacter = realIdx;
-      localStorage.setItem('rwby-my-name', c.name || '');
+      claimCharacter(realIdx);
       closeWelcome();
       showToast(`You are ${c.name || `Player ${realIdx + 1}`} ✓`, 'success', 4000);
-      pushPresence(); // update presence with real name immediately
-      render();
     });
     list.appendChild(btn);
   });
 
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
-    localStorage.setItem('rwby-my-name', '__observer__');
+    localStorage.setItem('rwby-observer', '1');
     closeWelcome();
   });
 }
 
-// Re-check welcome whenever Firebase loads fresh characters
 function recheckWelcomeIfNeeded() {
-  const storedName = localStorage.getItem('rwby-my-name') || '';
-  if (!storedName || storedName === '__observer__') return;
-  const stillValid = state.characters.some(c => c.name === storedName);
-  if (!stillValid) { localStorage.removeItem('rwby-my-name'); }
+  // If we have a claim already, make sure selectedCharacter points to it
+  const mine = getMyCharacter();
+  if (mine) {
+    const idx = state.characters.indexOf(mine);
+    if (idx >= 0 && state.selectedCharacter !== idx) {
+      state.selectedCharacter = idx;
+    }
+    return;
+  }
+  // If we're a watcher, stay that way
+  if (localStorage.getItem('rwby-observer') === '1') return;
+  // Otherwise show welcome if not already showing
+  if (!document.getElementById('welcomeOverlay')) checkWelcome();
 }
 
 // ================================================================
@@ -1513,11 +1538,9 @@ bindRelationships();
 bindAccentColor();
 bindFullscreen();
 render();
-renderBookIcons();
 startListener();
 startPresenceListener();
 startBroadcastListener();
-startBooksListener();
 pushPresence();
 if (dmUnlocked) {
   el('dmLoginPanel')?.classList.add('hidden');
@@ -1525,10 +1548,13 @@ if (dmUnlocked) {
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
-  renderDmBooks();
 }
-// Show welcome screen after Firebase loads characters (so names are populated)
-setTimeout(checkWelcome, 2200);
+// Show welcome after Firebase loads (snapshot handles it, this is a fallback)
+setTimeout(() => {
+  if (!getMyCharacter() && !localStorage.getItem('rwby-observer') && !document.getElementById('welcomeOverlay')) {
+    checkWelcome();
+  }
+}, 2500);
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {
@@ -1543,372 +1569,5 @@ setTimeout(checkWelcome, 2200);
   });
 })();
 
-// ================================================================
-// BOOKS SYSTEM
-// 7 sacred texts — DM manages pages, buffs, access per player
-// Data in Firebase: rwby-meta/books  (shared)
-// Modal is purely local — never synced
-// ================================================================
 
-let _booksUnsub = null;
 
-async function pushBooks() {
-  try {
-    await setDoc(doc(db, 'rwby-meta', 'books'), { data: JSON.stringify(booksState) });
-  } catch(e) { console.error('pushBooks:', e); }
-}
-
-function startBooksListener() {
-  if (_booksUnsub) _booksUnsub();
-  _booksUnsub = onSnapshot(doc(db, 'rwby-meta', 'books'), snap => {
-    if (snap.exists()) {
-      try {
-        const remote = JSON.parse(snap.data().data);
-        booksState.books = BOOK_NAMES.map((name, i) => {
-          const rb = remote.books?.[i] || {};
-          return { name, pages: rb.pages || [], buff: rb.buff || '', access: rb.access || [] };
-        });
-      } catch(e) { console.error('booksListener:', e); }
-    }
-    // Always re-render icons — even on first load with no doc (shows all locked)
-    renderBookIcons();
-    if (dmUnlocked) renderDmBooks();
-    // If a book modal is open, refresh it live
-    const openModal = document.getElementById('bookModal');
-    if (openModal && openModal.classList.contains('open') && !openModal.querySelector('.book-locked-reader')) {
-      showBookModal();
-    }
-  }, () => {});
-}
-window.openBook = openBook;
-window.closeBookModal = closeBookModal;
-
-// ── BOOK MODAL (local only) ──
-let _currentBookIdx = 0;
-let _currentPageIdx = 0;
-
-function openBook(bookIdx) {
-  try {
-    const book = booksState.books[bookIdx];
-    if (!book) { console.error('openBook: no book at index', bookIdx); return; }
-    const charIdx = state.selectedCharacter;
-    // Access logic: if access array is empty = open to all (default open)
-    // DM can RESTRICT by adding specific players — if access has entries, only those players + DM
-    const restricted = book.access.length > 0 && !book.access.includes('all');
-    const hasAccess = !restricted || dmUnlocked || book.access.includes(charIdx);
-    _currentBookIdx = bookIdx;
-    _currentPageIdx = 0;
-    if (!hasAccess) { showBookLocked(book); return; }
-    showBookModal();
-  } catch(e) { console.error('openBook error:', e); }
-}
-
-function showBookLocked(book) {
-  let m = document.getElementById('bookModal');
-  if (!m) { m = document.createElement('div'); m.id = 'bookModal'; document.body.appendChild(m); }
-  m.className = 'book-modal';
-  m.innerHTML = `
-    <div class="book-reader book-locked-reader">
-      <button class="book-close" data-action="close">×</button>
-      <div class="book-locked-inner">
-        <div class="book-lock-icon">🔒</div>
-        <div class="book-lock-text">${esc(book?.name || 'Sealed Tome')}</div>
-        <div class="book-lock-sub">This knowledge remains hidden from you.</div>
-      </div>
-    </div>`;
-  m.onclick = e => {
-    if (e.target === m || e.target.closest('[data-action="close"]')) closeBookModal();
-  };
-  requestAnimationFrame(()=>m.classList.add('open'));
-}
-
-function showBookModal() {
-  const book = booksState.books[_currentBookIdx];
-  const charIdx = state.selectedCharacter;
-  let m = document.getElementById('bookModal');
-  if (!m) { m = document.createElement('div'); m.id = 'bookModal'; document.body.appendChild(m); }
-
-  const pages = book.pages || [];
-  const isGrimm = _currentBookIdx === 7;
-
-  // Which books can this viewer see (for the right-side shelf)
-  const accessible = booksState.books
-    .map((b, i) => {
-      const restricted = b.access.length > 0 && !b.access.includes('all');
-      const ok = !restricted || dmUnlocked || b.access.includes(charIdx);
-      return { b, i, ok };
-    })
-    .filter(x => x.ok);
-
-  // Table of contents (left page list)
-  const tocHtml = pages.length
-    ? pages.map((p, i) => `
-        <button class="book-toc-item ${i === _currentPageIdx ? 'active' : ''}" data-goto-page="${i}">
-          <span class="book-toc-num">${String(i+1).padStart(2,'0')}</span>
-          <span class="book-toc-title">${esc(p.title || `Page ${i+1}`)}</span>
-        </button>`).join('')
-    : '<div class="book-toc-empty">No pages yet</div>';
-
-  // Current page content
-  const page = pages[_currentPageIdx];
-  let pageContentHtml;
-  if (!page) {
-    pageContentHtml = '<div class="book-empty">This tome has no pages yet.</div>';
-  } else {
-    const imgHtml = page.image
-      ? `<div class="book-page-image"><img src="${page.image}" alt=""></div>`
-      : '';
-    pageContentHtml = `
-      <div class="book-page-spread ${isGrimm ? 'grimm-page' : ''}">
-        <div class="book-page-num">${isGrimm ? 'Specimen' : 'Folio'} ${_currentPageIdx + 1} of ${pages.length}</div>
-        <h3 class="book-page-title">${esc(page.title || '')}</h3>
-        ${imgHtml}
-        <div class="book-page-body">${esc(page.content || '').replace(/\n/g,'<br>')}</div>
-      </div>`;
-  }
-
-  // Book shelf (right side — other books)
-  const shelfHtml = accessible.map(({ b, i }) => `
-    <button class="book-shelf-item ${i === _currentBookIdx ? 'active' : ''} ${i===6?'grimm':''}"
-      data-switch-book="${i}" title="${esc(b.name)}">
-      <span class="book-shelf-icon">${i === 7 ? '📋' : '📖'}</span>
-      <span class="book-shelf-name">${esc(b.name)}</span>
-    </button>`).join('');
-
-  m.className = 'book-modal' + (isGrimm ? ' grimm-modal' : '');
-  m.innerHTML = `
-    <div class="book-reader ${isGrimm ? 'grimm-reader' : ''}">
-      <button class="book-close" data-action="close">×</button>
-
-      <!-- LEFT: Title + Table of Contents -->
-      <div class="book-left-page">
-        <div class="book-header">
-          <div class="book-ornament">${_currentBookIdx === 0 ? '🌹' : isGrimm ? '🜏' : '✦'}</div>
-          <h2 class="book-title">${esc(book.name)}</h2>
-        </div>
-        ${book.buff ? `<div class="book-buff">✨ ${esc(book.buff)}</div>` : ''}
-        <div class="book-toc-label">Contents</div>
-        <div class="book-toc">${tocHtml}</div>
-      </div>
-
-      <!-- CENTER: Current Page -->
-      <div class="book-center-page">
-        ${pageContentHtml}
-        ${pages.length > 1 ? `
-          <div class="book-page-nav">
-            <button class="book-nav-btn" data-action="prev" ${_currentPageIdx === 0 ? 'disabled' : ''}>‹ Prev</button>
-            <span class="book-page-indicator">${_currentPageIdx + 1} / ${pages.length}</span>
-            <button class="book-nav-btn" data-action="next" ${_currentPageIdx >= pages.length-1 ? 'disabled' : ''}>Next ›</button>
-          </div>` : ''}
-      </div>
-
-      <!-- RIGHT: Other Books Shelf -->
-      <div class="book-right-shelf">
-        <div class="book-shelf-label">Library</div>
-        <div class="book-shelf">${shelfHtml}</div>
-      </div>
-    </div>`;
-
-  // Event delegation — all interactions handled here, no onclick= attributes
-  m.onclick = e => {
-    if (e.target === m) { closeBookModal(); return; }
-    const action = e.target.closest('[data-action]')?.dataset.action;
-    if (action === 'close') { closeBookModal(); return; }
-    if (action === 'prev')  { prevPage(); return; }
-    if (action === 'next')  { nextPage(); return; }
-    const tocBtn = e.target.closest('[data-goto-page]');
-    if (tocBtn) { goToPage(parseInt(tocBtn.dataset.gotoPage)); return; }
-    const shelfBtn = e.target.closest('[data-switch-book]');
-    if (shelfBtn) { switchBook(parseInt(shelfBtn.dataset.switchBook)); return; }
-  };
-  requestAnimationFrame(()=>m.classList.add('open'));
-}
-
-function goToPage(i)  { _currentPageIdx = i; showBookModal(); }
-function nextPage()   { const p = booksState.books[_currentBookIdx].pages; if (_currentPageIdx < p.length-1) { _currentPageIdx++; showBookModal(); } }
-function prevPage()   { if (_currentPageIdx > 0) { _currentPageIdx--; showBookModal(); } }
-function switchBook(i){ _currentBookIdx = i; _currentPageIdx = 0; showBookModal(); }
-window.goToPage = goToPage; window.nextPage = nextPage; window.prevPage = prevPage; window.switchBook = switchBook;
-
-function closeBookModal() {
-  const m = document.getElementById('bookModal');
-  if (m) { m.classList.remove('open'); setTimeout(() => m.remove(), 320); }
-}
-
-// ── RENDER BOOK ICONS IN SIDEBAR ──
-function renderBookIcons() {
-  const bar = document.getElementById('bookIconBar');
-  if (!bar) return;
-  const charIdx = state.selectedCharacter;
-  bar.innerHTML = '';
-  booksState.books.forEach((book, i) => {
-    const restricted = book.access.length > 0 && !book.access.includes('all');
-    const hasAccess  = !restricted || dmUnlocked || book.access.includes(charIdx);
-    const isGrimm    = i === 7;
-    const isRowanNB  = i === 0;
-    const icon       = isRowanNB ? '📓' : isGrimm ? '📋' : '📖';
-    const btn = document.createElement('button');
-    btn.className = `book-shelf-sidebar ${hasAccess ? 'unlocked' : 'locked'} ${isGrimm ? 'grimm' : ''} ${isRowanNB ? 'rowan' : ''}`;
-    btn.title = book.name;
-    btn.style.animationDelay = (i * 0.4) + 's';
-    btn.innerHTML = `<span class="bss-icon">${icon}</span><span class="bss-name">${esc(book.name)}</span>`;
-    btn.addEventListener('click', () => openBook(i));
-    bar.appendChild(btn);
-  });
-}
-
-// ── DM BOOK MANAGEMENT ──
-function renderDmBooks() {
-  const container = document.getElementById('dmBooksSection');
-  if (!container) return;
-  container.innerHTML = booksState.books.map((book, bi) => `
-    <details class="collapse-block">
-      <summary class="collapse-summary">${bi === 7 ? '📋' : '📖'} ${esc(book.name)}</summary>
-      <div class="collapse-body">
-
-        <!-- Buff -->
-        <div class="field" style="margin-bottom:.8rem">
-          <label>Buff / Bonus granted</label>
-          <input type="text" class="dm-book-buff" data-book="${bi}"
-            value="${esc(book.buff)}" placeholder="e.g. +2 to Aura Mastery checks">
-        </div>
-
-        <!-- Player Access -->
-        <div class="field" style="margin-bottom:.8rem">
-          <label>Player Access</label>
-          <div class="book-access-grid">
-            <label class="book-access-check">
-              <input type="checkbox" class="dm-book-access" data-book="${bi}" data-player="all"
-                ${book.access.includes('all') ? 'checked' : ''}> All Players
-            </label>
-            ${state.characters.map((c, ci) => `
-              <label class="book-access-check">
-                <input type="checkbox" class="dm-book-access" data-book="${bi}" data-player="${ci}"
-                  ${book.access.includes(ci) || book.access.includes('all') ? 'checked' : ''}>
-                ${esc(c.name || `Player ${ci+1}`)}
-              </label>`).join('')}
-          </div>
-        </div>
-
-        <!-- Pages -->
-        <div class="section-title" style="font-size:.65rem;margin-bottom:.6rem">Pages</div>
-        <div class="dm-book-pages" id="dmBookPages${bi}">
-          ${book.pages.map((p, pi) => `
-            <div class="dm-book-page-row">
-              <div class="form-grid" style="margin-bottom:.4rem">
-                <div class="field"><label>Page Title</label>
-                  <input type="text" class="dm-page-title" data-book="${bi}" data-page="${pi}"
-                    value="${esc(p.title || '')}" placeholder="Title…">
-                </div>
-                <div style="display:flex;align-items:flex-end">
-                  <button class="neo-btn small ghost dm-del-page" data-book="${bi}" data-page="${pi}">✕ Remove</button>
-                </div>
-              </div>
-              <div class="field" style="margin-bottom:.5rem">
-                <label>Content</label>
-                <textarea class="small-textarea dm-page-content" data-book="${bi}" data-page="${pi}"
-                  placeholder="Page content…">${esc(p.content || '')}</textarea>
-              </div>
-              <div class="field">
-                <label>Page Image ${bi === 6 ? '(specimen diagram)' : '(optional)'}</label>
-                <div class="dm-page-image-row">
-                  ${p.image ? `<img src="${p.image}" class="dm-page-image-preview" alt="">` : '<div class="dm-page-image-empty">No image</div>'}
-                  <label class="neo-btn small dm-page-image-btn">
-                    ${p.image ? 'Change' : 'Add'} Image
-                    <input type="file" accept="image/*" class="dm-page-image-input" data-book="${bi}" data-page="${pi}" style="display:none">
-                  </label>
-                  ${p.image ? `<button class="neo-btn small ghost dm-page-image-del" data-book="${bi}" data-page="${pi}">Remove</button>` : ''}
-                </div>
-              </div>
-            </div>`).join('')}
-        </div>
-        <button class="neo-btn small dm-add-page" data-book="${bi}" style="margin-top:.6rem">+ Add Page</button>
-        <button class="neo-btn dm-save-book" data-book="${bi}" style="margin-top:.6rem">Save Book</button>
-      </div>
-    </details>`).join('');
-
-  // Bind events
-  container.querySelectorAll('.dm-add-page').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bi = parseInt(btn.dataset.book);
-      saveDmBookInputs(container); // preserve unsaved edits before re-render
-      booksState.books[bi].pages.push({ title: '', content: '', image: '' });
-      pushBooks(); renderDmBooks(); renderBookIcons();
-    });
-  });
-  container.querySelectorAll('.dm-del-page').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bi = parseInt(btn.dataset.book), pi = parseInt(btn.dataset.page);
-      saveDmBookInputs(container);
-      booksState.books[bi].pages.splice(pi, 1);
-      pushBooks(); renderDmBooks(); renderBookIcons();
-    });
-  });
-  // Image upload per page
-  container.querySelectorAll('.dm-page-image-input').forEach(input => {
-    input.addEventListener('change', e => {
-      const file = e.target.files[0]; if (!file) return;
-      input.value = '';
-      const bi = parseInt(input.dataset.book), pi = parseInt(input.dataset.page);
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX = 500;
-          const ratio = Math.min(MAX/img.width, MAX/img.height, 1);
-          canvas.width  = Math.round(img.width * ratio);
-          canvas.height = Math.round(img.height * ratio);
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          saveDmBookInputs(container);
-          booksState.books[bi].pages[pi].image = canvas.toDataURL('image/jpeg', 0.8);
-          pushBooks(); renderDmBooks();
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  });
-  container.querySelectorAll('.dm-page-image-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bi = parseInt(btn.dataset.book), pi = parseInt(btn.dataset.page);
-      saveDmBookInputs(container);
-      booksState.books[bi].pages[pi].image = '';
-      pushBooks(); renderDmBooks();
-    });
-  });
-  container.querySelectorAll('.dm-save-book').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bi = parseInt(btn.dataset.book);
-      saveDmBookInputs(container, bi);
-      pushBooks(); renderBookIcons();
-      btn.textContent = '✓ Saved';
-      setTimeout(() => btn.textContent = 'Save Book', 1800);
-    });
-  });
-}
-
-// Collect all current input values into booksState (so re-renders don't lose edits)
-function saveDmBookInputs(container, onlyBook = null) {
-  booksState.books.forEach((book, bi) => {
-    if (onlyBook !== null && bi !== onlyBook) return;
-    const buffEl = container.querySelector(`.dm-book-buff[data-book="${bi}"]`);
-    if (buffEl) book.buff = buffEl.value.trim();
-    // access
-    const accessBoxes = container.querySelectorAll(`.dm-book-access[data-book="${bi}"]`);
-    if (accessBoxes.length) {
-      book.access = [];
-      accessBoxes.forEach(cb => {
-        if (cb.checked) { const p = cb.dataset.player; book.access.push(p === 'all' ? 'all' : parseInt(p)); }
-      });
-      if (book.access.includes('all')) book.access = ['all'];
-    }
-    // pages
-    book.pages.forEach((p, pi) => {
-      const t = container.querySelector(`.dm-page-title[data-book="${bi}"][data-page="${pi}"]`);
-      const c = container.querySelector(`.dm-page-content[data-book="${bi}"][data-page="${pi}"]`);
-      if (t) p.title = t.value;
-      if (c) p.content = c.value;
-    });
-  });
-}

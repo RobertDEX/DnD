@@ -1531,3 +1531,15 @@ input:focus, textarea:focus, select:focus {
 .toast-warn    { background:rgba(32,20,4,.95); color:var(--warn);  border-color:rgba(255,153,0,.35); }
 .toast-heal    { background:rgba(4,24,16,.95); color:var(--safe);  border-color:rgba(0,232,144,.3); }
 .toast-success { background:rgba(4,20,12,.95); color:var(--safe);  border-color:rgba(0,232,144,.4); box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 20px rgba(0,232,144,.15); }
+
+/* ── CHARACTER CLAIM: taken state ── */
+.welcome-char-btn.taken {
+  opacity: .4; cursor: not-allowed;
+  border-color: rgba(200,0,10,.2) !important;
+}
+.welcome-char-btn.taken:hover { transform: none !important; box-shadow: none !important; }
+.taken-label {
+  font-family: var(--F2); font-size: .55rem; color: var(--danger);
+  letter-spacing: .12em; text-transform: uppercase;
+  display: block; margin-top: .2rem;
+}

@@ -31,10 +31,6 @@
     <div id="characterTabs" class="character-tabs"></div>
   </div>
   <div class="sidebar-section">
-    <div class="section-label">Sacred Books</div>
-    <div id="bookIconBar" class="book-icon-bar-sidebar"></div>
-  </div>
-  <div class="sidebar-section">
     <div class="section-label">Dice</div>
     <div class="sidebar-buttons">
       <button id="rollHpBtn"      type="button" class="neo-btn">Roll HP (d10+CON)</button>
@@ -354,9 +350,6 @@
         <button class="dm-nav-btn" data-dm-tab="broadcast">
           <span class="dm-nav-icon">📡</span>Broadcast
         </button>
-        <button class="dm-nav-btn" data-dm-tab="books">
-          <span class="dm-nav-icon">📚</span>Books
-        </button>
         <button class="dm-nav-btn" data-dm-tab="theme">
           <span class="dm-nav-icon">🎨</span>Theme
         </button>
@@ -449,13 +442,6 @@
               <button id="broadcastBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Send to Everyone</button>
             </div>
           </div>
-        </div>
-
-        <!-- BOOKS TAB -->
-        <div class="dm-tab" data-dm-tab="books">
-          <div class="dm-tab-title">Sacred Books</div>
-          <p class="small-note" style="margin-bottom:1rem;opacity:.55">Manage pages, buffs and player access for each book. Empty access = open to all. Add players to restrict.</p>
-          <div id="dmBooksSection"></div>
         </div>
 
         <!-- THEME TAB -->

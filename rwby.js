@@ -229,9 +229,9 @@ const BOOK_NAMES = [
   'Soul-Calming',
   'Intent-Carving',
   'World-Will',
-  'Yielding',
-  'Human Will',
-  'Void-Severing',
+  'Yielding Sutra',
+  'Human Will Scripture',
+  'Void-Severing Art',
   'Grimm Studies w/ Port'
 ];
 function blankBook(name) { return { name, pages:[], buff:'', access:[] }; }
@@ -1028,9 +1028,14 @@ function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
   dmUnlocked=true;
   sessionStorage.setItem('rwby-dm','1');
-  el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden');
-  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
-  renderDmBooks();
+  el('dmLoginPanel')?.classList.add('hidden');
+  el('dmFullscreenPanel')?.classList.remove('hidden');
+  // Activate players tab by default
+  document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
+  document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
+  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields(); renderDmBooks();
 }
 
 // ================================================================
@@ -1104,6 +1109,21 @@ function bindAll() {
   el('dmCloseFullBtn')?.addEventListener('click',   closeDmOverlay);
   el('dmLogoutBtn')?.addEventListener('click',      lockDm);
   el('dmPasswordInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') unlockDm(); });
+
+  // DM panel tab switching
+  document.querySelectorAll('.dm-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.dmTab;
+      document.querySelectorAll('.dm-nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.dm-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.dm-tab[data-dm-tab="${tab}"]`)?.classList.add('active');
+      // Render tab-specific content
+      if (tab === 'semblance')  { renderDmSemblance(); }
+      if (tab === 'techniques') { renderDmTechniques(); }
+      if (tab === 'books')      { renderDmBooks(); }
+    });
+  });
 
   const themeInps = ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeAuraColor','themeTextColor'];
   const readTheme = () => ({
@@ -1479,6 +1499,8 @@ pushPresence();
 if (dmUnlocked) {
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
+  document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
+  document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
   renderDmBooks();
 }

@@ -551,14 +551,12 @@ function renderCharacterTabs() {
 // ================================================================
 function renderHeader() {
   const c    = getChar(); const name = c.name || '—';
-  const mine = getChar();
   const s = (id,v) => { const e=el(id); if(e)e.textContent=v; };
-  s('topCharacterName', name + (state.selectedCharacter !== 0 ? ' 👁' : ''));
+  s('topCharacterName', name);
   s('selectedNameSmall', name);
   s('selectedState', c.state.charAt(0).toUpperCase()+c.state.slice(1));
   s('selectedAscendedStatus', c.semblance.unlocked.ascended ? 'Unlocked' : 'Locked');
   s('selectedTechniqueCount', c.techniques.length);
-  // Topbar bars always show YOUR OWN character's HP/Aura
   s('topHpMini',   `${c.hp.current} / ${c.hp.max}`);
   s('topAuraMini', `${c.aura.current} / ${c.aura.max}`);
   s('topArmorMini', c.armor);
@@ -567,7 +565,6 @@ function renderHeader() {
   const aPct   = c.aura.max > 0 ? (c.aura.current/c.aura.max)*100 : 0;
   const hb=el('topHpBar');   if(hb) hb.style.width = hpPct+'%';
   const ab=el('topAuraBar'); if(ab) ab.style.width = aPct+'%';
-  // Update claim button label
 }
 
 // ================================================================

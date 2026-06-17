@@ -1231,11 +1231,27 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(0,210,255,.06), 0 0 60px rgba(0,210,255,.05);
 }
 
-/* ── PRESENCE dots: glassy ── */
-.presence-dot {
-  backdrop-filter: blur(4px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+/* ── PRESENCE BAR ── */
+.presence-bar {
+  display: flex; gap: .35rem; align-items: center; flex-wrap: wrap;
+  margin-top: .3rem;
+  min-height: 0;
 }
+.presence-dot {
+  display: inline-flex; align-items: center; gap: .28rem;
+  padding: .15rem .45rem; border-radius: 999px;
+  border: 1px solid;
+  font-family: var(--F2); font-size: .58rem; color: var(--text);
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+.presence-dot span {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+  animation: presencePulse 2s ease-in-out infinite;
+}
+@keyframes presencePulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
 /* ── Resource cards: gradient top accent ── */
 .resource-card::before {

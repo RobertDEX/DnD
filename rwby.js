@@ -1183,7 +1183,7 @@ function renderPortrait(c) {
   const label = document.getElementById('portraitLabel');
   if (!img || !label) return;
   if (c.portrait) {
-    img.src = c.portrait;
+    img.src = c.portrait; img.onerror = () => { img.style.display='none'; if(label)label.style.display='flex'; };
     img.style.display = 'block';
     label.style.display = 'none';   // hide the "Photo" placeholder
   } else {

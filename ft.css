@@ -1034,3 +1034,43 @@ label { color: rgba(200,130,40,.5); }
 
 /* ── SYNC DOT ── */
 .sync-dot { width: 8px; height: 8px; }
+
+/* ════════════════════════════════════════════════════════════════
+   POLISH PASS III — micro-interactions
+   ════════════════════════════════════════════════════════════════ */
+* { scroll-behavior: smooth; }
+.app { animation: appFadeIn .5s ease; }
+@keyframes appFadeIn { from { opacity:0; } to { opacity:1; } }
+
+.character-tab { animation: slideInLeft .35s ease backwards; }
+.character-tab:nth-child(1) { animation-delay: .04s; }
+.character-tab:nth-child(2) { animation-delay: .08s; }
+.character-tab:nth-child(3) { animation-delay: .12s; }
+.character-tab:nth-child(4) { animation-delay: .16s; }
+@keyframes slideInLeft { from { opacity:0; transform: translateX(-12px); } to { opacity:1; transform: translateX(0); } }
+
+.calc-item:active { transform: translateY(0) scale(.98); }
+.quick-adj button, .adj-btn { transition: all .12s cubic-bezier(.4,0,.2,1); }
+.quick-adj button:active, .adj-btn:active { transform: scale(.9); }
+.stat-score-input:focus { color:#fff !important; text-shadow: 0 0 16px rgba(200,130,40,.6) !important; }
+
+.section-title::after { transform-origin: left; animation: lineGrow .6s ease backwards; }
+@keyframes lineGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.portrait-slot:hover .portrait-img { transform: scale(1.08); }
+.portrait-img { transition: transform .3s ease; }
+
+.welcome-char-btn { animation: welcomeBtnIn .4s ease backwards; }
+.welcome-char-btn:nth-child(1) { animation-delay: .25s; }
+.welcome-char-btn:nth-child(2) { animation-delay: .32s; }
+.welcome-char-btn:nth-child(3) { animation-delay: .39s; }
+.welcome-char-btn:nth-child(4) { animation-delay: .46s; }
+@keyframes welcomeBtnIn { from { opacity:0; transform: translateY(20px) scale(.9); } to { opacity:1; transform: translateY(0) scale(1); } }
+
+.toast.show { animation: toastBounce .4s cubic-bezier(.2,1.4,.4,1); }
+@keyframes toastBounce { 0% { transform: translateY(20px) scale(.9); } 60% { transform: translateY(-3px) scale(1.02); } 100% { transform: translateY(0) scale(1); } }
+
+button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
+.resource-card:hover::before { opacity: .8; }
+::selection { background: rgba(200,130,40,.3); color: #fff; }
+:focus-visible { outline: 2px solid rgba(200,130,40,.5); outline-offset: 2px; }

@@ -169,6 +169,7 @@ const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,show
 
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
+let _welcomeShown = false;
 let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
 
 // ── PRESENCE ──
@@ -274,7 +275,7 @@ function startListener(){
       try{applyCharacterAccents();}catch(e){}
       try{checkLowHp(getChar());}catch(e){}
       recheckWelcomeIfNeeded();
-      if(!getMyCharacter()&&!localStorage.getItem('ft-observer')&&!document.getElementById('welcomeOverlay'))checkWelcome();
+      if(!document.getElementById('welcomeOverlay')&&!_welcomeShown){_welcomeShown=true;checkWelcome();}
     }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
@@ -937,18 +938,16 @@ function claimCharacter(realIdx){
 }
 
 function checkWelcome(){
-  if(getMyCharacter())return;
-  if(localStorage.getItem('ft-observer')==='1')return;
-  const active=state.characters.filter(c=>c.state==='active');
-  if(!active.length)return;
   document.getElementById('welcomeOverlay')?.remove();
+  const active=state.characters.filter(c=>c.state==='active'&&c.name);
+  if(!active.length)return;
   const overlay=document.createElement('div');overlay.id='welcomeOverlay';overlay.className='welcome-overlay';
   overlay.innerHTML=`
     <div class="welcome-inner">
       <div class="welcome-logo">Fairy Tail DnD</div>
       <div class="welcome-sub">Guild · Magic · Adventure</div>
       <h2 class="welcome-title">Who are you?</h2>
-      <p class="welcome-text">Choose your guild member. Each person can only claim one.</p>
+      <p class="welcome-text">Choose your guild member each time you join. Taken members are greyed out.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
       <div class="welcome-actions"><button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button></div>
     </div>`;
@@ -962,18 +961,16 @@ function checkWelcome(){
     const btn=document.createElement('button');
     btn.className=`welcome-char-btn ${taken?'taken':''}`;
     btn.disabled=taken;
-    btn.innerHTML=`${c.portrait?`<img src="${c.portrait}" class="welcome-portrait">`:`<div class="welcome-portrait-empty">✦</div>`}<span>${esc(c.name||`Player ${realIdx+1}`)}</span>${taken?'<span class="taken-label">Taken</span>':''}`;
-    btn.addEventListener('click',()=>{claimCharacter(realIdx);closeWelcome();showToast(`You are ${c.name||`Player ${realIdx+1}`} ✓`,'success',4000);});
+    btn.innerHTML=`${c.portrait?`<img src="${c.portrait}" class="welcome-portrait">`:`<div class="welcome-portrait-empty">${c.name?c.name[0].toUpperCase():'✦'}</div>`}<span>${esc(c.name||`Player ${realIdx+1}`)}</span>${taken?'<span class="taken-label">Taken</span>':''}`;
+    btn.addEventListener('click',()=>{claimCharacter(realIdx);closeWelcome();showToast(`You are ${c.name} ✓`,'success',4000);});
     list.appendChild(btn);
   });
-  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{localStorage.setItem('ft-observer','1');closeWelcome();});
+  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{closeWelcome();});
 }
 
 function recheckWelcomeIfNeeded(){
   const mine=getMyCharacter();
-  if(mine){const idx=state.characters.indexOf(mine);if(idx>=0&&state.selectedCharacter!==idx)state.selectedCharacter=idx;return;}
-  if(localStorage.getItem('ft-observer')==='1')return;
-  if(!document.getElementById('welcomeOverlay'))checkWelcome();
+  if(mine){const idx=state.characters.indexOf(mine);if(idx>=0&&state.selectedCharacter!==idx)state.selectedCharacter=idx;}
 }
 
 // ================================================================
@@ -988,7 +985,38 @@ bindRelationships();
 bindAccentColor();
 bindFullscreen();
 render();
-startListener();
+
+// ── MIGRATION: ft-chars → campaigns/ft-campaign ──
+async function migrateIfNeeded(){
+  try{
+    const mainSnap=await getDoc(doc(db,'campaigns','ft-campaign'));
+    if(mainSnap.exists()){startListener();return;}
+    const {getDocs,collection:col}=await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
+    const oldSnap=await getDocs(col(db,'ft-chars')).catch(()=>null);
+    if(oldSnap&&!oldSnap.empty){
+      const chars=[];
+      oldSnap.forEach(d=>{try{chars.push(JSON.parse(d.data().data));}catch(e){}});
+      if(chars.length){
+        chars.sort((a,b)=>(a.id||'').localeCompare(b.id||''));
+        state.characters=chars.map((c,i)=>{
+          const b=blankChar(i);
+          return {...b,...c,
+            stats:{...b.stats,...(c.stats||{})},
+            hp:{...b.hp,...(c.hp||{})},
+            mana:{...b.mana,...(c.mana||{})},
+            skills:(()=>{const bsk=makeBlankSkills();Object.keys(bsk).forEach(n=>{bsk[n]={...bsk[n],...(c.skills?.[n]||{})};});return bsk;})()
+          };
+        });
+        await setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)});
+        console.log(`Migrated ${chars.length} characters from ft-chars`);
+        render();
+      }
+    }
+  }catch(e){console.warn('Migration failed:',e);}
+  startListener();
+}
+migrateIfNeeded();
+
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
@@ -1002,8 +1030,7 @@ window.addEventListener('beforeunload', () => {
   }
   deleteDoc(doc(db,'ft-presence',MY_PRESENCE_ID)).catch(()=>{});
 });
-// Show welcome after data loads
-setTimeout(()=>{if(!getMyCharacter()&&!localStorage.getItem('ft-observer')&&!document.getElementById('welcomeOverlay'))checkWelcome();},2500);
+// Welcome triggered by snapshot handler once data loads
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {

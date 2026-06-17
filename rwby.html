@@ -88,6 +88,7 @@
     </div>
     <div class="topbar-right">
       <div class="hud-stat"><span>AC</span><strong id="topArmorMini">—</strong></div>
+      <button id="fullscreenBtn" type="button" class="neo-btn ghost" style="font-size:.6rem;padding:.45rem .7rem;letter-spacing:.06em">▶ Hide</button>
       <button id="openDmOverlayBtn" type="button" class="neo-btn dm-btn">DM Panel</button>
     </div>
   </header>
@@ -241,6 +242,7 @@
         <button class="tab-btn" data-tab="techniques">Techniques</button>
         <button class="tab-btn" data-tab="dust">Dust</button>
         <button class="tab-btn" data-tab="loadout">Loadout</button>
+        <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
       </div>
 
@@ -282,9 +284,23 @@
         </div>
       </div>
 
+      <div class="tab-content panel tab-panel" data-tab="relations">
+        <div class="section-title">Relationships</div>
+        <p class="small-note" style="margin-bottom:1rem;opacity:.6">Track NPCs, allies, enemies, and anyone who matters to your character.</p>
+        <div id="relationshipsContainer" class="relationships-list"></div>
+        <button id="addRelBtn" class="neo-btn" style="margin-top:.9rem">+ Add Person</button>
+      </div>
+
       <div class="tab-content panel tab-panel" data-tab="notes">
         <div class="section-title">Session Notes</div>
         <textarea id="notesText" placeholder="Notes from this session…"></textarea>
+        <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(0,210,255,.08)">
+          <div class="section-title" style="font-size:.65rem">Character Accent Color</div>
+          <div style="display:flex;align-items:center;gap:.8rem;margin-top:.5rem">
+            <input type="color" id="accentColorInput" value="#00d4ff" style="width:48px;height:36px;padding:.15rem;border-radius:6px">
+            <span class="small-note">Your personal color — shows on your sidebar tab and portrait ring.</span>
+          </div>
+        </div>
       </div>
 
     </div><!-- /right-col -->

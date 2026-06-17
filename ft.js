@@ -154,13 +154,14 @@ function blankChar(i) {
     magicType:'',magicCategory:'',guild:'',guildMark:'',exceed:'',magicRank:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
-    portrait: '',
+    portrait: '', accentColor: '',
     stats:{STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
     skills:makeBlankSkills(),
     hp:{current:0,max:0}, mana:{current:0,max:0},
     armor:0, speed:'30 ft', tempHp:0,
     deathSaves:{successes:0,failures:0,stable:false},
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
+    relationships:[],
     spells:[],lostMagic:[]
   };
 }
@@ -222,7 +223,7 @@ function startListener(){
     if(!snap.exists())return;
     try{
       const remote=normalize(JSON.parse(snap.data().data));
-      // Update character data only — never touch selectedCharacter or other UI state
+      checkStateChanges(remote);
       remote.characters.forEach((rc,i)=>{state.characters[i]=rc;});
       while(state.characters.length<remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
@@ -238,6 +239,8 @@ function startListener(){
       try{renderSpells();}catch(e){}
       try{renderLostMagic();}catch(e){}
       try{renderMagicBanner();}catch(e){}
+      try{applyCharacterAccents();}catch(e){}
+      try{checkLowHp(getChar());}catch(e){}
     }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
@@ -669,6 +672,11 @@ function render(){
   try{renderMainFields();}catch(e){}
   try{renderPortrait(c);}catch(e){}
   try{renderDeathSaves(c);}catch(e){}
+  try{renderRelationships();}catch(e){}
+  try{renderAccentColor();}catch(e){}
+  try{applyCharacterAccents();}catch(e){}
+  try{checkResourceFlash(c);}catch(e){}
+  try{checkLowHp(c);}catch(e){}
   try{renderMagicBanner();}catch(e){}
   try{renderCalcPanel();}catch(e){}
   try{renderStats();}catch(e){}
@@ -809,6 +817,105 @@ function bindAll(){
   el('resetThemeBtn')?.addEventListener('click',()=>{state.theme={...DEF_THEME};pushState();render();});
 }
 
+// ── RELATIONSHIPS ──
+const FT_RELATION_TYPES=['Ally','Guild Member','Rival','Enemy','Mentor','Family','Client','Neutral'];
+function renderRelationships(){
+  const c=getChar();const cont=el('relationshipsContainer');if(!cont)return;
+  const rels=c.relationships||[];
+  cont.innerHTML=rels.map((r,i)=>`
+    <div class="rel-card" data-i="${i}">
+      <div class="rel-card-top">
+        <input class="rel-name" data-i="${i}" value="${esc(r.name||'')}" placeholder="Name…">
+        <select class="rel-type" data-i="${i}">${FT_RELATION_TYPES.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}</select>
+        <button class="rel-del neo-btn small ghost" data-i="${i}">✕</button>
+      </div>
+      <textarea class="rel-notes" data-i="${i}" placeholder="Notes about this person…">${esc(r.notes||'')}</textarea>
+    </div>`).join('');
+  cont.querySelectorAll('.rel-name,.rel-notes,.rel-type').forEach(inp=>{
+    inp.addEventListener('input',()=>saveRelationships(c));
+    inp.addEventListener('change',()=>saveRelationships(c));
+  });
+  cont.querySelectorAll('.rel-del').forEach(btn=>{
+    btn.addEventListener('click',()=>{const i=parseInt(btn.dataset.i);c.relationships.splice(i,1);pushState();renderRelationships();});
+  });
+}
+function saveRelationships(c){
+  const cont=el('relationshipsContainer');if(!cont)return;
+  const cards=cont.querySelectorAll('.rel-card');
+  c.relationships=Array.from(cards).map(card=>({name:card.querySelector('.rel-name').value,type:card.querySelector('.rel-type').value,notes:card.querySelector('.rel-notes').value}));
+  pushState();
+}
+function bindRelationships(){el('addRelBtn')?.addEventListener('click',()=>{const c=getChar();if(!c.relationships)c.relationships=[];c.relationships.push({name:'',type:'Neutral',notes:''});pushState();renderRelationships();});}
+
+// ── ACCENT COLOR ──
+function applyCharacterAccents(){state.characters.forEach((c,i)=>{const color=c.accentColor||'';const tabs=document.querySelectorAll('.character-tab');if(tabs[i]&&color)tabs[i].style.setProperty('--char-color',color);});}
+function bindAccentColor(){el('accentColorInput')?.addEventListener('input',e=>{const c=getChar();c.accentColor=e.target.value;pushState();applyCharacterAccents();});}
+function renderAccentColor(){const c=getChar();const inp=el('accentColorInput');if(inp)inp.value=c.accentColor||'#e8a030';}
+
+// ── RESOURCE FLASH ──
+let _prevHp=null,_prevMana=null;
+function checkResourceFlash(c){
+  if(_prevHp!==null&&c.hp.current<_prevHp)flashBar('topHpBar','flash-damage');
+  if(_prevHp!==null&&c.hp.current>_prevHp)flashBar('topHpBar','flash-heal');
+  if(_prevMana!==null&&c.mana.current<_prevMana)flashBar('topManaBar','flash-damage');
+  if(_prevMana!==null&&c.mana.current>_prevMana)flashBar('topManaBar','flash-heal');
+  _prevHp=c.hp.current;_prevMana=c.mana.current;
+}
+function flashBar(id,cls){const bar=el(id);if(!bar)return;bar.classList.remove('flash-damage','flash-heal');void bar.offsetWidth;bar.classList.add(cls);setTimeout(()=>bar.classList.remove(cls),600);}
+
+// ── LOW HP ──
+function checkLowHp(c){
+  const track=document.querySelector('.hud-hp .hud-bar-track');const fill=el('topHpBar');if(!track||!fill)return;
+  const pct=c.hp.max>0?c.hp.current/c.hp.max:1;
+  if(pct<=0.25&&c.hp.max>0){track.classList.add('low-hp');fill.classList.add('low-hp-fill');}
+  else{track.classList.remove('low-hp');fill.classList.remove('low-hp-fill');}
+}
+
+// ── FULLSCREEN ──
+function bindFullscreen(){el('fullscreenBtn')?.addEventListener('click',()=>{document.querySelector('.app')?.classList.toggle('sidebar-hidden');const btn=el('fullscreenBtn');const hidden=document.querySelector('.app')?.classList.contains('sidebar-hidden');if(btn)btn.textContent=hidden?'◀ Show':'▶ Hide';});}
+
+// ── TOAST ──
+let _toastTimer=null;
+function showToast(msg,type='info',duration=3500){let t=document.getElementById('toastEl');if(!t){t=document.createElement('div');t.id='toastEl';t.className='toast';document.body.appendChild(t);}t.className=`toast toast-${type} show`;t.textContent=msg;clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),duration);}
+window.showToast=showToast;
+let _toastPrevState=null;
+function checkStateChanges(remote){
+  if(!_toastPrevState){_toastPrevState=remote;return;}
+  remote.characters.forEach((c,i)=>{
+    const prev=_toastPrevState.characters?.[i];if(!prev||!c.name)return;
+    if(c.hp.current<prev.hp.current)showToast(`${c.name} took ${prev.hp.current-c.hp.current} damage`,'danger');
+    else if(c.hp.current>prev.hp.current)showToast(`${c.name} healed ${c.hp.current-prev.hp.current} HP`,'heal');
+    if(c.mana.current<prev.mana.current)showToast(`${c.name} used ${prev.mana.current-c.mana.current} Mana`,'warn');
+    if(c.level>prev.level)showToast(`⭐ ${c.name} leveled up to ${c.level}!`,'success',5000);
+  });
+  _toastPrevState=remote;
+}
+
+// ── WELCOME ──
+function checkWelcome(){
+  if(localStorage.getItem('ft-welcomed'))return;
+  const overlay=document.createElement('div');overlay.id='welcomeOverlay';overlay.className='welcome-overlay';
+  overlay.innerHTML=`
+    <div class="welcome-inner">
+      <div class="welcome-logo">Fairy Tail DnD</div>
+      <div class="welcome-sub">Guild · Magic · Adventure</div>
+      <h2 class="welcome-title">Welcome to the Guild</h2>
+      <p class="welcome-text">Choose your guild member to get started.</p>
+      <div class="welcome-chars" id="welcomeCharList"></div>
+      <div class="welcome-actions"><button class="neo-btn" id="welcomeSkipBtn">Skip for Now</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(()=>overlay.classList.add('open'));
+  const list=document.getElementById('welcomeCharList');
+  state.characters.filter(c=>c.state==='active').forEach((c,i)=>{
+    const btn=document.createElement('button');btn.className='welcome-char-btn';
+    btn.innerHTML=`${c.portrait?`<img src="${c.portrait}" class="welcome-portrait">`:'<div class="welcome-portrait-empty">✦</div>'}<span>${esc(c.name||`Player ${i+1}`)}</span>`;
+    btn.addEventListener('click',()=>{state.selectedCharacter=i;localStorage.setItem('ft-welcomed','1');overlay.classList.remove('open');setTimeout(()=>overlay.remove(),400);showToast(`Welcome, ${c.name||`Player ${i+1}`}!`,'success',4000);render();});
+    list.appendChild(btn);
+  });
+  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{localStorage.setItem('ft-welcomed','1');overlay.classList.remove('open');setTimeout(()=>overlay.remove(),400);});
+}
+
 // ================================================================
 // INIT
 // ================================================================
@@ -817,11 +924,15 @@ initPortrait();
 bindDeathSaves();
 bindBroadcast();
 bindGrant();
+bindRelationships();
+bindAccentColor();
+bindFullscreen();
 render();
 startListener();
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
+setTimeout(checkWelcome,1800);
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {

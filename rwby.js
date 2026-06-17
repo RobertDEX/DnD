@@ -192,7 +192,8 @@ function blankChar(i) {
     id: `char-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'', race:'', className:'', age:'', level:1, background:'',
     semblanceName:'', weaponName:'',
-    portrait: '',   // base64 image data URL
+    portrait: '',
+    accentColor: '',   // #21/#23 — per-character color
     profBonusOverride: null,
     attackStat: 'STR', initiativeBonus: 0,
     state: i < 4 ? 'active' : 'reserve',
@@ -202,6 +203,7 @@ function blankChar(i) {
     armor:0, speed:'30 ft', tempHp:0,
     deathSaves: {successes:0, failures:0, stable:false},
     weaponsText:'', abilitiesText:'', inventoryText:'', notesText:'',
+    relationships: [],   // #21 — [{name, type, notes}]
     dustInventory: dust, dustSpells:[], techniques:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -223,12 +225,13 @@ let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
 // Books must be declared early — renderBookIcons() is called before the books section
 const BOOK_NAMES = [
+    'Rowans Notebook',
   'Soul-Calming',
   'Intent-Carving',
   'World-Will',
-  'Yielding Sutra',
-  'Human Will Scripture',
-  'Void-Severing Art',
+  'Yielding',
+  'Human Will ',
+  'Void-Severing',
   'Grimm Studies w/ Port'
 ];
 function blankBook(name) { return { name, pages:[], buff:'', access:[] }; }
@@ -321,21 +324,15 @@ function startListener() {
     if (!snap.exists()) return;
     try {
       const remote = normalize(JSON.parse(snap.data().data));
-      // Merge remote characters into local state.
-      // NEVER touch selectedCharacter, activeTab, showReserve, showDead —
-      // those are per-browser UI state and must not be overwritten.
+      checkStateChanges(remote);  // #31 toasts
       remote.characters.forEach((rc, i) => { state.characters[i] = rc; });
       while (state.characters.length < remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme = remote.theme;
       setSyncDot('synced');
-      // Re-render everything EXCEPT re-focusing inputs.
-      // renderCharacterTabs and renderHeader update the sidebar/topbar live.
-      // Full render updates the sheet if needed.
       try { renderCharacterTabs(); } catch(e) {}
       try { renderHeader();        } catch(e) {}
       try { applyTheme();          } catch(e) {}
-      // Refresh the currently viewed sheet so edits from others show live
       try { renderMainFields();    } catch(e) {}
       try { renderCalcPanel();     } catch(e) {}
       try { renderStats();         } catch(e) {}
@@ -343,6 +340,8 @@ function startListener() {
       try { renderSemblance();     } catch(e) {}
       try { renderTechniques();    } catch(e) {}
       try { renderDust();          } catch(e) {}
+      try { applyCharacterAccents(); } catch(e) {}
+      try { checkLowHp(getChar()); }   catch(e) {}
     } catch(e) { console.error('Snapshot error:', e); }
   }, e => { console.error(e); setSyncDot('error'); });
 }
@@ -906,6 +905,11 @@ function render() {
   try { renderMainFields(); }      catch(e) { console.error('renderMainFields:', e); }
   try { renderPortrait(c); }       catch(e) {}
   try { renderDeathSaves(c); }     catch(e) {}
+  try { renderRelationships(); }   catch(e) {}
+  try { renderAccentColor(); }     catch(e) {}
+  try { applyCharacterAccents(); } catch(e) {}
+  try { checkResourceFlash(c); }   catch(e) {}
+  try { checkLowHp(c); }           catch(e) {}
   try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
   try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
   try { renderSkillsMatrix(); }    catch(e) { console.error('renderSkillsMatrix:', e); }
@@ -1234,6 +1238,227 @@ function renderGrantTargetSelect() {
 }
 
 // ================================================================
+// #21 — RELATIONSHIPS TRACKER
+// ================================================================
+const RELATION_TYPES = ['Ally','Friend','Rival','Enemy','Mentor','Family','Neutral','Unknown'];
+
+function renderRelationships() {
+  const c = getChar();
+  const cont = el('relationshipsContainer'); if (!cont) return;
+  const rels = c.relationships || [];
+  cont.innerHTML = rels.map((r, i) => `
+    <div class="rel-card" data-i="${i}">
+      <div class="rel-card-top">
+        <input class="rel-name" data-i="${i}" value="${esc(r.name||'')}" placeholder="Name…">
+        <select class="rel-type" data-i="${i}">
+          ${RELATION_TYPES.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <button class="rel-del neo-btn small ghost" data-i="${i}">✕</button>
+      </div>
+      <textarea class="rel-notes" data-i="${i}" placeholder="Notes on this person…">${esc(r.notes||'')}</textarea>
+    </div>`).join('');
+
+  cont.querySelectorAll('.rel-name,.rel-notes,.rel-type').forEach(inp => {
+    inp.addEventListener('input', () => saveRelationships(c));
+    inp.addEventListener('change', () => saveRelationships(c));
+  });
+  cont.querySelectorAll('.rel-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i);
+      c.relationships.splice(i, 1);
+      pushState(); renderRelationships();
+    });
+  });
+}
+
+function saveRelationships(c) {
+  const cont = el('relationshipsContainer'); if (!cont) return;
+  const cards = cont.querySelectorAll('.rel-card');
+  c.relationships = Array.from(cards).map(card => {
+    const i = parseInt(card.dataset.i);
+    return {
+      name:  card.querySelector('.rel-name').value,
+      type:  card.querySelector('.rel-type').value,
+      notes: card.querySelector('.rel-notes').value,
+    };
+  });
+  pushState();
+}
+
+function bindRelationships() {
+  el('addRelBtn')?.addEventListener('click', () => {
+    const c = getChar();
+    if (!c.relationships) c.relationships = [];
+    c.relationships.push({ name:'', type:'Neutral', notes:'' });
+    pushState(); renderRelationships();
+  });
+}
+
+// ================================================================
+// #23 — CHARACTER ACCENT COLOR
+// ================================================================
+function applyCharacterAccents() {
+  state.characters.forEach((c, i) => {
+    const color = c.accentColor || '';
+    const tabs = document.querySelectorAll('.character-tab');
+    if (tabs[i] && color) {
+      tabs[i].style.setProperty('--char-color', color);
+      tabs[i].style.borderLeftColor = color;
+    }
+  });
+}
+
+function bindAccentColor() {
+  el('accentColorInput')?.addEventListener('input', e => {
+    const c = getChar(); c.accentColor = e.target.value;
+    pushState(); applyCharacterAccents();
+  });
+}
+
+function renderAccentColor() {
+  const c = getChar();
+  const inp = el('accentColorInput');
+  if (inp) inp.value = c.accentColor || '#00d4ff';
+}
+
+// ================================================================
+// #26 — HP/AURA DAMAGE FLASH
+// ================================================================
+let _prevHp = null, _prevAura = null;
+
+function checkResourceFlash(c) {
+  if (_prevHp !== null && c.hp.current < _prevHp) flashBar('topHpBar', 'flash-damage');
+  if (_prevHp !== null && c.hp.current > _prevHp) flashBar('topHpBar', 'flash-heal');
+  if (_prevAura !== null && c.aura.current < _prevAura) flashBar('topAuraBar', 'flash-damage');
+  if (_prevAura !== null && c.aura.current > _prevAura) flashBar('topAuraBar', 'flash-heal');
+  _prevHp = c.hp.current; _prevAura = c.aura.current;
+}
+
+function flashBar(id, cls) {
+  const bar = el(id); if (!bar) return;
+  bar.classList.remove('flash-damage','flash-heal');
+  void bar.offsetWidth; // force reflow
+  bar.classList.add(cls);
+  setTimeout(() => bar.classList.remove(cls), 600);
+}
+
+// ================================================================
+// #27 — LOW HP WARNING
+// ================================================================
+function checkLowHp(c) {
+  const track = document.querySelector('.hud-hp .hud-bar-track');
+  const fill  = el('topHpBar');
+  if (!track || !fill) return;
+  const pct = c.hp.max > 0 ? c.hp.current / c.hp.max : 1;
+  if (pct <= 0.25 && c.hp.max > 0) {
+    track.classList.add('low-hp');
+    fill.classList.add('low-hp-fill');
+  } else {
+    track.classList.remove('low-hp');
+    fill.classList.remove('low-hp-fill');
+  }
+}
+
+// ================================================================
+// #29 — FULLSCREEN MODE (hide sidebar)
+// ================================================================
+function bindFullscreen() {
+  el('fullscreenBtn')?.addEventListener('click', () => {
+    document.querySelector('.app')?.classList.toggle('sidebar-hidden');
+    const btn = el('fullscreenBtn');
+    const hidden = document.querySelector('.app')?.classList.contains('sidebar-hidden');
+    if (btn) btn.textContent = hidden ? '◀ Show Sidebar' : '▶ Hide Sidebar';
+  });
+}
+
+// ================================================================
+// #31 — TOAST NOTIFICATIONS
+// ================================================================
+let _toastTimer = null;
+function showToast(msg, type = 'info', duration = 3500) {
+  let t = document.getElementById('toastEl');
+  if (!t) {
+    t = document.createElement('div'); t.id = 'toastEl';
+    t.className = 'toast'; document.body.appendChild(t);
+  }
+  t.className = `toast toast-${type} show`;
+  t.textContent = msg;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+window.showToast = showToast;
+
+// Hook into Firebase snapshot to show toasts for changes
+let _toastPrevState = null;
+function checkStateChanges(remote) {
+  if (!_toastPrevState) { _toastPrevState = remote; return; }
+  remote.characters.forEach((c, i) => {
+    const prev = _toastPrevState.characters?.[i];
+    if (!prev || !c.name) return;
+    if (c.hp.current < prev.hp.current) {
+      showToast(`${c.name} took ${prev.hp.current - c.hp.current} damage`, 'danger');
+    } else if (c.hp.current > prev.hp.current) {
+      showToast(`${c.name} healed ${c.hp.current - prev.hp.current} HP`, 'heal');
+    }
+    if (c.aura.current < prev.aura.current) {
+      showToast(`${c.name} lost ${prev.aura.current - c.aura.current} Aura`, 'warn');
+    }
+    if (c.level > prev.level) {
+      showToast(`⭐ ${c.name} leveled up to ${c.level}!`, 'success', 5000);
+    }
+  });
+  _toastPrevState = remote;
+}
+
+// ================================================================
+// #40 — WELCOME SCREEN
+// ================================================================
+function checkWelcome() {
+  if (localStorage.getItem('rwby-welcomed')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'welcomeOverlay';
+  overlay.className = 'welcome-overlay';
+  overlay.innerHTML = `
+    <div class="welcome-inner">
+      <div class="welcome-logo">RWBY DnD</div>
+      <div class="welcome-sub">Homebrew · Remnant</div>
+      <h2 class="welcome-title">Welcome to the Campaign</h2>
+      <p class="welcome-text">Before you begin, pick which character is yours. You can always change this later.</p>
+      <div class="welcome-chars" id="welcomeCharList"></div>
+      <div class="welcome-actions">
+        <button class="neo-btn" id="welcomeSkipBtn">Skip for Now</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  // populate character list
+  const list = document.getElementById('welcomeCharList');
+  state.characters.filter(c => c.state === 'active').forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'welcome-char-btn';
+    btn.innerHTML = `
+      ${c.portrait ? `<img src="${c.portrait}" class="welcome-portrait">` : '<div class="welcome-portrait-empty">?</div>'}
+      <span>${esc(c.name || `Player ${i+1}`)}</span>`;
+    btn.addEventListener('click', () => {
+      state.selectedCharacter = i;
+      localStorage.setItem('rwby-welcomed', '1');
+      overlay.classList.remove('open');
+      setTimeout(() => overlay.remove(), 400);
+      showToast(`Welcome! You're playing as ${c.name || `Player ${i+1}`}`, 'success', 4000);
+      render();
+    });
+    list.appendChild(btn);
+  });
+
+  document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
+    localStorage.setItem('rwby-welcomed', '1');
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.remove(), 400);
+  });
+}
+
+// ================================================================
 // INIT
 // ================================================================
 bindAll();
@@ -1241,6 +1466,9 @@ initPortrait();
 bindDeathSaves();
 bindBroadcast();
 bindGrant();
+bindRelationships();
+bindAccentColor();
+bindFullscreen();
 render();
 renderBookIcons();
 startListener();
@@ -1248,13 +1476,14 @@ startPresenceListener();
 startBroadcastListener();
 startBooksListener();
 pushPresence();
-// If DM was already unlocked (sessionStorage persists), restore the DM panel
 if (dmUnlocked) {
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
   renderDmBooks();
 }
+// Show welcome screen after a short delay (so Firebase data loads first)
+setTimeout(checkWelcome, 1800);
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {
@@ -1314,14 +1543,19 @@ let _currentBookIdx = 0;
 let _currentPageIdx = 0;
 
 function openBook(bookIdx) {
-  const book = booksState.books[bookIdx];
-  if (!book) return;
-  const charIdx = state.selectedCharacter;
-  const hasAccess = dmUnlocked || book.access.includes(charIdx) || book.access.includes('all');
-  if (!hasAccess) { showBookLocked(book); return; }
-  _currentBookIdx = bookIdx;
-  _currentPageIdx = 0;
-  showBookModal();
+  try {
+    const book = booksState.books[bookIdx];
+    if (!book) { console.error('openBook: no book at index', bookIdx); return; }
+    const charIdx = state.selectedCharacter;
+    // Access logic: if access array is empty = open to all (default open)
+    // DM can RESTRICT by adding specific players — if access has entries, only those players + DM
+    const restricted = book.access.length > 0 && !book.access.includes('all');
+    const hasAccess = !restricted || dmUnlocked || book.access.includes(charIdx);
+    _currentBookIdx = bookIdx;
+    _currentPageIdx = 0;
+    if (!hasAccess) { showBookLocked(book); return; }
+    showBookModal();
+  } catch(e) { console.error('openBook error:', e); }
 }
 
 function showBookLocked(book) {
@@ -1352,7 +1586,11 @@ function showBookModal() {
 
   // Which books can this viewer see (for the right-side shelf)
   const accessible = booksState.books
-    .map((b, i) => ({ b, i, ok: dmUnlocked || b.access.includes(charIdx) || b.access.includes('all') }))
+    .map((b, i) => {
+      const restricted = b.access.length > 0 && !b.access.includes('all');
+      const ok = !restricted || dmUnlocked || b.access.includes(charIdx);
+      return { b, i, ok };
+    })
     .filter(x => x.ok);
 
   // Table of contents (left page list)
@@ -1445,14 +1683,14 @@ function renderBookIcons() {
   if (!bar) return;
   const charIdx = state.selectedCharacter;
   bar.innerHTML = booksState.books.map((book, i) => {
-    const hasAccess = dmUnlocked || book.access.includes(charIdx) || book.access.includes('all');
-    const isGrimm   = i === 6;
-    const delay     = (i * 0.6).toFixed(1);
-    const shortName = book.name.length > 14 ? book.name.slice(0,13)+'…' : book.name;
-    const clickFn   = hasAccess ? `openBook(${i})` : `openBook(${i})`;  // locked shows sealed msg
+    const restricted = book.access.length > 0 && !book.access.includes('all');
+    const hasAccess  = !restricted || dmUnlocked || book.access.includes(charIdx);
+    const isGrimm    = i === 6;
+    const delay      = (i * 0.6).toFixed(1);
+    const shortName  = book.name.length > 14 ? book.name.slice(0,13)+'…' : book.name;
     return `<button class="book-icon-btn ${hasAccess?'unlocked':'locked'} ${isGrimm?'grimm':''}"
       style="animation-delay:${delay}s"
-      onclick="${clickFn}" title="${esc(book.name)}">
+      onclick="openBook(${i})" title="${esc(book.name)}">
       <span>${isGrimm ? '📋' : '📖'}</span>
       <span class="book-icon-label">${esc(shortName)}</span>
     </button>`;

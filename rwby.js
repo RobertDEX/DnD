@@ -342,6 +342,10 @@ function startListener() {
       try { renderDust();          } catch(e) {}
       try { applyCharacterAccents(); } catch(e) {}
       try { checkLowHp(getChar()); }   catch(e) {}
+      recheckWelcomeIfNeeded();
+      // If this is the first real data load and no character picked, show welcome
+      const storedName = localStorage.getItem('rwby-my-name');
+      if (!storedName && !document.getElementById('welcomeOverlay')) checkWelcome();
     } catch(e) { console.error('Snapshot error:', e); }
   }, e => { console.error(e); setSyncDot('error'); });
 }
@@ -1434,7 +1438,14 @@ function checkStateChanges(remote) {
 // #40 — WELCOME SCREEN
 // ================================================================
 function checkWelcome() {
-  if (localStorage.getItem('rwby-welcomed')) return;
+  // Show if never picked, or if name stored doesn't match any character
+  const storedName = localStorage.getItem('rwby-my-name') || '';
+  const alreadyPicked = storedName && state.characters.some(c => c.name === storedName);
+  if (alreadyPicked) return;
+
+  // Remove any existing overlay
+  document.getElementById('welcomeOverlay')?.remove();
+
   const overlay = document.createElement('div');
   overlay.id = 'welcomeOverlay';
   overlay.className = 'welcome-overlay';
@@ -1442,40 +1453,53 @@ function checkWelcome() {
     <div class="welcome-inner">
       <div class="welcome-logo">RWBY DnD</div>
       <div class="welcome-sub">Homebrew · Remnant</div>
-      <h2 class="welcome-title">Welcome to the Campaign</h2>
-      <p class="welcome-text">Before you begin, pick which character is yours. You can always change this later.</p>
+      <h2 class="welcome-title">Who are you?</h2>
+      <p class="welcome-text">Pick your character to get started. This tells everyone who you are in the campaign.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
       <div class="welcome-actions">
-        <button class="neo-btn" id="welcomeSkipBtn">Skip for Now</button>
+        <button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('open'));
 
-  // populate character list
+  function closeWelcome() {
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.remove(), 400);
+  }
+
   const list = document.getElementById('welcomeCharList');
-  state.characters.filter(c => c.state === 'active').forEach((c, i) => {
+  // Show ALL characters (active ones), preserving their real index in state.characters
+  state.characters.forEach((c, realIdx) => {
+    if (c.state !== 'active') return;
     const btn = document.createElement('button');
     btn.className = 'welcome-char-btn';
     btn.innerHTML = `
-      ${c.portrait ? `<img src="${c.portrait}" class="welcome-portrait">` : '<div class="welcome-portrait-empty">?</div>'}
-      <span>${esc(c.name || `Player ${i+1}`)}</span>`;
+      ${c.portrait ? `<img src="${c.portrait}" class="welcome-portrait">` : `<div class="welcome-portrait-empty">${c.name ? c.name[0].toUpperCase() : '?'}</div>`}
+      <span>${esc(c.name || `Player ${realIdx + 1}`)}</span>`;
     btn.addEventListener('click', () => {
-      state.selectedCharacter = i;
-      localStorage.setItem('rwby-welcomed', '1');
-      overlay.classList.remove('open');
-      setTimeout(() => overlay.remove(), 400);
-      showToast(`Welcome! You're playing as ${c.name || `Player ${i+1}`}`, 'success', 4000);
+      state.selectedCharacter = realIdx;
+      localStorage.setItem('rwby-my-name', c.name || '');
+      closeWelcome();
+      showToast(`You are ${c.name || `Player ${realIdx + 1}`} ✓`, 'success', 4000);
+      pushPresence(); // update presence with real name immediately
       render();
     });
     list.appendChild(btn);
   });
 
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
-    localStorage.setItem('rwby-welcomed', '1');
-    overlay.classList.remove('open');
-    setTimeout(() => overlay.remove(), 400);
+    localStorage.setItem('rwby-my-name', '__observer__');
+    closeWelcome();
   });
+}
+
+// Re-check welcome whenever Firebase loads fresh characters
+function recheckWelcomeIfNeeded() {
+  const storedName = localStorage.getItem('rwby-my-name') || '';
+  if (!storedName || storedName === '__observer__') return;
+  const stillValid = state.characters.some(c => c.name === storedName);
+  if (!stillValid) { localStorage.removeItem('rwby-my-name'); }
 }
 
 // ================================================================
@@ -1504,8 +1528,8 @@ if (dmUnlocked) {
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
   renderDmBooks();
 }
-// Show welcome screen after a short delay (so Firebase data loads first)
-setTimeout(checkWelcome, 1800);
+// Show welcome screen after Firebase loads characters (so names are populated)
+setTimeout(checkWelcome, 2200);
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {

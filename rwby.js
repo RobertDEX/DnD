@@ -221,6 +221,7 @@ const DEF_STATE = {
 
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
+let _welcomeShown = false; // shows once per page load after data arrives
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 
 
@@ -350,8 +351,9 @@ function startListener() {
       try { applyCharacterAccents(); } catch(e) {}
       try { checkLowHp(getChar()); }   catch(e) {}
       recheckWelcomeIfNeeded();
-      // Show welcome if not claimed and no overlay showing
-      if (!getMyCharacter() && !localStorage.getItem('rwby-observer') && !document.getElementById('welcomeOverlay')) {
+      // Show welcome on every page load once we have real data
+      if (!document.getElementById('welcomeOverlay') && !_welcomeShown) {
+        _welcomeShown = true;
         checkWelcome();
       }
     } catch(e) { console.error('Snapshot error:', e); }
@@ -1441,21 +1443,13 @@ function checkStateChanges(remote) {
 // ================================================================
 // #40 — WELCOME SCREEN
 // ================================================================
-// ================================================================
-// CHARACTER CLAIMING
-// Each character has a claimedBy field = MY_PRESENCE_ID of owner.
-// One character per browser. Refresh reconnects via stored ID.
-// ================================================================
-
 function getMyCharacter() {
-  // Find the character this browser has claimed
   return state.characters.find(c => c.claimedBy === MY_PRESENCE_ID) || null;
 }
 
 function isCharacterTaken(c) {
   if (!c.claimedBy) return false;
-  // Check if the claimer is currently active in presence
-  return c.claimedBy !== MY_PRESENCE_ID; // other browser owns it
+  return c.claimedBy !== MY_PRESENCE_ID;
 }
 
 function claimCharacter(realIdx) {
@@ -1465,21 +1459,18 @@ function claimCharacter(realIdx) {
   state.characters.forEach(ch => { if (ch.claimedBy === MY_PRESENCE_ID) ch.claimedBy = ''; });
   c.claimedBy = MY_PRESENCE_ID;
   state.selectedCharacter = realIdx;
-  pushState();
+  pushState(true);
   pushPresence();
   render();
 }
 
 function checkWelcome() {
-  // Already claimed a character? Skip.
-  if (getMyCharacter()) return;
-  // Already watching? Skip.
-  if (localStorage.getItem('rwby-observer') === '1') return;
-  // No characters loaded yet? Wait.
-  const activeChars = state.characters.filter(c => c.state === 'active');
-  if (!activeChars.length) return;
-
+  // Always show on page load — remove existing overlay if any
   document.getElementById('welcomeOverlay')?.remove();
+
+  // Wait until we have real character data
+  const activeChars = state.characters.filter(c => c.state === 'active' && c.name);
+  if (!activeChars.length) return; // no named chars yet, snapshot will trigger us
 
   const overlay = document.createElement('div');
   overlay.id = 'welcomeOverlay';
@@ -1489,7 +1480,7 @@ function checkWelcome() {
       <div class="welcome-logo">RWBY DnD</div>
       <div class="welcome-sub">Homebrew · Remnant</div>
       <h2 class="welcome-title">Who are you?</h2>
-      <p class="welcome-text">Choose your character. Each person can only claim one.</p>
+      <p class="welcome-text">Choose your character each time you join. Taken characters are greyed out.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
       <div class="welcome-actions">
         <button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
@@ -1517,31 +1508,23 @@ function checkWelcome() {
     btn.addEventListener('click', () => {
       claimCharacter(realIdx);
       closeWelcome();
-      showToast(`You are ${c.name || `Player ${realIdx + 1}`} ✓`, 'success', 4000);
+      showToast(`You are ${c.name} ✓`, 'success', 4000);
     });
     list.appendChild(btn);
   });
 
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
-    localStorage.setItem('rwby-observer', '1');
     closeWelcome();
   });
 }
 
 function recheckWelcomeIfNeeded() {
-  // If we have a claim already, make sure selectedCharacter points to it
+  // Re-point selectedCharacter to our claimed char if it drifted
   const mine = getMyCharacter();
   if (mine) {
     const idx = state.characters.indexOf(mine);
-    if (idx >= 0 && state.selectedCharacter !== idx) {
-      state.selectedCharacter = idx;
-    }
-    return;
+    if (idx >= 0 && state.selectedCharacter !== idx) state.selectedCharacter = idx;
   }
-  // If we're a watcher, stay that way
-  if (localStorage.getItem('rwby-observer') === '1') return;
-  // Otherwise show welcome if not already showing
-  if (!document.getElementById('welcomeOverlay')) checkWelcome();
 }
 
 // ================================================================
@@ -1556,23 +1539,60 @@ bindRelationships();
 bindAccentColor();
 bindFullscreen();
 render();
-startListener();
+
+// ── MIGRATION: rwby-chars → campaigns/rwby-campaign ──
+// If the new doc doesn't exist yet, read old per-character collection and merge
+async function migrateIfNeeded() {
+  try {
+    const mainSnap = await getDoc(doc(db, 'campaigns', 'rwby-campaign'));
+    if (mainSnap.exists()) {
+      // Data already in campaigns doc — no migration needed
+      startListener();
+      return;
+    }
+    // Try reading from old rwby-chars collection
+    const { getDocs, collection: col } = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
+    const oldSnap = await getDocs(col(db, 'rwby-chars')).catch(() => null);
+    if (oldSnap && !oldSnap.empty) {
+      const chars = [];
+      oldSnap.forEach(d => {
+        try { chars.push(JSON.parse(d.data().data)); } catch(e) {}
+      });
+      if (chars.length) {
+        // Sort by index if possible
+        chars.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+        state.characters = chars.map((c, i) => {
+          const b = blankChar(i);
+          return { ...b, ...c,
+            stats: {...b.stats, ...(c.stats||{})},
+            hp: {...b.hp, ...(c.hp||{})},
+            aura: {...b.aura, ...(c.aura||{})},
+            skills: (() => { const bsk = makeBlankSkills(); Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(c.skills?.[n]||{})}; }); return bsk; })()
+          };
+        });
+        await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
+        console.log(`Migrated ${chars.length} characters from rwby-chars`);
+        render();
+      }
+    }
+  } catch(e) {
+    console.warn('Migration check failed:', e);
+  }
+  startListener();
+}
+migrateIfNeeded();
+
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
 
 // ── CLEANUP ON TAB CLOSE ──
 window.addEventListener('beforeunload', () => {
-  // Flush any pending debounced pushState immediately
   if (_pushDebounce) {
     clearTimeout(_pushDebounce);
     const hasData = state.characters.some(c => c.name && c.name.trim());
-    if (hasData) {
-      // Synchronous best-effort write (navigator.sendBeacon would be better but Firestore doesn't support it)
-      setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) }).catch(()=>{});
-    }
+    if (hasData) setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) }).catch(()=>{});
   }
-  // Remove our presence dot so it doesn't linger
   deleteDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID)).catch(()=>{});
 });
 if (dmUnlocked) {
@@ -1582,12 +1602,7 @@ if (dmUnlocked) {
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
 }
-// Show welcome after Firebase loads (snapshot handles it, this is a fallback)
-setTimeout(() => {
-  if (!getMyCharacter() && !localStorage.getItem('rwby-observer') && !document.getElementById('welcomeOverlay')) {
-    checkWelcome();
-  }
-}, 2500);
+// Welcome is triggered by the snapshot handler once real data loads
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {

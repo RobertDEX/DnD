@@ -820,3 +820,217 @@ input:focus, textarea:focus, select:focus {
 .welcome-portrait { width:64px; height:64px; border-radius:10px; object-fit:cover; border:1px solid rgba(200,130,40,.35); }
 .welcome-portrait-empty { width:64px; height:64px; border-radius:10px; border:1px dashed rgba(200,130,40,.2); display:flex; align-items:center; justify-content:center; font-size:1.6rem; color:var(--gold); }
 .welcome-actions { display:flex; justify-content:center; gap:1rem; }
+
+/* ── SIDEBAR TOGGLE (hidden on desktop) ── */
+.sidebar-toggle { display: none; }
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; left: -260px; top: 0; bottom: 0;
+    z-index: 1000; transition: left .25s; width: 260px; height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar.open { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,.6); }
+  .sidebar-toggle {
+    display: flex !important;
+    position: fixed; top: .75rem; left: .75rem; z-index: 1001;
+    width: 38px; height: 38px; border-radius: 8px;
+    background: rgba(8,4,16,.98); border: 1px solid rgba(200,130,40,.25);
+    color: var(--gold); font-size: 1.1rem; cursor: pointer;
+    align-items: center; justify-content: center;
+  }
+  .main { padding: .75rem; }
+  .sheet-columns { grid-template-columns: 1fr !important; }
+  .topbar { grid-template-columns: 1fr auto !important; }
+  .topbar-bars { grid-column: 1 / -1; }
+  .stats-grid { grid-template-columns: repeat(3,1fr) !important; }
+  .hud-bar { grid-template-columns: 44px 1fr 70px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FAIRY TAIL — ENHANCEMENT PASS II
+   Warmer, more alive, more magical
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  --glow-gold:  0 0 20px rgba(232,160,48,.25), 0 0 60px rgba(200,100,10,.08);
+  --glow-mana:  0 0 20px rgba(176,96,255,.25), 0 0 60px rgba(140,60,220,.08);
+  --transition: all .2s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── BACKGROUND: richer warmth ── */
+body {
+  background:
+    radial-gradient(ellipse 120% 40% at 50% -5%,  rgba(180,80,10,.15),  transparent),
+    radial-gradient(ellipse 60% 80% at 0% 50%,    rgba(180,60,10,.18),  transparent),
+    radial-gradient(ellipse 60% 80% at 100% 50%,   rgba(100,20,200,.14), transparent),
+    radial-gradient(ellipse 40% 40% at 50% 100%,   rgba(60,10,120,.4),   transparent),
+    #050206 !important;
+}
+
+/* ── TOPBAR: golden gradient name ── */
+.top-character-name {
+  font-size: 1.6rem;
+  letter-spacing: .05em;
+  background: linear-gradient(135deg, var(--gold-hi) 0%, var(--gold) 50%, var(--ember) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(200,130,40,.3));
+}
+
+/* ── PANELS: parchment warmth ── */
+.panel {
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.04),
+    inset 0 -1px 0 rgba(0,0,0,.3),
+    0 4px 24px rgba(0,0,0,.5),
+    0 1px 3px rgba(80,30,0,.4);
+}
+
+/* ── SIDEBAR: deeper warmth ── */
+.sidebar {
+  background: linear-gradient(180deg, rgba(10,5,18,.99), rgba(6,3,12,.99));
+  border-right: 1px solid rgba(200,130,40,.08);
+  box-shadow: 4px 0 40px rgba(0,0,0,.5), inset -1px 0 0 rgba(200,130,40,.04);
+}
+.brand h1 { font-size: 1rem; }
+.sidebar-section {
+  background: rgba(200,130,40,.02);
+  border: 1px solid rgba(200,130,40,.07);
+  border-radius: 10px;
+  padding: .75rem .85rem;
+}
+.tab-hp-fill {
+  background: linear-gradient(90deg, var(--ember2), rgba(200,60,10,.5));
+  box-shadow: 0 0 6px rgba(200,60,10,.35);
+}
+
+/* ── BUTTONS: warm glow ── */
+.neo-btn {
+  border-radius: 8px;
+  font-family: var(--F4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.06),
+    inset 0 -1px 0 rgba(0,0,0,.3),
+    0 2px 8px rgba(0,0,0,.4);
+  transition: var(--transition);
+}
+.neo-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,160,.1),
+    0 4px 16px rgba(0,0,0,.4),
+    0 0 20px rgba(200,130,40,.12);
+}
+.neo-btn:active { transform: translateY(0); }
+.dm-btn {
+  background: linear-gradient(135deg, rgba(120,60,0,.5), rgba(60,20,0,.8)) !important;
+  border-color: rgba(200,130,40,.4) !important;
+  color: var(--gold) !important;
+}
+
+/* ── INPUTS ── */
+input, textarea, select { border-radius: 8px; transition: var(--transition); }
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(200,130,40,.55) !important;
+  box-shadow: 0 0 0 2px rgba(200,130,40,.08), 0 0 20px rgba(200,130,40,.07) !important;
+}
+label { color: rgba(200,130,40,.5); }
+
+/* ── STAT CARDS ── */
+.stat-score-input { font-size: 1.65rem; }
+.stat-card:hover { box-shadow: 0 0 24px rgba(200,130,40,.15), 0 0 8px rgba(200,130,40,.06) !important; }
+
+/* ── HUD BARS: richer magic feel ── */
+.hud-bar-track { height: 24px; border-radius: 4px; }
+.hud-hp-fill {
+  background: linear-gradient(180deg,
+    rgba(255,150,70,1)   0%,
+    rgba(200,60,10,.96)  40%,
+    rgba(120,25,0,.98)  100%
+  );
+  box-shadow: 0 0 18px rgba(200,60,10,.5), 0 0 4px rgba(255,120,50,.4), inset 0 1px 0 rgba(255,180,120,.35);
+}
+.hud-mana-fill {
+  background: linear-gradient(180deg,
+    rgba(210,150,255,1)   0%,
+    rgba(140,60,220,.96)  40%,
+    rgba(60,15,120,.98)  100%
+  );
+  box-shadow: 0 0 18px rgba(176,96,255,.5), 0 0 4px rgba(200,150,255,.4), inset 0 1px 0 rgba(220,180,255,.35);
+}
+
+/* ── CALC PANEL ── */
+.calc-item { border-radius: 10px; }
+.calc-value { font-size: 1.35rem; }
+.calc-value.mana { text-shadow: 0 0 14px rgba(176,96,255,.5); }
+
+/* ── TAB BAR: pill style ── */
+.tab-bar {
+  gap: .35rem;
+  padding: .25rem;
+  background: rgba(0,0,0,.35);
+  border-radius: 10px;
+  border: 1px solid rgba(200,130,40,.07);
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  border-radius: 7px;
+  padding: .5rem .9rem;
+  font-size: .62rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  transition: var(--transition);
+}
+.tab-btn:hover { background: rgba(200,130,40,.07); color: var(--text); }
+.tab-btn.active {
+  background: rgba(200,130,40,.15);
+  color: var(--gold-hi);
+  box-shadow: 0 0 16px rgba(200,130,40,.1), inset 0 1px 0 rgba(200,130,40,.2);
+}
+.tab-btn.active::after { display: none; }
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-size: .72rem;
+  letter-spacing: .2em;
+  opacity: .9;
+}
+
+/* ── SKILL ROWS ── */
+.skill-row { padding: .4rem .6rem; border-radius: 7px; }
+.skill-group { border-radius: 11px; }
+
+/* ── SPELL CARDS: rank glow enhancement ── */
+.rank-S  { filter: drop-shadow(0 0 4px rgba(200,60,10,.4)); }
+.rank-SS { filter: drop-shadow(0 0 6px rgba(255,120,80,.5)); }
+
+/* ── MAGIC BANNER ── */
+.magic-type-banner { border-radius: 12px; }
+
+/* ── PRESENCE ── */
+.presence-dot { font-size: .64rem; padding: .22rem .55rem; gap: .32rem; }
+.presence-dot span { width: 7px; height: 7px; box-shadow: 0 0 6px currentColor; }
+
+/* ── SCROLL ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { border-radius: 999px; }
+
+/* ── WELCOME ── */
+.welcome-logo { font-size: 2.4rem; letter-spacing: .1em; margin-bottom: .5rem; }
+.welcome-char-btn { min-width: 120px; padding: 1.4rem 1.2rem; border-radius: 14px; }
+.welcome-portrait { width: 72px; height: 72px; border-radius: 12px; }
+.welcome-portrait-empty { width: 72px; height: 72px; border-radius: 12px; font-size: 2rem; }
+
+/* ── TAB ANIMATION ── */
+.tab-content.active { animation: tabIn .2s ease; }
+@keyframes tabIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── SYNC DOT ── */
+.sync-dot { width: 8px; height: 8px; }

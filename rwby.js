@@ -5,7 +5,7 @@
 // Firebase Firestore sync — no import/export needed
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -135,7 +135,7 @@ window.useUncanny = () => {
   const totalAuraCost = r.apCost + r.halved;
   if (c.aura.current < totalAuraCost) { alert(`Not enough Aura! Need ${totalAuraCost} AP (${r.apCost} cost + ${r.halved} halved damage), have ${c.aura.current}.`); return; }
   c.aura.current -= totalAuraCost;
-  ensureClamp(c); pushState(); render();
+  ensureClamp(c); pushState(true); render();
   document.getElementById('uncannyDmg').value = '';
   window.calcUncanny();
 };
@@ -168,7 +168,7 @@ window.applyDamage = () => {
   const absorbed = Math.min(tmp, dmg);
   c.tempHp = tmp - absorbed;
   c.hp.current = Math.max(0, c.hp.current - (dmg - absorbed));
-  ensureClamp(c); pushState(); render();
+  ensureClamp(c); pushState(true); render();
   inp.value = '';
   const prev = document.getElementById('damagePreview');
   if (prev) { prev.textContent = ''; prev.className = 'damage-preview'; }
@@ -248,21 +248,27 @@ function startPresenceListener() {
     const active = [];
     snap.forEach(d => {
       const p = d.data();
-      if (now - p.ts < 30000) active.push(p); // active in last 30s
+      if (now - p.ts < 35000) {
+        active.push(p);
+      } else {
+        // Auto-purge stale presence docs (older than 35s with no heartbeat)
+        deleteDoc(doc(db, 'rwby-presence', d.id)).catch(()=>{});
+      }
     });
     renderPresence(active);
   }, ()=>{});
 }
 function renderPresence(players) {
   const el2 = document.getElementById('presenceBar'); if (!el2) return;
+  if (!players.length) { el2.innerHTML = ''; return; }
   el2.innerHTML = players.map(p =>
-    `<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}40" title="${esc(p.name)} — viewing char ${p.tab+1}">
+    `<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}55" title="${esc(p.name)}">
       <span style="background:${p.color}"></span>${esc(p.name.split(' ')[0]||'?')}
     </div>`
   ).join('');
 }
-// Heartbeat every 15s
-setInterval(pushPresence, 15000);
+// Heartbeat every 20s (well within 35s window)
+setInterval(pushPresence, 20000);
 
 // ── BROADCAST (DM message to all) ──
 async function sendBroadcast(msg) {
@@ -296,15 +302,27 @@ function showBroadcast(msg) {
   banner._t = setTimeout(()=>banner.remove(), 12000);
 }
 
-async function pushState() {
-  // Safety guard: never push if all characters are blank (no names)
+let _pushDebounce = null;
+async function pushState(immediate = false) {
   const hasData = state.characters.some(c => c.name && c.name.trim());
-  if (!hasData) { console.warn('pushState blocked — all characters blank, refusing to overwrite Firebase'); return; }
+  if (!hasData) return;
+  if (immediate) {
+    setSyncDot('syncing');
+    try {
+      await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
+      setSyncDot('synced');
+    } catch(e) { console.error(e); setSyncDot('error'); }
+    return;
+  }
+  // Debounce text input pushes by 600ms to avoid spamming Firebase
   setSyncDot('syncing');
-  try {
-    await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
-    setSyncDot('synced');
-  } catch(e) { console.error(e); setSyncDot('error'); }
+  clearTimeout(_pushDebounce);
+  _pushDebounce = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
+      setSyncDot('synced');
+    } catch(e) { console.error(e); setSyncDot('error'); }
+  }, 600);
 }
 
 function startListener() {
@@ -872,7 +890,7 @@ function renderDmTechniques() {
     btn.addEventListener('click', ()=>{
       const ch = state.characters.find(c=>c.id===btn.dataset.delCid);
       if(ch) ch.techniques = ch.techniques.filter(t=>t.id!==btn.dataset.delTid);
-      pushState(); render();
+      pushState(true); render();
     });
   });
 }
@@ -925,18 +943,18 @@ function adjustResource(res, amt) {
   const c = getChar();
   if (res==='hp')   c.hp.current   = clamp(c.hp.current   + amt, 0, c.hp.max);
   if (res==='aura') c.aura.current = clamp(c.aura.current + amt, 0, c.aura.max);
-  pushState(); renderHeader(); renderMainFields(); renderCharacterTabs();
+  pushState(true); renderHeader(); renderMainFields(); renderCharacterTabs();
 }
 function useTechnique(id) {
   const c = getChar(); const t = c.techniques.find(t=>t.id===id); if(!t) return;
   if (c.aura.current < t.cost) { alert(`Not enough Aura. Need ${t.cost}, have ${c.aura.current}.`); return; }
-  c.aura.current -= t.cost; ensureClamp(c); pushState(); render();
+  c.aura.current -= t.cost; ensureClamp(c); pushState(true); render();
 }
 function useSemblance(key) {
   const c = getChar(); if (stageLocked(key,c)) { alert('That stage is locked.'); return; }
   const cost = c.semblance[key].auraCost;
   if (c.aura.current < cost) { alert(`Not enough Aura. Need ${cost}, have ${c.aura.current}.`); return; }
-  c.aura.current -= cost; ensureClamp(c); pushState(); render();
+  c.aura.current -= cost; ensureClamp(c); pushState(true); render();
 }
 function useDustSpell(id) {
   const c = getChar(); const sp = c.dustSpells.find(s=>s.id===id); if(!sp) return;
@@ -946,14 +964,14 @@ function useDustSpell(id) {
 function rollHp() {
   const c = getChar(); const conM = mod(c.stats.CON); const roll = rollD10();
   const total = Math.max(1, roll + conM); c.hp.max += total; c.hp.current = c.hp.max;
-  pushState(); render();
+  pushState(true); render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}\nNew Max: ${c.hp.max}`);
 }
 function rollAura() {
   const c = getChar(); const sk = c.skills['Aura Mastery'] || {}; const bonus = skillTotal(c, 'Aura Mastery');
   const roll = rollD10(); const total = Math.max(1, roll + bonus);
   c.aura.max += total; c.aura.current = c.aura.max;
-  pushState(); render();
+  pushState(true); render();
   alert(`Aura Roll: d10(${roll}) + Aura Mastery(${fmtMod(bonus)}) = +${total}\nNew Max: ${c.aura.max}`);
 }
 function saveSemblance() {
@@ -966,14 +984,14 @@ function saveSemblance() {
   c.semblance.unlocked.second   = el('unlockSecond')?.checked   || false;
   c.semblance.unlocked.third    = el('unlockThird')?.checked    || false;
   c.semblance.unlocked.ascended = el('unlockAscended')?.checked || false;
-  pushState(); render();
+  pushState(true); render();
 }
 function saveCharState() {
   const c = getChar();
   if (el('stateActive')?.checked)  c.state = 'active';
   if (el('stateReserve')?.checked) c.state = 'reserve';
   if (el('stateDead')?.checked)    { c.state='dead'; c.hp.current=0; c.aura.current=0; }
-  pushState(); render();
+  pushState(true); render();
 }
 function createTechnique() {
   const name  = el('dmTechName')?.value.trim();
@@ -986,7 +1004,7 @@ function createTechnique() {
   const target = state.characters[ti]; if(!target) { alert('No target found.'); return; }
   target.techniques.push({id:`tech-${Date.now()}`,name,level,cost,type,description:desc});
   ['dmTechName','dmTechLevel','dmTechCost','dmTechType','dmTechDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
-  pushState(); render();
+  pushState(true); render();
 }
 function addDustSpell() {
   const c    = getChar();
@@ -1068,8 +1086,8 @@ function bindAll() {
 
   el('rollHpBtn')?.addEventListener('click',   rollHp);
   el('rollAuraBtn')?.addEventListener('click',  rollAura);
-  el('restoreHpBtn')?.addEventListener('click', ()=>{ const c=getChar(); c.hp.current=c.hp.max; pushState(); render(); });
-  el('restoreAuraBtn')?.addEventListener('click',()=>{ const c=getChar(); c.aura.current=c.aura.max; pushState(); render(); });
+  el('restoreHpBtn')?.addEventListener('click', ()=>{ const c=getChar(); c.hp.current=c.hp.max; pushState(true); render(); });
+  el('restoreAuraBtn')?.addEventListener('click',()=>{ const c=getChar(); c.aura.current=c.aura.max; pushState(true); render(); });
 
   el('addCharacterBtn')?.addEventListener('click',()=>{
     const nc=blankChar(state.characters.length); nc.state='reserve';
@@ -1077,10 +1095,10 @@ function bindAll() {
     const newIdx = state.characters.length-1;
 
     state.selectedCharacter=newIdx; state.showReserve=true;
-    pushState(); render();
+    pushState(true); render();
   });
-  el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(); render(); });
-  el('toggleDeadBtn')?.addEventListener('click',  ()=>{ state.showDead=!state.showDead;       pushState(); render(); });
+  el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(true); render(); });
+  el('toggleDeadBtn')?.addEventListener('click',  ()=>{ state.showDead=!state.showDead;       pushState(true); render(); });
 
   el('addDustSpellBtn')?.addEventListener('click',   addDustSpell);
   el('createTechniqueBtn')?.addEventListener('click', createTechnique);
@@ -1091,7 +1109,7 @@ function bindAll() {
     if (!confirm(`Delete ${getChar().name||'this character'}?`)) return;
     state.characters.splice(state.selectedCharacter,1);
     if (state.selectedCharacter>=state.characters.length) state.selectedCharacter=state.characters.length-1;
-    pushState(); render();
+    pushState(true); render();
   });
 
   el('openDmOverlayBtn')?.addEventListener('click', openDmOverlay);
@@ -1191,7 +1209,7 @@ function renderDeathSaves(c) {
         const idx  = parseInt(btn.dataset.i);
         const key  = type === 'success' ? 'successes' : 'failures';
         c2.deathSaves[key] = c2.deathSaves[key] === idx+1 ? idx : idx+1;
-        pushState(); render();
+        pushState(true); render();
       });
     });
   });
@@ -1199,10 +1217,10 @@ function renderDeathSaves(c) {
 function bindDeathSaves() {
   document.getElementById('stableBtn')?.addEventListener('click', ()=>{
     const c = getChar(); if (!c.deathSaves) c.deathSaves={successes:0,failures:0,stable:false};
-    c.deathSaves.stable=true; c.deathSaves.successes=3; pushState(); render();
+    c.deathSaves.stable=true; c.deathSaves.successes=3; pushState(true); render();
   });
   document.getElementById('resetDeathBtn')?.addEventListener('click', ()=>{
-    const c = getChar(); c.deathSaves={successes:0,failures:0,stable:false}; pushState(); render();
+    const c = getChar(); c.deathSaves={successes:0,failures:0,stable:false}; pushState(true); render();
   });
 }
 
@@ -1542,6 +1560,21 @@ startListener();
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
+
+// ── CLEANUP ON TAB CLOSE ──
+window.addEventListener('beforeunload', () => {
+  // Flush any pending debounced pushState immediately
+  if (_pushDebounce) {
+    clearTimeout(_pushDebounce);
+    const hasData = state.characters.some(c => c.name && c.name.trim());
+    if (hasData) {
+      // Synchronous best-effort write (navigator.sendBeacon would be better but Firestore doesn't support it)
+      setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) }).catch(()=>{});
+    }
+  }
+  // Remove our presence dot so it doesn't linger
+  deleteDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID)).catch(()=>{});
+});
 if (dmUnlocked) {
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');

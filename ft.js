@@ -4,7 +4,7 @@
 // No import/export — Firebase is the save
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -154,7 +154,7 @@ function blankChar(i) {
     magicType:'',magicCategory:'',guild:'',guildMark:'',exceed:'',magicRank:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
-    portrait: '', accentColor: '',
+    portrait: '', accentColor: '', claimedBy: '',
     stats:{STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
     skills:makeBlankSkills(),
     hp:{current:0,max:0}, mana:{current:0,max:0},
@@ -172,14 +172,36 @@ let _unsub = null;
 let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
 
 // ── PRESENCE ──
-const MY_PRESENCE_ID = Math.random().toString(36).slice(2);
+const MY_PRESENCE_ID = localStorage.getItem('ft-pid') || (() => { const id = Math.random().toString(36).slice(2); localStorage.setItem('ft-pid', id); return id; })();
 const PRESENCE_COLORS = ['#ff6b6b','#4ecdc4','#ffe66d','#a29bfe','#fd79a8','#55efc4','#fdcb6e','#74b9ff'];
 const MY_COLOR = PRESENCE_COLORS[Math.floor(Math.random()*PRESENCE_COLORS.length)];
 let _presenceUnsub=null;
-async function pushPresence(){try{const name=getChar()?.name||'Unknown';await setDoc(doc(db,'ft-presence',MY_PRESENCE_ID),{id:MY_PRESENCE_ID,name,color:MY_COLOR,tab:state.selectedCharacter,ts:Date.now()});}catch(e){}}
-function startPresenceListener(){if(_presenceUnsub)_presenceUnsub();_presenceUnsub=onSnapshot(collection(db,'ft-presence'),snap=>{const now=Date.now();const active=[];snap.forEach(d=>{const p=d.data();if(now-p.ts<30000)active.push(p);});renderPresence(active);},()=>{});}
-function renderPresence(players){const el2=document.getElementById('presenceBar');if(!el2)return;el2.innerHTML=players.map(p=>`<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}40" title="${esc(p.name)} — char ${p.tab+1}"><span style="background:${p.color}"></span>${esc(p.name.split(' ')[0]||'?')}</div>`).join('');}
-setInterval(pushPresence,15000);
+async function pushPresence(){
+  try{
+    const mine=state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
+    const name=mine?.name||'Unknown';
+    const color=mine?.accentColor||MY_COLOR;
+    await setDoc(doc(db,'ft-presence',MY_PRESENCE_ID),{id:MY_PRESENCE_ID,name,color,tab:state.selectedCharacter,ts:Date.now()});
+  }catch(e){}
+}
+function startPresenceListener(){
+  if(_presenceUnsub)_presenceUnsub();
+  _presenceUnsub=onSnapshot(collection(db,'ft-presence'),snap=>{
+    const now=Date.now();const active=[];
+    snap.forEach(d=>{
+      const p=d.data();
+      if(now-p.ts<35000){active.push(p);}
+      else{deleteDoc(doc(db,'ft-presence',d.id)).catch(()=>{});}
+    });
+    renderPresence(active);
+  },()=>{});
+}
+function renderPresence(players){
+  const el2=document.getElementById('presenceBar');if(!el2)return;
+  if(!players.length){el2.innerHTML='';return;}
+  el2.innerHTML=players.map(p=>`<div class="presence-dot" style="border-color:${p.color};box-shadow:0 0 8px ${p.color}55" title="${esc(p.name)}"><span style="background:${p.color}"></span>${esc(p.name.split(' ')[0]||'?')}</div>`).join('');
+}
+setInterval(pushPresence,20000);
 
 // ── BROADCAST ──
 async function sendBroadcast(msg){if(!msg.trim())return;await setDoc(doc(db,'ft-meta','broadcast'),{msg,ts:Date.now(),from:'DM'});}
@@ -201,20 +223,30 @@ function renderPortrait(c){
 }
 
 // ── DEATH SAVES ──
-function renderDeathSaves(c){const ds=c.deathSaves||{successes:0,failures:0,stable:false};['deathSuccesses','deathFailures'].forEach((id,fi)=>{const el2=document.getElementById(id);if(!el2)return;el2.innerHTML=[0,1,2].map(i=>{const filled=i<(fi===0?ds.successes:ds.failures);return`<button class="ds-pip ${filled?(fi===0?'pip-success':'pip-failure'):''}" data-type="${fi===0?'success':'failure'}" data-i="${i}"></button>`;}).join('');el2.querySelectorAll('.ds-pip').forEach(btn=>{btn.addEventListener('click',()=>{const c2=getChar();if(!c2.deathSaves)c2.deathSaves={successes:0,failures:0,stable:false};const type=btn.dataset.type;const idx=parseInt(btn.dataset.i);const key=type==='success'?'successes':'failures';c2.deathSaves[key]=c2.deathSaves[key]===idx+1?idx:idx+1;pushState();render();});});});}
-function bindDeathSaves(){document.getElementById('stableBtn')?.addEventListener('click',()=>{const c=getChar();if(!c.deathSaves)c.deathSaves={successes:0,failures:0,stable:false};c.deathSaves.stable=true;c.deathSaves.successes=3;pushState();render();});document.getElementById('resetDeathBtn')?.addEventListener('click',()=>{const c=getChar();c.deathSaves={successes:0,failures:0,stable:false};pushState();render();});}
+function renderDeathSaves(c){const ds=c.deathSaves||{successes:0,failures:0,stable:false};['deathSuccesses','deathFailures'].forEach((id,fi)=>{const el2=document.getElementById(id);if(!el2)return;el2.innerHTML=[0,1,2].map(i=>{const filled=i<(fi===0?ds.successes:ds.failures);return`<button class="ds-pip ${filled?(fi===0?'pip-success':'pip-failure'):''}" data-type="${fi===0?'success':'failure'}" data-i="${i}"></button>`;}).join('');el2.querySelectorAll('.ds-pip').forEach(btn=>{btn.addEventListener('click',()=>{const c2=getChar();if(!c2.deathSaves)c2.deathSaves={successes:0,failures:0,stable:false};const type=btn.dataset.type;const idx=parseInt(btn.dataset.i);const key=type==='success'?'successes':'failures';c2.deathSaves[key]=c2.deathSaves[key]===idx+1?idx:idx+1;pushState(true);render();});});});}
+function bindDeathSaves(){document.getElementById('stableBtn')?.addEventListener('click',()=>{const c=getChar();if(!c.deathSaves)c.deathSaves={successes:0,failures:0,stable:false};c.deathSaves.stable=true;c.deathSaves.successes=3;pushState(true);render();});document.getElementById('resetDeathBtn')?.addEventListener('click',()=>{const c=getChar();c.deathSaves={successes:0,failures:0,stable:false};pushState(true);render();});}
 
 // ── GRANT ──
 function renderGrantTargetSelect(){const sel=document.getElementById('grantTarget');if(!sel)return;sel.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');}
 function bindGrant(){document.getElementById('grantBtn')?.addEventListener('click',()=>{const targetIdx=parseInt(document.getElementById('grantTarget')?.value??'0');const xp=parseInt(document.getElementById('grantXp')?.value)||0;const item=document.getElementById('grantItem')?.value.trim()||'';if(!xp&&!item)return;const c=state.characters[targetIdx];if(!c)return;const grant=[];if(xp)grant.push(`+${xp} XP`);if(item)grant.push(item);c.notesText=(c.notesText||'')+`\n[DM Grant] ${grant.join(' · ')}`;if(item)c.inventoryText=(c.inventoryText||'')+`\n${item}`;pushState();document.getElementById('grantXp').value='';document.getElementById('grantItem').value='';alert(`Granted to ${c.name||`Player ${targetIdx+1}`}: ${grant.join(', ')}`);render();});}
 function bindBroadcast(){document.getElementById('broadcastBtn')?.addEventListener('click',()=>{const msg=document.getElementById('broadcastInput')?.value.trim();if(!msg)return;sendBroadcast(msg);document.getElementById('broadcastInput').value='';});}
 
-async function pushState(){
+let _pushDebounce=null;
+async function pushState(immediate=false){
+  const hasData=state.characters.some(c=>c.name&&c.name.trim());
+  if(!hasData)return;
+  if(immediate){
+    setSyncDot('syncing');
+    try{await setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)});setSyncDot('synced');}
+    catch(e){console.error(e);setSyncDot('error');}
+    return;
+  }
   setSyncDot('syncing');
-  try{
-    await setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)});
-    setSyncDot('synced');
-  }catch(e){console.error(e);setSyncDot('error');}
+  clearTimeout(_pushDebounce);
+  _pushDebounce=setTimeout(async()=>{
+    try{await setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)});setSyncDot('synced');}
+    catch(e){console.error(e);setSyncDot('error');}
+  },600);
 }
 
 function startListener(){
@@ -241,6 +273,8 @@ function startListener(){
       try{renderMagicBanner();}catch(e){}
       try{applyCharacterAccents();}catch(e){}
       try{checkLowHp(getChar());}catch(e){}
+      recheckWelcomeIfNeeded();
+      if(!getMyCharacter()&&!localStorage.getItem('ft-observer')&&!document.getElementById('welcomeOverlay'))checkWelcome();
     }catch(e){console.error('Snapshot error:',e);}
   },e=>{console.error(e);setSyncDot('error');});
 }
@@ -648,7 +682,7 @@ function renderDmLostMagic(){
     btn.addEventListener('click',()=>{
       const ch=state.characters.find(c=>c.id===btn.dataset.delCid);
       if(ch)ch.lostMagic=ch.lostMagic.filter(l=>l.id!==btn.dataset.delLm);
-      pushState();render();
+      pushState(true);render();
     });
   });
 }
@@ -728,13 +762,13 @@ function addLostMagic(){
   const target=state.characters[ti];if(!target){alert('No target found.');return;}
   target.lostMagic.push({id:`lm-${Date.now()}`,name,manaCost:cost,description:desc});
   ['dmLMName','dmLMCost','dmLMDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
-  pushState();render();
+  pushState(true);render();
 }
 function rollHp(){
   const c=getChar();const conM=mod(c.stats.CON);
   const isPower=c.magicCategory?.startsWith('power');
   const roll=rollD10();const total=Math.max(1,roll+conM);
-  c.hp.max+=total;c.hp.current=c.hp.max;pushState();render();
+  c.hp.max+=total;c.hp.current=c.hp.max;pushState(true);render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}${isPower?'\n[Power magic: 1d10 hit dice]':''}\nNew Max: ${c.hp.max}`);
 }
 function rollMana(){
@@ -743,7 +777,7 @@ function rollMana(){
   const fullBonus=spellMod(c)+(c.skills['Magic Control']?.bonus||0);
   const roll=cat?.manaRoll==='1d8'?rollD8():rollD10();
   const total=Math.max(1,roll+fullBonus);
-  c.mana.max+=total;c.mana.current=c.mana.max;pushState();render();
+  c.mana.max+=total;c.mana.current=c.mana.max;pushState(true);render();
   alert(`Mana Roll: ${cat?.manaRoll||'1d10'}(${roll}) + ${cat?.stat||'INT'} mod & Magic Control = +${total}\nNew Max: ${c.mana.max}`);
 }
 function saveCharState(){
@@ -751,7 +785,7 @@ function saveCharState(){
   if(el('stateActive')?.checked)c.state='active';
   if(el('stateReserve')?.checked)c.state='reserve';
   if(el('stateDead')?.checked){c.state='dead';c.hp.current=0;c.mana.current=0;}
-  pushState();render();
+  pushState(true);render();
 }
 function openDmOverlay(){
   el('dmOverlay')?.classList.remove('hidden');
@@ -796,15 +830,15 @@ function bindAll(){
   document.addEventListener('click',e=>{const btn=e.target.closest('.adj-btn');if(!btn)return;adjustResource(btn.dataset.resource,Number(btn.dataset.amt));});
   el('rollHpBtn')?.addEventListener('click',rollHp);
   el('rollManaBtn')?.addEventListener('click',rollMana);
-  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getChar();c.hp.current=c.hp.max;pushState();render();});
-  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getChar();c.mana.current=c.mana.max;pushState();render();});
-  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);const ni=state.characters.length-1;state.selectedCharacter=ni;state.showReserve=true;pushState();render();});
-  el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState();render();});
-  el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState();render();});
+  el('restoreHpBtn')?.addEventListener('click',()=>{const c=getChar();c.hp.current=c.hp.max;pushState(true);render();});
+  el('restoreManaBtn')?.addEventListener('click',()=>{const c=getChar();c.mana.current=c.mana.max;pushState(true);render();});
+  el('addCharacterBtn')?.addEventListener('click',()=>{const nc=blankChar(state.characters.length);nc.state='reserve';state.characters.push(nc);const ni=state.characters.length-1;state.selectedCharacter=ni;state.showReserve=true;pushState(true);render();});
+  el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState(true);render();});
+  el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState(true);render();});
   el('addSpellBtn')?.addEventListener('click',addSpell);
   el('addLostMagicBtn')?.addEventListener('click',addLostMagic);
   el('saveCharacterStateBtn')?.addEventListener('click',saveCharState);
-  el('deleteCharacterBtn')?.addEventListener('click',()=>{if(state.characters.length<=1){alert('Keep at least one.');return;}if(!confirm(`Delete ${getChar().name||'this character'}?`))return;state.characters.splice(state.selectedCharacter,1);if(state.selectedCharacter>=state.characters.length)state.selectedCharacter=state.characters.length-1;pushState();render();});
+  el('deleteCharacterBtn')?.addEventListener('click',()=>{if(state.characters.length<=1){alert('Keep at least one.');return;}if(!confirm(`Delete ${getChar().name||'this character'}?`))return;state.characters.splice(state.selectedCharacter,1);if(state.selectedCharacter>=state.characters.length)state.selectedCharacter=state.characters.length-1;pushState(true);render();});
   el('openDmOverlayBtn')?.addEventListener('click',openDmOverlay);
   el('dmLoginBtn')?.addEventListener('click',unlockDm);
   el('dmCloseBtn')?.addEventListener('click',closeDmOverlay);
@@ -814,7 +848,7 @@ function bindAll(){
   const readTheme=()=>({bg:el('themeBgColor')?.value||DEF_THEME.bg,panel:el('themePanelColor')?.value||DEF_THEME.panel,accent:el('themeAccentColor')?.value||DEF_THEME.accent,accentTwo:el('themeAccentTwoColor')?.value||DEF_THEME.accentTwo,mana:el('themeManaColor')?.value||DEF_THEME.mana,text:el('themeTextColor')?.value||DEF_THEME.text});
   ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeManaColor','themeTextColor'].forEach(id=>{el(id)?.addEventListener('input',()=>{state.theme=readTheme();applyTheme();});});
   el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushTheme();render();});
-  el('resetThemeBtn')?.addEventListener('click',()=>{state.theme={...DEF_THEME};pushState();render();});
+  el('resetThemeBtn')?.addEventListener('click',()=>{state.theme={...DEF_THEME};pushState(true);render();});
 }
 
 // ── RELATIONSHIPS ──
@@ -892,28 +926,54 @@ function checkStateChanges(remote){
 }
 
 // ── WELCOME ──
+function getMyCharacter(){return state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID)||null;}
+
+function claimCharacter(realIdx){
+  const c=state.characters[realIdx];if(!c)return;
+  state.characters.forEach(ch=>{if(ch.claimedBy===MY_PRESENCE_ID)ch.claimedBy='';});
+  c.claimedBy=MY_PRESENCE_ID;
+  state.selectedCharacter=realIdx;
+  pushState(true);pushPresence();render();
+}
+
 function checkWelcome(){
-  if(localStorage.getItem('ft-welcomed'))return;
+  if(getMyCharacter())return;
+  if(localStorage.getItem('ft-observer')==='1')return;
+  const active=state.characters.filter(c=>c.state==='active');
+  if(!active.length)return;
+  document.getElementById('welcomeOverlay')?.remove();
   const overlay=document.createElement('div');overlay.id='welcomeOverlay';overlay.className='welcome-overlay';
   overlay.innerHTML=`
     <div class="welcome-inner">
       <div class="welcome-logo">Fairy Tail DnD</div>
       <div class="welcome-sub">Guild · Magic · Adventure</div>
-      <h2 class="welcome-title">Welcome to the Guild</h2>
-      <p class="welcome-text">Choose your guild member to get started.</p>
+      <h2 class="welcome-title">Who are you?</h2>
+      <p class="welcome-text">Choose your guild member. Each person can only claim one.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
-      <div class="welcome-actions"><button class="neo-btn" id="welcomeSkipBtn">Skip for Now</button></div>
+      <div class="welcome-actions"><button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button></div>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(()=>overlay.classList.add('open'));
+  function closeWelcome(){overlay.classList.remove('open');setTimeout(()=>overlay.remove(),400);}
   const list=document.getElementById('welcomeCharList');
-  state.characters.filter(c=>c.state==='active').forEach((c,i)=>{
-    const btn=document.createElement('button');btn.className='welcome-char-btn';
-    btn.innerHTML=`${c.portrait?`<img src="${c.portrait}" class="welcome-portrait">`:'<div class="welcome-portrait-empty">✦</div>'}<span>${esc(c.name||`Player ${i+1}`)}</span>`;
-    btn.addEventListener('click',()=>{state.selectedCharacter=i;localStorage.setItem('ft-welcomed','1');overlay.classList.remove('open');setTimeout(()=>overlay.remove(),400);showToast(`Welcome, ${c.name||`Player ${i+1}`}!`,'success',4000);render();});
+  state.characters.forEach((c,realIdx)=>{
+    if(c.state!=='active')return;
+    const taken=c.claimedBy&&c.claimedBy!==MY_PRESENCE_ID;
+    const btn=document.createElement('button');
+    btn.className=`welcome-char-btn ${taken?'taken':''}`;
+    btn.disabled=taken;
+    btn.innerHTML=`${c.portrait?`<img src="${c.portrait}" class="welcome-portrait">`:`<div class="welcome-portrait-empty">✦</div>`}<span>${esc(c.name||`Player ${realIdx+1}`)}</span>${taken?'<span class="taken-label">Taken</span>':''}`;
+    btn.addEventListener('click',()=>{claimCharacter(realIdx);closeWelcome();showToast(`You are ${c.name||`Player ${realIdx+1}`} ✓`,'success',4000);});
     list.appendChild(btn);
   });
-  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{localStorage.setItem('ft-welcomed','1');overlay.classList.remove('open');setTimeout(()=>overlay.remove(),400);});
+  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{localStorage.setItem('ft-observer','1');closeWelcome();});
+}
+
+function recheckWelcomeIfNeeded(){
+  const mine=getMyCharacter();
+  if(mine){const idx=state.characters.indexOf(mine);if(idx>=0&&state.selectedCharacter!==idx)state.selectedCharacter=idx;return;}
+  if(localStorage.getItem('ft-observer')==='1')return;
+  if(!document.getElementById('welcomeOverlay'))checkWelcome();
 }
 
 // ================================================================
@@ -932,7 +992,18 @@ startListener();
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
-setTimeout(checkWelcome,1800);
+
+// ── CLEANUP ON TAB CLOSE ──
+window.addEventListener('beforeunload', () => {
+  if(_pushDebounce){
+    clearTimeout(_pushDebounce);
+    const hasData=state.characters.some(c=>c.name&&c.name.trim());
+    if(hasData)setDoc(doc(db,'campaigns','ft-campaign'),{data:JSON.stringify(state)}).catch(()=>{});
+  }
+  deleteDoc(doc(db,'ft-presence',MY_PRESENCE_ID)).catch(()=>{});
+});
+// Show welcome after data loads
+setTimeout(()=>{if(!getMyCharacter()&&!localStorage.getItem('ft-observer')&&!document.getElementById('welcomeOverlay'))checkWelcome();},2500);
 
 // ── MOBILE SIDEBAR TOGGLE ──
 (function() {

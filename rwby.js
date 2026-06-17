@@ -413,8 +413,20 @@ function normalize(raw) {
 // HELPERS
 // ================================================================
 // Who you are VIEWING
-function getChar()   { return state.characters[state.selectedCharacter] || state.characters[0]; }
-// Who YOU are EDITING — your own character slot
+function getChar() {
+  // DM can view/edit whoever is selected
+  if (dmUnlocked) return state.characters[state.selectedCharacter] || state.characters[0];
+  // Players are locked to their OWN claimed character — can't edit anyone else
+  const mine = state.characters.find(c => c.claimedBy === MY_PRESENCE_ID);
+  if (mine) return mine;
+  // Not claimed yet (observer/pre-welcome) — show selected but it'll be read-only
+  return state.characters[state.selectedCharacter] || state.characters[0];
+}
+function isViewingOwnCharacter() {
+  if (dmUnlocked) return true;
+  const mine = state.characters.find(c => c.claimedBy === MY_PRESENCE_ID);
+  return !!mine;
+}
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
 function rollD10()     { return Math.floor(Math.random() * 10) + 1; }
 function esc(s)        { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -549,11 +561,30 @@ function renderCharacterTabs() {
   state.characters.forEach((c,i) => {
     if (c.state==='dead'    && !state.showDead)    return;
     if (c.state==='reserve' && !state.showReserve) return;
-    const pct = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
-        const btn = document.createElement('button'); btn.type='button';
-    btn.className = `character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}`;
-    btn.innerHTML = `<strong>${esc(c.name||`Player ${i+1}`)}</strong><span>${esc(c.className||'—')} · Lv${c.level} · ${esc(c.race||'—')}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
-    btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
+    const pct    = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
+    const isOwn  = c.claimedBy === MY_PRESENCE_ID;
+    const isSel  = i === state.selectedCharacter;
+    const takenByOther = c.claimedBy && c.claimedBy !== MY_PRESENCE_ID;
+    const hpColor= pct > 50 ? 'var(--safe)' : pct > 25 ? 'var(--warn)' : 'var(--danger)';
+    const color  = c.accentColor || (isOwn ? 'var(--aura)' : 'rgba(255,255,255,.15)');
+    const btn = document.createElement('button'); btn.type='button';
+    btn.className = `character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isSel?' active':''}${isOwn?' owned':''}`;
+    btn.style.setProperty('--char-color', color);
+    btn.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.4rem">
+        <strong>${esc(c.name||`Player ${i+1}`)}</strong>
+        ${isOwn ? '<span class="tab-badge you">YOU</span>' : takenByOther ? '<span class="tab-badge taken">●</span>' : ''}
+      </div>
+      <span>${esc(c.className||'—')} · Lv${c.level}${c.race?' · '+esc(c.race):''}</span>
+      <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
+    // Only the DM can switch which character is displayed.
+    // Players are locked to their own claimed character.
+    if (dmUnlocked) {
+      btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
+    } else {
+      btn.style.cursor = 'default';
+      if (!isOwn) btn.classList.add('locked-tab');
+    }
     tabs.appendChild(btn);
   });
 }

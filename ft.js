@@ -308,7 +308,12 @@ function normalize(raw){
 // ================================================================
 // HELPERS
 // ================================================================
-function getChar(){return state.characters[state.selectedCharacter]||state.characters[0];}
+function getChar(){
+  if(dmUnlocked)return state.characters[state.selectedCharacter]||state.characters[0];
+  const mine=state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
+  if(mine)return mine;
+  return state.characters[state.selectedCharacter]||state.characters[0];
+}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
@@ -495,10 +500,27 @@ function renderCharacterTabs(){
     if(c.state==='dead'&&!state.showDead)return;
     if(c.state==='reserve'&&!state.showReserve)return;
     const pct=c.hp.max>0?Math.round((c.hp.current/c.hp.max)*100):0;
+    const isOwn=c.claimedBy===MY_PRESENCE_ID;
+    const isSel=i===state.selectedCharacter;
+    const takenByOther=c.claimedBy&&c.claimedBy!==MY_PRESENCE_ID;
+    const hpColor=pct>50?'var(--safe)':pct>25?'var(--warn)':'var(--danger)';
+    const color=c.accentColor||(isOwn?'var(--gold)':'rgba(255,255,255,.15)');
     const btn=document.createElement('button');btn.type='button';
-    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}`;
-    btn.innerHTML=`<strong>${esc(c.name||`Player ${i+1}`)}</strong><span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span><div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%"></div></div>`;
-    btn.addEventListener('click',()=>{state.selectedCharacter=i;render();});
+    btn.className=`character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isSel?' active':''}${isOwn?' owned':''}`;
+    btn.style.setProperty('--char-color',color);
+    btn.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.4rem">
+        <strong>${esc(c.name||`Player ${i+1}`)}</strong>
+        ${isOwn?'<span class="tab-badge you">YOU</span>':takenByOther?'<span class="tab-badge taken">●</span>':''}
+      </div>
+      <span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span>
+      <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
+    if(dmUnlocked){
+      btn.addEventListener('click',()=>{state.selectedCharacter=i;render();});
+    }else{
+      btn.style.cursor='default';
+      if(!isOwn)btn.classList.add('locked-tab');
+    }
     tabs.appendChild(btn);
   });
 }

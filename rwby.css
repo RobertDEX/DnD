@@ -1946,3 +1946,25 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
 
 /* Focus-visible accessibility */
 :focus-visible { outline: 2px solid rgba(0,210,255,.5); outline-offset: 2px; }
+
+/* ── CHARACTER TAB BADGES & LOCK STATE ── */
+.tab-badge {
+  font-family: var(--F2); font-size: .5rem; letter-spacing: .08em;
+  padding: .1rem .35rem; border-radius: 4px; flex-shrink: 0;
+}
+.tab-badge.you {
+  color: var(--aura); background: rgba(0,210,255,.12);
+  border: 1px solid rgba(0,210,255,.3);
+}
+.tab-badge.taken { color: rgba(255,255,255,.3); font-size: .7rem; }
+.character-tab.owned {
+  border-color: rgba(0,210,255,.35);
+  box-shadow: inset 3px 0 0 var(--char-color, var(--aura)), 0 0 16px rgba(0,210,255,.08);
+}
+.character-tab.locked-tab {
+  opacity: .5;
+}
+.character-tab.locked-tab:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.06);
+}

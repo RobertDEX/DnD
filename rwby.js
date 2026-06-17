@@ -63,7 +63,7 @@ const DUST_TYPES = ['Fire Dust','Ice Dust','Electricity Dust','Wind Dust','Earth
 const DUST_CLASS = {'Fire Dust':'dust-fire','Ice Dust':'dust-ice','Electricity Dust':'dust-electricity','Wind Dust':'dust-wind','Earth Dust':'dust-earth','Gravity Dust':'dust-gravity','Hard Light Dust':'dust-hardlight'};
 const SEM_KEYS   = ['base','first','second','third','ascended'];
 const SEM_LABELS = {base:'Base',first:'1st Evolution',second:'2nd Evolution',third:'3rd Evolution',ascended:'Ascended'};
-const DEF_THEME  = {bg:'#030205',panel:'#0a0712',accent:'#c0000a',accentTwo:'#5a0005',aura:'#6eb5ff',text:'#d8cfe8'};
+const DEF_THEME  = {bg:'#020106',panel:'#080510',accent:'#c0000a',accentTwo:'#3a0008',aura:'#00d4ff',text:'#c4d8f4'};
 
 // ================================================================
 // CALCULATION ENGINE
@@ -444,10 +444,12 @@ function applyTheme() {
     r.style.setProperty('--text',     t.text     || DEF_THEME.text);
     r.style.setProperty('--panel',    hexRgba(t.panel || DEF_THEME.panel, .97));
     r.style.setProperty('--line-hi',  hexRgba(t.accent|| DEF_THEME.accent, .5));
+    const bg       = (t.bg       && t.bg.startsWith('#'))       ? t.bg       : DEF_THEME.bg;
+    const accentTwo= (t.accentTwo&& t.accentTwo.startsWith('#')) ? t.accentTwo: DEF_THEME.accentTwo;
     document.body.style.background = `
       radial-gradient(ellipse at 0% 0%,   ${hexRgba(t.accent,.18)} 0%, transparent 40%),
-      radial-gradient(ellipse at 100% 100%,${hexRgba(t.accentTwo,.15)} 0%, transparent 40%),
-      linear-gradient(180deg, #000 0%, ${t.bg} 50%, ${t.accentTwo} 100%)`;
+      radial-gradient(ellipse at 100% 100%,${hexRgba(accentTwo,.15)} 0%, transparent 40%),
+      linear-gradient(180deg, #000 0%, ${bg} 50%, ${accentTwo} 100%)`;
   } catch(e) { console.warn('applyTheme error:', e); }
 }
 function renderThemeFields() {

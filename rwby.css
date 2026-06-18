@@ -2080,3 +2080,14 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
 }
 .curse-text { font-family: var(--F4); font-size: .92rem; line-height: 1.5; color: var(--text); margin-bottom: 1.2rem; }
 .curse-accept-btn { width: 100%; font-size: .75rem !important; }
+
+/* ── CURSE DURATION BADGE ── */
+.curse-duration {
+  font-family: var(--F2); font-size: .62rem; letter-spacing: .1em;
+  color: var(--aura); margin-bottom: .8rem; text-transform: uppercase;
+  opacity: .8;
+}
+.curse-duration.perm {
+  color: #ff4060;
+  text-shadow: 0 0 8px rgba(200,0,10,.4);
+}

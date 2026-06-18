@@ -431,6 +431,8 @@ function spinCurseWheel(btn) {
 function revealCurse(curse) {
   const resultEl = document.getElementById('curseResult');
   const sevLabel = { mild:'Mild', moderate:'Moderate', severe:'Severe', extreme:'EXTREME' }[curse.severity];
+  const dur = curse.duration || '1 session';
+  const durLabel = dur === 'permanent' ? '☠ PERMANENT' : '⏳ ' + dur;
   resultEl.innerHTML = `
     <div class="curse-card curse-${curse.severity}">
       <div class="curse-card-top">
@@ -438,6 +440,7 @@ function revealCurse(curse) {
         <span class="curse-sev curse-sev-${curse.severity}">${sevLabel}</span>
       </div>
       <div class="curse-name">${esc(curse.name)}</div>
+      <div class="curse-duration ${dur === 'permanent' ? 'perm' : ''}">${durLabel}</div>
       <div class="curse-text">${esc(curse.text)}</div>
       <button class="neo-btn curse-accept-btn" id="curseAcceptBtn">Accept Your Fate</button>
     </div>`;
@@ -454,10 +457,11 @@ function revealCurse(curse) {
 function applyCurseToNotes(curse) {
   const c = getMyCharacter() || getChar();
   if (!c) return;
-  const entry = `\n\n━━━ CURSE #${curse.id} — ${curse.name} [${curse.severity.toUpperCase()}] ━━━\n${curse.text}`;
+  const dur = curse.duration || '1 session';
+  const durTag = dur === 'permanent' ? 'PERMANENT' : `lasts ${dur}`;
+  const entry = `\n\n━━━ CURSE #${curse.id} — ${curse.name} [${curse.severity.toUpperCase()} · ${durTag}] ━━━\n${curse.text}`;
   c.notesText = (c.notesText || '') + entry;
   pushState(true);
-  // Refresh notes textarea if visible
   const ta = el('notesText');
   if (ta && getChar() === c) ta.value = c.notesText;
   render();

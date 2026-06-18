@@ -5,7 +5,7 @@
 // Firebase Firestore sync — no import/export needed
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -301,6 +301,166 @@ function showBroadcast(msg) {
   banner.classList.add('show');
   clearTimeout(banner._t);
   banner._t = setTimeout(()=>banner.remove(), 12000);
+}
+
+// ================================================================
+// CURSE WHEEL
+// DM sends the wheel to a target player (by their presence id).
+// Only that player's screen shows it. They spin, result → their Notes.
+// ================================================================
+let _curseUnsub = null;
+let _lastCurseTs = 0;
+
+async function sendCurseWheel(targetPresenceId) {
+  await setDoc(doc(db, 'rwby-meta', 'cursewheel'), {
+    target: targetPresenceId,
+    ts: Date.now(),
+    by: 'DM'
+  });
+}
+
+function startCurseListener() {
+  if (_curseUnsub) _curseUnsub();
+  _curseUnsub = onSnapshot(doc(db, 'rwby-meta', 'cursewheel'), snap => {
+    if (!snap.exists()) return;
+    const d = snap.data();
+    if (d.ts <= _lastCurseTs) return;
+    _lastCurseTs = d.ts;
+    // Only show the wheel if I'm the target
+    if (d.target === MY_PRESENCE_ID) {
+      showCurseWheel();
+    }
+  }, ()=>{});
+}
+
+function showCurseWheel() {
+  if (!window.CURSES || !window.CURSES.length) { alert('Curses not loaded.'); return; }
+  document.getElementById('curseOverlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'curseOverlay';
+  overlay.className = 'curse-overlay';
+  overlay.innerHTML = `
+    <div class="curse-modal">
+      <div class="curse-header">
+        <div class="curse-title">The Wheel of Misfortune</div>
+        <div class="curse-sub">The DM has chosen you. Spin to learn your fate.</div>
+      </div>
+      <div class="curse-wheel-wrap">
+        <div class="curse-pointer">▼</div>
+        <div class="curse-wheel" id="curseWheel"></div>
+        <div class="curse-wheel-center">✦</div>
+      </div>
+      <button class="neo-btn curse-spin-btn" id="curseSpinBtn">SPIN THE WHEEL</button>
+      <div class="curse-result" id="curseResult"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('open'));
+
+  buildWheelGraphic();
+
+  const btn = document.getElementById('curseSpinBtn');
+  btn.addEventListener('click', () => spinCurseWheel(btn));
+}
+
+// Visible wheel is a sampling of curses for spectacle (full pool used for actual result)
+let _wheelSample = [];
+function buildWheelGraphic() {
+  const wheel = document.getElementById('curseWheel'); if (!wheel) return;
+  // Pick 16 random curses to display as wheel segments
+  const pool = [...window.CURSES];
+  _wheelSample = [];
+  for (let i = 0; i < 16 && pool.length; i++) {
+    _wheelSample.push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
+  }
+  const seg = 360 / _wheelSample.length;
+  const colors = {
+    mild:     ['#1a3a4a','#2a5a6a'],
+    moderate: ['#3a3a1a','#6a5a2a'],
+    severe:   ['#4a2a1a','#7a3a1a'],
+    extreme:  ['#4a0a12','#8a0010']
+  };
+  // Build conic gradient
+  let stops = [];
+  _wheelSample.forEach((c, i) => {
+    const col = colors[c.severity][i % 2];
+    stops.push(`${col} ${i*seg}deg ${(i+1)*seg}deg`);
+  });
+  wheel.style.background = `conic-gradient(${stops.join(',')})`;
+  // Add labels
+  wheel.innerHTML = _wheelSample.map((c, i) => {
+    const angle = i * seg + seg/2;
+    return `<div class="curse-seg-label" style="transform:rotate(${angle}deg)">
+      <span style="transform:rotate(${-angle}deg)">${c.id}</span>
+    </div>`;
+  }).join('');
+}
+
+let _spinning = false;
+function spinCurseWheel(btn) {
+  if (_spinning) return;
+  _spinning = true;
+  btn.disabled = true;
+  btn.textContent = 'SPINNING...';
+
+  // The ACTUAL curse is drawn from the full pool (weighted toward less extreme)
+  const roll = Math.random();
+  let pool;
+  if (roll < 0.40)      pool = window.CURSES.filter(c => c.severity === 'mild');
+  else if (roll < 0.72) pool = window.CURSES.filter(c => c.severity === 'moderate');
+  else if (roll < 0.92) pool = window.CURSES.filter(c => c.severity === 'severe');
+  else                  pool = window.CURSES.filter(c => c.severity === 'extreme');
+  if (!pool.length) pool = window.CURSES;
+  const result = pool[Math.floor(Math.random() * pool.length)];
+
+  // Spin animation: land on a random visible segment (cosmetic)
+  const wheel = document.getElementById('curseWheel');
+  const seg = 360 / _wheelSample.length;
+  const targetSeg = Math.floor(Math.random() * _wheelSample.length);
+  const spins = 6 + Math.floor(Math.random()*3);
+  const finalDeg = spins*360 + (360 - targetSeg*seg - seg/2);
+  wheel.style.transition = 'transform 5s cubic-bezier(.15,.85,.25,1)';
+  wheel.style.transform = `rotate(${finalDeg}deg)`;
+
+  setTimeout(() => {
+    revealCurse(result);
+    _spinning = false;
+  }, 5200);
+}
+
+function revealCurse(curse) {
+  const resultEl = document.getElementById('curseResult');
+  const sevLabel = { mild:'Mild', moderate:'Moderate', severe:'Severe', extreme:'EXTREME' }[curse.severity];
+  resultEl.innerHTML = `
+    <div class="curse-card curse-${curse.severity}">
+      <div class="curse-card-top">
+        <span class="curse-num">Curse #${curse.id}</span>
+        <span class="curse-sev curse-sev-${curse.severity}">${sevLabel}</span>
+      </div>
+      <div class="curse-name">${esc(curse.name)}</div>
+      <div class="curse-text">${esc(curse.text)}</div>
+      <button class="neo-btn curse-accept-btn" id="curseAcceptBtn">Accept Your Fate</button>
+    </div>`;
+  resultEl.classList.add('show');
+
+  document.getElementById('curseAcceptBtn')?.addEventListener('click', () => {
+    applyCurseToNotes(curse);
+    document.getElementById('curseOverlay')?.classList.remove('open');
+    setTimeout(() => document.getElementById('curseOverlay')?.remove(), 400);
+    showToast(`Curse #${curse.id} "${curse.name}" added to your notes`, 'danger', 5000);
+  });
+}
+
+function applyCurseToNotes(curse) {
+  const c = getMyCharacter() || getChar();
+  if (!c) return;
+  const entry = `\n\n━━━ CURSE #${curse.id} — ${curse.name} [${curse.severity.toUpperCase()}] ━━━\n${curse.text}`;
+  c.notesText = (c.notesText || '') + entry;
+  pushState(true);
+  // Refresh notes textarea if visible
+  const ta = el('notesText');
+  if (ta && getChar() === c) ta.value = c.notesText;
+  render();
 }
 
 let _pushDebounce = null;
@@ -933,6 +1093,19 @@ function renderDmTargetSelect() {
   sel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
 }
 
+function renderCurseTargetSelect() {
+  const sel = el('curseTarget'); if(!sel) return;
+  // List only characters that have been claimed by a player (have a presence id)
+  const claimed = state.characters.filter(c => c.claimedBy);
+  if (!claimed.length) {
+    sel.innerHTML = `<option value="">— No players have claimed characters —</option>`;
+    return;
+  }
+  sel.innerHTML = claimed.map(c =>
+    `<option value="${c.claimedBy}">${esc(c.name || 'Unnamed')}</option>`
+  ).join('');
+}
+
 function renderTabs() {
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab===state.activeTab));
   document.querySelectorAll('.tab-content[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===state.activeTab));
@@ -1057,7 +1230,7 @@ function openDmOverlay() {
     const p=el('dmPasswordInput'); if(p){p.value='';p.focus();}
   } else {
     el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden');
-    renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
+    renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
   }
 }
 function closeDmOverlay() { el('dmOverlay')?.classList.add('hidden'); }
@@ -1077,7 +1250,7 @@ function unlockDm() {
   document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
-  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
+  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
 }
 
 // ================================================================
@@ -1163,7 +1336,17 @@ function bindAll() {
       // Render tab-specific content
       if (tab === 'semblance')  { renderDmSemblance(); }
       if (tab === 'techniques') { renderDmTechniques(); }
+      if (tab === 'curse')      { renderCurseTargetSelect(); }
     });
+  });
+
+  // Curse wheel send button
+  el('sendCurseBtn')?.addEventListener('click', () => {
+    const targetId = el('curseTarget')?.value;
+    if (!targetId) { alert('No player selected. Players must claim a character first.'); return; }
+    const targetChar = state.characters.find(c => c.claimedBy === targetId);
+    sendCurseWheel(targetId);
+    showToast(`Curse wheel sent to ${targetChar?.name || 'player'}`, 'warn', 4000);
   });
 
   const themeInps = ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeAuraColor','themeTextColor'];
@@ -1572,49 +1755,72 @@ bindFullscreen();
 render();
 
 // ── MIGRATION: rwby-chars → campaigns/rwby-campaign ──
-// If the new doc doesn't exist yet, read old per-character collection and merge
 async function migrateIfNeeded() {
   try {
+    // Check if new doc already exists
     const mainSnap = await getDoc(doc(db, 'campaigns', 'rwby-campaign'));
     if (mainSnap.exists()) {
-      // Data already in campaigns doc — no migration needed
+      console.log('campaigns/rwby-campaign exists, no migration needed');
       startListener();
       return;
     }
-    // Try reading from old rwby-chars collection
-    const { getDocs, collection: col } = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
-    const oldSnap = await getDocs(col(db, 'rwby-chars')).catch(() => null);
-    if (oldSnap && !oldSnap.empty) {
+
+    console.log('campaigns/rwby-campaign not found — checking rwby-chars...');
+    // Read from old collection using already-imported getDocs + collection
+    const oldSnap = await getDocs(collection(db, 'rwby-chars'));
+
+    if (!oldSnap.empty) {
+      console.log(`Found ${oldSnap.size} docs in rwby-chars — migrating...`);
       const chars = [];
       oldSnap.forEach(d => {
-        try { chars.push(JSON.parse(d.data().data)); } catch(e) {}
+        try {
+          const parsed = JSON.parse(d.data().data);
+          chars.push(parsed);
+        } catch(e) {
+          console.warn('Could not parse char doc:', d.id, e);
+        }
       });
+
       if (chars.length) {
-        // Sort by index if possible
+        // Sort by document id (they encode the index)
         chars.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+
+        // Build proper state
         state.characters = chars.map((c, i) => {
           const b = blankChar(i);
-          return { ...b, ...c,
-            stats: {...b.stats, ...(c.stats||{})},
-            hp: {...b.hp, ...(c.hp||{})},
-            aura: {...b.aura, ...(c.aura||{})},
-            skills: (() => { const bsk = makeBlankSkills(); Object.keys(bsk).forEach(n => { bsk[n] = {...bsk[n], ...(c.skills?.[n]||{})}; }); return bsk; })()
+          return {
+            ...b, ...c,
+            stats:  { ...b.stats,  ...(c.stats  || {}) },
+            hp:     { ...b.hp,     ...(c.hp     || {}) },
+            aura:   { ...b.aura,   ...(c.aura   || {}) },
+            skills: (() => {
+              const bsk = makeBlankSkills();
+              Object.keys(bsk).forEach(n => { bsk[n] = { ...bsk[n], ...(c.skills?.[n] || {}) }; });
+              return bsk;
+            })()
           };
         });
+
         await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
-        console.log(`Migrated ${chars.length} characters from rwby-chars`);
+        console.log(`✓ Migrated ${chars.length} characters from rwby-chars to campaigns/rwby-campaign`);
         render();
+      } else {
+        console.log('rwby-chars was empty, starting fresh');
       }
+    } else {
+      console.log('rwby-chars collection not found or empty, starting fresh');
     }
   } catch(e) {
-    console.warn('Migration check failed:', e);
+    console.error('Migration failed:', e);
   }
+  // Always start listener after migration attempt
   startListener();
 }
 migrateIfNeeded();
 
 startPresenceListener();
 startBroadcastListener();
+startCurseListener();
 pushPresence();
 
 // ── CLEANUP ON TAB CLOSE ──
@@ -1631,7 +1837,7 @@ if (dmUnlocked) {
   el('dmFullscreenPanel')?.classList.remove('hidden');
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
-  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderThemeFields();
+  renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
 }
 // Welcome is triggered by the snapshot handler once real data loads
 

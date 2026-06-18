@@ -350,6 +350,9 @@
         <button class="dm-nav-btn" data-dm-tab="broadcast">
           <span class="dm-nav-icon">📡</span>Broadcast
         </button>
+        <button class="dm-nav-btn" data-dm-tab="curse">
+          <span class="dm-nav-icon">🎲</span>Curse Wheel
+        </button>
         <button class="dm-nav-btn" data-dm-tab="theme">
           <span class="dm-nav-icon">🎨</span>Theme
         </button>
@@ -444,6 +447,23 @@
           </div>
         </div>
 
+        <!-- CURSE WHEEL TAB -->
+        <div class="dm-tab" data-dm-tab="curse">
+          <div class="dm-tab-title">Wheel of Misfortune</div>
+          <div class="dm-card">
+            <div class="dm-card-title">🎲 Send the Curse Wheel</div>
+            <div class="dm-card-body">
+              <p class="small-note" style="margin-bottom:.9rem;opacity:.6">Choose a player. The wheel appears only on their screen. They spin, and the curse is written to their character's Notes.</p>
+              <div class="field"><label>Target Player</label><select id="curseTarget"></select></div>
+              <button id="sendCurseBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%;border-color:rgba(200,0,10,.4);color:#ff8088">Send Wheel to Player</button>
+              <div class="curse-dm-info" style="margin-top:1rem;padding-top:.9rem;border-top:1px solid rgba(200,0,10,.12)">
+                <div style="font-family:var(--F2);font-size:.6rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:.4rem">Curse Pool</div>
+                <p class="small-note" style="opacity:.5">110 curses loaded · weighted 40% mild · 32% moderate · 20% severe · 8% extreme</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- THEME TAB -->
         <div class="dm-tab" data-dm-tab="theme">
           <div class="dm-tab-title">Site Theme</div>
@@ -472,6 +492,7 @@
 </div>
 </div>
 
+<script src="curses.js"></script>
 <script type="module" src="rwby.js"></script>
 </body>
 </html>

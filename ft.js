@@ -4,7 +4,7 @@
 // No import/export — Firebase is the save
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getFirestore, doc, collection, getDoc, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
   apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
@@ -1013,8 +1013,7 @@ async function migrateIfNeeded(){
   try{
     const mainSnap=await getDoc(doc(db,'campaigns','ft-campaign'));
     if(mainSnap.exists()){startListener();return;}
-    const {getDocs,collection:col}=await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
-    const oldSnap=await getDocs(col(db,'ft-chars')).catch(()=>null);
+    const oldSnap = await getDocs(collection(db,'ft-chars'));
     if(oldSnap&&!oldSnap.empty){
       const chars=[];
       oldSnap.forEach(d=>{try{chars.push(JSON.parse(d.data().data));}catch(e){}});

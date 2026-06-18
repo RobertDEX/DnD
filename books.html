@@ -347,6 +347,7 @@ body::after{
   font-family:'EB Garamond',serif;font-size:.95rem;transition:all .15s;
 }
 .dm-field textarea{min-height:90px;resize:vertical;font-size:1rem;line-height:1.5}
+.dm-field textarea[data-f="text"]{min-height:240px;font-family:'EB Garamond',serif;font-size:1.1rem;line-height:1.7;padding:1rem}
 .dm-field input:focus,.dm-field textarea:focus,.dm-field select:focus{
   outline:none;border-color:rgba(0,210,255,.5);box-shadow:0 0 0 2px rgba(0,210,255,.08)
 }
@@ -389,7 +390,7 @@ body::after{
 <header class="topbar">
   <div class="brand">
     <div class="brand-title">The Library</div>
-    <div class="brand-sub">Sacred Texts · Remnant</div>
+    <div class="brand-sub">Spooky Demon Texts · Remnant</div>
   </div>
   <div class="top-actions">
     <div class="dm-status"><span class="dm-dot" id="dmDot"></span><span id="dmStatusText">Player</span></div>
@@ -400,7 +401,7 @@ body::after{
 
 <div class="shelf-intro">
   <h1>The Library</h1>
-  <p>Knowledge is power. Some of it, you are permitted to hold.</p>
+  <p>Knowledge is power. Some of it, you are permitted to hold. Adam, that was not an invitation, Dont touch the fuking books.</p>
 </div>
 
 <div class="shelf" id="shelf"></div>
@@ -465,14 +466,14 @@ const BOOKS_DOC = doc(db, 'rwby-meta', 'library');
 // ── default books ──
 function defaultBooks() {
   return [
-    { id:'rowan',   name:"Rowan Rose's Notebook",   style:'notebook', deco:'𖤍', access:['all'], pages:[] },
-    { id:'soul',    name:'Soul-Calming',  style:'tome',     deco:'༺𓆩۝𓆪༻', access:['all'], pages:[] },
-    { id:'intent',  name:'Intent-Carving',style:'tome',    deco:'༺𓆩۝𓆪༻', access:['all'], pages:[] },
-    { id:'world',   name:"World-Will", style:'tome',     deco:'༺𓆩۝𓆪༻', access:['all'], pages:[] },
-    { id:'yield',   name:'Yielding',       style:'tome',     deco:'༺𓆩۝𓆪༻', access:['all'], pages:[] },
-    { id:'human',   name:'Scripture of Human Will',  style:'tome',     deco:'༺𓆩۝𓆪༻', access:['all'], pages:[] },
-    { id:'void',    name:'Void-Severing',    style:'tome',     deco:'༺𓆩༒𓆪༻', access:['all'], pages:[] },
-    { id:'grimm',   name:'Grimm Studies· By "The Grimm Reaper" Peter Port',style:'holo',    deco:'▰',  access:['all'], pages:[] },
+    { id:'rowan',   name:"Rowan Rose's Notebook",   style:'notebook', deco:'📓', access:['all'], pages:[] },
+    { id:'soul',    name:'The Soul-Calming Sutra',  style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'intent',  name:'The Art of Intent-Carving',style:'tome',    deco:'📖', access:['all'], pages:[] },
+    { id:'world',   name:"The World-Will Doctrine", style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'yield',   name:'The Yielding Sutra',       style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'human',   name:'Scripture of Human Will',  style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'void',    name:'The Void-Severing Art',    style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'grimm',   name:'Grimm Studies · Prof. Port',style:'holo',    deco:'▰',  access:['all'], pages:[] },
   ];
 }
 
@@ -498,23 +499,29 @@ async function loadPlayers() {
 }
 
 // ── library sync ──
+let _isEditing = false;       // true while DM is actively typing
+let _pendingRemoteRender = false;
 async function pushLibrary() {
   try { await setDoc(BOOKS_DOC, { data: JSON.stringify(library) }); }
   catch(e){ console.error('pushLibrary', e); }
 }
 function startLibraryListener() {
+  let _first = true;
   onSnapshot(BOOKS_DOC, snap => {
     if (snap.exists()) {
       try {
         const parsed = JSON.parse(snap.data().data);
         if (parsed.books) {
-          // merge: keep defaults for any missing
+          // If the DM is mid-edit, don't clobber their local copy / DOM.
+          // Their own pushes are already reflected locally; remote changes
+          // will re-apply once they stop editing.
+          if (_isEditing) { _pendingRemoteRender = true; return; }
           library = parsed;
         }
       } catch(e){}
     }
     renderShelf();
-    if (dmUnlocked) renderDmBody();
+    if (dmUnlocked && !_isEditing) renderDmBody();
   }, ()=>{});
 }
 
@@ -677,50 +684,95 @@ function renderDmBody(){
   body.querySelectorAll('[data-addpage]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const bi = Number(btn.dataset.addpage);
-      library.books[bi].pages.push({ id:'pg-'+Date.now(), title:'', text:'', image:'' });
-      pushLibrary(); renderDmBody();
-      // keep this card expanded
-      body.querySelectorAll('.dm-book-card')[bi]?.classList.add('expanded');
+      const newPage = { id:'pg-'+Date.now(), title:'', text:'', image:'' };
+      library.books[bi].pages.push(newPage);
+      const pi = library.books[bi].pages.length - 1;
+      // Append just this one row instead of rebuilding the whole panel
+      const container = body.querySelector(`[data-pages="${bi}"]`);
+      if (container) {
+        // remove the "No pages yet" placeholder if present
+        const empty = container.querySelector('.dm-empty');
+        if (empty) container.innerHTML = '';
+        appendPageRow(container, library.books[bi], bi, pi);
+        // update page count label
+        const title = body.querySelectorAll('.dm-pages-title')[bi];
+        if (title) title.textContent = `Pages (${library.books[bi].pages.length})`;
+        // focus the new page's content box
+        const ta = container.lastElementChild?.querySelector('textarea[data-f="text"]');
+        ta?.focus();
+        ta?.scrollIntoView({ behavior:'smooth', block:'center' });
+      }
+      pushLibrary();
     });
   });
 }
 
-function renderDmPages(container, book, bi){
-  if (!book.pages.length){ container.innerHTML = '<div class="dm-empty">No pages yet.</div>'; return; }
-  container.innerHTML = '';
-  book.pages.forEach((pg, pi) => {
-    const row = document.createElement('div');
-    row.className = 'dm-page-row';
-    row.innerHTML = `
-      <div class="dm-page-row-top">
-        <span class="dm-page-num">Page ${pi+1}</span>
-        <button class="btn ghost small" data-delpage="${pi}">Delete</button>
-      </div>
-      <div class="dm-field"><label>Page Title</label><input type="text" data-f="title" data-pi="${pi}" value="${esc(pg.title)}" placeholder="Optional title…"></div>
-      <div class="dm-field"><label>Content</label><textarea data-f="text" data-pi="${pi}" placeholder="Write the page…">${esc(pg.text)}</textarea></div>
-      <div class="dm-field"><label>Image URL (optional)</label><input type="text" data-f="image" data-pi="${pi}" value="${esc(pg.image)}" placeholder="https://…"></div>`;
-    container.appendChild(row);
-  });
-  // edits
-  container.querySelectorAll('[data-f]').forEach(inp=>{
+// Build one page-row element and wire its handlers (no full re-render)
+function appendPageRow(container, book, bi, pi){
+  const pg = book.pages[pi];
+  const row = document.createElement('div');
+  row.className = 'dm-page-row';
+  row.dataset.pageRow = pi;
+  row.innerHTML = `
+    <div class="dm-page-row-top">
+      <span class="dm-page-num">Page ${pi+1}</span>
+      <button class="btn ghost small" data-delpage="${pi}">Delete</button>
+    </div>
+    <div class="dm-field"><label>Page Title</label><input type="text" data-f="title" data-pi="${pi}" value="${esc(pg.title)}" placeholder="Optional title…"></div>
+    <div class="dm-field"><label>Content</label><textarea data-f="text" data-pi="${pi}" placeholder="Write the page…">${esc(pg.text)}</textarea></div>
+    <div class="dm-field"><label>Image URL (optional)</label><input type="text" data-f="image" data-pi="${pi}" value="${esc(pg.image)}" placeholder="https://…"></div>`;
+  container.appendChild(row);
+  wirePageRow(row, book, bi);
+}
+
+// Attach input/focus/delete handlers to a page row
+function wirePageRow(row, book, bi){
+  row.querySelectorAll('[data-f]').forEach(inp=>{
+    inp.addEventListener('focus', ()=>{ _isEditing = true; });
+    inp.addEventListener('blur',  ()=>{
+      _isEditing = false;
+      // if a remote update arrived while editing, re-sync the shelf quietly
+      if (_pendingRemoteRender) { _pendingRemoteRender = false; renderShelf(); }
+    });
     inp.addEventListener('input',()=>{
       const pi = Number(inp.dataset.pi), f = inp.dataset.f;
       book.pages[pi][f] = inp.value;
       schedulePush();
     });
   });
-  container.querySelectorAll('[data-delpage]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const pi = Number(btn.dataset.delpage);
-      book.pages.splice(pi,1);
-      pushLibrary(); renderDmBody();
-      $('dmBody').querySelectorAll('.dm-book-card')[bi]?.classList.add('expanded');
-    });
+  row.querySelector('[data-delpage]')?.addEventListener('click', (e)=>{
+    const pi = Number(e.currentTarget.dataset.delpage);
+    if (!confirm('Delete this page?')) return;
+    book.pages.splice(pi,1);
+    pushLibrary();
+    renderDmBody();
+    $('dmBody').querySelectorAll('.dm-book-card')[bi]?.classList.add('expanded');
   });
 }
 
+function renderDmPages(container, book, bi){
+  container.innerHTML = '';
+  if (!book.pages.length){ container.innerHTML = '<div class="dm-empty">No pages yet.</div>'; return; }
+  book.pages.forEach((pg, pi) => appendPageRow(container, book, bi, pi));
+}
+
 let _pushTimer=null;
-function schedulePush(){ clearTimeout(_pushTimer); _pushTimer=setTimeout(pushLibrary,500); }
+function schedulePush(){
+  clearTimeout(_pushTimer);
+  showSaveStatus('typing');
+  _pushTimer=setTimeout(async ()=>{ await pushLibrary(); showSaveStatus('saved'); }, 1200);
+}
+function showSaveStatus(state){
+  let el = document.getElementById('saveStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'saveStatus';
+    el.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;font-family:"Share Tech Mono",monospace;font-size:.62rem;letter-spacing:.1em;padding:.5rem .9rem;border-radius:8px;text-transform:uppercase;transition:opacity .3s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  if (state==='typing'){ el.textContent='✎ Unsaved…'; el.style.background='rgba(60,40,10,.9)'; el.style.color='#e0a830'; el.style.border='1px solid rgba(200,140,40,.4)'; el.style.opacity='1'; }
+  else { el.textContent='✓ Saved'; el.style.background='rgba(0,40,20,.9)'; el.style.color='#5ed4a0'; el.style.border='1px solid rgba(0,200,100,.4)'; el.style.opacity='1'; clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',1500); }
+}
 
 // ════════════ INIT ════════════
 updateDmDot();

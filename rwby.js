@@ -204,6 +204,7 @@ function blankChar(i) {
     deathSaves: {successes:0, failures:0, stable:false},
     weaponsText:'', abilitiesText:'', inventoryText:'', notesText:'',
     relationships: [],   // #21 — [{name, type, notes}]
+    curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     dustInventory: dust, dustSpells:[], techniques:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -274,7 +275,11 @@ setInterval(pushPresence, 20000);
 // ── BROADCAST (DM message to all) ──
 async function sendBroadcast(msg) {
   if (!msg.trim()) return;
-  await setDoc(doc(db,'rwby-meta','broadcast'),{msg, ts:Date.now(), from:'DM'});
+  await setDoc(doc(db,'rwby-meta','broadcast'),{msg, ts:Date.now(), from:'DM', cleared:false});
+}
+async function clearBroadcast() {
+  // DM clears the active broadcast for everyone
+  await setDoc(doc(db,'rwby-meta','broadcast'),{msg:'', ts:Date.now(), from:'DM', cleared:true});
 }
 let _broadcastUnsub = null;
 let _lastBroadcastTs = 0;
@@ -285,7 +290,11 @@ function startBroadcastListener() {
     const d = snap.data();
     if (d.ts > _lastBroadcastTs) {
       _lastBroadcastTs = d.ts;
-      showBroadcast(d.msg);
+      if (d.cleared || !d.msg) {
+        document.getElementById('broadcastBanner')?.remove();
+      } else {
+        showBroadcast(d.msg);
+      }
     }
   },()=>{});
 }
@@ -297,10 +306,16 @@ function showBroadcast(msg) {
     banner.className = 'broadcast-banner';
     document.body.appendChild(banner);
   }
-  banner.innerHTML = `<span class="broadcast-from">📡 DM:</span> ${esc(msg)} <button onclick="this.parentElement.remove()">×</button>`;
+  const dmControls = dmUnlocked
+    ? `<button class="bc-clear" title="Clear for everyone">Clear for all</button>`
+    : '';
+  banner.innerHTML = `<span class="broadcast-from">📡 DM:</span> <span class="bc-msg">${esc(msg)}</span> ${dmControls}<button class="bc-dismiss" title="Dismiss">×</button>`;
   banner.classList.add('show');
-  clearTimeout(banner._t);
-  banner._t = setTimeout(()=>banner.remove(), 12000);
+  // Dismiss locally
+  banner.querySelector('.bc-dismiss')?.addEventListener('click', () => banner.remove());
+  // DM: clear for everyone
+  banner.querySelector('.bc-clear')?.addEventListener('click', () => { clearBroadcast(); banner.remove(); });
+  // Banner persists until dismissed or cleared (no auto-hide)
 }
 
 // ================================================================
@@ -459,23 +474,28 @@ function revealCurse(curse) {
   resultEl.classList.add('show');
 
   document.getElementById('curseAcceptBtn')?.addEventListener('click', () => {
-    applyCurseToNotes(curse);
+    applyCurse(curse);
     document.getElementById('curseOverlay')?.classList.remove('open');
     setTimeout(() => document.getElementById('curseOverlay')?.remove(), 400);
-    showToast(`Curse #${curse.id} "${curse.name}" added to your notes`, 'danger', 5000);
+    showToast(`Curse "${curse.name}" now afflicts you`, 'danger', 5000);
   });
 }
 
-function applyCurseToNotes(curse) {
+function applyCurse(curse) {
   const c = getMyCharacter() || getChar();
   if (!c) return;
-  const dur = curse.duration || '1 session';
-  const durTag = dur === 'permanent' ? 'PERMANENT' : `lasts ${dur}`;
-  const entry = `\n\n━━━ CURSE #${curse.id} — ${curse.name} [${curse.severity.toUpperCase()} · ${durTag}] ━━━\n${curse.text}`;
-  c.notesText = (c.notesText || '') + entry;
+  if (!Array.isArray(c.curses)) c.curses = [];
+  c.curses.push({
+    id: curse.id,
+    name: curse.name,
+    severity: curse.severity,
+    duration: curse.duration || '1 session',
+    text: curse.text,
+    rolledAt: Date.now()
+  });
+  // Jump to the Curses tab so they see it land
+  state.activeTab = 'curses';
   pushState(true);
-  const ta = el('notesText');
-  if (ta && getChar() === c) ta.value = c.notesText;
   render();
 }
 
@@ -564,6 +584,7 @@ function normalize(raw) {
     mc.dustInventory = {...b.dustInventory, ...(c.dustInventory || {})};
     mc.dustSpells    = Array.isArray(c.dustSpells)  ? c.dustSpells  : [];
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
+    mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     // Merge skills carefully — keep any existing prof/expertise/bonus, fill gaps with blanks
     const blankSk = makeBlankSkills();
     mc.skills = {};
@@ -1140,6 +1161,7 @@ function render() {
   try { renderPortrait(c); }       catch(e) {}
   try { renderDeathSaves(c); }     catch(e) {}
   try { renderRelationships(); }   catch(e) {}
+  try { renderCurses(); }          catch(e) {}
   try { renderAccentColor(); }     catch(e) {}
   try { applyCharacterAccents(); } catch(e) {}
   try { checkResourceFlash(c); }   catch(e) {}
@@ -1582,6 +1604,56 @@ function bindRelationships() {
     if (!c.relationships) c.relationships = [];
     c.relationships.push({ name:'', type:'Neutral', notes:'' });
     pushState(); renderRelationships();
+  });
+}
+
+// ================================================================
+// CURSES TAB
+// ================================================================
+function renderCurses() {
+  const c = getChar();
+  const cont = el('cursesList'); if (!cont) return;
+  const curses = c.curses || [];
+
+  if (!curses.length) {
+    cont.innerHTML = `<div class="curses-empty">
+      <div class="curses-empty-icon">☠</div>
+      <div>No curses. For now.</div>
+      <span>Whatever the wheel hands you will end up here.</span>
+    </div>`;
+    return;
+  }
+
+  const sevOrder = { extreme:0, severe:1, moderate:2, mild:3 };
+  const sorted = [...curses].sort((a,b) => (sevOrder[a.severity]??9) - (sevOrder[b.severity]??9));
+
+  cont.innerHTML = sorted.map(cur => {
+    const realIdx = curses.indexOf(cur);
+    const dur = cur.duration || '1 session';
+    const durLabel = dur === 'permanent' ? '☠ Permanent' : '⏳ ' + dur;
+    const sevLabel = { mild:'Mild', moderate:'Moderate', severe:'Severe', extreme:'Extreme' }[cur.severity] || cur.severity;
+    return `
+      <div class="curse-entry curse-${cur.severity}">
+        <div class="curse-entry-bar"></div>
+        <div class="curse-entry-body">
+          <div class="curse-entry-top">
+            <span class="curse-entry-name">${esc(cur.name)}</span>
+            <span class="curse-entry-sev curse-sev-${cur.severity}">${sevLabel}</span>
+          </div>
+          <div class="curse-entry-dur ${dur==='permanent'?'perm':''}">${durLabel}</div>
+          <div class="curse-entry-text">${esc(cur.text)}</div>
+          <button class="curse-lift-btn" data-curse-idx="${realIdx}">Lift this curse</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  cont.querySelectorAll('.curse-lift-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.curseIdx);
+      const removed = c.curses.splice(idx, 1)[0];
+      pushState(true); renderCurses();
+      if (removed) showToast(`"${removed.name}" lifted`, 'success', 3000);
+    });
   });
 }
 

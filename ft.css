@@ -1082,3 +1082,18 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
 .character-tab.owned { border-color: rgba(200,130,40,.35); box-shadow: inset 3px 0 0 var(--char-color, var(--gold)), 0 0 16px rgba(200,130,40,.08); }
 .character-tab.locked-tab { opacity: .5; }
 .character-tab.locked-tab:hover { transform: none; border-color: rgba(200,130,40,.06); }
+
+
+/* ── WELCOME: DM join button ── */
+.welcome-actions { flex-wrap: wrap; }
+.welcome-dm-btn {
+  background: linear-gradient(135deg, rgba(120,60,0,.5), rgba(60,20,0,.8)) !important;
+  border-color: rgba(200,130,40,.4) !important;
+  color: var(--gold) !important;
+  letter-spacing: .08em;
+}
+.welcome-dm-btn:hover {
+  border-color: rgba(200,130,40,.7) !important;
+  box-shadow: 0 0 20px rgba(200,130,40,.25) !important;
+  color: #fff !important;
+}

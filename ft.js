@@ -971,7 +971,7 @@ function checkWelcome(){
       <h2 class="welcome-title">Who are you?</h2>
       <p class="welcome-text">Choose your guild member each time you join. Taken members are greyed out.</p>
       <div class="welcome-chars" id="welcomeCharList"></div>
-      <div class="welcome-actions"><button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button></div>
+      <div class="welcome-actions"><button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button><button class="neo-btn welcome-dm-btn" id="welcomeDmBtn">⚔ Join as DM</button></div>
     </div>`;
   document.body.appendChild(overlay);
   requestAnimationFrame(()=>overlay.classList.add('open'));
@@ -988,6 +988,7 @@ function checkWelcome(){
     list.appendChild(btn);
   });
   document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{closeWelcome();});
+  document.getElementById('welcomeDmBtn')?.addEventListener('click',()=>{closeWelcome();openDmOverlay();});
 }
 
 function recheckWelcomeIfNeeded(){

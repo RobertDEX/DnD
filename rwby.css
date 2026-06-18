@@ -2306,3 +2306,17 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   cursor: pointer; padding: 0 .3rem; line-height: 1;
 }
 .broadcast-banner .bc-dismiss:hover { color: #fff; }
+
+/* ── WELCOME: DM join button ── */
+.welcome-actions { flex-wrap: wrap; }
+.welcome-dm-btn {
+  background: linear-gradient(135deg, rgba(140,0,8,.5), rgba(60,0,4,.8)) !important;
+  border-color: rgba(200,0,10,.4) !important;
+  color: #ff8088 !important;
+  letter-spacing: .08em;
+}
+.welcome-dm-btn:hover {
+  border-color: rgba(200,0,10,.7) !important;
+  box-shadow: 0 0 20px rgba(200,0,10,.25) !important;
+  color: #fff !important;
+}

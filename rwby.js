@@ -336,12 +336,20 @@ async function sendCurseWheel(targetPresenceId) {
 
 function startCurseListener() {
   if (_curseUnsub) _curseUnsub();
+  let _firstSnap = true;
   _curseUnsub = onSnapshot(doc(db, 'rwby-meta', 'cursewheel'), snap => {
     if (!snap.exists()) return;
     const d = snap.data();
+    // On the very first snapshot (page load), just record the current ts and do NOT
+    // fire the wheel — otherwise an old trigger from a previous session pops up on join.
+    if (_firstSnap) {
+      _firstSnap = false;
+      _lastCurseTs = d.ts || 0;
+      return;
+    }
     if (d.ts <= _lastCurseTs) return;
     _lastCurseTs = d.ts;
-    // Only show the wheel if I'm the target
+    // Only show the wheel if I'm the target the DM chose
     if (d.target === MY_PRESENCE_ID) {
       showCurseWheel();
     }
@@ -360,8 +368,8 @@ function showCurseWheel() {
     <div class="curse-modal">
       <div class="curse-runes"></div>
       <div class="curse-header">
-        <div class="curse-title">Wheel of Misfortune</div>
-        <div class="curse-sub">The DM has chosen you. Spin, and accept what the dark decides.</div>
+        <div class="curse-title">Wheel of Curses</div>
+        <div class="curse-sub">You were either late or you did something to piss me off. So get bent and get fucked. Roll the Wheel.</div>
       </div>
       <div class="curse-wheel-wrap">
         <div class="curse-pointer"></div>
@@ -1817,6 +1825,7 @@ function checkWelcome() {
       <div class="welcome-chars" id="welcomeCharList"></div>
       <div class="welcome-actions">
         <button class="neo-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
+        <button class="neo-btn welcome-dm-btn" id="welcomeDmBtn">⚔ Join as DM</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1848,6 +1857,11 @@ function checkWelcome() {
 
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
     closeWelcome();
+  });
+
+  document.getElementById('welcomeDmBtn')?.addEventListener('click', () => {
+    closeWelcome();
+    openDmOverlay(); // opens the DM password prompt
   });
 }
 

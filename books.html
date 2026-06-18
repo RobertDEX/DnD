@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Library · RWBY DnD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Share+Tech+Mono&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --aura:#00d4ff;
+  --aura-glow:rgba(0,212,255,.4);
+  --red:#c0000a;
+  --bg:#020106;
+  --paper:#e8dcc0;
+  --paper-dark:#d4c4a0;
+  --ink:#2a2018;
+  --ink-soft:#4a3c2c;
+  --leather:#5a3420;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'EB Garamond',serif;
+  background:
+    radial-gradient(ellipse 100% 50% at 50% 0%, rgba(0,80,140,.12), transparent),
+    radial-gradient(ellipse 80% 60% at 0% 100%, rgba(140,0,8,.15), transparent),
+    radial-gradient(ellipse 60% 60% at 100% 100%, rgba(0,30,80,.2), transparent),
+    #020106;
+  color:#c4d8f4;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* scanlines */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9997;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.06) 0,rgba(0,0,0,.06) 1px,transparent 1px,transparent 4px);
+}
+
+/* ─── TOP BAR ─── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.1rem 1.6rem;
+  background:linear-gradient(90deg,rgba(8,4,14,.96),rgba(4,2,10,.96));
+  border-bottom:1px solid rgba(0,210,255,.12);
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(10px);
+}
+.topbar::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--aura),rgba(200,0,10,.4),var(--aura),transparent);
+  opacity:.5;
+}
+.brand{display:flex;flex-direction:column;gap:.1rem}
+.brand-title{
+  font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:.08em;
+  background:linear-gradient(135deg,#fff,var(--aura));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.25em;color:var(--aura);opacity:.6;text-transform:uppercase}
+.top-actions{display:flex;gap:.7rem;align-items:center}
+
+.btn{
+  font-family:'Share Tech Mono',monospace;font-size:.68rem;letter-spacing:.1em;
+  padding:.6rem 1rem;border-radius:8px;cursor:pointer;text-transform:uppercase;
+  background:rgba(0,210,255,.06);border:1px solid rgba(0,210,255,.2);color:var(--aura);
+  transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;
+}
+.btn:hover{background:rgba(0,210,255,.14);border-color:rgba(0,210,255,.5);transform:translateY(-1px)}
+.btn.ghost{background:transparent;border-color:rgba(255,255,255,.12);color:#8aa0c0}
+.btn.ghost:hover{border-color:rgba(255,255,255,.3);color:#c4d8f4}
+.btn.red{background:rgba(140,0,8,.35);border-color:rgba(200,0,10,.4);color:#ff8088}
+.btn.red:hover{background:rgba(140,0,8,.5);border-color:rgba(200,0,10,.7);color:#fff}
+.btn.small{padding:.4rem .7rem;font-size:.6rem}
+
+/* ─── DM dot ─── */
+.dm-status{display:flex;align-items:center;gap:.4rem;font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:#607080;text-transform:uppercase}
+.dm-dot{width:8px;height:8px;border-radius:50%;background:#405060;transition:all .2s}
+.dm-dot.on{background:#ff4060;box-shadow:0 0 8px rgba(255,40,60,.6)}
+
+/* ─── SHELF ─── */
+.shelf-intro{text-align:center;padding:2.5rem 1.5rem 1rem}
+.shelf-intro h1{
+  font-family:'Cinzel',serif;font-size:2rem;font-weight:700;letter-spacing:.06em;
+  color:#e8dcc0;margin-bottom:.4rem;
+  text-shadow:0 0 30px rgba(232,220,192,.15);
+}
+.shelf-intro p{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:#8090a0;font-style:italic}
+
+.shelf{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:1.8rem;max-width:1200px;margin:0 auto;padding:2rem 1.5rem 4rem;
+}
+
+/* ─── BOOK SPINE / COVER ─── */
+.book{
+  position:relative;height:300px;border-radius:6px 10px 10px 6px;cursor:pointer;
+  transition:transform .3s cubic-bezier(.2,1,.3,1),box-shadow .3s;
+  overflow:hidden;
+}
+.book:hover{transform:translateY(-8px) rotateY(-4deg)}
+.book.locked{cursor:not-allowed}
+
+/* leather/paper book */
+.book.tome{
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.3) 0%, transparent 8%, transparent 92%, rgba(0,0,0,.25) 100%),
+    linear-gradient(135deg, #6a3a22, #4a2414);
+  border:1px solid #3a1c0e;
+  box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 30px rgba(0,0,0,.3);
+}
+.book.tome::before{
+  content:'';position:absolute;left:14px;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,.4),transparent);
+}
+.book.tome .book-title{font-family:'Cinzel',serif;color:#e8d4a8;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.book.tome .book-deco{color:rgba(232,212,168,.5)}
+
+/* notebook variant — lighter, worn */
+.book.notebook{
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.25) 0%, transparent 8%, transparent 92%, rgba(0,0,0,.2) 100%),
+    linear-gradient(135deg, #8a6a3a, #6a4a26);
+  border:1px solid #4a3018;
+  box-shadow:0 12px 30px rgba(0,0,0,.5), inset 0 0 30px rgba(0,0,0,.25);
+}
+.book.notebook .book-title{font-family:'Cormorant Garamond',serif;font-weight:600;color:#f0e0c0;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.book.notebook .book-deco{color:rgba(240,224,192,.5)}
+
+/* grimm/holo variant — cyberpunk */
+.book.holo{
+  background:
+    linear-gradient(135deg, rgba(0,40,60,.9), rgba(0,10,20,.95)),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,210,255,.04) 3px 4px);
+  border:1px solid rgba(0,210,255,.4);
+  box-shadow:0 12px 30px rgba(0,0,0,.5), 0 0 24px rgba(0,210,255,.15), inset 0 0 30px rgba(0,210,255,.06);
+}
+.book.holo::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg, transparent, rgba(0,210,255,.06), transparent);
+  animation:holoScan 3s linear infinite;
+}
+@keyframes holoScan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+.book.holo .book-title{font-family:'Orbitron',sans-serif;font-weight:700;color:var(--aura);text-shadow:0 0 12px rgba(0,210,255,.6)}
+.book.holo .book-deco{color:rgba(0,210,255,.6)}
+
+.book-inner{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem 1.2rem;text-align:center;gap:.8rem}
+.book-deco{font-size:1.8rem;opacity:.7}
+.book-title{font-size:1.15rem;line-height:1.25;letter-spacing:.03em}
+.book-meta{font-family:'Share Tech Mono',monospace;font-size:.55rem;letter-spacing:.1em;opacity:.5;text-transform:uppercase;position:absolute;bottom:1rem;left:0;right:0;text-align:center}
+
+/* locked overlay */
+.book-lock{
+  position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(2px);
+  font-family:'Share Tech Mono',monospace;
+}
+.book-lock-icon{font-size:2rem;opacity:.7}
+.book-lock-text{font-size:.6rem;letter-spacing:.15em;color:#a08080;text-transform:uppercase}
+.book.holo .book-lock{background:rgba(0,10,20,.8)}
+.book.holo .book-lock-icon{color:#ff4060;filter:drop-shadow(0 0 8px rgba(255,40,60,.5))}
+
+/* DM badge on book */
+.book-access-badge{
+  position:absolute;top:.6rem;right:.6rem;z-index:6;
+  font-family:'Share Tech Mono',monospace;font-size:.5rem;letter-spacing:.08em;
+  padding:.2rem .45rem;border-radius:4px;text-transform:uppercase;
+}
+.book-access-badge.open{background:rgba(0,200,100,.2);color:#5ed4a0;border:1px solid rgba(0,200,100,.3)}
+.book-access-badge.restricted{background:rgba(200,0,10,.2);color:#ff8088;border:1px solid rgba(200,0,10,.3)}
+
+/* ═══════════ READER MODAL ═══════════ */
+.reader-overlay{
+  position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.9);backdrop-filter:blur(12px);
+  opacity:0;pointer-events:none;transition:opacity .4s;padding:2rem;
+}
+.reader-overlay.open{opacity:1;pointer-events:all}
+
+.reader{
+  width:min(900px,100%);height:min(86vh,820px);
+  display:grid;grid-template-rows:auto 1fr auto;
+  border-radius:14px;overflow:hidden;position:relative;
+  transform:scale(.92);transition:transform .4s cubic-bezier(.2,1,.3,1);
+}
+.reader-overlay.open .reader{transform:scale(1)}
+
+/* paper reader */
+.reader.paper{
+  background:
+    radial-gradient(ellipse at top, rgba(255,250,235,.5), transparent 60%),
+    linear-gradient(135deg, #e8dcc0, #d8c8a8);
+  border:1px solid #b8a480;
+  box-shadow:0 40px 100px rgba(0,0,0,.7), inset 0 0 80px rgba(180,150,100,.2);
+}
+.reader.paper::before{
+  content:'';position:absolute;inset:0;pointer-events:none;opacity:.4;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 40px, rgba(160,130,90,.02) 40px 41px),
+    radial-gradient(circle at 20% 30%, rgba(140,110,70,.08), transparent 25%),
+    radial-gradient(circle at 80% 70%, rgba(140,110,70,.1), transparent 25%);
+}
+
+/* holo reader */
+.reader.holo-reader{
+  background:
+    linear-gradient(135deg, rgba(0,30,50,.97), rgba(0,8,18,.98)),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,210,255,.03) 2px 3px);
+  border:1px solid rgba(0,210,255,.4);
+  box-shadow:0 40px 100px rgba(0,0,0,.7), 0 0 60px rgba(0,210,255,.15), inset 0 0 60px rgba(0,210,255,.05);
+}
+.reader.holo-reader::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(0,210,255,.04), transparent);
+  animation:holoScan 4s linear infinite;
+}
+
+/* reader header */
+.reader-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.2rem 1.6rem;position:relative;z-index:3;
+}
+.reader.paper .reader-head{border-bottom:1px solid rgba(120,90,50,.3)}
+.reader.holo-reader .reader-head{border-bottom:1px solid rgba(0,210,255,.2)}
+.reader-book-title{font-size:1.5rem;letter-spacing:.03em}
+.reader.paper .reader-book-title{font-family:'Cinzel',serif;color:#3a2c1c;font-weight:700}
+.reader.holo-reader .reader-book-title{font-family:'Orbitron',sans-serif;color:var(--aura);font-weight:700;text-shadow:0 0 14px rgba(0,210,255,.5)}
+.reader-close{
+  width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.2rem;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;border:1px solid;
+}
+.reader.paper .reader-close{background:rgba(120,90,50,.1);border-color:rgba(120,90,50,.3);color:#5a4530}
+.reader.paper .reader-close:hover{background:rgba(120,90,50,.25)}
+.reader.holo-reader .reader-close{background:rgba(0,210,255,.08);border-color:rgba(0,210,255,.3);color:var(--aura)}
+.reader.holo-reader .reader-close:hover{background:rgba(0,210,255,.18)}
+
+/* reader page body */
+.reader-body{overflow-y:auto;padding:2rem 2.6rem;position:relative;z-index:3}
+.reader.paper .reader-body{color:var(--ink)}
+.reader.holo-reader .reader-body{color:#bfe8f8}
+.reader-body::-webkit-scrollbar{width:6px}
+.reader.paper .reader-body::-webkit-scrollbar-thumb{background:rgba(120,90,50,.35);border-radius:999px}
+.reader.holo-reader .reader-body::-webkit-scrollbar-thumb{background:rgba(0,210,255,.3);border-radius:999px}
+
+.page-title{font-size:1.6rem;margin-bottom:1.2rem;letter-spacing:.02em}
+.reader.paper .page-title{font-family:'Cinzel',serif;color:#2a2014;font-weight:600;border-bottom:1px solid rgba(120,90,50,.25);padding-bottom:.6rem}
+.reader.holo-reader .page-title{font-family:'Orbitron',sans-serif;color:#fff;font-weight:600;border-bottom:1px solid rgba(0,210,255,.25);padding-bottom:.6rem;text-shadow:0 0 10px rgba(0,210,255,.3)}
+
+.page-text{font-size:1.15rem;line-height:1.85;white-space:pre-wrap}
+.reader.paper .page-text{font-family:'EB Garamond',serif;color:#3a2c1c}
+.reader.paper .page-text::first-letter{font-family:'Cinzel',serif;font-size:3.2rem;float:left;line-height:.8;padding:.1rem .5rem .1rem 0;color:#6a4420}
+.reader.holo-reader .page-text{font-family:'Share Tech Mono',monospace;font-size:1rem;line-height:1.9;color:#a8dcf0}
+
+.page-img{max-width:100%;border-radius:8px;margin:1.2rem 0;display:block}
+.reader.holo-reader .page-img{border:1px solid rgba(0,210,255,.3);box-shadow:0 0 20px rgba(0,210,255,.15)}
+.reader.paper .page-img{border:1px solid rgba(120,90,50,.4);box-shadow:0 4px 16px rgba(80,50,20,.3);filter:sepia(.2)}
+
+.page-empty{text-align:center;padding:3rem 1rem;opacity:.5;font-style:italic;font-size:1.1rem}
+
+/* reader footer / page nav */
+.reader-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:1rem 1.6rem;position:relative;z-index:3;
+}
+.reader.paper .reader-foot{border-top:1px solid rgba(120,90,50,.3)}
+.reader.holo-reader .reader-foot{border-top:1px solid rgba(0,210,255,.2)}
+.page-nav-btn{
+  font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:.08em;
+  padding:.5rem 1rem;border-radius:7px;cursor:pointer;border:1px solid;text-transform:uppercase;transition:all .15s;
+}
+.reader.paper .page-nav-btn{background:rgba(120,90,50,.12);border-color:rgba(120,90,50,.35);color:#4a3826}
+.reader.paper .page-nav-btn:hover:not(:disabled){background:rgba(120,90,50,.25)}
+.reader.holo-reader .page-nav-btn{background:rgba(0,210,255,.08);border-color:rgba(0,210,255,.3);color:var(--aura)}
+.reader.holo-reader .page-nav-btn:hover:not(:disabled){background:rgba(0,210,255,.18)}
+.page-nav-btn:disabled{opacity:.3;cursor:default}
+.page-indicator{font-family:'Share Tech Mono',monospace;font-size:.72rem;letter-spacing:.12em}
+.reader.paper .page-indicator{color:#5a4530}
+.reader.holo-reader .page-indicator{color:var(--aura)}
+
+/* page dots */
+.page-dots{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;flex:1}
+.page-dot{width:8px;height:8px;border-radius:50%;cursor:pointer;transition:all .15s;border:none}
+.reader.paper .page-dot{background:rgba(120,90,50,.3)}
+.reader.paper .page-dot.active{background:#6a4420;transform:scale(1.3)}
+.reader.holo-reader .page-dot{background:rgba(0,210,255,.25)}
+.reader.holo-reader .page-dot.active{background:var(--aura);box-shadow:0 0 8px var(--aura);transform:scale(1.3)}
+
+/* ═══════════ DM PANEL ═══════════ */
+.dm-overlay{
+  position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.92);backdrop-filter:blur(14px);
+  opacity:0;pointer-events:none;transition:opacity .3s;padding:1.5rem;
+}
+.dm-overlay.open{opacity:1;pointer-events:all}
+
+.dm-login{
+  width:min(400px,100%);padding:2.5rem 2rem;text-align:center;
+  background:linear-gradient(145deg,rgba(10,6,20,.99),rgba(4,2,12,.99));
+  border:1px solid rgba(0,210,255,.18);border-radius:16px;
+  box-shadow:0 0 80px rgba(0,210,255,.08);
+}
+.dm-login-icon{font-size:2.5rem;margin-bottom:1rem;filter:drop-shadow(0 0 12px rgba(0,210,255,.4))}
+.dm-login h2{font-family:'Orbitron',sans-serif;font-size:1.1rem;color:#fff;margin-bottom:.4rem;letter-spacing:.05em}
+.dm-login p{font-size:.95rem;color:#8090a0;margin-bottom:1.4rem;font-style:italic}
+
+.dm-panel{
+  width:min(800px,100%);height:min(86vh,800px);display:none;flex-direction:column;
+  background:linear-gradient(145deg,rgba(6,4,14,.99),rgba(3,2,8,.99));
+  border:1px solid rgba(0,210,255,.15);border-radius:16px;overflow:hidden;
+  box-shadow:0 0 80px rgba(0,210,255,.07);
+}
+.dm-panel.open{display:flex}
+.dm-panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 1.5rem;background:linear-gradient(90deg,rgba(0,0,0,.4),rgba(0,210,255,.03));
+  border-bottom:1px solid rgba(0,210,255,.1);
+}
+.dm-panel-head h2{font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--aura);letter-spacing:.05em}
+.dm-panel-body{flex:1;overflow-y:auto;padding:1.5rem}
+.dm-panel-body::-webkit-scrollbar{width:6px}
+.dm-panel-body::-webkit-scrollbar-thumb{background:rgba(0,210,255,.2);border-radius:999px}
+
+.dm-book-card{
+  border:1px solid rgba(0,210,255,.1);border-radius:12px;margin-bottom:1rem;overflow:hidden;
+  background:rgba(0,210,255,.02);
+}
+.dm-book-head{
+  display:flex;align-items:center;justify-content:space-between;gap:.8rem;
+  padding:.85rem 1.1rem;cursor:pointer;background:rgba(0,0,0,.25);
+  border-bottom:1px solid rgba(0,210,255,.06);
+}
+.dm-book-head:hover{background:rgba(0,210,255,.04)}
+.dm-book-name{font-family:'Cinzel',serif;font-size:1rem;color:#e8dcc0;display:flex;align-items:center;gap:.6rem}
+.dm-book-name .bdeco{font-size:1.2rem}
+.dm-book-chev{color:rgba(255,255,255,.3);transition:transform .2s;font-size:.8rem}
+.dm-book-card.expanded .dm-book-chev{transform:rotate(180deg)}
+.dm-book-body{display:none;padding:1.1rem}
+.dm-book-card.expanded .dm-book-body{display:block}
+
+.dm-field{margin-bottom:.8rem}
+.dm-field label{display:block;font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.14em;color:rgba(0,210,255,.5);text-transform:uppercase;margin-bottom:.35rem}
+.dm-field input,.dm-field textarea,.dm-field select{
+  width:100%;padding:.6rem .8rem;border-radius:8px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(0,210,255,.12);color:#c4d8f4;
+  font-family:'EB Garamond',serif;font-size:.95rem;transition:all .15s;
+}
+.dm-field textarea{min-height:90px;resize:vertical;font-size:1rem;line-height:1.5}
+.dm-field input:focus,.dm-field textarea:focus,.dm-field select:focus{
+  outline:none;border-color:rgba(0,210,255,.5);box-shadow:0 0 0 2px rgba(0,210,255,.08)
+}
+
+/* access toggle pills */
+.access-section{margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid rgba(0,210,255,.08)}
+.access-title{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.12em;color:var(--aura);text-transform:uppercase;margin-bottom:.6rem}
+.access-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.access-pill{
+  display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border-radius:7px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.3);
+  font-family:'Share Tech Mono',monospace;font-size:.62rem;color:#8090a0;transition:all .15s;
+}
+.access-pill:has(input:checked){border-color:rgba(0,200,100,.5);background:rgba(0,200,100,.1);color:#5ed4a0}
+.access-pill input{accent-color:#00c864}
+.access-pill.everyone{grid-column:1/-1;border-color:rgba(0,210,255,.2)}
+.access-pill.everyone:has(input:checked){border-color:rgba(0,210,255,.5);background:rgba(0,210,255,.1);color:var(--aura)}
+
+/* DM page editor */
+.dm-pages-title{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.12em;color:var(--aura);text-transform:uppercase;margin:1rem 0 .6rem}
+.dm-page-row{
+  border:1px solid rgba(0,210,255,.1);border-radius:9px;padding:.8rem;margin-bottom:.7rem;
+  background:rgba(0,0,0,.25);
+}
+.dm-page-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.dm-page-num{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.1em;color:#607080;text-transform:uppercase}
+.dm-empty{padding:1rem;text-align:center;color:#607080;font-style:italic;font-size:.95rem}
+
+@media (max-width:640px){
+  .shelf{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1.2rem}
+  .book{height:220px}
+  .reader-body{padding:1.5rem 1.4rem}
+  .page-text{font-size:1.05rem}
+  .access-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-title">The Library</div>
+    <div class="brand-sub">Sacred Texts · Remnant</div>
+  </div>
+  <div class="top-actions">
+    <div class="dm-status"><span class="dm-dot" id="dmDot"></span><span id="dmStatusText">Player</span></div>
+    <a href="rwby.html" class="btn ghost">← Back to Sheet</a>
+    <button class="btn red" id="dmBtn">⚔ DM</button>
+  </div>
+</header>
+
+<div class="shelf-intro">
+  <h1>The Library</h1>
+  <p>Knowledge is power. Some of it, you are permitted to hold.</p>
+</div>
+
+<div class="shelf" id="shelf"></div>
+
+<!-- READER MODAL -->
+<div class="reader-overlay" id="readerOverlay">
+  <div class="reader" id="reader">
+    <div class="reader-head">
+      <div class="reader-book-title" id="readerTitle">Book</div>
+      <div class="reader-close" id="readerClose">✕</div>
+    </div>
+    <div class="reader-body" id="readerBody"></div>
+    <div class="reader-foot">
+      <button class="page-nav-btn" id="prevPage">‹ Prev</button>
+      <div class="page-dots" id="pageDots"></div>
+      <button class="page-nav-btn" id="nextPage">Next ›</button>
+    </div>
+  </div>
+</div>
+
+<!-- DM OVERLAY -->
+<div class="dm-overlay" id="dmOverlay">
+  <!-- login -->
+  <div class="dm-login" id="dmLogin">
+    <div class="dm-login-icon">⚔</div>
+    <h2>DM Access</h2>
+    <p>Enter the password to manage the library.</p>
+    <div class="dm-field"><input type="password" id="dmPass" placeholder="••••••••" autocomplete="current-password"></div>
+    <div style="display:flex;gap:.6rem;margin-top:1rem">
+      <button class="btn" id="dmUnlock" style="flex:1;justify-content:center">Unlock</button>
+      <button class="btn ghost" id="dmCancel">Cancel</button>
+    </div>
+  </div>
+  <!-- panel -->
+  <div class="dm-panel" id="dmPanel">
+    <div class="dm-panel-head">
+      <h2>📚 Manage Library</h2>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn ghost small" id="dmLock">🔒 Lock</button>
+        <button class="btn ghost small" id="dmClose">✕ Close</button>
+      </div>
+    </div>
+    <div class="dm-panel-body" id="dmBody"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+const FB_CONFIG = {
+  apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
+  projectId:"dand-3c76a",storageBucket:"dand-3c76a.firebasestorage.app",
+  messagingSenderId:"27455098509",appId:"1:27455098509:web:432929f697da9a947d5cc4",measurementId:"G-D1TQM5WJT8"
+};
+const app = initializeApp(FB_CONFIG, 'books');
+const db  = getFirestore(app);
+
+const DM_PASS = '123456789';
+const BOOKS_DOC = doc(db, 'rwby-meta', 'library');
+
+// ── default books ──
+function defaultBooks() {
+  return [
+    { id:'rowan',   name:"Rowan Rose's Notebook",   style:'notebook', deco:'📓', access:['all'], pages:[] },
+    { id:'soul',    name:'The Soul-Calming Sutra',  style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'intent',  name:'The Art of Intent-Carving',style:'tome',    deco:'📖', access:['all'], pages:[] },
+    { id:'world',   name:"The World-Will Doctrine", style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'yield',   name:'The Yielding Sutra',       style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'human',   name:'Scripture of Human Will',  style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'void',    name:'The Void-Severing Art',    style:'tome',     deco:'📖', access:['all'], pages:[] },
+    { id:'grimm',   name:'Grimm Studies · Prof. Port',style:'holo',    deco:'▰',  access:['all'], pages:[] },
+  ];
+}
+
+// players list pulled from campaign doc (for access control)
+let players = []; // [{idx, name}]
+let library = { books: defaultBooks() };
+let dmUnlocked = sessionStorage.getItem('books-dm') === '1';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+// ── load players from campaign ──
+async function loadPlayers() {
+  try {
+    const snap = await getDoc(doc(db,'campaigns','rwby-campaign'));
+    if (snap.exists()) {
+      const data = JSON.parse(snap.data().data);
+      players = (data.characters||[])
+        .map((c,idx)=>({idx, name:c.name||`Player ${idx+1}`, active:c.state==='active'}))
+        .filter(p=>p.active);
+    }
+  } catch(e) { console.warn('Could not load players', e); }
+}
+
+// ── library sync ──
+async function pushLibrary() {
+  try { await setDoc(BOOKS_DOC, { data: JSON.stringify(library) }); }
+  catch(e){ console.error('pushLibrary', e); }
+}
+function startLibraryListener() {
+  onSnapshot(BOOKS_DOC, snap => {
+    if (snap.exists()) {
+      try {
+        const parsed = JSON.parse(snap.data().data);
+        if (parsed.books) {
+          // merge: keep defaults for any missing
+          library = parsed;
+        }
+      } catch(e){}
+    }
+    renderShelf();
+    if (dmUnlocked) renderDmBody();
+  }, ()=>{});
+}
+
+// which "player slot" am I? Books page doesn't claim characters,
+// so a player sees books open to 'all' OR to any active character.
+// (Access is enforced by the DM via the 'all' flag or per-character.)
+// For simplicity: a non-DM viewer can open a book if access includes 'all'
+// or if access includes ANY player index (DM decides per book who can see).
+// Real per-player gating happens because each player knows which character is theirs;
+// here we treat 'all' as open and specific lists as restricted-to-those-named.
+let myCharIdx = (()=>{ const v = localStorage.getItem('rwby-my-idx'); return v!==null?Number(v):null; })();
+
+function canAccess(book) {
+  if (dmUnlocked) return true;
+  if (!book.access || book.access.includes('all')) return true;
+  if (book.access.length === 0) return false; // locked to nobody
+  // restricted to specific characters
+  if (myCharIdx !== null && book.access.includes(myCharIdx)) return true;
+  return false;
+}
+
+// ════════════ SHELF ════════════
+function renderShelf() {
+  const shelf = $('shelf'); shelf.innerHTML = '';
+  library.books.forEach(book => {
+    const access = canAccess(book);
+    const restricted = book.access && !book.access.includes('all');
+    const el = document.createElement('div');
+    el.className = `book ${book.style} ${access?'':'locked'}`;
+    el.innerHTML = `
+      ${dmUnlocked ? `<div class="book-access-badge ${restricted?'restricted':'open'}">${restricted?'Restricted':'Open'}</div>` : ''}
+      <div class="book-inner">
+        <div class="book-deco">${book.deco}</div>
+        <div class="book-title">${esc(book.name)}</div>
+        <div class="book-meta">${book.pages.length} page${book.pages.length===1?'':'s'}</div>
+      </div>
+      ${access ? '' : `<div class="book-lock"><div class="book-lock-icon">🔒</div><div class="book-lock-text">Sealed</div></div>`}`;
+    if (access) el.addEventListener('click', ()=>openReader(book));
+    shelf.appendChild(el);
+  });
+}
+
+// ════════════ READER ════════════
+let _readerBook = null;
+let _readerPage = 0;
+function openReader(book) {
+  _readerBook = book; _readerPage = 0;
+  const reader = $('reader');
+  reader.className = `reader ${book.style==='holo'?'holo-reader':'paper'}`;
+  $('readerTitle').textContent = book.name;
+  renderReaderPage();
+  $('readerOverlay').classList.add('open');
+}
+function renderReaderPage() {
+  const book = _readerBook; if(!book) return;
+  const body = $('readerBody');
+  if (!book.pages.length) {
+    body.innerHTML = `<div class="page-empty">These pages are blank…</div>`;
+    $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
+    return;
+  }
+  _readerPage = Math.max(0, Math.min(_readerPage, book.pages.length-1));
+  const page = book.pages[_readerPage];
+  body.innerHTML = `
+    ${page.title ? `<div class="page-title">${esc(page.title)}</div>` : ''}
+    ${page.image ? `<img src="${page.image}" class="page-img" onerror="this.style.display='none'">` : ''}
+    <div class="page-text">${esc(page.text||'')}</div>`;
+  body.scrollTop = 0;
+  // dots
+  $('pageDots').innerHTML = book.pages.map((_,i)=>
+    `<button class="page-dot ${i===_readerPage?'active':''}" data-i="${i}"></button>`).join('');
+  $('pageDots').querySelectorAll('.page-dot').forEach(d=>
+    d.addEventListener('click',()=>{ _readerPage=Number(d.dataset.i); renderReaderPage(); }));
+  $('prevPage').disabled = _readerPage===0;
+  $('nextPage').disabled = _readerPage===book.pages.length-1;
+}
+$('prevPage').addEventListener('click',()=>{ _readerPage--; renderReaderPage(); });
+$('nextPage').addEventListener('click',()=>{ _readerPage++; renderReaderPage(); });
+$('readerClose').addEventListener('click',()=>$('readerOverlay').classList.remove('open'));
+$('readerOverlay').addEventListener('click',e=>{ if(e.target===$('readerOverlay')) $('readerOverlay').classList.remove('open'); });
+
+// ════════════ DM ════════════
+$('dmBtn').addEventListener('click',()=>{
+  $('dmOverlay').classList.add('open');
+  if (dmUnlocked) showPanel(); else showLogin();
+});
+$('dmCancel').addEventListener('click',()=>$('dmOverlay').classList.remove('open'));
+$('dmClose').addEventListener('click',()=>$('dmOverlay').classList.remove('open'));
+$('dmUnlock').addEventListener('click',doUnlock);
+$('dmPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doUnlock(); });
+$('dmLock').addEventListener('click',()=>{
+  dmUnlocked=false; sessionStorage.removeItem('books-dm');
+  updateDmDot(); $('dmOverlay').classList.remove('open'); renderShelf();
+});
+
+function doUnlock(){
+  if ($('dmPass').value !== DM_PASS){ alert('Wrong password.'); return; }
+  dmUnlocked = true; sessionStorage.setItem('books-dm','1');
+  $('dmPass').value=''; updateDmDot(); showPanel(); renderShelf();
+}
+function showLogin(){ $('dmLogin').style.display='block'; $('dmPanel').classList.remove('open'); }
+function showPanel(){ $('dmLogin').style.display='none'; $('dmPanel').classList.add('open'); loadPlayers().then(renderDmBody); }
+function updateDmDot(){
+  $('dmDot').classList.toggle('on', dmUnlocked);
+  $('dmStatusText').textContent = dmUnlocked ? 'Dungeon Master' : 'Player';
+}
+
+function renderDmBody(){
+  const body = $('dmBody'); body.innerHTML='';
+  library.books.forEach((book, bi) => {
+    const card = document.createElement('div');
+    card.className = 'dm-book-card';
+    const isAll = !book.access || book.access.includes('all');
+    card.innerHTML = `
+      <div class="dm-book-head" data-toggle="${bi}">
+        <div class="dm-book-name"><span class="bdeco">${book.deco}</span>${esc(book.name)}</div>
+        <span class="dm-book-chev">▾</span>
+      </div>
+      <div class="dm-book-body">
+        <div class="access-section">
+          <div class="access-title">Who can open this book?</div>
+          <div class="access-grid">
+            <label class="access-pill everyone"><input type="checkbox" data-all="${bi}" ${isAll?'checked':''}> ✦ Everyone</label>
+            ${players.map(p=>`<label class="access-pill"><input type="checkbox" data-access="${bi}" data-idx="${p.idx}" ${(!isAll && book.access.includes(p.idx))?'checked':''} ${isAll?'disabled':''}> ${esc(p.name)}</label>`).join('') || '<div class="dm-empty" style="grid-column:1/-1">No active players found</div>'}
+          </div>
+        </div>
+        <div class="dm-pages-title">Pages (${book.pages.length})</div>
+        <div data-pages="${bi}"></div>
+        <button class="btn small" data-addpage="${bi}" style="margin-top:.5rem">+ Add Page</button>
+      </div>`;
+    body.appendChild(card);
+    renderDmPages(card.querySelector(`[data-pages="${bi}"]`), book, bi);
+  });
+
+  // expand/collapse
+  body.querySelectorAll('[data-toggle]').forEach(h=>{
+    h.addEventListener('click',()=>h.closest('.dm-book-card').classList.toggle('expanded'));
+  });
+  // everyone toggle
+  body.querySelectorAll('[data-all]').forEach(cb=>{
+    cb.addEventListener('change',()=>{
+      const bi = Number(cb.dataset.all);
+      if (cb.checked) library.books[bi].access = ['all'];
+      else library.books[bi].access = []; // restricted to nobody until DM picks
+      pushLibrary(); renderDmBody(); renderShelf();
+    });
+  });
+  // per-player access
+  body.querySelectorAll('[data-access]').forEach(cb=>{
+    cb.addEventListener('change',()=>{
+      const bi = Number(cb.dataset.access), idx = Number(cb.dataset.idx);
+      let acc = library.books[bi].access.filter(a=>a!=='all');
+      if (cb.checked) { if(!acc.includes(idx)) acc.push(idx); }
+      else acc = acc.filter(a=>a!==idx);
+      library.books[bi].access = acc;
+      pushLibrary(); renderShelf();
+    });
+  });
+  // add page
+  body.querySelectorAll('[data-addpage]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const bi = Number(btn.dataset.addpage);
+      library.books[bi].pages.push({ id:'pg-'+Date.now(), title:'', text:'', image:'' });
+      pushLibrary(); renderDmBody();
+      // keep this card expanded
+      body.querySelectorAll('.dm-book-card')[bi]?.classList.add('expanded');
+    });
+  });
+}
+
+function renderDmPages(container, book, bi){
+  if (!book.pages.length){ container.innerHTML = '<div class="dm-empty">No pages yet.</div>'; return; }
+  container.innerHTML = '';
+  book.pages.forEach((pg, pi) => {
+    const row = document.createElement('div');
+    row.className = 'dm-page-row';
+    row.innerHTML = `
+      <div class="dm-page-row-top">
+        <span class="dm-page-num">Page ${pi+1}</span>
+        <button class="btn ghost small" data-delpage="${pi}">Delete</button>
+      </div>
+      <div class="dm-field"><label>Page Title</label><input type="text" data-f="title" data-pi="${pi}" value="${esc(pg.title)}" placeholder="Optional title…"></div>
+      <div class="dm-field"><label>Content</label><textarea data-f="text" data-pi="${pi}" placeholder="Write the page…">${esc(pg.text)}</textarea></div>
+      <div class="dm-field"><label>Image URL (optional)</label><input type="text" data-f="image" data-pi="${pi}" value="${esc(pg.image)}" placeholder="https://…"></div>`;
+    container.appendChild(row);
+  });
+  // edits
+  container.querySelectorAll('[data-f]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const pi = Number(inp.dataset.pi), f = inp.dataset.f;
+      book.pages[pi][f] = inp.value;
+      schedulePush();
+    });
+  });
+  container.querySelectorAll('[data-delpage]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pi = Number(btn.dataset.delpage);
+      book.pages.splice(pi,1);
+      pushLibrary(); renderDmBody();
+      $('dmBody').querySelectorAll('.dm-book-card')[bi]?.classList.add('expanded');
+    });
+  });
+}
+
+let _pushTimer=null;
+function schedulePush(){ clearTimeout(_pushTimer); _pushTimer=setTimeout(pushLibrary,500); }
+
+// ════════════ INIT ════════════
+updateDmDot();
+loadPlayers().then(()=>{
+  startLibraryListener();
+});
+</script>
+</body>
+</html>

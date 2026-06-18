@@ -368,8 +368,8 @@ function showCurseWheel() {
     <div class="curse-modal">
       <div class="curse-runes"></div>
       <div class="curse-header">
-        <div class="curse-title">Wheel of Curses</div>
-        <div class="curse-sub">You were either late or you did something to piss me off. So get bent and get fucked. Roll the Wheel.</div>
+        <div class="curse-title">Wheel of Misfortune</div>
+        <div class="curse-sub">The DM has chosen you. Spin, and accept what the dark decides.</div>
       </div>
       <div class="curse-wheel-wrap">
         <div class="curse-pointer"></div>
@@ -1800,6 +1800,7 @@ function claimCharacter(realIdx) {
   state.characters.forEach(ch => { if (ch.claimedBy === MY_PRESENCE_ID) ch.claimedBy = ''; });
   c.claimedBy = MY_PRESENCE_ID;
   state.selectedCharacter = realIdx;
+  localStorage.setItem('rwby-my-idx', realIdx); // shared with the Library for access gating
   pushState(true);
   pushPresence();
   render();

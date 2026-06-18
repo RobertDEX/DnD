@@ -2320,3 +2320,17 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   box-shadow: 0 0 20px rgba(200,0,10,.25) !important;
   color: #fff !important;
 }
+
+/* ── LIBRARY LINK in sidebar ── */
+.library-link {
+  text-decoration: none; text-align: center;
+  display: block;
+  background: linear-gradient(135deg, rgba(120,70,30,.25), rgba(60,30,10,.4)) !important;
+  border-color: rgba(200,150,80,.3) !important;
+  color: #e8c890 !important;
+}
+.library-link:hover {
+  border-color: rgba(200,150,80,.6) !important;
+  box-shadow: 0 0 18px rgba(180,130,60,.2) !important;
+  color: #fff !important;
+}

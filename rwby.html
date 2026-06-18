@@ -415,20 +415,24 @@
         <div class="dm-tab" data-dm-tab="techniques">
           <div class="dm-tab-title">Aura Techniques</div>
           <div class="dm-card">
-            <div class="dm-card-title">Grant New Technique</div>
+            <div class="dm-card-title">Create &amp; Assign Technique</div>
             <div class="dm-card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
                 <div class="field"><label>Name</label><input id="dmTechName" type="text" placeholder="Technique name…"></div>
                 <div class="field"><label>Type</label><input id="dmTechType" type="text" placeholder="Offensive / Defensive…"></div>
-                <div class="field"><label>Level Req.</label><input id="dmTechLevel" type="number" min="1"></div>
-                <div class="field"><label>Aura Cost</label><input id="dmTechCost" type="number" min="0"></div>
+                <div class="field"><label>Level Req.</label><input id="dmTechLevel" type="number" min="1" value="1"></div>
+                <div class="field"><label>Aura Cost</label><input id="dmTechCost" type="number" min="0" value="0"></div>
               </div>
               <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="dmTechDescription" class="small-textarea" placeholder="Describe this technique…"></textarea></div>
-              <button id="createTechniqueBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">Grant Technique</button>
+              <div class="field" style="margin-top:.8rem">
+                <label>Assign to which players?</label>
+                <div id="dmTechAssignList" class="dm-assign-grid"></div>
+              </div>
+              <button id="createTechniqueBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Grant to Selected Players</button>
             </div>
           </div>
           <div class="dm-card">
-            <div class="dm-card-title">All Techniques</div>
+            <div class="dm-card-title">All Assigned Techniques</div>
             <div class="dm-card-body"><div id="dmTechniqueDatabase" class="dm-tech-list"></div></div>
           </div>
         </div>

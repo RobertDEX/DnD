@@ -341,17 +341,26 @@ function showCurseWheel() {
   overlay.id = 'curseOverlay';
   overlay.className = 'curse-overlay';
   overlay.innerHTML = `
+    <div class="curse-fog"></div>
     <div class="curse-modal">
+      <div class="curse-runes"></div>
       <div class="curse-header">
-        <div class="curse-title">The Wheel of Misfortune</div>
-        <div class="curse-sub">The DM has chosen you. Spin to learn your fate.</div>
+        <div class="curse-title">Wheel of Misfortune</div>
+        <div class="curse-sub">The DM has chosen you. Spin, and accept what the dark decides.</div>
       </div>
       <div class="curse-wheel-wrap">
-        <div class="curse-pointer">▼</div>
+        <div class="curse-pointer"></div>
+        <div class="curse-wheel-ring"></div>
         <div class="curse-wheel" id="curseWheel"></div>
-        <div class="curse-wheel-center">✦</div>
+        <div class="curse-wheel-center"></div>
       </div>
-      <button class="neo-btn curse-spin-btn" id="curseSpinBtn">SPIN THE WHEEL</button>
+      <div class="curse-legend">
+        <span><i class="leg mild"></i>Mild</span>
+        <span><i class="leg moderate"></i>Moderate</span>
+        <span><i class="leg severe"></i>Severe</span>
+        <span><i class="leg extreme"></i>Extreme</span>
+      </div>
+      <button class="curse-spin-btn" id="curseSpinBtn">SPIN</button>
       <div class="curse-result" id="curseResult"></div>
     </div>`;
   document.body.appendChild(overlay);
@@ -363,37 +372,40 @@ function showCurseWheel() {
   btn.addEventListener('click', () => spinCurseWheel(btn));
 }
 
-// Visible wheel is a sampling of curses for spectacle (full pool used for actual result)
+// Visible wheel: 24 segments colored purely by severity, no numbers
 let _wheelSample = [];
 function buildWheelGraphic() {
   const wheel = document.getElementById('curseWheel'); if (!wheel) return;
-  // Pick 16 random curses to display as wheel segments
+  const N = 24;
   const pool = [...window.CURSES];
   _wheelSample = [];
-  for (let i = 0; i < 16 && pool.length; i++) {
+  for (let i = 0; i < N && pool.length; i++) {
     _wheelSample.push(pool.splice(Math.floor(Math.random()*pool.length), 1)[0]);
   }
   const seg = 360 / _wheelSample.length;
+  // Evil severity palette — deep, ominous
   const colors = {
-    mild:     ['#1a3a4a','#2a5a6a'],
-    moderate: ['#3a3a1a','#6a5a2a'],
-    severe:   ['#4a2a1a','#7a3a1a'],
-    extreme:  ['#4a0a12','#8a0010']
+    mild:     '#1c4a3a',
+    moderate: '#5a3a0a',
+    severe:   '#6a1505',
+    extreme:  '#3a0010'
   };
-  // Build conic gradient
+  const glows = {
+    mild:     '#2a7a5a',
+    moderate: '#8a5a10',
+    severe:   '#a02508',
+    extreme:  '#7a0020'
+  };
+  // alternate slightly darker shade per segment for depth
   let stops = [];
   _wheelSample.forEach((c, i) => {
-    const col = colors[c.severity][i % 2];
-    stops.push(`${col} ${i*seg}deg ${(i+1)*seg}deg`);
+    const base = colors[c.severity] || '#222';
+    const lit  = glows[c.severity]  || '#444';
+    const col = i % 2 === 0 ? base : lit;
+    stops.push(`${col} ${(i*seg).toFixed(2)}deg ${((i+1)*seg).toFixed(2)}deg`);
   });
-  wheel.style.background = `conic-gradient(${stops.join(',')})`;
-  // Add labels
-  wheel.innerHTML = _wheelSample.map((c, i) => {
-    const angle = i * seg + seg/2;
-    return `<div class="curse-seg-label" style="transform:rotate(${angle}deg)">
-      <span style="transform:rotate(${-angle}deg)">${c.id}</span>
-    </div>`;
-  }).join('');
+  wheel.style.background = `conic-gradient(from 0deg, ${stops.join(',')})`;
+  wheel.innerHTML = ''; // no numbers — colors only
 }
 
 let _spinning = false;
@@ -1040,6 +1052,7 @@ function renderDmSemblance() {
 // RENDER — DM TECHNIQUE DATABASE (all players, grouped)
 // ================================================================
 function renderDmTechniques() {
+  renderTechAssignList();
   const cont = el('dmTechniqueDatabase'); if(!cont) return; cont.innerHTML='';
   let any = false;
   state.characters.forEach(c => {
@@ -1203,18 +1216,48 @@ function saveCharState() {
   if (el('stateDead')?.checked)    { c.state='dead'; c.hp.current=0; c.aura.current=0; }
   pushState(true); render();
 }
+function renderTechAssignList() {
+  const cont = el('dmTechAssignList'); if(!cont) return;
+  const active = state.characters.filter(c => c.state !== 'dead');
+  cont.innerHTML = `
+    <label class="dm-assign-pill all"><input type="checkbox" id="techAssignAll"> <span>✦ All Players</span></label>
+    ${active.map((c,i) => {
+      const realIdx = state.characters.indexOf(c);
+      return `<label class="dm-assign-pill"><input type="checkbox" class="tech-assign-cb" data-idx="${realIdx}"> <span>${esc(c.name||`Player ${realIdx+1}`)}</span></label>`;
+    }).join('')}`;
+  // "All" toggles the rest
+  el('techAssignAll')?.addEventListener('change', e => {
+    cont.querySelectorAll('.tech-assign-cb').forEach(cb => cb.checked = e.target.checked);
+  });
+}
+
 function createTechnique() {
   const name  = el('dmTechName')?.value.trim();
   const type  = el('dmTechType')?.value.trim();
   const desc  = el('dmTechDescription')?.value.trim();
   const level = Number(el('dmTechLevel')?.value) || 1;
   const cost  = Number(el('dmTechCost')?.value)  || 0;
-  const ti    = Number(el('dmTechTarget')?.value ?? state.selectedCharacter);
-  if (!name||!type||!desc) { alert('Fill out all technique fields.'); return; }
-  const target = state.characters[ti]; if(!target) { alert('No target found.'); return; }
-  target.techniques.push({id:`tech-${Date.now()}`,name,level,cost,type,description:desc});
-  ['dmTechName','dmTechLevel','dmTechCost','dmTechType','dmTechDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
-  pushState(true); render();
+  if (!name || !type || !desc) { alert('Fill out name, type, and description.'); return; }
+
+  // Collect all checked players
+  const checked = [...document.querySelectorAll('.tech-assign-cb:checked')].map(cb => Number(cb.dataset.idx));
+  if (!checked.length) { alert('Select at least one player to assign this technique to.'); return; }
+
+  const baseId = Date.now();
+  checked.forEach((idx, n) => {
+    const target = state.characters[idx];
+    if (target) {
+      target.techniques.push({ id:`tech-${baseId}-${n}`, name, level, cost, type, description: desc });
+    }
+  });
+
+  // Clear form
+  ['dmTechName','dmTechType','dmTechDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
+  el('dmTechLevel').value = '1'; el('dmTechCost').value = '0';
+  document.querySelectorAll('.tech-assign-cb, #techAssignAll').forEach(cb => cb.checked = false);
+
+  pushState(true); render(); renderDmTechniques();
+  showToast(`"${name}" granted to ${checked.length} player${checked.length>1?'s':''}`, 'success', 4000);
 }
 function addDustSpell() {
   const c    = getChar();

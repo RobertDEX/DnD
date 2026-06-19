@@ -296,9 +296,19 @@
 
       <div class="tab-content panel tab-panel" data-tab="relations">
         <div class="section-title">Relationships</div>
-        <p class="small-note" style="margin-bottom:1rem;opacity:.6">Track NPCs, allies, enemies, and anyone who matters to your character.</p>
+        <div class="rel-toolbar">
+          <input id="relSearch" class="rel-search" type="text" placeholder="🔍 Search by name, type, or notes…">
+          <select id="relSort" class="rel-sort">
+            <option value="manual">Sort: Manual</option>
+            <option value="name">Sort: Name (A–Z)</option>
+            <option value="type">Sort: Type</option>
+            <option value="standing-high">Sort: Closest first</option>
+            <option value="standing-low">Sort: Most hostile first</option>
+          </select>
+          <button id="addRelBtn" class="neo-btn">+ Add Person</button>
+        </div>
+        <div id="relSummary" class="rel-summary"></div>
         <div id="relationshipsContainer" class="relationships-list"></div>
-        <button id="addRelBtn" class="neo-btn" style="margin-top:.9rem">+ Add Person</button>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="notes">

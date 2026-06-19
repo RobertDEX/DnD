@@ -1585,13 +1585,41 @@ const RELATION_COLORS = {
   Mentor:'#b06eff', Student:'#6effc7', Family:'#ffd060', Lover:'#ff6ec7',
   Acquaintance:'#90a0b0', Neutral:'#8090a0', Unknown:'#556070'
 };
+const RELATION_ICONS = {
+  Ally:'🤝', Friend:'😊', Rival:'⚔️', Enemy:'💢', Mentor:'🎓', Student:'📚',
+  Family:'🏠', Lover:'💗', Acquaintance:'👋', Neutral:'😐', Unknown:'❓'
+};
 const STANDING_LABELS = ['Hostile','Wary','Neutral','Warm','Devoted'];
+
+let _relSearch = '';
+let _relSort = 'manual';
 
 function renderRelationships() {
   const c = getChar();
   const cont = el('relationshipsContainer'); if (!cont) return;
   if (!Array.isArray(c.relationships)) c.relationships = [];
   const rels = c.relationships;
+
+  // ── Summary stats ──
+  const summary = el('relSummary');
+  if (summary) {
+    if (!rels.length) {
+      summary.innerHTML = '';
+    } else {
+      const counts = {};
+      rels.forEach(r => { counts[r.type] = (counts[r.type]||0)+1; });
+      const allies = rels.filter(r => ['Ally','Friend','Family','Lover','Mentor','Student'].includes(r.type)).length;
+      const foes   = rels.filter(r => ['Enemy','Rival'].includes(r.type)).length;
+      summary.innerHTML = `
+        <div class="rel-stat"><span class="rel-stat-num">${rels.length}</span><span class="rel-stat-label">Total</span></div>
+        <div class="rel-stat allies"><span class="rel-stat-num">${allies}</span><span class="rel-stat-label">Friendly</span></div>
+        <div class="rel-stat foes"><span class="rel-stat-num">${foes}</span><span class="rel-stat-label">Hostile</span></div>
+        <div class="rel-stat-chips">
+          ${Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,n])=>
+            `<span class="rel-chip" style="--c:${RELATION_COLORS[t]||'#8090a0'}">${RELATION_ICONS[t]||''} ${t} ${n}</span>`).join('')}
+        </div>`;
+    }
+  }
 
   if (!rels.length) {
     cont.innerHTML = `<div class="rel-empty">
@@ -1602,13 +1630,45 @@ function renderRelationships() {
     return;
   }
 
-  cont.innerHTML = rels.map((r, i) => {
+  // ── Build display list with original indices, then filter + sort ──
+  let display = rels.map((r, i) => ({ r, i }));
+
+  if (_relSearch.trim()) {
+    const q = _relSearch.toLowerCase();
+    display = display.filter(({r}) =>
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.type||'').toLowerCase().includes(q) ||
+      (r.role||'').toLowerCase().includes(q) ||
+      (r.notes||'').toLowerCase().includes(q));
+  }
+
+  const standOf = r => typeof r.standing === 'number' ? r.standing : 2;
+  if (_relSort === 'name')          display.sort((a,b)=>(a.r.name||'').localeCompare(b.r.name||''));
+  else if (_relSort === 'type')     display.sort((a,b)=>(a.r.type||'').localeCompare(b.r.type||''));
+  else if (_relSort === 'standing-high') display.sort((a,b)=>standOf(b.r)-standOf(a.r));
+  else if (_relSort === 'standing-low')  display.sort((a,b)=>standOf(a.r)-standOf(b.r));
+
+  if (!display.length) {
+    cont.innerHTML = `<div class="rel-empty"><div class="rel-empty-icon">🔍</div><div>No matches.</div><span>Try a different search.</span></div>`;
+    return;
+  }
+
+  cont.innerHTML = display.map(({r, i}) => {
     const color = RELATION_COLORS[r.type] || '#8090a0';
+    const icon = RELATION_ICONS[r.type] || '';
     const initial = (r.name||'?').trim()[0]?.toUpperCase() || '?';
-    const standing = typeof r.standing === 'number' ? r.standing : 2; // 0-4
+    const standing = standOf(r);
+    const hasPortrait = !!r.portrait;
     return `
     <div class="rel-card" data-i="${i}" style="--rel-color:${color}">
-      <div class="rel-avatar" style="background:${color}22;border-color:${color}66;color:${color}">${esc(initial)}</div>
+      <div class="rel-avatar-wrap">
+        <label class="rel-avatar" style="background:${color}22;border-color:${color}66;color:${color}" title="Click to add a photo">
+          ${hasPortrait ? `<img src="${r.portrait}" class="rel-avatar-img" onerror="this.style.display='none'">` : `<span class="rel-avatar-initial">${esc(initial)}</span>`}
+          <input type="file" accept="image/*" class="rel-portrait-input" data-i="${i}" style="display:none">
+          <span class="rel-avatar-cam">📷</span>
+        </label>
+        <span class="rel-type-icon" title="${esc(r.type||'')}">${icon}</span>
+      </div>
       <div class="rel-main">
         <div class="rel-card-top">
           <input class="rel-name" data-i="${i}" value="${esc(r.name||'')}" placeholder="Name…">
@@ -1617,26 +1677,41 @@ function renderRelationships() {
           </select>
           <button class="rel-del" data-i="${i}" title="Remove">✕</button>
         </div>
+        <input class="rel-role" data-i="${i}" value="${esc(r.role||'')}" placeholder="Role / title — e.g. Team leader, Estranged sister, Crime boss…">
         <div class="rel-standing">
           <span class="rel-standing-label">${STANDING_LABELS[standing]}</span>
           <div class="rel-standing-track">
-            ${[0,1,2,3,4].map(s=>`<button class="rel-pip ${s<=standing?'on':''}" data-i="${i}" data-s="${s}" style="--pip:${color}"></button>`).join('')}
+            ${[0,1,2,3,4].map(s=>`<button class="rel-pip ${s<=standing?'on':''}" data-i="${i}" data-s="${s}" style="--pip:${color}" title="${STANDING_LABELS[s]}"></button>`).join('')}
           </div>
         </div>
         <textarea class="rel-notes" data-i="${i}" placeholder="How do you know them? What's the history?">${esc(r.notes||'')}</textarea>
+        <div class="rel-card-actions">
+          <button class="rel-move" data-i="${i}" data-dir="up" title="Move up">↑</button>
+          <button class="rel-move" data-i="${i}" data-dir="down" title="Move down">↓</button>
+        </div>
       </div>
     </div>`;
   }).join('');
 
+  // name
   cont.querySelectorAll('.rel-name').forEach(inp => {
     inp.addEventListener('input', () => {
       const i = parseInt(inp.dataset.i);
       c.relationships[i].name = inp.value;
-      const av = inp.closest('.rel-card')?.querySelector('.rel-avatar');
+      const av = inp.closest('.rel-card')?.querySelector('.rel-avatar-initial');
       if (av) av.textContent = (inp.value.trim()[0]||'?').toUpperCase();
       scheduleRelPush();
     });
   });
+  // role
+  cont.querySelectorAll('.rel-role').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const i = parseInt(inp.dataset.i);
+      c.relationships[i].role = inp.value;
+      scheduleRelPush();
+    });
+  });
+  // notes
   cont.querySelectorAll('.rel-notes').forEach(inp => {
     inp.addEventListener('input', () => {
       const i = parseInt(inp.dataset.i);
@@ -1644,6 +1719,7 @@ function renderRelationships() {
       scheduleRelPush();
     });
   });
+  // type
   cont.querySelectorAll('.rel-type').forEach(sel => {
     sel.addEventListener('change', () => {
       const i = parseInt(sel.dataset.i);
@@ -1651,19 +1727,53 @@ function renderRelationships() {
       pushState(true); renderRelationships();
     });
   });
+  // standing pips
   cont.querySelectorAll('.rel-pip').forEach(pip => {
     pip.addEventListener('click', () => {
       const i = parseInt(pip.dataset.i), s = parseInt(pip.dataset.s);
-      // clicking the same pip you're at lowers by one, else set to clicked
       const cur = typeof c.relationships[i].standing === 'number' ? c.relationships[i].standing : 2;
       c.relationships[i].standing = (s === cur && s > 0) ? s - 1 : s;
       pushState(true); renderRelationships();
     });
   });
+  // portrait upload
+  cont.querySelectorAll('.rel-portrait-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const i = parseInt(inp.dataset.i);
+      const file = e.target.files?.[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        // compress to keep Firestore doc small
+        const img = new Image();
+        img.onload = () => {
+          const max = 120;
+          const scale = Math.min(max/img.width, max/img.height, 1);
+          const cv = document.createElement('canvas');
+          cv.width = img.width*scale; cv.height = img.height*scale;
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          c.relationships[i].portrait = cv.toDataURL('image/jpeg', 0.7);
+          pushState(true); renderRelationships();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  // delete
   cont.querySelectorAll('.rel-del').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = parseInt(btn.dataset.i);
       c.relationships.splice(i, 1);
+      pushState(true); renderRelationships();
+    });
+  });
+  // reorder (only meaningful in manual sort)
+  cont.querySelectorAll('.rel-move').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i);
+      const swap = btn.dataset.dir === 'up' ? i-1 : i+1;
+      if (swap < 0 || swap >= c.relationships.length) return;
+      [c.relationships[i], c.relationships[swap]] = [c.relationships[swap], c.relationships[i]];
       pushState(true); renderRelationships();
     });
   });
@@ -1679,14 +1789,16 @@ function bindRelationships() {
   el('addRelBtn')?.addEventListener('click', () => {
     const c = getChar();
     if (!c.relationships) c.relationships = [];
-    c.relationships.push({ name:'', type:'Neutral', notes:'' });
+    c.relationships.unshift({ name:'', type:'Neutral', role:'', notes:'', standing:2, portrait:'' });
+    _relSearch = ''; const sb = el('relSearch'); if (sb) sb.value = '';
     pushState(true); renderRelationships();
-    // focus the new card's name field
     setTimeout(() => {
-      const inputs = el('relationshipsContainer')?.querySelectorAll('.rel-name');
-      inputs?.[inputs.length-1]?.focus();
+      const inp = el('relationshipsContainer')?.querySelector('.rel-name');
+      inp?.focus();
     }, 50);
   });
+  el('relSearch')?.addEventListener('input', e => { _relSearch = e.target.value; renderRelationships(); });
+  el('relSort')?.addEventListener('change', e => { _relSort = e.target.value; renderRelationships(); });
 }
 
 // ================================================================

@@ -1911,6 +1911,36 @@ function bindAccentColor() {
   });
 }
 
+// ── Push personal notes to a PRIVATE library book (only this player can read) ──
+async function pushNotesToLibrary() {
+  const c = getMyCharacter() || getChar();
+  if (!c) return;
+  const notes = c.notesText || '';
+  if (!notes.trim()) { setNotesLibStatus('Nothing to save — write some notes first.', true); return; }
+  const charName = c.name || 'My';
+  try {
+    // Stored per-presence so it's private to this browser/player.
+    await setDoc(doc(db, 'rwby-private', MY_PRESENCE_ID), {
+      owner: MY_PRESENCE_ID,
+      bookName: `${charName} · Notes`,
+      character: charName,
+      text: notes,
+      updated: Date.now()
+    });
+    setNotesLibStatus('✓ Saved to your private Library book.', false);
+  } catch(e) {
+    console.error('pushNotesToLibrary', e);
+    setNotesLibStatus('Could not save — check your connection.', true);
+  }
+}
+function setNotesLibStatus(msg, isError) {
+  const el2 = el('notesLibStatus');
+  if (el2) { el2.textContent = msg; el2.style.color = isError ? '#ff8088' : 'var(--safe)'; el2.style.opacity = '1'; }
+}
+function bindNotesLibrary() {
+  el('pushNotesToLibraryBtn')?.addEventListener('click', pushNotesToLibrary);
+}
+
 function renderAccentColor() {
   const c = getChar();
   const inp = el('accentColorInput');
@@ -2112,6 +2142,7 @@ bindRelationships();
 bindWeapons();
 bindInventory();
 bindAccentColor();
+bindNotesLibrary();
 bindFullscreen();
 render();
 

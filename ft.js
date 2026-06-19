@@ -679,6 +679,7 @@ function renderLostMagic(){
   cont.querySelectorAll('.use-lm').forEach(btn=>btn.addEventListener('click',()=>useLostMagic(btn.dataset.id)));
 }
 function renderDmLostMagic(){
+  renderLMAssignList();
   const container=el('dmLostMagicList');if(!container)return;container.innerHTML='';
   let any=false;
   state.characters.forEach(c=>{
@@ -778,14 +779,29 @@ function addSpell(){
   ['spellName','spellManaCost','spellDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
   pushState();renderSpells();renderHeader();
 }
+function renderLMAssignList(){
+  const cont=el('dmLMAssignList');if(!cont)return;
+  const active=state.characters.filter(c=>c.state!=='dead');
+  cont.innerHTML=`
+    <label class="dm-assign-pill all"><input type="checkbox" id="lmAssignAll"> <span>✦ All Players</span></label>
+    ${active.map(c=>{const realIdx=state.characters.indexOf(c);return `<label class="dm-assign-pill"><input type="checkbox" class="lm-assign-cb" data-idx="${realIdx}"> <span>${esc(c.name||`Player ${realIdx+1}`)}</span></label>`;}).join('')}`;
+  el('lmAssignAll')?.addEventListener('change',e=>{cont.querySelectorAll('.lm-assign-cb').forEach(cb=>cb.checked=e.target.checked);});
+}
 function addLostMagic(){
   const name=el('dmLMName')?.value.trim();const cost=Math.max(0,Number(el('dmLMCost')?.value)||0);
-  const desc=el('dmLMDescription')?.value.trim();const ti=Number(el('dmLMTarget')?.value??state.selectedCharacter);
-  if(!name||!desc){alert('Fill out the Lost Magic form.');return;}
-  const target=state.characters[ti];if(!target){alert('No target found.');return;}
-  target.lostMagic.push({id:`lm-${Date.now()}`,name,manaCost:cost,description:desc});
+  const desc=el('dmLMDescription')?.value.trim();
+  if(!name||!desc){alert('Fill out the Lost Magic name and description.');return;}
+  const checked=[...document.querySelectorAll('.lm-assign-cb:checked')].map(cb=>Number(cb.dataset.idx));
+  if(!checked.length){alert('Select at least one player.');return;}
+  const baseId=Date.now();
+  checked.forEach((idx,n)=>{
+    const target=state.characters[idx];
+    if(target){if(!Array.isArray(target.lostMagic))target.lostMagic=[];target.lostMagic.push({id:`lm-${baseId}-${n}`,name,manaCost:cost,description:desc});}
+  });
   ['dmLMName','dmLMCost','dmLMDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
-  pushState(true);render();
+  document.querySelectorAll('.lm-assign-cb, #lmAssignAll').forEach(cb=>cb.checked=false);
+  pushState(true);render();renderDmLostMagic();
+  showToast(`"${name}" granted to ${checked.length} player${checked.length>1?'s':''}`,'success',4000);
 }
 function rollHp(){
   const c=getChar();const conM=mod(c.stats.CON);
@@ -813,7 +829,13 @@ function saveCharState(){
 function openDmOverlay(){
   el('dmOverlay')?.classList.remove('hidden');
   if(!dmUnlocked){el('dmLoginPanel')?.classList.remove('hidden');el('dmFullscreenPanel')?.classList.add('hidden');const p=el('dmPasswordInput');if(p){p.value='';p.focus();}}
-  else{el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');renderDmLostMagic();renderDmTargetSelect();renderThemeFields();}
+  else{el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');activatePlayersTab();renderDmLostMagic();renderDmTargetSelect();renderThemeFields();}
+}
+function activatePlayersTab(){
+  document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
+  document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
 }
 function closeDmOverlay(){el('dmOverlay')?.classList.add('hidden');}
 function lockDm(){dmUnlocked=false;sessionStorage.removeItem('ft-dm');el('dmFullscreenPanel')?.classList.add('hidden');el('dmLoginPanel')?.classList.remove('hidden');}
@@ -821,7 +843,7 @@ function unlockDm(){
   if(el('dmPasswordInput')?.value!==DM_PASS){alert('Wrong password.');return;}
   dmUnlocked=true;sessionStorage.setItem('ft-dm','1');
   el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');
-  renderDmLostMagic();renderDmTargetSelect();renderThemeFields();
+  activatePlayersTab();renderDmLostMagic();renderDmTargetSelect();renderThemeFields();
 }
 
 // ================================================================
@@ -868,6 +890,18 @@ function bindAll(){
   el('dmCloseFullBtn')?.addEventListener('click',closeDmOverlay);
   el('dmLogoutBtn')?.addEventListener('click',lockDm);
   el('dmPasswordInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')unlockDm();});
+
+  // DM panel tab switching
+  document.querySelectorAll('.dm-nav-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const tab=btn.dataset.dmTab;
+      document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelector(`.dm-tab[data-dm-tab="${tab}"]`)?.classList.add('active');
+      if(tab==='magic'){renderDmLostMagic();}
+    });
+  });
   const readTheme=()=>({bg:el('themeBgColor')?.value||DEF_THEME.bg,panel:el('themePanelColor')?.value||DEF_THEME.panel,accent:el('themeAccentColor')?.value||DEF_THEME.accent,accentTwo:el('themeAccentTwoColor')?.value||DEF_THEME.accentTwo,mana:el('themeManaColor')?.value||DEF_THEME.mana,text:el('themeTextColor')?.value||DEF_THEME.text});
   ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeManaColor','themeTextColor'].forEach(id=>{el(id)?.addEventListener('input',()=>{state.theme=readTheme();applyTheme();});});
   el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushTheme();render();});

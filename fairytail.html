@@ -314,91 +314,150 @@
 <!-- ═══ DM OVERLAY ═══ -->
 <div id="dmOverlay" class="dm-overlay hidden">
 <div class="dm-overlay-inner">
+
+  <!-- LOGIN -->
   <div id="dmLoginPanel" class="dm-login panel">
-    <div class="section-title">DM Access</div>
-    <p class="small-note" style="margin-bottom:.9rem">Enter the DM password to manage characters and grant Lost Magic.</p>
-    <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••"></div>
-    <div class="dm-overlay-actions" style="margin-top:.9rem">
-      <button id="dmLoginBtn" type="button" class="neo-btn">Unlock</button>
-      <button id="dmCloseBtn" type="button" class="neo-btn ghost">Cancel</button>
+    <div class="dm-login-icon">⚜</div>
+    <div class="section-title" style="text-align:center;margin-bottom:.5rem">DM Access</div>
+    <p class="small-note" style="margin-bottom:1.2rem;text-align:center;opacity:.6">Enter password to unlock guild master controls</p>
+    <div class="field"><label>Password</label><input id="dmPasswordInput" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div style="display:flex;gap:.6rem;margin-top:1rem">
+      <button id="dmLoginBtn"  type="button" class="neo-btn" style="flex:1">Unlock</button>
+      <button id="dmCloseBtn"  type="button" class="neo-btn ghost">Cancel</button>
     </div>
   </div>
+
+  <!-- FULLSCREEN DM PANEL -->
   <div id="dmFullscreenPanel" class="dm-fullscreen panel hidden">
-    <div class="dm-fullscreen-top">
-      <div><div class="micro">DM Panel</div><div class="top-character-name" id="dmSelectedCharacterName">—</div></div>
-      <div class="dm-overlay-actions">
-        <button id="dmLogoutBtn"    type="button" class="neo-btn ghost">Lock</button>
-        <button id="dmCloseFullBtn" type="button" class="neo-btn ghost">Close</button>
+
+    <div class="dm-header">
+      <div class="dm-header-left">
+        <div class="dm-header-label">Guild Master Panel</div>
+        <div class="dm-header-char" id="dmSelectedCharacterName">—</div>
+      </div>
+      <div class="dm-header-actions">
+        <button id="dmLogoutBtn"    type="button" class="neo-btn ghost small">🔒 Lock</button>
+        <button id="dmCloseFullBtn" type="button" class="neo-btn ghost small">✕ Close</button>
       </div>
     </div>
-    <div class="dm-sections">
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">Site Theme</summary>
-        <div class="collapse-body">
-          <div class="form-grid">
-            <div class="field"><label>Background</label><input id="themeBgColor" type="color"></div>
-            <div class="field"><label>Panel</label><input id="themePanelColor" type="color"></div>
-            <div class="field"><label>Gold Accent</label><input id="themeAccentColor" type="color"></div>
-            <div class="field"><label>Accent 2</label><input id="themeAccentTwoColor" type="color"></div>
-            <div class="field"><label>Mana Color</label><input id="themeManaColor" type="color"></div>
-            <div class="field"><label>Text</label><input id="themeTextColor" type="color"></div>
+
+    <div class="dm-body">
+
+      <!-- TAB NAV -->
+      <nav class="dm-nav">
+        <button class="dm-nav-btn active" data-dm-tab="players">
+          <span class="dm-nav-icon">👤</span>Players
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="magic">
+          <span class="dm-nav-icon">✦</span>Lost Magic
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="broadcast">
+          <span class="dm-nav-icon">📡</span>Broadcast
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="theme">
+          <span class="dm-nav-icon">🎨</span>Theme
+        </button>
+      </nav>
+
+      <!-- TAB CONTENT -->
+      <div class="dm-content">
+
+        <!-- PLAYERS TAB -->
+        <div class="dm-tab active" data-dm-tab="players">
+          <div class="dm-tab-title">Player Management</div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">Character State</div>
+            <div class="dm-card-body">
+              <div class="field" style="margin-bottom:.8rem"><label>Target Character</label><select id="dmLMTarget"></select></div>
+              <div class="dm-state-btns">
+                <label class="dm-state-pill"><input type="radio" name="charState" id="stateActive"  value="active">  Active</label>
+                <label class="dm-state-pill"><input type="radio" name="charState" id="stateReserve" value="reserve"> Reserve</label>
+                <label class="dm-state-pill"><input type="radio" name="charState" id="stateDead"    value="dead">    Dead</label>
+              </div>
+              <div style="display:flex;gap:.5rem;margin-top:.9rem">
+                <button id="saveCharacterStateBtn" type="button" class="neo-btn" style="flex:1">Save State</button>
+                <button id="deleteCharacterBtn"    type="button" class="neo-btn ghost">Delete</button>
+              </div>
+            </div>
           </div>
-          <div class="dm-tech-actions">
-            <button id="saveThemeBtn"  type="button" class="neo-btn">Save Theme</button>
-            <button id="resetThemeBtn" type="button" class="neo-btn ghost">Reset</button>
+
+          <div class="dm-card">
+            <div class="dm-card-title">🎁 Grant XP / Items</div>
+            <div class="dm-card-body">
+              <div class="field"><label>Target Player</label><select id="grantTarget"></select></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.6rem">
+                <div class="field"><label>XP Amount</label><input id="grantXp" type="number" min="0" placeholder="0"></div>
+                <div class="field"><label>Item / Note</label><input id="grantItem" type="text" placeholder="e.g. Lacrima Crystal"></div>
+              </div>
+              <button id="grantBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">Grant to Player</button>
+            </div>
           </div>
         </div>
-      </details>
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">Character State</summary>
-        <div class="collapse-body">
-          <div class="unlock-grid">
-            <label><input id="stateActive"  type="radio" name="charState" value="active">  Active</label>
-            <label><input id="stateReserve" type="radio" name="charState" value="reserve"> Reserve</label>
-            <label><input id="stateDead"    type="radio" name="charState" value="dead">    Dead</label>
+
+        <!-- LOST MAGIC TAB -->
+        <div class="dm-tab" data-dm-tab="magic">
+          <div class="dm-tab-title">Lost Magic &amp; Special Abilities</div>
+          <div class="dm-card">
+            <div class="dm-card-title">Create &amp; Assign</div>
+            <div class="dm-card-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+                <div class="field"><label>Name</label><input id="dmLMName" type="text" placeholder="e.g. Dragon Force"></div>
+                <div class="field"><label>Mana Cost</label><input id="dmLMCost" type="number" min="0" placeholder="0"></div>
+              </div>
+              <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="dmLMDescription" class="small-textarea" placeholder="What does this Lost Magic do?"></textarea></div>
+              <div class="field" style="margin-top:.8rem">
+                <label>Assign to which players?</label>
+                <div id="dmLMAssignList" class="dm-assign-grid"></div>
+              </div>
+              <button id="addLostMagicBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Grant to Selected Players</button>
+            </div>
           </div>
-          <div class="dm-tech-actions">
-            <button id="saveCharacterStateBtn" type="button" class="neo-btn">Save State</button>
-            <button id="deleteCharacterBtn"    type="button" class="neo-btn ghost">Delete</button>
+          <div class="dm-card">
+            <div class="dm-card-title">All Assigned Lost Magic</div>
+            <div class="dm-card-body"><div id="dmLostMagicList" class="dm-tech-list"></div></div>
           </div>
         </div>
-      </details>
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">Grant Lost Magic / Special Ability</summary>
-        <div class="collapse-body">
-          <div class="form-grid">
-            <div class="field"><label>Assign to Player</label><select id="dmLMTarget"></select></div>
-            <div class="field"><label>Name</label><input id="dmLMName" type="text" placeholder="e.g. Dragon Force"></div>
-            <div class="field"><label>Mana Cost</label><input id="dmLMCost" type="number" min="0" placeholder="0"></div>
+
+        <!-- BROADCAST TAB -->
+        <div class="dm-tab" data-dm-tab="broadcast">
+          <div class="dm-tab-title">Broadcast to Players</div>
+          <div class="dm-card">
+            <div class="dm-card-title">📡 Send Message</div>
+            <div class="dm-card-body">
+              <div class="field"><label>Message — visible to everyone instantly</label>
+                <textarea id="broadcastInput" class="small-textarea" placeholder="Attention guild members…" style="min-height:100px"></textarea>
+              </div>
+              <button id="broadcastBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Send to Everyone</button>
+            </div>
           </div>
-          <div class="field" style="margin-top:.6rem"><label>Description</label><textarea id="dmLMDescription" class="small-textarea" placeholder="What does this Lost Magic do?"></textarea></div>
-          <button id="addLostMagicBtn" type="button" class="neo-btn" style="margin-top:.7rem">Grant to Player</button>
         </div>
-      </details>
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">All Players' Lost Magic</summary>
-        <div class="collapse-body"><div id="dmLostMagicList" class="dm-tech-list"></div></div>
-      </details>
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">📡 Broadcast Message</summary>
-        <div class="collapse-body">
-          <div class="field"><label>Message to all players</label><textarea id="broadcastInput" class="small-textarea" placeholder="Attention guild members…"></textarea></div>
-          <button id="broadcastBtn" type="button" class="neo-btn" style="margin-top:.7rem">Send to Everyone</button>
-        </div>
-      </details>
-      <details class="collapse-block" open>
-        <summary class="collapse-summary">🎁 Grant XP / Items</summary>
-        <div class="collapse-body">
-          <div class="form-grid">
-            <div class="field"><label>Target Player</label><select id="grantTarget"></select></div>
-            <div class="field"><label>XP Amount</label><input id="grantXp" type="number" min="0" placeholder="0"></div>
+
+        <!-- THEME TAB -->
+        <div class="dm-tab" data-dm-tab="theme">
+          <div class="dm-tab-title">Guild Theme</div>
+          <div class="dm-card">
+            <div class="dm-card-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+                <div class="field"><label>Background</label><input id="themeBgColor"       type="color"></div>
+                <div class="field"><label>Panel</label><input id="themePanelColor"         type="color"></div>
+                <div class="field"><label>Gold Accent</label><input id="themeAccentColor"  type="color"></div>
+                <div class="field"><label>Accent 2</label><input id="themeAccentTwoColor"  type="color"></div>
+                <div class="field"><label>Mana Color</label><input id="themeManaColor"     type="color"></div>
+                <div class="field"><label>Text</label><input id="themeTextColor"           type="color"></div>
+              </div>
+              <div style="display:flex;gap:.6rem;margin-top:1rem">
+                <button id="saveThemeBtn"  type="button" class="neo-btn" style="flex:1">Save Theme</button>
+                <button id="resetThemeBtn" type="button" class="neo-btn ghost">Reset</button>
+              </div>
+            </div>
           </div>
-          <div class="field" style="margin-top:.6rem"><label>Item / Note to grant</label><input id="grantItem" type="text" placeholder="e.g. Lacrima Crystal x2"></div>
-          <button id="grantBtn" type="button" class="neo-btn" style="margin-top:.7rem">Grant to Player</button>
         </div>
-      </details>
-    </div>
-  </div>
+
+      </div><!-- /dm-content -->
+    </div><!-- /dm-body -->
+  </div><!-- /dm-fullscreen -->
+
 </div>
 </div>
 

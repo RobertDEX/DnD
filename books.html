@@ -170,6 +170,8 @@ body::after{
 }
 .book-access-badge.open{background:rgba(0,200,100,.2);color:#5ed4a0;border:1px solid rgba(0,200,100,.3)}
 .book-access-badge.restricted{background:rgba(200,0,10,.2);color:#ff8088;border:1px solid rgba(200,0,10,.3)}
+.book-access-badge.private{background:rgba(180,120,255,.2);color:#c8a0ff;border:1px solid rgba(180,120,255,.35)}
+.book.private-book{box-shadow:0 12px 30px rgba(0,0,0,.5),0 0 20px rgba(180,120,255,.12),inset 0 0 30px rgba(0,0,0,.25)}
 
 /* ═══════════ READER MODAL ═══════════ */
 .reader-overlay{
@@ -639,12 +641,38 @@ function startLibraryListener() {
 // Real per-player gating happens because each player knows which character is theirs;
 // here we treat 'all' as open and specific lists as restricted-to-those-named.
 let myCharIdx = (()=>{ const v = localStorage.getItem('rwby-my-idx'); return v!==null?Number(v):null; })();
+const MY_PID = localStorage.getItem('rwby-pid'); // this browser's identity
+
+// Personal private notes book (only this browser can load it)
+let _privateBook = null;
+async function loadPrivateNotes() {
+  if (!MY_PID) return;
+  try {
+    const snap = await getDoc(doc(db, 'rwby-private', MY_PID));
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.text && d.text.trim()) {
+        // Split notes into "pages" by a divider line if present, else one page
+        const chunks = d.text.split(/\n\s*---+\s*\n/);
+        _privateBook = {
+          id:'__private_notes__',
+          name: d.bookName || 'My Notes',
+          style:'notebook',
+          deco:'🔖',
+          private:true,
+          access:['__me__'],
+          pages: chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }))
+        };
+      } else { _privateBook = null; }
+    } else { _privateBook = null; }
+  } catch(e){ console.warn('loadPrivateNotes', e); }
+}
 
 function canAccess(book) {
+  if (book.private) return true; // your own private book — always readable by you
   if (dmUnlocked) return true;
   if (!book.access || book.access.includes('all')) return true;
   if (book.access.length === 0) return false; // locked to nobody
-  // restricted to specific characters
   if (myCharIdx !== null && book.access.includes(myCharIdx)) return true;
   return false;
 }
@@ -652,13 +680,17 @@ function canAccess(book) {
 // ════════════ SHELF ════════════
 function renderShelf() {
   const shelf = $('shelf'); shelf.innerHTML = '';
-  library.books.forEach(book => {
+  // Show the regular library books, then the viewer's private notes book (if any)
+  const allBooks = [...library.books];
+  if (_privateBook && !dmUnlocked) allBooks.push(_privateBook);
+  if (_privateBook && dmUnlocked) allBooks.push(_privateBook); // DM also sees only their own
+  allBooks.forEach(book => {
     const access = canAccess(book);
-    const restricted = book.access && !book.access.includes('all');
+    const restricted = book.access && !book.access.includes('all') && !book.private;
     const el = document.createElement('div');
-    el.className = `book ${book.style} ${access?'':'locked'}`;
+    el.className = `book ${book.style} ${access?'':'locked'} ${book.private?'private-book':''}`;
     el.innerHTML = `
-      ${dmUnlocked ? `<div class="book-access-badge ${restricted?'restricted':'open'}">${restricted?'Restricted':'Open'}</div>` : ''}
+      ${book.private ? `<div class="book-access-badge private">Private</div>` : (dmUnlocked ? `<div class="book-access-badge ${restricted?'restricted':'open'}">${restricted?'Restricted':'Open'}</div>` : '')}
       <div class="book-inner">
         <div class="book-deco">${book.deco}</div>
         <div class="book-title">${esc(book.name)}</div>
@@ -951,6 +983,7 @@ updateDmDot();
 loadPlayers().then(()=>{
   startLibraryListener();
 });
+loadPrivateNotes().then(()=> renderShelf());
 </script>
 </body>
 </html>

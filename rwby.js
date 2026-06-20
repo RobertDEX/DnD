@@ -554,6 +554,10 @@ function startListener() {
       try { renderSemblance();     } catch(e) {}
       try { renderTechniques();    } catch(e) {}
       try { renderDust();          } catch(e) {}
+      try { renderRelationships(); } catch(e) {}
+      try { renderCurses();        } catch(e) {}
+      try { renderWeapons();       } catch(e) {}
+      try { renderInventory();     } catch(e) {}
       try { applyCharacterAccents(); } catch(e) {}
       try { checkLowHp(getChar()); }   catch(e) {}
       recheckWelcomeIfNeeded();
@@ -1161,6 +1165,18 @@ function renderCurseTargetSelect() {
 function renderTabs() {
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab===state.activeTab));
   document.querySelectorAll('.tab-content[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===state.activeTab));
+  // Re-render the now-active tab's content so it's never stale (fixes click-twice)
+  try {
+    switch (state.activeTab) {
+      case 'relations':  renderRelationships(); break;
+      case 'curses':     renderCurses(); break;
+      case 'loadout':    renderWeapons(); renderInventory(); break;
+      case 'skills':     renderSkillsMatrix(); break;
+      case 'techniques': renderTechniques(); break;
+      case 'dust':       renderDust(); break;
+      case 'semblance':  renderSemblance(); break;
+    }
+  } catch(e) {}
 }
 
 // ================================================================
@@ -1361,16 +1377,6 @@ function bindAll() {
 
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.addEventListener('click',()=>{
     state.activeTab=b.dataset.tab; pushState(); renderTabs();
-    // Re-render the content of whichever tab we switched to (ensures it's fresh)
-    try {
-      if (state.activeTab==='relations') renderRelationships();
-      else if (state.activeTab==='loadout') { renderWeapons(); renderInventory(); }
-      else if (state.activeTab==='curses') renderCurses();
-      else if (state.activeTab==='skills') renderSkillsMatrix();
-      else if (state.activeTab==='techniques') renderTechniques();
-      else if (state.activeTab==='dust') renderDust();
-      else if (state.activeTab==='semblance') renderSemblance();
-    } catch(e) {}
   }));
   el('statsGrid')?.addEventListener('click', e => {
     const btn=e.target.closest('button[data-action]'); if(!btn) return;

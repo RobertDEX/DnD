@@ -121,7 +121,7 @@
           <div class="field"><label>Class / Role</label><input id="charClass" type="text"></div>
           <div class="field"><label>Age</label><input id="charAge" type="text"></div>
           <div class="field"><label>Background</label><input id="charBackground" type="text"></div>
-          <div class="field"><label>Magic Type</label><input id="charMagicType" type="text" placeholder="e.g. Fire Dragon Slayer"></div>
+          <div class="field"><label>Primary Magic</label><input id="charMagicType" type="text" placeholder="e.g. Fire Dragon Slayer"></div>
           <div class="field"><label>Magic Category</label>
             <select id="charMagicCategory">
               <option value="">— Choose —</option>
@@ -135,7 +135,7 @@
           </div>
           <div class="field"><label>Guild</label><input id="charGuild" type="text" placeholder="e.g. Fairy Tail"></div>
           <div class="field"><label>Guild Mark</label><input id="charGuildMark" type="text" placeholder="Location · Color"></div>
-          <div class="field"><label>Exceed Partner</label><input id="charExceed" type="text" placeholder="Partner name"></div>
+          <div class="field"><label>Religion</label><input id="charReligion" type="text" placeholder="Faith / beliefs"></div>
         </div>
       </section>
 
@@ -246,7 +246,14 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="magic">
-        <div class="section-title" id="magicSpellTitle">Magic Spells</div>
+        <div class="section-title">Magics Known</div>
+        <p class="small-note" style="margin-bottom:.7rem;opacity:.6">Mages can learn many magics. List every magic your character has learned — your <strong>Primary Magic</strong> (set in the profile) drives spell calculations.</p>
+        <div id="magicsKnownList" class="magics-known-list"></div>
+        <div class="magic-add-row">
+          <input id="newMagicName" type="text" placeholder="Magic name — e.g. Ice-Make, Requip, Heavenly Body…">
+          <button id="addMagicBtn" type="button" class="neo-btn">+ Learn Magic</button>
+        </div>
+        <div class="section-title" id="magicSpellTitle" style="margin-top:1.4rem">Magic Spells</div>
         <div class="panel-inset">
           <div style="font-family:var(--F4);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem">Add Spell</div>
           <div class="form-grid">
@@ -280,18 +287,37 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="loadout">
-        <div class="loadout-grid">
-          <div><div class="section-title">Equipment</div><textarea id="weaponsText" placeholder="Weapons, armour, items…"></textarea></div>
-          <div><div class="section-title">Abilities</div><textarea id="abilitiesText" placeholder="Non-magic abilities, feats…"></textarea></div>
-          <div><div class="section-title">Inventory</div><textarea id="inventoryText" placeholder="Everything you carry…"></textarea></div>
+        <div class="section-title">Weapons</div>
+        <div id="weaponsList" class="weapons-list"></div>
+        <button id="addWeaponBtn" class="neo-btn" style="margin-top:.7rem">+ Add Weapon</button>
+
+        <div class="section-title" style="margin-top:1.6rem">Inventory</div>
+        <div id="inventoryList" class="inventory-list"></div>
+        <div class="inv-add-row">
+          <input id="invAddName" type="text" placeholder="Item name…">
+          <input id="invAddQty" type="number" min="1" value="1" placeholder="Qty">
+          <button id="addInvBtn" class="neo-btn small">+ Add</button>
         </div>
+
+        <div class="section-title" style="margin-top:1.6rem">Abilities &amp; Feats</div>
+        <textarea id="abilitiesText" placeholder="Feats and extra abilities…"></textarea>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="relations">
         <div class="section-title">Relationships</div>
-        <p class="small-note" style="margin-bottom:1rem;opacity:.6">Guild members, rivals, NPCs — anyone who matters to your mage.</p>
+        <div class="rel-toolbar">
+          <input id="relSearch" class="rel-search" type="text" placeholder="🔍 Search by name, type, or notes…">
+          <select id="relSort" class="rel-sort">
+            <option value="manual">Sort: Manual</option>
+            <option value="name">Sort: Name (A–Z)</option>
+            <option value="type">Sort: Type</option>
+            <option value="standing-high">Sort: Closest first</option>
+            <option value="standing-low">Sort: Most hostile first</option>
+          </select>
+          <button id="addRelBtn" class="neo-btn">+ Add Person</button>
+        </div>
+        <div id="relSummary" class="rel-summary"></div>
         <div id="relationshipsContainer" class="relationships-list"></div>
-        <button id="addRelBtn" class="neo-btn" style="margin-top:.9rem">+ Add Person</button>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="notes">

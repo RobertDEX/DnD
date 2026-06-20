@@ -151,7 +151,7 @@ function blankChar(i) {
   return {
     id:`char-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'',race:'',className:'',age:'',level:1,background:'',
-    magicType:'',magicCategory:'',guild:'',guildMark:'',exceed:'',magicRank:'',
+    magicType:'',magicCategory:'',guild:'',guildMark:'',religion:'',magicRank:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
     portrait: '', accentColor: '', claimedBy: '',
@@ -162,7 +162,7 @@ function blankChar(i) {
     deathSaves:{successes:0,failures:0,stable:false},
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     relationships:[],
-    spells:[],lostMagic:[]
+    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[]
   };
 }
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
@@ -229,7 +229,7 @@ function bindDeathSaves(){document.getElementById('stableBtn')?.addEventListener
 
 // ── GRANT ──
 function renderGrantTargetSelect(){const sel=document.getElementById('grantTarget');if(!sel)return;sel.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');}
-function bindGrant(){document.getElementById('grantBtn')?.addEventListener('click',()=>{const targetIdx=parseInt(document.getElementById('grantTarget')?.value??'0');const xp=parseInt(document.getElementById('grantXp')?.value)||0;const item=document.getElementById('grantItem')?.value.trim()||'';if(!xp&&!item)return;const c=state.characters[targetIdx];if(!c)return;const grant=[];if(xp)grant.push(`+${xp} XP`);if(item)grant.push(item);c.notesText=(c.notesText||'')+`\n[DM Grant] ${grant.join(' · ')}`;if(item)c.inventoryText=(c.inventoryText||'')+`\n${item}`;pushState();document.getElementById('grantXp').value='';document.getElementById('grantItem').value='';alert(`Granted to ${c.name||`Player ${targetIdx+1}`}: ${grant.join(', ')}`);render();});}
+function bindGrant(){document.getElementById('grantBtn')?.addEventListener('click',()=>{const targetIdx=parseInt(document.getElementById('grantTarget')?.value??'0');const xp=parseInt(document.getElementById('grantXp')?.value)||0;const item=document.getElementById('grantItem')?.value.trim()||'';if(!xp&&!item)return;const c=state.characters[targetIdx];if(!c)return;const grant=[];if(xp)grant.push(`+${xp} XP`);if(item)grant.push(item);c.notesText=(c.notesText||'')+`\n[DM Grant] ${grant.join(' · ')}`;if(item){if(!Array.isArray(c.inventory))c.inventory=[];c.inventory.push({name:item,qty:1,notes:'Granted by DM'});}pushState();document.getElementById('grantXp').value='';document.getElementById('grantItem').value='';alert(`Granted to ${c.name||`Player ${targetIdx+1}`}: ${grant.join(', ')}`);render();});}
 function bindBroadcast(){document.getElementById('broadcastBtn')?.addEventListener('click',()=>{const msg=document.getElementById('broadcastInput')?.value.trim();if(!msg)return;sendBroadcast(msg);document.getElementById('broadcastInput').value='';});}
 
 let _pushDebounce=null;
@@ -272,6 +272,10 @@ function startListener(){
       try{renderSpells();}catch(e){}
       try{renderLostMagic();}catch(e){}
       try{renderMagicBanner();}catch(e){}
+      try{renderMagicsKnown();}catch(e){}
+      try{renderRelationships();}catch(e){}
+  try{renderWeapons();}catch(e){}
+  try{renderInventory();}catch(e){}
       try{applyCharacterAccents();}catch(e){}
       try{checkLowHp(getChar());}catch(e){}
       recheckWelcomeIfNeeded();
@@ -297,6 +301,7 @@ function normalize(raw){
     const b=blankChar(i);const mc={...b,...c};
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
     mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
+    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];
     const blankSk=makeBlankSkills();mc.skills={};
     Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
     return mc;
@@ -556,7 +561,7 @@ function renderMainFields(){
   sv('charName',c.name);sv('charLevel',c.level);sv('charRace',c.race);sv('charClass',c.className);
   sv('charAge',c.age);sv('charBackground',c.background);sv('charMagicType',c.magicType);
   const mc=el('charMagicCategory');if(mc)mc.value=c.magicCategory||'';
-  sv('charGuild',c.guild);sv('charGuildMark',c.guildMark);sv('charExceed',c.exceed);
+  sv('charGuild',c.guild);sv('charGuildMark',c.guildMark);sv('charReligion',c.religion);
   const mr=el('magicRank');if(mr)mr.value=c.magicRank||'';
   sv('currentHp',c.hp.current);sv('maxHp',c.hp.max);sv('currentMana',c.mana.current);sv('maxMana',c.mana.max);
   sv('armor',c.armor);sv('speed',c.speed);
@@ -645,6 +650,202 @@ function renderSkillsMatrix(){
 // ================================================================
 // SPELLS
 // ================================================================
+// ================================================================
+// WEAPONS & INVENTORY (structured)
+// ================================================================
+const DMG_TYPES = ['Slashing','Piercing','Bludgeoning','Fire','Ice','Lightning','Energy','Magic','Other'];
+const WEAPON_PROF = ['Untrained','Proficient','Expert'];
+
+function renderWeapons() {
+  const c = getChar();
+  const cont = el('weaponsList'); if (!cont) return;
+  const weapons = c.weapons || [];
+
+  if (!weapons.length) {
+    cont.innerHTML = `<div class="wpn-empty"><div class="wpn-empty-icon">⚔️</div><div>No weapons yet.</div><span>Add your armaments, their damage, and your training.</span></div>`;
+    return;
+  }
+
+  cont.innerHTML = weapons.map((w, i) => {
+    const profClass = (w.prof||'Untrained').toLowerCase();
+    return `
+    <div class="wpn-card prof-${profClass}" data-i="${i}">
+      <div class="wpn-head">
+        <input class="wpn-name" data-i="${i}" value="${esc(w.name||'')}" placeholder="Weapon name…">
+        <span class="wpn-prof-badge prof-${profClass}">${esc(w.prof||'Untrained')}</span>
+        <button class="wpn-del" data-i="${i}" title="Remove">✕</button>
+      </div>
+      <div class="wpn-stats">
+        <div class="wpn-stat">
+          <label>Damage</label>
+          <input class="wpn-dmg" data-i="${i}" value="${esc(w.damage||'')}" placeholder="1d8+3">
+        </div>
+        <div class="wpn-stat">
+          <label>Type</label>
+          <select class="wpn-dmgtype" data-i="${i}">
+            ${DMG_TYPES.map(t=>`<option ${w.dmgType===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="wpn-stat">
+          <label>Range</label>
+          <input class="wpn-range" data-i="${i}" value="${esc(w.range||'')}" placeholder="Melee / 60ft">
+        </div>
+        <div class="wpn-stat">
+          <label>Training</label>
+          <select class="wpn-profsel" data-i="${i}">
+            ${WEAPON_PROF.map(p=>`<option ${w.prof===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <input class="wpn-notes" data-i="${i}" value="${esc(w.notes||'')}" placeholder="When to use it, special properties, magic effects…">
+    </div>`;
+  }).join('');
+
+  const upd = (sel, field, rerender=false) => {
+    cont.querySelectorAll(sel).forEach(inp => {
+      const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
+      inp.addEventListener(evt, () => {
+        const i = parseInt(inp.dataset.i);
+        c.weapons[i][field] = inp.value;
+        if (rerender) { pushState(true); renderWeapons(); }
+        else scheduleWpnPush();
+      });
+    });
+  };
+  upd('.wpn-name','name'); upd('.wpn-dmg','damage'); upd('.wpn-range','range'); upd('.wpn-notes','notes');
+  upd('.wpn-dmgtype','dmgType');
+  upd('.wpn-profsel','prof', true); // re-render to recolor badge
+
+  cont.querySelectorAll('.wpn-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      c.weapons.splice(parseInt(btn.dataset.i), 1);
+      pushState(true); renderWeapons();
+    });
+  });
+}
+
+let _wpnPushTimer = null;
+function scheduleWpnPush() { clearTimeout(_wpnPushTimer); _wpnPushTimer = setTimeout(()=>pushState(true), 600); }
+
+function bindWeapons() {
+  el('addWeaponBtn')?.addEventListener('click', () => {
+    const c = getChar();
+    if (!c.weapons) c.weapons = [];
+    c.weapons.push({ name:'', damage:'', dmgType:'Slashing', range:'Melee', prof:'Proficient', notes:'' });
+    pushState(true); renderWeapons();
+    setTimeout(() => {
+      const inputs = el('weaponsList')?.querySelectorAll('.wpn-name');
+      inputs?.[inputs.length-1]?.focus();
+    }, 50);
+  });
+}
+
+// ================================================================
+// INVENTORY
+// ================================================================
+function renderInventory() {
+  const c = getChar();
+  const cont = el('inventoryList'); if (!cont) return;
+  const inv = c.inventory || [];
+
+  if (!inv.length) {
+    cont.innerHTML = `<div class="inv-empty">Your pack is empty.</div>`;
+    return;
+  }
+
+  cont.innerHTML = inv.map((it, i) => `
+    <div class="inv-item" data-i="${i}">
+      <div class="inv-qty-ctrl">
+        <button class="inv-qminus" data-i="${i}">−</button>
+        <span class="inv-qty">${it.qty||1}</span>
+        <button class="inv-qplus" data-i="${i}">+</button>
+      </div>
+      <input class="inv-name" data-i="${i}" value="${esc(it.name||'')}" placeholder="Item…">
+      <input class="inv-notes" data-i="${i}" value="${esc(it.notes||'')}" placeholder="notes…">
+      <button class="inv-del" data-i="${i}" title="Remove">✕</button>
+    </div>`).join('');
+
+  cont.querySelectorAll('.inv-name').forEach(inp => {
+    inp.addEventListener('input', () => { c.inventory[parseInt(inp.dataset.i)].name = inp.value; scheduleInvPush(); });
+  });
+  cont.querySelectorAll('.inv-notes').forEach(inp => {
+    inp.addEventListener('input', () => { c.inventory[parseInt(inp.dataset.i)].notes = inp.value; scheduleInvPush(); });
+  });
+  cont.querySelectorAll('.inv-qplus').forEach(b => {
+    b.addEventListener('click', () => { const i=parseInt(b.dataset.i); c.inventory[i].qty=(c.inventory[i].qty||1)+1; pushState(true); renderInventory(); });
+  });
+  cont.querySelectorAll('.inv-qminus').forEach(b => {
+    b.addEventListener('click', () => { const i=parseInt(b.dataset.i); c.inventory[i].qty=Math.max(1,(c.inventory[i].qty||1)-1); pushState(true); renderInventory(); });
+  });
+  cont.querySelectorAll('.inv-del').forEach(b => {
+    b.addEventListener('click', () => { c.inventory.splice(parseInt(b.dataset.i),1); pushState(true); renderInventory(); });
+  });
+}
+
+let _invPushTimer = null;
+function scheduleInvPush() { clearTimeout(_invPushTimer); _invPushTimer = setTimeout(()=>pushState(true), 600); }
+
+function bindInventory() {
+  const add = () => {
+    const c = getChar();
+    const name = el('invAddName')?.value.trim();
+    const qty  = Math.max(1, Number(el('invAddQty')?.value) || 1);
+    if (!name) return;
+    if (!c.inventory) c.inventory = [];
+    c.inventory.push({ name, qty, notes:'' });
+    el('invAddName').value = ''; el('invAddQty').value = '1';
+    pushState(true); renderInventory();
+    el('invAddName')?.focus();
+  };
+  el('addInvBtn')?.addEventListener('click', add);
+  el('invAddName')?.addEventListener('keydown', e => { if (e.key==='Enter') add(); });
+}
+
+
+// ================================================================
+// MAGICS KNOWN (multiple magics)
+// ================================================================
+function renderMagicsKnown(){
+  const c=getChar();const cont=el('magicsKnownList');if(!cont)return;
+  if(!Array.isArray(c.magics))c.magics=[];
+  const primary=(c.magicType||'').trim().toLowerCase();
+  if(!c.magics.length){
+    cont.innerHTML=`<div class="magics-empty">No magics learned yet. Add the magics your mage has mastered below.</div>`;
+    return;
+  }
+  cont.innerHTML=c.magics.map((m,i)=>{
+    const isPrimary=m.trim().toLowerCase()===primary && primary;
+    return `<div class="magic-chip ${isPrimary?'primary':''}">
+      <span class="magic-chip-icon">✦</span>
+      <span class="magic-chip-name">${esc(m)}</span>
+      ${isPrimary?'<span class="magic-chip-tag">Primary</span>':`<button class="magic-chip-makeprimary" data-i="${i}" title="Set as primary magic">★</button>`}
+      <button class="magic-chip-del" data-i="${i}" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+  cont.querySelectorAll('.magic-chip-del').forEach(btn=>btn.addEventListener('click',()=>{
+    c.magics.splice(parseInt(btn.dataset.i),1);pushState(true);renderMagicsKnown();
+  }));
+  cont.querySelectorAll('.magic-chip-makeprimary').forEach(btn=>btn.addEventListener('click',()=>{
+    c.magicType=c.magics[parseInt(btn.dataset.i)];
+    const mt=el('charMagicType');if(mt)mt.value=c.magicType;
+    pushState(true);renderMagicsKnown();renderMagicBanner();renderCalcPanel();renderHeader();
+  }));
+}
+function addMagic(){
+  const c=getChar();const inp=el('newMagicName');if(!inp)return;
+  const name=inp.value.trim();if(!name)return;
+  if(!Array.isArray(c.magics))c.magics=[];
+  if(c.magics.some(m=>m.trim().toLowerCase()===name.toLowerCase())){inp.value='';return;}
+  c.magics.push(name);
+  // If no primary magic set yet, make this the primary automatically
+  if(!(c.magicType||'').trim()){c.magicType=name;const mt=el('charMagicType');if(mt)mt.value=name;}
+  inp.value='';pushState(true);renderMagicsKnown();renderMagicBanner();renderCalcPanel();renderHeader();
+}
+function bindMagicsKnown(){
+  el('addMagicBtn')?.addEventListener('click',addMagic);
+  el('newMagicName')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addMagic();}});
+}
+
 function renderSpells(){
   const c=getChar();const cont=el('spellList');if(!cont)return;cont.innerHTML='';
   if(!c.spells.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No spells yet. Use the form above.</div>`;return;}
@@ -717,6 +918,15 @@ function renderDmTargetSelect(){
 function renderTabs(){
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.activeTab));
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab===state.activeTab));
+  try {
+    switch (state.activeTab) {
+      case 'relations': renderRelationships(); break;
+      case 'skills':    renderSkillsMatrix(); break;
+      case 'magic':     renderSpells?.(); renderMagicsKnown?.(); break;
+      case 'loadout':   renderWeapons?.(); renderInventory?.(); break;
+      case 'lostmagic': renderLostMagic?.(); break;
+    }
+  } catch(e) {}
 }
 
 // ================================================================
@@ -736,6 +946,9 @@ function render(){
   try{checkResourceFlash(c);}catch(e){}
   try{checkLowHp(c);}catch(e){}
   try{renderMagicBanner();}catch(e){}
+  try{renderMagicsKnown();}catch(e){}
+  try{renderWeapons();}catch(e){}
+  try{renderInventory();}catch(e){}
   try{renderCalcPanel();}catch(e){}
   try{renderStats();}catch(e){}
   try{renderSkillsMatrix();}catch(e){}
@@ -865,7 +1078,7 @@ function bindAll(){
   ii('charName','name');ii('charLevel','level');ii('charRace','race');ii('charClass','className');
   ii('charAge','age');ii('charBackground','background');ii('charMagicType','magicType');
   ic('charMagicCategory','magicCategory');ic('magicRank','magicRank');
-  ii('charGuild','guild');ii('charGuildMark','guildMark');ii('charExceed','exceed');
+  ii('charGuild','guild');ii('charGuildMark','guildMark');ii('charReligion','religion');
   ii('currentHp','currentHp');ii('maxHp','maxHp');ii('currentMana','currentMana');ii('maxMana','maxMana');
   ii('armor','armor');ii('speed','speed');
   ii('weaponsText','weaponsText');ii('abilitiesText','abilitiesText');ii('inventoryText','inventoryText');ii('notesText','notesText');
@@ -909,34 +1122,190 @@ function bindAll(){
 }
 
 // ── RELATIONSHIPS ──
-const FT_RELATION_TYPES=['Ally','Guild Member','Rival','Enemy','Mentor','Family','Client','Neutral'];
-function renderRelationships(){
-  const c=getChar();const cont=el('relationshipsContainer');if(!cont)return;
-  const rels=c.relationships||[];
-  cont.innerHTML=rels.map((r,i)=>`
-    <div class="rel-card" data-i="${i}">
-      <div class="rel-card-top">
-        <input class="rel-name" data-i="${i}" value="${esc(r.name||'')}" placeholder="Name…">
-        <select class="rel-type" data-i="${i}">${FT_RELATION_TYPES.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}</select>
-        <button class="rel-del neo-btn small ghost" data-i="${i}">✕</button>
+const RELATION_TYPES = ['Ally','Friend','Guild Member','Rival','Enemy','Mentor','Student','Family','Lover','Client','Acquaintance','Neutral','Unknown'];
+const RELATION_COLORS = {
+  Ally:'#00e890', Friend:'#ffcf40', 'Guild Member':'#ff8a3c', Rival:'#ff9900', Enemy:'#ff1a2e',
+  Mentor:'#b06eff', Student:'#6effc7', Family:'#ffd060', Lover:'#ff6ec7',
+  Client:'#40c4ff', Acquaintance:'#90a0b0', Neutral:'#8090a0', Unknown:'#556070'
+};
+const RELATION_ICONS = {
+  Ally:'🤝', Friend:'😊', 'Guild Member':'⚜️', Rival:'⚔️', Enemy:'💢', Mentor:'🎓', Student:'📚',
+  Family:'🏠', Lover:'💗', Client:'💼', Acquaintance:'👋', Neutral:'😐', Unknown:'❓'
+};
+const STANDING_LABELS = ['Hostile','Wary','Neutral','Warm','Devoted'];
+
+let _relSearch = '';
+let _relSort = 'manual';
+
+function renderRelationships() {
+  const c = getChar();
+  const cont = el('relationshipsContainer'); if (!cont) return;
+  if (!Array.isArray(c.relationships)) c.relationships = [];
+  const rels = c.relationships;
+
+  const summary = el('relSummary');
+  if (summary) {
+    if (!rels.length) { summary.innerHTML = ''; }
+    else {
+      const counts = {};
+      rels.forEach(r => { counts[r.type] = (counts[r.type]||0)+1; });
+      const allies = rels.filter(r => ['Ally','Friend','Guild Member','Family','Lover','Mentor','Student'].includes(r.type)).length;
+      const foes   = rels.filter(r => ['Enemy','Rival'].includes(r.type)).length;
+      summary.innerHTML = `
+        <div class="rel-stat"><span class="rel-stat-num">${rels.length}</span><span class="rel-stat-label">Total</span></div>
+        <div class="rel-stat allies"><span class="rel-stat-num">${allies}</span><span class="rel-stat-label">Friendly</span></div>
+        <div class="rel-stat foes"><span class="rel-stat-num">${foes}</span><span class="rel-stat-label">Hostile</span></div>
+        <div class="rel-stat-chips">
+          ${Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,n])=>
+            `<span class="rel-chip" style="--c:${RELATION_COLORS[t]||'#8090a0'}">${RELATION_ICONS[t]||''} ${t} ${n}</span>`).join('')}
+        </div>`;
+    }
+  }
+
+  if (!rels.length) {
+    cont.innerHTML = `<div class="rel-empty">
+      <div class="rel-empty-icon">👥</div>
+      <div>No relationships yet.</div>
+      <span>Track guildmates, rivals, mentors, and everyone who matters.</span>
+    </div>`;
+    return;
+  }
+
+  let display = rels.map((r, i) => ({ r, i }));
+  if (_relSearch.trim()) {
+    const q = _relSearch.toLowerCase();
+    display = display.filter(({r}) =>
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.type||'').toLowerCase().includes(q) ||
+      (r.role||'').toLowerCase().includes(q) ||
+      (r.notes||'').toLowerCase().includes(q));
+  }
+  const standOf = r => typeof r.standing === 'number' ? r.standing : 2;
+  if (_relSort === 'name')               display.sort((a,b)=>(a.r.name||'').localeCompare(b.r.name||''));
+  else if (_relSort === 'type')          display.sort((a,b)=>(a.r.type||'').localeCompare(b.r.type||''));
+  else if (_relSort === 'standing-high') display.sort((a,b)=>standOf(b.r)-standOf(a.r));
+  else if (_relSort === 'standing-low')  display.sort((a,b)=>standOf(a.r)-standOf(b.r));
+
+  if (!display.length) {
+    cont.innerHTML = `<div class="rel-empty"><div class="rel-empty-icon">🔍</div><div>No matches.</div><span>Try a different search.</span></div>`;
+    return;
+  }
+
+  cont.innerHTML = display.map(({r, i}) => {
+    const color = RELATION_COLORS[r.type] || '#8090a0';
+    const icon = RELATION_ICONS[r.type] || '';
+    const initial = (r.name||'?').trim()[0]?.toUpperCase() || '?';
+    const standing = standOf(r);
+    const hasPortrait = !!r.portrait;
+    return `
+    <div class="rel-card" data-i="${i}" style="--rel-color:${color}">
+      <div class="rel-avatar-wrap">
+        <label class="rel-avatar" style="background:${color}22;border-color:${color}66;color:${color}" title="Click to add a photo">
+          ${hasPortrait ? `<img src="${r.portrait}" class="rel-avatar-img" onerror="this.style.display='none'">` : `<span class="rel-avatar-initial">${esc(initial)}</span>`}
+          <input type="file" accept="image/*" class="rel-portrait-input" data-i="${i}" style="display:none">
+          <span class="rel-avatar-cam">📷</span>
+        </label>
+        <span class="rel-type-icon" title="${esc(r.type||'')}">${icon}</span>
       </div>
-      <textarea class="rel-notes" data-i="${i}" placeholder="Notes about this person…">${esc(r.notes||'')}</textarea>
-    </div>`).join('');
-  cont.querySelectorAll('.rel-name,.rel-notes,.rel-type').forEach(inp=>{
-    inp.addEventListener('input',()=>saveRelationships(c));
-    inp.addEventListener('change',()=>saveRelationships(c));
+      <div class="rel-main">
+        <div class="rel-card-top">
+          <input class="rel-name" data-i="${i}" value="${esc(r.name||'')}" placeholder="Name…">
+          <select class="rel-type" data-i="${i}" style="color:${color}">
+            ${RELATION_TYPES.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+          <button class="rel-del" data-i="${i}" title="Remove">✕</button>
+        </div>
+        <input class="rel-role" data-i="${i}" value="${esc(r.role||'')}" placeholder="Role / title — e.g. Guild Master, Childhood friend, Dark mage…">
+        <div class="rel-standing">
+          <span class="rel-standing-label">${STANDING_LABELS[standing]}</span>
+          <div class="rel-standing-track">
+            ${[0,1,2,3,4].map(s=>`<button class="rel-pip ${s<=standing?'on':''}" data-i="${i}" data-s="${s}" style="--pip:${color}" title="${STANDING_LABELS[s]}"></button>`).join('')}
+          </div>
+        </div>
+        <textarea class="rel-notes" data-i="${i}" placeholder="How do you know them? What's the history?">${esc(r.notes||'')}</textarea>
+        <div class="rel-card-actions">
+          <button class="rel-move" data-i="${i}" data-dir="up" title="Move up">↑</button>
+          <button class="rel-move" data-i="${i}" data-dir="down" title="Move down">↓</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  cont.querySelectorAll('.rel-name').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const i = parseInt(inp.dataset.i);
+      c.relationships[i].name = inp.value;
+      const av = inp.closest('.rel-card')?.querySelector('.rel-avatar-initial');
+      if (av) av.textContent = (inp.value.trim()[0]||'?').toUpperCase();
+      scheduleRelPush();
+    });
   });
-  cont.querySelectorAll('.rel-del').forEach(btn=>{
-    btn.addEventListener('click',()=>{const i=parseInt(btn.dataset.i);c.relationships.splice(i,1);pushState();renderRelationships();});
+  cont.querySelectorAll('.rel-role').forEach(inp => {
+    inp.addEventListener('input', () => { c.relationships[parseInt(inp.dataset.i)].role = inp.value; scheduleRelPush(); });
+  });
+  cont.querySelectorAll('.rel-notes').forEach(inp => {
+    inp.addEventListener('input', () => { c.relationships[parseInt(inp.dataset.i)].notes = inp.value; scheduleRelPush(); });
+  });
+  cont.querySelectorAll('.rel-type').forEach(sel => {
+    sel.addEventListener('change', () => { c.relationships[parseInt(sel.dataset.i)].type = sel.value; pushState(true); renderRelationships(); });
+  });
+  cont.querySelectorAll('.rel-pip').forEach(pip => {
+    pip.addEventListener('click', () => {
+      const i = parseInt(pip.dataset.i), s = parseInt(pip.dataset.s);
+      const cur = typeof c.relationships[i].standing === 'number' ? c.relationships[i].standing : 2;
+      c.relationships[i].standing = (s === cur && s > 0) ? s - 1 : s;
+      pushState(true); renderRelationships();
+    });
+  });
+  cont.querySelectorAll('.rel-portrait-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const i = parseInt(inp.dataset.i);
+      const file = e.target.files?.[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 120; const scale = Math.min(max/img.width, max/img.height, 1);
+          const cv = document.createElement('canvas');
+          cv.width = img.width*scale; cv.height = img.height*scale;
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          c.relationships[i].portrait = cv.toDataURL('image/jpeg', 0.7);
+          pushState(true); renderRelationships();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  cont.querySelectorAll('.rel-del').forEach(btn => {
+    btn.addEventListener('click', () => { c.relationships.splice(parseInt(btn.dataset.i), 1); pushState(true); renderRelationships(); });
+  });
+  cont.querySelectorAll('.rel-move').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i);
+      const swap = btn.dataset.dir === 'up' ? i-1 : i+1;
+      if (swap < 0 || swap >= c.relationships.length) return;
+      [c.relationships[i], c.relationships[swap]] = [c.relationships[swap], c.relationships[i]];
+      pushState(true); renderRelationships();
+    });
   });
 }
-function saveRelationships(c){
-  const cont=el('relationshipsContainer');if(!cont)return;
-  const cards=cont.querySelectorAll('.rel-card');
-  c.relationships=Array.from(cards).map(card=>({name:card.querySelector('.rel-name').value,type:card.querySelector('.rel-type').value,notes:card.querySelector('.rel-notes').value}));
-  pushState();
+
+let _relPushTimer = null;
+function scheduleRelPush() { clearTimeout(_relPushTimer); _relPushTimer = setTimeout(() => pushState(true), 600); }
+
+function bindRelationships() {
+  el('addRelBtn')?.addEventListener('click', () => {
+    const c = getChar();
+    if (!c.relationships) c.relationships = [];
+    c.relationships.unshift({ name:'', type:'Neutral', role:'', notes:'', standing:2, portrait:'' });
+    _relSearch = ''; const sb = el('relSearch'); if (sb) sb.value = '';
+    pushState(true); renderRelationships();
+    setTimeout(() => { el('relationshipsContainer')?.querySelector('.rel-name')?.focus(); }, 50);
+  });
+  el('relSearch')?.addEventListener('input', e => { _relSearch = e.target.value; renderRelationships(); });
+  el('relSort')?.addEventListener('change', e => { _relSort = e.target.value; renderRelationships(); });
 }
-function bindRelationships(){el('addRelBtn')?.addEventListener('click',()=>{const c=getChar();if(!c.relationships)c.relationships=[];c.relationships.push({name:'',type:'Neutral',notes:''});pushState();renderRelationships();});}
 
 // ── ACCENT COLOR ──
 function applyCharacterAccents(){state.characters.forEach((c,i)=>{const color=c.accentColor||'';const tabs=document.querySelectorAll('.character-tab');if(tabs[i]&&color)tabs[i].style.setProperty('--char-color',color);});}
@@ -1039,6 +1408,9 @@ bindDeathSaves();
 bindBroadcast();
 bindGrant();
 bindRelationships();
+bindMagicsKnown();
+bindWeapons();
+bindInventory();
 bindAccentColor();
 bindFullscreen();
 render();

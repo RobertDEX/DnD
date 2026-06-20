@@ -162,7 +162,7 @@ function blankChar(i) {
     deathSaves:{successes:0,failures:0,stable:false},
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     relationships:[],
-    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[]
+    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[]
   };
 }
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
@@ -317,6 +317,7 @@ function startListener(){
       try{renderLostMagic();}catch(e){}
       try{renderMagicBanner();}catch(e){}
       try{renderMagicsKnown();}catch(e){}
+      try{renderArchive();}catch(e){}
       try{renderRelationships();}catch(e){}
       try{renderWeapons();}catch(e){}
       try{renderInventory();}catch(e){}
@@ -345,7 +346,7 @@ function normalize(raw){
     const b=blankChar(i);const mc={...b,...c};
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
     mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
-    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];
+    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];
     const blankSk=makeBlankSkills();mc.skills={};
     Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
     return mc;
@@ -594,6 +595,7 @@ function renderHeader(){
   const mPct=c.mana.max>0?(c.mana.current/c.mana.max)*100:0;
   const hb=el('topHpBar');if(hb)hb.style.width=hpPct+'%';
   const mb=el('topManaBar');if(mb)mb.style.width=mPct+'%';
+  try{ updateArchiveTabVisibility(); }catch(e){}
 }
 
 // ================================================================
@@ -847,6 +849,127 @@ function bindInventory() {
 
 
 // ================================================================
+// ARCHIVE MAGIC (eidetic memory bank)
+// ================================================================
+const ARCHIVE_ICONS = { Person:'◉', Place:'⬡', Event:'◈', Item:'◇', Knowledge:'❖', Spell:'✦', Other:'▪' };
+let _archiveSearch = '';
+let _archiveFilter = 'all';
+let _archiveEditScroll = 0;
+
+function renderArchive(){
+  const c = getChar();
+  const cont = el('archiveList'); if(!cont) return;
+  if(!Array.isArray(c.archive)) c.archive = [];
+  const records = c.archive;
+
+  const countEl = el('archiveCount');
+  if(countEl) countEl.textContent = `${records.length} RECORD${records.length===1?'':'S'}`;
+
+  let display = records.map((r,i)=>({r,i}));
+  if(_archiveFilter!=='all') display = display.filter(({r})=>r.type===_archiveFilter);
+  if(_archiveSearch.trim()){
+    const q=_archiveSearch.toLowerCase();
+    display = display.filter(({r})=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q));
+  }
+  // newest first
+  display.sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+
+  if(!records.length){
+    cont.innerHTML = `<div class="archive-empty"><div class="archive-empty-glyph">◈</div><div>THE ARCHIVE IS EMPTY</div><span>Commit your first memory above. Nothing seen will be forgotten.</span></div>`;
+    return;
+  }
+  if(!display.length){
+    cont.innerHTML = `<div class="archive-empty"><div class="archive-empty-glyph">⌕</div><div>NO MATCHING RECORDS</div><span>Adjust your search or filter.</span></div>`;
+    return;
+  }
+
+  cont.innerHTML = display.map(({r,i})=>{
+    const icon = ARCHIVE_ICONS[r.type]||'▪';
+    const date = r.ts ? new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `
+    <div class="archive-record" data-i="${i}">
+      <div class="archive-record-rail"></div>
+      <div class="archive-record-main">
+        <div class="archive-record-head">
+          <span class="archive-record-icon">${icon}</span>
+          <span class="archive-record-title">${esc(r.title||'Untitled Record')}</span>
+          <span class="archive-record-type">${esc(r.type||'Other')}</span>
+        </div>
+        <div class="archive-record-body">${esc(r.body||'')}</div>
+        <div class="archive-record-foot">
+          <span class="archive-record-date">⌖ ${date}</span>
+          <div class="archive-record-actions">
+            <button class="archive-edit" data-i="${i}" title="Amend record">✎ Amend</button>
+            <button class="archive-del" data-i="${i}" title="Purge record">✕ Purge</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  cont.querySelectorAll('.archive-del').forEach(btn=>btn.addEventListener('click',()=>{
+    const i=parseInt(btn.dataset.i);
+    if(!confirm('Purge this record from the Archive?'))return;
+    c.archive.splice(i,1); pushState(true); renderArchive();
+  }));
+  cont.querySelectorAll('.archive-edit').forEach(btn=>btn.addEventListener('click',()=>{
+    const i=parseInt(btn.dataset.i);
+    openArchiveEditor(c.archive[i], i);
+  }));
+}
+
+function openArchiveEditor(record, idx){
+  const c=getChar();
+  const cont=el('archiveList');
+  const rec=cont.querySelector(`.archive-record[data-i="${idx}"]`);
+  if(!rec)return;
+  rec.classList.add('editing');
+  rec.querySelector('.archive-record-main').innerHTML = `
+    <div class="archive-edit-form">
+      <div class="archive-add-row">
+        <input class="archive-input" id="archiveEditTitle" value="${esc(record.title||'')}" placeholder="Title…">
+        <select class="archive-type-select" id="archiveEditType">
+          ${['Person','Place','Event','Item','Knowledge','Spell','Other'].map(t=>`<option value="${t}" ${record.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <textarea class="archive-textarea" id="archiveEditBody">${esc(record.body||'')}</textarea>
+      <div class="archive-edit-actions">
+        <button class="archive-add-btn small" id="archiveSaveEdit">⟢ SAVE</button>
+        <button class="archive-cancel-btn" id="archiveCancelEdit">CANCEL</button>
+      </div>
+    </div>`;
+  el('archiveEditBody')?.focus();
+  el('archiveSaveEdit')?.addEventListener('click',()=>{
+    record.title = el('archiveEditTitle').value.trim();
+    record.type  = el('archiveEditType').value;
+    record.body  = el('archiveEditBody').value.trim();
+    record.edited = Date.now();
+    pushState(true); renderArchive();
+  });
+  el('archiveCancelEdit')?.addEventListener('click',()=>renderArchive());
+}
+
+function addArchiveRecord(){
+  const c=getChar();
+  const title=el('archiveNewTitle')?.value.trim();
+  const type=el('archiveNewType')?.value||'Other';
+  const body=el('archiveNewBody')?.value.trim();
+  if(!title&&!body){ return; }
+  if(!Array.isArray(c.archive)) c.archive=[];
+  c.archive.unshift({ id:'arc-'+Date.now(), title:title||'Untitled Record', type, body, ts:Date.now() });
+  el('archiveNewTitle').value=''; el('archiveNewBody').value=''; el('archiveNewType').value='Person';
+  pushState(true); renderArchive();
+  el('archiveNewTitle')?.focus();
+}
+
+function bindArchive(){
+  el('archiveAddBtn')?.addEventListener('click', addArchiveRecord);
+  el('archiveNewTitle')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); el('archiveNewBody')?.focus(); } });
+  el('archiveSearch')?.addEventListener('input', e=>{ _archiveSearch=e.target.value; renderArchive(); });
+  el('archiveFilter')?.addEventListener('change', e=>{ _archiveFilter=e.target.value; renderArchive(); });
+}
+
+// ================================================================
 // MAGICS KNOWN (multiple magics)
 // ================================================================
 function renderMagicsKnown(){
@@ -959,12 +1082,29 @@ function renderDmTargetSelect(){
   const sel=el('dmLMTarget');if(!sel)return;
   sel.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
 }
+function hasArchiveMagic(){
+  const c = getChar();
+  return /archive/i.test(c?.magicType || '');
+}
+function updateArchiveTabVisibility(){
+  const btn = document.querySelector('.archive-tab-btn');
+  const show = hasArchiveMagic();
+  if (btn) btn.style.display = show ? '' : 'none';
+  // If the archive tab is active but no longer available, fall back to Skills
+  if (!show && state.activeTab === 'archive') {
+    state.activeTab = 'skills';
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab==='skills'));
+    document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab==='skills'));
+  }
+}
 function renderTabs(){
+  updateArchiveTabVisibility();
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.activeTab));
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab===state.activeTab));
   try {
     switch (state.activeTab) {
       case 'relations': renderRelationships(); break;
+      case 'archive':   renderArchive(); break;
       case 'skills':    renderSkillsMatrix(); break;
       case 'magic':     renderSpells?.(); renderMagicsKnown?.(); break;
       case 'loadout':   renderWeapons?.(); renderInventory?.(); break;
@@ -991,6 +1131,7 @@ function render(){
   try{checkLowHp(c);}catch(e){}
   try{renderMagicBanner();}catch(e){}
   try{renderMagicsKnown();}catch(e){}
+  try{renderArchive();}catch(e){}
   try{renderWeapons();}catch(e){}
   try{renderInventory();}catch(e){}
   try{renderCalcPanel();}catch(e){}
@@ -1457,6 +1598,7 @@ bindBroadcast();
 bindGrant();
 bindRelationships();
 bindMagicsKnown();
+bindArchive();
 bindWeapons();
 bindInventory();
 bindAccentColor();

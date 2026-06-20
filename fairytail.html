@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Fairy Tail DnD — Guild of Embers</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;500;600;700&family=IM+Fell+English:ital@0;1&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;500;600;700&family=IM+Fell+English:ital@0;1&family=Orbitron:wght@500;700;900&family=EB+Garamond:ital@0;1&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="ft.css">
 </head>
 <body>
@@ -240,6 +240,7 @@
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
+        <button class="tab-btn archive-tab-btn" data-tab="archive">Archive</button>
       </div>
 
       <div class="tab-content active panel tab-panel" data-tab="skills">
@@ -333,9 +334,55 @@
         </div>
       </div>
 
-    </div><!-- /right-col -->
-  </div><!-- /sheet-columns -->
-</main>
+      <div class="tab-content panel tab-panel archive-panel" data-tab="archive">
+        <div class="archive-header">
+          <div class="archive-title-block">
+            <div class="archive-glyph">◈</div>
+            <div>
+              <div class="archive-title">ARCHIVE</div>
+              <div class="archive-subtitle">Eidetic Memory Bank · Magic Interface</div>
+            </div>
+          </div>
+          <div class="archive-status">
+            <span class="archive-status-dot"></span>
+            <span id="archiveCount">0 RECORDS</span>
+          </div>
+        </div>
+
+        <div class="archive-toolbar">
+          <input id="archiveSearch" class="archive-search" type="text" placeholder="⌕ Search the archive…">
+          <select id="archiveFilter" class="archive-filter">
+            <option value="all">All Records</option>
+            <option value="Person">People</option>
+            <option value="Place">Places</option>
+            <option value="Event">Events</option>
+            <option value="Item">Items</option>
+            <option value="Knowledge">Knowledge</option>
+            <option value="Spell">Spells / Magic</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="archive-add">
+          <div class="archive-add-row">
+            <input id="archiveNewTitle" class="archive-input" type="text" placeholder="Record title — name, place, thing…">
+            <select id="archiveNewType" class="archive-type-select">
+              <option value="Person">Person</option>
+              <option value="Place">Place</option>
+              <option value="Event">Event</option>
+              <option value="Item">Item</option>
+              <option value="Knowledge">Knowledge</option>
+              <option value="Spell">Spell / Magic</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <textarea id="archiveNewBody" class="archive-textarea" placeholder="Everything recorded… what was seen, heard, learned. The Archive forgets nothing."></textarea>
+          <button id="archiveAddBtn" class="archive-add-btn">⟢ COMMIT TO ARCHIVE</button>
+        </div>
+
+        <div id="archiveList" class="archive-list"></div>
+      </div>
+
 </div><!-- /app -->
 
 <!-- ═══ DM OVERLAY ═══ -->

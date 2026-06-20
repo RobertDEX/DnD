@@ -1365,3 +1365,109 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
 .inv-add-row { display:grid; grid-template-columns:1fr auto auto; gap:.5rem; margin-top:.6rem; }
 .inv-add-row input { background:rgba(0,0,0,.4) !important; border:1px solid rgba(200,130,40,.15) !important; border-radius:8px !important; padding:.55rem .7rem !important; color:var(--text); font-family:var(--F4); }
 .inv-add-row input[type="number"] { width:70px; }
+
+/* ════════════════════════════════════════════════════════════════
+   ARCHIVE MAGIC — hyper-futuristic golden memory interface
+   ════════════════════════════════════════════════════════════════ */
+.archive-tab-btn.active {
+  color:#ffe9a8 !important;
+  background:linear-gradient(180deg, rgba(232,160,48,.18), rgba(232,160,48,.06)) !important;
+  box-shadow:0 0 18px rgba(232,160,48,.25), inset 0 1px 0 rgba(255,220,140,.3) !important;
+}
+.archive-panel {
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(ellipse 120% 60% at 50% 0%, rgba(232,160,48,.08), transparent 70%),
+    linear-gradient(180deg, rgba(20,12,4,.6), rgba(8,5,2,.7)) !important;
+  border:1px solid rgba(232,160,48,.22) !important;
+}
+/* animated circuit grid backdrop */
+.archive-panel::before {
+  content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:
+    linear-gradient(rgba(232,160,48,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,160,48,.05) 1px, transparent 1px);
+  background-size:32px 32px;
+  mask-image:radial-gradient(ellipse 100% 80% at 50% 20%, #000, transparent 80%);
+  animation:archiveGridDrift 20s linear infinite;
+}
+@keyframes archiveGridDrift { from{background-position:0 0;} to{background-position:32px 32px;} }
+/* scan sweep */
+.archive-panel::after {
+  content:''; position:absolute; left:0; right:0; height:120px; top:-120px; pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(255,210,120,.08), transparent);
+  animation:archiveScan 6s ease-in-out infinite;
+}
+@keyframes archiveScan { 0%{top:-120px;} 60%,100%{top:120%;} }
+.archive-panel > * { position:relative; z-index:2; }
+
+/* header */
+.archive-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.1rem; padding-bottom:1rem; border-bottom:1px solid rgba(232,160,48,.2); }
+.archive-title-block { display:flex; align-items:center; gap:.9rem; }
+.archive-glyph {
+  font-size:2rem; color:#ffd470; line-height:1;
+  filter:drop-shadow(0 0 12px rgba(232,160,48,.7));
+  animation:archiveGlyphPulse 3s ease-in-out infinite;
+}
+@keyframes archiveGlyphPulse { 0%,100%{opacity:.85; transform:rotate(0deg);} 50%{opacity:1; transform:rotate(180deg);} }
+.archive-title {
+  font-family:'Orbitron','Cinzel',sans-serif; font-weight:900; font-size:1.5rem; letter-spacing:.25em;
+  background:linear-gradient(180deg, #fff6dc, #e8a030 60%, #a06010);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 16px rgba(232,160,48,.4));
+}
+.archive-subtitle { font-family:'Share Tech Mono',monospace; font-size:.55rem; letter-spacing:.22em; color:rgba(232,160,48,.6); text-transform:uppercase; margin-top:.2rem; }
+.archive-status { display:flex; align-items:center; gap:.5rem; font-family:'Share Tech Mono',monospace; font-size:.6rem; letter-spacing:.15em; color:#ffd470; padding:.4rem .8rem; border:1px solid rgba(232,160,48,.3); border-radius:999px; background:rgba(232,160,48,.06); }
+.archive-status-dot { width:7px; height:7px; border-radius:50%; background:#ffd470; box-shadow:0 0 8px #ffd470; animation:archiveBlink 1.5s ease-in-out infinite; }
+@keyframes archiveBlink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+/* toolbar */
+.archive-toolbar { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; }
+.archive-search { flex:1; min-width:160px; font-family:'Share Tech Mono',monospace; font-size:.85rem; color:#ffe9c0; background:rgba(0,0,0,.4) !important; border:1px solid rgba(232,160,48,.25) !important; border-radius:8px !important; padding:.6rem .85rem !important; letter-spacing:.05em; }
+.archive-search:focus { border-color:rgba(232,160,48,.6) !important; box-shadow:0 0 0 2px rgba(232,160,48,.12), 0 0 16px rgba(232,160,48,.15) !important; outline:none; }
+.archive-search::placeholder { color:rgba(232,160,48,.4); }
+.archive-filter { font-family:'Share Tech Mono',monospace; font-size:.7rem; letter-spacing:.05em; color:#ffd470; background:rgba(0,0,0,.5) !important; border:1px solid rgba(232,160,48,.25) !important; border-radius:8px !important; padding:.6rem .7rem !important; cursor:pointer; width:auto !important; }
+
+/* add form */
+.archive-add { padding:1rem; border-radius:12px; margin-bottom:1.3rem; background:linear-gradient(135deg, rgba(232,160,48,.07), rgba(0,0,0,.3)); border:1px solid rgba(232,160,48,.25); position:relative; }
+.archive-add::before { content:''; position:absolute; top:-1px; left:12px; right:12px; height:1px; background:linear-gradient(90deg, transparent, #ffd470, transparent); }
+.archive-add-row { display:flex; gap:.6rem; margin-bottom:.6rem; }
+.archive-input { flex:1; font-family:'Cinzel',serif; font-size:.95rem; color:#ffe9c0; background:rgba(0,0,0,.45) !important; border:1px solid rgba(232,160,48,.22) !important; border-radius:8px !important; padding:.6rem .8rem !important; }
+.archive-input:focus { border-color:rgba(232,160,48,.6) !important; box-shadow:0 0 0 2px rgba(232,160,48,.1) !important; outline:none; }
+.archive-type-select { font-family:'Share Tech Mono',monospace; font-size:.72rem; color:#ffd470; background:rgba(0,0,0,.5) !important; border:1px solid rgba(232,160,48,.22) !important; border-radius:8px !important; padding:.6rem .7rem !important; cursor:pointer; }
+.archive-textarea { width:100%; min-height:120px; resize:vertical; font-family:'EB Garamond',serif; font-size:1.05rem; line-height:1.7; color:#f0e0c0; background:rgba(0,0,0,.4) !important; border:1px solid rgba(232,160,48,.2) !important; border-radius:8px !important; padding:.8rem 1rem !important; }
+.archive-textarea:focus { border-color:rgba(232,160,48,.55) !important; box-shadow:0 0 16px rgba(232,160,48,.12) !important; outline:none; }
+.archive-textarea::placeholder { color:rgba(232,160,48,.35); font-style:italic; }
+.archive-add-btn { margin-top:.7rem; width:100%; font-family:'Orbitron','Share Tech Mono',monospace; font-size:.72rem; font-weight:700; letter-spacing:.2em; padding:.85rem; border-radius:9px; cursor:pointer; color:#1a1004; background:linear-gradient(180deg, #ffe080, #e8a030); border:1px solid #ffd470; box-shadow:0 0 20px rgba(232,160,48,.3), inset 0 1px 0 rgba(255,255,255,.4); transition:all .15s; }
+.archive-add-btn:hover { box-shadow:0 0 30px rgba(232,160,48,.5), inset 0 1px 0 rgba(255,255,255,.5); transform:translateY(-1px); }
+.archive-add-btn.small { width:auto; padding:.5rem 1rem; margin-top:0; font-size:.62rem; }
+
+/* records list */
+.archive-list { display:flex; flex-direction:column; gap:.7rem; }
+.archive-empty { text-align:center; padding:3.5rem 1rem; color:rgba(232,160,48,.6); font-family:'Share Tech Mono',monospace; letter-spacing:.15em; }
+.archive-empty-glyph { font-size:3rem; opacity:.4; margin-bottom:1rem; color:#ffd470; }
+.archive-empty span { display:block; font-size:.78rem; opacity:.6; margin-top:.5rem; letter-spacing:.05em; text-transform:none; font-family:'EB Garamond',serif; font-style:italic; }
+
+.archive-record { display:flex; border-radius:10px; overflow:hidden; background:linear-gradient(135deg, rgba(232,160,48,.05), rgba(0,0,0,.25)); border:1px solid rgba(232,160,48,.18); transition:all .2s; animation:archiveRecordIn .4s ease backwards; }
+@keyframes archiveRecordIn { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+.archive-record:hover { border-color:rgba(232,160,48,.45); box-shadow:0 0 20px rgba(232,160,48,.1); }
+.archive-record-rail { width:3px; flex-shrink:0; background:linear-gradient(180deg, #ffd470, #a06010); box-shadow:0 0 10px rgba(232,160,48,.5); }
+.archive-record-main { flex:1; padding:.9rem 1.1rem; min-width:0; }
+.archive-record-head { display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem; }
+.archive-record-icon { color:#ffd470; font-size:1rem; filter:drop-shadow(0 0 6px rgba(232,160,48,.5)); flex-shrink:0; }
+.archive-record-title { font-family:'Cinzel',serif; font-size:1.05rem; font-weight:600; color:#ffe9c0; flex:1; min-width:0; }
+.archive-record-type { font-family:'Share Tech Mono',monospace; font-size:.52rem; letter-spacing:.12em; text-transform:uppercase; color:#ffd470; padding:.25rem .55rem; border:1px solid rgba(232,160,48,.3); border-radius:999px; background:rgba(232,160,48,.08); flex-shrink:0; }
+.archive-record-body { font-family:'EB Garamond',serif; font-size:1rem; line-height:1.65; color:#e0d0b0; white-space:pre-wrap; margin-bottom:.7rem; }
+.archive-record-foot { display:flex; align-items:center; justify-content:space-between; gap:.8rem; }
+.archive-record-date { font-family:'Share Tech Mono',monospace; font-size:.55rem; letter-spacing:.1em; color:rgba(232,160,48,.55); text-transform:uppercase; }
+.archive-record-actions { display:flex; gap:.4rem; }
+.archive-edit, .archive-del { font-family:'Share Tech Mono',monospace; font-size:.58rem; letter-spacing:.08em; padding:.35rem .65rem; border-radius:6px; cursor:pointer; transition:all .15s; text-transform:uppercase; }
+.archive-edit { background:rgba(232,160,48,.1); border:1px solid rgba(232,160,48,.3); color:#ffd470; }
+.archive-edit:hover { background:rgba(232,160,48,.2); }
+.archive-del { background:rgba(255,40,60,.08); border:1px solid rgba(255,40,60,.25); color:#ff7080; }
+.archive-del:hover { background:rgba(255,40,60,.2); color:#fff; }
+.archive-record.editing { border-color:rgba(232,160,48,.6); box-shadow:0 0 24px rgba(232,160,48,.18); }
+.archive-edit-form .archive-add-row { margin-bottom:.6rem; }
+.archive-edit-actions { display:flex; gap:.5rem; margin-top:.6rem; }
+.archive-cancel-btn { font-family:'Share Tech Mono',monospace; font-size:.62rem; letter-spacing:.1em; padding:.5rem 1rem; border-radius:8px; cursor:pointer; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:var(--muted); text-transform:uppercase; }
+.archive-cancel-btn:hover { color:#fff; border-color:rgba(255,255,255,.3); }

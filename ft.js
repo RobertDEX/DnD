@@ -1164,7 +1164,7 @@ function bindAll(){
   });
   const readTheme=()=>({bg:el('themeBgColor')?.value||DEF_THEME.bg,panel:el('themePanelColor')?.value||DEF_THEME.panel,accent:el('themeAccentColor')?.value||DEF_THEME.accent,accentTwo:el('themeAccentTwoColor')?.value||DEF_THEME.accentTwo,mana:el('themeManaColor')?.value||DEF_THEME.mana,text:el('themeTextColor')?.value||DEF_THEME.text});
   ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeManaColor','themeTextColor'].forEach(id=>{el(id)?.addEventListener('input',()=>{state.theme=readTheme();applyTheme();});});
-  el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushTheme();render();});
+  el('saveThemeBtn')?.addEventListener('click',()=>{state.theme=readTheme();pushState(true);render();});
   el('resetThemeBtn')?.addEventListener('click',()=>{state.theme={...DEF_THEME};pushState(true);render();});
 }
 

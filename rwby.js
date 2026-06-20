@@ -1516,8 +1516,8 @@ function bindAll() {
     text: el('themeTextColor')?.value  || DEF_THEME.text,
   });
   themeInps.forEach(id=>{ el(id)?.addEventListener('input',()=>{ state.theme=readTheme(); applyTheme(); }); });
-  el('saveThemeBtn')?.addEventListener('click', ()=>{ state.theme=readTheme(); pushTheme(); render(); });
-  el('resetThemeBtn')?.addEventListener('click',()=>{ state.theme={...DEF_THEME}; pushTheme(); render(); });
+  el('saveThemeBtn')?.addEventListener('click', ()=>{ state.theme=readTheme(); pushState(true); render(); });
+  el('resetThemeBtn')?.addEventListener('click',()=>{ state.theme={...DEF_THEME}; pushState(true); render(); });
 }
 
 // ── PORTRAIT ──

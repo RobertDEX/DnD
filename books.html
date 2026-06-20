@@ -465,6 +465,23 @@ body::after{
   .reader.toc-open .reader-toc{transform:translateX(0);box-shadow:6px 0 24px rgba(0,0,0,.5)}
   .reader-toc-toggle{display:flex !important}
 }
+
+/* ── PRIVATE NOTES EDITOR ── */
+.notes-edit-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.notes-edit-title{font-family:'Cinzel',serif;font-size:1.2rem;color:#5a4530}
+.notes-save-status{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:#8a7050;text-transform:uppercase}
+.private-notes-editor{
+  width:100%;min-height:55vh;resize:vertical;
+  font-family:'EB Garamond',serif;font-size:1.15rem;line-height:1.8;
+  color:#3a2c1c;background:rgba(255,250,240,.5);
+  border:1px solid rgba(120,90,50,.3);border-radius:10px;
+  padding:1.3rem 1.5rem;outline:none;
+}
+.private-notes-editor:focus{border-color:rgba(120,90,50,.6);box-shadow:0 0 0 3px rgba(160,120,60,.12)}
+.private-notes-editor::placeholder{color:rgba(90,69,48,.4);font-style:italic}
+.notes-edit-hint{margin-top:.8rem;font-family:'EB Garamond',serif;font-size:.9rem;font-style:italic;color:#8a7050}
+.notes-edit-hint code{background:rgba(120,90,50,.15);padding:.1rem .4rem;border-radius:4px;font-family:'Share Tech Mono',monospace;font-style:normal;font-size:.82rem}
+
 </style>
 </head>
 <body>
@@ -647,25 +664,27 @@ const MY_PID = localStorage.getItem('rwby-pid'); // this browser's identity
 let _privateBook = null;
 async function loadPrivateNotes() {
   if (!MY_PID) return;
+  let text = '';
+  let bookName = 'My Notes';
   try {
     const snap = await getDoc(doc(db, 'rwby-private', MY_PID));
     if (snap.exists()) {
       const d = snap.data();
-      if (d.text && d.text.trim()) {
-        // Split notes into "pages" by a divider line if present, else one page
-        const chunks = d.text.split(/\n\s*---+\s*\n/);
-        _privateBook = {
-          id:'__private_notes__',
-          name: d.bookName || 'My Notes',
-          style:'notebook',
-          deco:'🔖',
-          private:true,
-          access:['__me__'],
-          pages: chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }))
-        };
-      } else { _privateBook = null; }
-    } else { _privateBook = null; }
+      text = d.text || '';
+      bookName = d.bookName || 'My Notes';
+    }
   } catch(e){ console.warn('loadPrivateNotes', e); }
+  // Always create the private book so it can be edited even when empty.
+  const chunks = text.trim() ? text.split(/\n\s*---+\s*\n/) : [''];
+  _privateBook = {
+    id:'__private_notes__',
+    name: bookName,
+    style:'notebook',
+    deco:'🔖',
+    private:true,
+    access:['__me__'],
+    pages: chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }))
+  };
 }
 
 function canAccess(book) {
@@ -731,11 +750,32 @@ function renderReaderToc() {
 function renderReaderPage() {
   const book = _readerBook; if(!book) return;
   const body = $('readerBody');
-  if (!book.pages.length) {
+  const isEditable = !!book.private; // the personal notes book can be edited inline
+
+  if (!book.pages.length && !isEditable) {
     body.innerHTML = `<div class="page-empty">These pages are blank…</div>`;
     $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
     return;
   }
+
+  if (isEditable) {
+    // Personal notes: one big editable surface (all pages joined back together)
+    const fullText = book.pages.map(p=>p.text).join('\n\n---\n\n');
+    body.innerHTML = `
+      <div class="notes-edit-head">
+        <span class="notes-edit-title">📝 My Personal Notes</span>
+        <span class="notes-save-status" id="notesSaveStatus">Editable · only you can see this</span>
+      </div>
+      <textarea id="privateNotesEditor" class="private-notes-editor" placeholder="Write anything here… your private notes, theories, secrets. Use a line with just --- to split into pages.">${esc(fullText)}</textarea>
+      <div class="notes-edit-hint">Tip: put a line containing only <code>---</code> between sections to break them into separate pages on the shelf.</div>`;
+    const ta = $('privateNotesEditor');
+    ta.addEventListener('input', () => schedulePrivateSave(ta.value));
+    $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
+    // hide TOC nav for the simple editor
+    $('readerToc').innerHTML = `<div class="reader-toc-title">Personal Notes</div><div class="toc-item active"><span class="toc-num">✎</span><span class="toc-name">Editing</span></div>`;
+    return;
+  }
+
   _readerPage = Math.max(0, Math.min(_readerPage, book.pages.length-1));
   const page = book.pages[_readerPage];
   body.innerHTML = `
@@ -753,6 +793,38 @@ function renderReaderPage() {
   // update active TOC item
   $('readerToc').querySelectorAll('[data-toc]').forEach(b=>
     b.classList.toggle('active', Number(b.dataset.toc)===_readerPage));
+}
+
+// Save private notes back to Firestore (debounced)
+let _privateSaveTimer = null;
+function schedulePrivateSave(text) {
+  const st = $('notesSaveStatus');
+  if (st) { st.textContent = '✎ Unsaved…'; st.style.color = '#e0a830'; }
+  clearTimeout(_privateSaveTimer);
+  _privateSaveTimer = setTimeout(() => savePrivateNotes(text), 1000);
+}
+async function savePrivateNotes(text) {
+  if (!MY_PID) return;
+  try {
+    const charName = (_privateBook?.name || 'My Notes').replace(/ · Notes$/,'');
+    await setDoc(doc(db, 'rwby-private', MY_PID), {
+      owner: MY_PID,
+      bookName: _privateBook?.name || 'My Notes',
+      character: charName,
+      text: text,
+      updated: Date.now()
+    });
+    // rebuild local pages so the shelf reflects new splits
+    const chunks = text.split(/\n\s*---+\s*\n/);
+    if (_privateBook) _privateBook.pages = chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }));
+    const st = $('notesSaveStatus');
+    if (st) { st.textContent = '✓ Saved'; st.style.color = '#5ed4a0'; }
+    renderShelf();
+  } catch(e) {
+    console.error('savePrivateNotes', e);
+    const st = $('notesSaveStatus');
+    if (st) { st.textContent = '⚠ Save failed'; st.style.color = '#ff8088'; }
+  }
 }
 $('prevPage').addEventListener('click',()=>{ _readerPage--; renderReaderPage(); });
 $('nextPage').addEventListener('click',()=>{ _readerPage++; renderReaderPage(); });

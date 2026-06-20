@@ -564,11 +564,39 @@ function startListener() {
     try {
       const remote = normalize(JSON.parse(snap.data().data));
       checkStateChanges(remote);  // #31 toasts
-      remote.characters.forEach((rc, i) => { state.characters[i] = rc; });
+
+      // ── TYPING GUARD ──
+      // If the user is actively typing in a field, don't let the incoming
+      // remote snapshot overwrite their character data and re-render the inputs
+      // out from under them. We still accept remote data for OTHER characters
+      // (so other players' edits show), but we preserve the locally-edited one
+      // and skip the disruptive full re-render until they're done typing.
+      const ae = document.activeElement;
+      const isTyping = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
+      const myIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
+
+      remote.characters.forEach((rc, i) => {
+        // While typing, don't overwrite the character the user is editing
+        if (isTyping && i === (myIdx >= 0 ? myIdx : state.selectedCharacter)) return;
+        state.characters[i] = rc;
+      });
       while (state.characters.length < remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme = remote.theme;
       setSyncDot('synced');
+
+      if (isTyping) {
+        // Light refresh only — update things that don't touch focused inputs.
+        try { renderCharacterTabs(); } catch(e) {}
+        try { applyTheme(); }          catch(e) {}
+        try { applyCharacterAccents(); } catch(e) {}
+        recheckWelcomeIfNeeded();
+        if (!document.getElementById('welcomeOverlay') && !_welcomeShown) {
+          _welcomeShown = true; checkWelcome();
+        }
+        return; // skip the full re-render that would disrupt typing
+      }
+
       try { renderCharacterTabs(); } catch(e) {}
       try { renderHeader();        } catch(e) {}
       try { applyTheme();          } catch(e) {}
@@ -1387,8 +1415,14 @@ function updateField(field, value) {
   else if (['level','armor','tempHp'].includes(field)) c[field] = Math.max(0,Number(value)||0);
   else c[field] = value;
   ensureClamp(c); pushState();
-  renderHeader(); renderMainFields(); renderCharacterTabs();
-  if (field==='level') { renderCalcPanel(); renderSkillsMatrix(); }
+  // Update the lightweight displays that DON'T contain the focused input,
+  // so we never rewrite the field the user is actively typing in.
+  renderHeader(); renderCharacterTabs();
+  // Numeric fields affect derived stats; refresh those (they aren't the text field).
+  if (['maxHp','currentHp','maxAura','currentAura','level','armor','tempHp'].includes(field)) {
+    renderMainFields(); renderCalcPanel();
+    if (field==='level') renderSkillsMatrix();
+  }
 }
 
 function bindAll() {

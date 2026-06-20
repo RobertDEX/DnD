@@ -282,11 +282,30 @@ function startListener(){
     try{
       const remote=normalize(JSON.parse(snap.data().data));
       checkStateChanges(remote);
-      remote.characters.forEach((rc,i)=>{state.characters[i]=rc;});
+
+      // TYPING GUARD: don't overwrite / re-render the field the user is editing
+      const ae=document.activeElement;
+      const isTyping=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT');
+      const myIdx=state.characters.findIndex(c=>c.claimedBy===MY_PRESENCE_ID);
+
+      remote.characters.forEach((rc,i)=>{
+        if(isTyping && i===(myIdx>=0?myIdx:state.selectedCharacter)) return;
+        state.characters[i]=rc;
+      });
       while(state.characters.length<remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme=remote.theme;
       setSyncDot('synced');
+
+      if(isTyping){
+        try{renderCharacterTabs();}catch(e){}
+        try{applyTheme();}catch(e){}
+        try{applyCharacterAccents();}catch(e){}
+        recheckWelcomeIfNeeded();
+        if(!document.getElementById('welcomeOverlay')&&!_welcomeShown){_welcomeShown=true;checkWelcome();}
+        return;
+      }
+
       try{renderCharacterTabs();}catch(e){}
       try{renderHeader();}catch(e){}
       try{applyTheme();}catch(e){}
@@ -299,8 +318,8 @@ function startListener(){
       try{renderMagicBanner();}catch(e){}
       try{renderMagicsKnown();}catch(e){}
       try{renderRelationships();}catch(e){}
-  try{renderWeapons();}catch(e){}
-  try{renderInventory();}catch(e){}
+      try{renderWeapons();}catch(e){}
+      try{renderInventory();}catch(e){}
       try{applyCharacterAccents();}catch(e){}
       try{checkLowHp(getChar());}catch(e){}
       recheckWelcomeIfNeeded();
@@ -1094,7 +1113,10 @@ function updateField(field,value){
   else if(['level','armor'].includes(field))c[field]=Math.max(0,Number(value)||0);
   else c[field]=value;
   ensureClamp(c);pushState();
-  renderHeader();renderMainFields();renderMagicBanner();renderCharacterTabs();
+  // Update displays that DON'T contain the focused input.
+  renderHeader();renderMagicBanner();renderCharacterTabs();
+  // Numeric/derived fields aren't the text field, safe to refresh.
+  if(mf[field]||['level','armor'].includes(field)){renderMainFields();renderCalcPanel();}
   if(field==='level'||field==='magicCategory'){renderCalcPanel();renderSkillsMatrix();renderStats();}
 }
 function bindAll(){

@@ -226,6 +226,8 @@ let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let _welcomeShown = false; // shows once per page load after data arrives
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
+let spectator = sessionStorage.getItem('rwby-spectator') === '1';
+let _lastAppliedRaw = null; // flicker guard: last raw payload we rendered
 
 
 // ── PRESENCE ── each browser gets a random color + tab ID
@@ -536,6 +538,7 @@ function applyCurse(curse) {
 
 let _pushDebounce = null;
 async function pushState(immediate = false) {
+  if (spectator) return; // spectators never write
   const hasData = state.characters.some(c => c.name && c.name.trim());
   if (!hasData) return;
   if (immediate) {
@@ -562,21 +565,22 @@ function startListener() {
   _unsub = onSnapshot(doc(db, 'campaigns', 'rwby-campaign'), snap => {
     if (!snap.exists()) return;
     try {
-      const remote = normalize(JSON.parse(snap.data().data));
+      const raw = snap.data().data;
+      // ── FLICKER GUARD ──
+      // If the incoming payload is byte-identical to what we last applied,
+      // there is nothing visible to change — skip the whole re-render. This
+      // stops the "characters refreshing" flash caused by our own write echoes.
+      if (raw === _lastAppliedRaw) { setSyncDot('synced'); return; }
+      _lastAppliedRaw = raw;
+
+      const remote = normalize(JSON.parse(raw));
       checkStateChanges(remote);  // #31 toasts
 
-      // ── TYPING GUARD ──
-      // If the user is actively typing in a field, don't let the incoming
-      // remote snapshot overwrite their character data and re-render the inputs
-      // out from under them. We still accept remote data for OTHER characters
-      // (so other players' edits show), but we preserve the locally-edited one
-      // and skip the disruptive full re-render until they're done typing.
       const ae = document.activeElement;
       const isTyping = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
       const myIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
 
       remote.characters.forEach((rc, i) => {
-        // While typing, don't overwrite the character the user is editing
         if (isTyping && i === (myIdx >= 0 ? myIdx : state.selectedCharacter)) return;
         state.characters[i] = rc;
       });
@@ -586,7 +590,6 @@ function startListener() {
       setSyncDot('synced');
 
       if (isTyping) {
-        // Light refresh only — update things that don't touch focused inputs.
         try { renderCharacterTabs(); } catch(e) {}
         try { applyTheme(); }          catch(e) {}
         try { applyCharacterAccents(); } catch(e) {}
@@ -594,7 +597,7 @@ function startListener() {
         if (!document.getElementById('welcomeOverlay') && !_welcomeShown) {
           _welcomeShown = true; checkWelcome();
         }
-        return; // skip the full re-render that would disrupt typing
+        return;
       }
 
       try { renderCharacterTabs(); } catch(e) {}
@@ -613,6 +616,7 @@ function startListener() {
       try { renderInventory();     } catch(e) {}
       try { applyCharacterAccents(); } catch(e) {}
       try { checkLowHp(getChar()); }   catch(e) {}
+      try { if (spectator) disableAllInputs(); } catch(e) {}
       recheckWelcomeIfNeeded();
       // Show welcome on every page load once we have real data
       if (!document.getElementById('welcomeOverlay') && !_welcomeShown) {
@@ -681,8 +685,8 @@ function normalize(raw) {
 // ================================================================
 // Who you are VIEWING
 function getChar() {
-  // DM can view/edit whoever is selected
-  if (dmUnlocked) return state.characters[state.selectedCharacter] || state.characters[0];
+  // DM and spectators can view whoever is selected
+  if (dmUnlocked || spectator) return state.characters[state.selectedCharacter] || state.characters[0];
   // Players are locked to their OWN claimed character — can't edit anyone else
   const mine = state.characters.find(c => c.claimedBy === MY_PRESENCE_ID);
   if (mine) return mine;
@@ -693,6 +697,38 @@ function isViewingOwnCharacter() {
   if (dmUnlocked) return true;
   const mine = state.characters.find(c => c.claimedBy === MY_PRESENCE_ID);
   return !!mine;
+}
+
+// Spectator ("I'm just watching") — can browse all characters but never edit
+function applySpectatorMode() {
+  if (!spectator) return;
+  document.body.classList.add('spectator-mode');
+  // Show a persistent read-only banner once
+  if (!document.getElementById('spectatorBanner')) {
+    const b = document.createElement('div');
+    b.id = 'spectatorBanner';
+    b.className = 'spectator-banner';
+    b.innerHTML = `<span>👁 Spectating — read only</span><button id="spectatorExit" title="Leave spectator mode">Join instead</button>`;
+    document.body.appendChild(b);
+    document.getElementById('spectatorExit')?.addEventListener('click', () => {
+      spectator = false;
+      sessionStorage.removeItem('rwby-spectator');
+      document.body.classList.remove('spectator-mode');
+      b.remove();
+      checkWelcome();
+    });
+  }
+  disableAllInputs();
+}
+// Disable every editable control so a spectator can't change anything
+function disableAllInputs() {
+  if (!spectator) return;
+  document.querySelectorAll('.main-content input, .main-content textarea, .main-content select, .main-content button').forEach(elx => {
+    // leave tab navigation + character tabs + sidebar toggle usable
+    if (elx.closest('.tab-bar') || elx.closest('.character-tabs') || elx.classList.contains('sidebar-toggle') || elx.closest('.dm-overlay')) return;
+    elx.setAttribute('disabled', 'disabled');
+    elx.classList.add('spectator-disabled');
+  });
 }
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
 function rollD10()     { return Math.floor(Math.random() * 10) + 1; }
@@ -844,9 +880,9 @@ function renderCharacterTabs() {
       </div>
       <span>${esc(c.className||'—')} · Lv${c.level}${c.race?' · '+esc(c.race):''}</span>
       <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
-    // Only the DM can switch which character is displayed.
+    // The DM and spectators can switch which character is displayed.
     // Players are locked to their own claimed character.
-    if (dmUnlocked) {
+    if (dmUnlocked || spectator) {
       btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
     } else {
       btn.style.cursor = 'default';
@@ -1262,6 +1298,7 @@ function render() {
   try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
   try { pushPresence(); }          catch(e) {}
+  try { if (spectator) disableAllInputs(); } catch(e) {}
 }
 
 // ================================================================
@@ -2239,6 +2276,9 @@ function claimCharacter(realIdx) {
 }
 
 function checkWelcome() {
+  // Returning spectators / DM skip the welcome entirely
+  if (spectator) { applySpectatorMode(); return; }
+  if (dmUnlocked) return;
   // Always show on page load — remove existing overlay if any
   document.getElementById('welcomeOverlay')?.remove();
 
@@ -2291,7 +2331,11 @@ function checkWelcome() {
   });
 
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
+    spectator = true;
+    sessionStorage.setItem('rwby-spectator', '1');
     closeWelcome();
+    applySpectatorMode();
+    render();
   });
 
   document.getElementById('welcomeDmBtn')?.addEventListener('click', () => {
@@ -2324,6 +2368,7 @@ bindAccentColor();
 bindNotesLibrary();
 bindFullscreen();
 render();
+if (spectator) applySpectatorMode();
 
 // ── MIGRATION: rwby-chars → campaigns/rwby-campaign ──
 async function migrateIfNeeded() {

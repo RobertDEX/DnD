@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archive · Fairy Tail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#e8a030; --gold-hi:#ffd470; --gold-deep:#a06010;
+  --bg:#0a0703; --panel:rgba(20,12,4,.7);
+  --line:rgba(232,160,48,.22);
+  --text:#f0e6cc; --muted:#9a7f55;
+  --cyan:#5ad8ff;
+  --F1:'Orbitron',sans-serif; --F2:'Rajdhani',sans-serif; --F3:'Share Tech Mono',monospace; --F4:'EB Garamond',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  font-family:var(--F2); color:var(--text); font-size:16px; line-height:1.5;
+  background:
+    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(232,160,48,.12), transparent 70%),
+    radial-gradient(circle at 80% 90%, rgba(90,216,255,.05), transparent 50%),
+    #070502;
+  overflow-x:hidden; min-height:100vh;
+}
+/* animated circuit backdrop */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;
+  background-image:linear-gradient(rgba(232,160,48,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(232,160,48,.04) 1px,transparent 1px);
+  background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 100% 70% at 50% 10%,#000,transparent 85%);
+  animation:gridDrift 24s linear infinite;
+}
+@keyframes gridDrift{from{background-position:0 0}to{background-position:40px 40px}}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:1.2rem 1.2rem 5rem}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;padding-bottom:1.2rem;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:1rem}
+.brand-glyph{font-size:2.4rem;color:var(--gold-hi);filter:drop-shadow(0 0 14px rgba(232,160,48,.7));animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brand-title{font-family:var(--F1);font-weight:900;font-size:1.7rem;letter-spacing:.28em;background:linear-gradient(180deg,#fff6dc,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(232,160,48,.35))}
+.brand-sub{font-family:var(--F3);font-size:.56rem;letter-spacing:.24em;color:rgba(232,160,48,.6);text-transform:uppercase;margin-top:.2rem}
+.top-actions{display:flex;gap:.6rem;align-items:center}
+.btn{font-family:var(--F3);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;padding:.6rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;transition:all .15s;background:rgba(232,160,48,.08);border:1px solid rgba(232,160,48,.25);color:var(--gold-hi)}
+.btn:hover{background:rgba(232,160,48,.18);border-color:rgba(232,160,48,.5);transform:translateY(-1px)}
+.btn.ghost{background:transparent;border-color:rgba(255,255,255,.12);color:#b0a088}
+
+/* ── CHARACTER PICKER ── */
+.char-picker{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-bottom:1.4rem;padding:.85rem 1rem;border-radius:12px;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(10px)}
+.char-picker label{font-family:var(--F3);font-size:.6rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.char-picker select{font-family:var(--F2);font-weight:600;font-size:1rem;color:var(--gold-hi);background:rgba(0,0,0,.5);border:1px solid rgba(232,160,48,.3);border-radius:8px;padding:.5rem .8rem;cursor:pointer}
+.char-status{margin-left:auto;display:flex;align-items:center;gap:.5rem;font-family:var(--F3);font-size:.6rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+.char-status .dot{width:7px;height:7px;border-radius:50%;background:var(--gold-hi);box-shadow:0 0 8px var(--gold-hi);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── MODE TABS (Archive / Bestiary) ── */
+.mode-tabs{display:flex;gap:.5rem;margin-bottom:1.3rem}
+.mode-tab{flex:1;font-family:var(--F1);font-size:.8rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;padding:.9rem;border-radius:10px;cursor:pointer;text-align:center;background:rgba(0,0,0,.3);border:1px solid rgba(232,160,48,.15);color:var(--muted);transition:all .2s;position:relative;overflow:hidden}
+.mode-tab .mt-icon{font-size:1.1rem;margin-right:.4rem}
+.mode-tab:hover{color:var(--text);border-color:rgba(232,160,48,.35)}
+.mode-tab.active{color:#1a1004;background:linear-gradient(180deg,var(--gold-hi),var(--gold));border-color:var(--gold-hi);box-shadow:0 0 24px rgba(232,160,48,.35)}
+.mode-tab.bestiary.active{background:linear-gradient(180deg,#ff9a6a,#d0501a);border-color:#ff9a6a;color:#1a0a04;box-shadow:0 0 24px rgba(208,80,26,.4)}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap}
+.search{flex:1;min-width:180px;font-family:var(--F3);font-size:.88rem;color:var(--gold-hi);background:rgba(0,0,0,.45);border:1px solid rgba(232,160,48,.25);border-radius:8px;padding:.65rem .9rem;letter-spacing:.04em}
+.search:focus{outline:none;border-color:rgba(232,160,48,.6);box-shadow:0 0 0 2px rgba(232,160,48,.12),0 0 16px rgba(232,160,48,.12)}
+.search::placeholder{color:rgba(232,160,48,.4)}
+.filter{font-family:var(--F3);font-size:.68rem;letter-spacing:.05em;color:var(--gold-hi);background:rgba(0,0,0,.5);border:1px solid rgba(232,160,48,.25);border-radius:8px;padding:.65rem .7rem;cursor:pointer}
+.collapse-all{font-family:var(--F3);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:.6rem .8rem;border-radius:8px;cursor:pointer;background:rgba(232,160,48,.08);border:1px solid rgba(232,160,48,.25);color:var(--gold-hi)}
+.collapse-all:hover{background:rgba(232,160,48,.18)}
+
+/* ── ADD FORM ── */
+.add-form{padding:1rem;border-radius:12px;margin-bottom:1.3rem;background:linear-gradient(135deg,rgba(232,160,48,.07),rgba(0,0,0,.35));border:1px solid rgba(232,160,48,.25);position:relative}
+.add-form.bestiary-form{background:linear-gradient(135deg,rgba(208,80,26,.08),rgba(0,0,0,.35));border-color:rgba(208,80,26,.3)}
+.add-form::before{content:'';position:absolute;top:-1px;left:14px;right:14px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-hi),transparent)}
+.add-form.bestiary-form::before{background:linear-gradient(90deg,transparent,#ff9a6a,transparent)}
+/* SMALLER dropdown: title gets the room */
+.add-row{display:grid;grid-template-columns:1fr 130px;gap:.6rem;margin-bottom:.6rem}
+.add-row .ai-title{width:100%;font-family:var(--F2);font-weight:600;font-size:1rem;color:var(--gold-hi);background:rgba(0,0,0,.5);border:1px solid rgba(232,160,48,.25);border-radius:8px;padding:.65rem .85rem}
+.add-row .ai-title:focus{outline:none;border-color:rgba(232,160,48,.6);box-shadow:0 0 0 2px rgba(232,160,48,.1)}
+.add-row .ai-type{font-family:var(--F3);font-size:.66rem;letter-spacing:.04em;color:var(--gold-hi);background:rgba(0,0,0,.55);border:1px solid rgba(232,160,48,.25);border-radius:8px;padding:.65rem .5rem;cursor:pointer;width:100%}
+/* bestiary stat row */
+.beast-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:.6rem}
+.beast-stats input{font-family:var(--F3);font-size:.85rem;color:var(--text);background:rgba(0,0,0,.45);border:1px solid rgba(208,80,26,.25);border-radius:8px;padding:.55rem .6rem;text-align:center}
+.beast-stats input:focus{outline:none;border-color:rgba(208,80,26,.5)}
+.beast-stats .bs-label{font-family:var(--F3);font-size:.5rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:.2rem}
+.add-body{width:100%;min-height:120px;resize:vertical;font-family:var(--F4);font-size:1.08rem;line-height:1.7;color:#f0e0c0;background:rgba(0,0,0,.4);border:1px solid rgba(232,160,48,.2);border-radius:8px;padding:.85rem 1rem}
+.add-body:focus{outline:none;border-color:rgba(232,160,48,.55);box-shadow:0 0 16px rgba(232,160,48,.1)}
+.add-body::placeholder{color:rgba(232,160,48,.35);font-style:italic}
+.commit-btn{margin-top:.7rem;width:100%;font-family:var(--F1);font-size:.72rem;font-weight:700;letter-spacing:.2em;padding:.85rem;border-radius:9px;cursor:pointer;color:#1a1004;background:linear-gradient(180deg,var(--gold-hi),var(--gold));border:1px solid var(--gold-hi);box-shadow:0 0 20px rgba(232,160,48,.3);transition:all .15s}
+.commit-btn:hover{box-shadow:0 0 30px rgba(232,160,48,.5);transform:translateY(-1px)}
+.bestiary-form .commit-btn{background:linear-gradient(180deg,#ff9a6a,#d0501a);border-color:#ff9a6a;box-shadow:0 0 20px rgba(208,80,26,.3)}
+
+/* ── RECORD LIST ── */
+.rec-list{display:flex;flex-direction:column;gap:.6rem}
+.empty{text-align:center;padding:3.5rem 1rem;color:rgba(232,160,48,.55);font-family:var(--F3);letter-spacing:.12em}
+.empty-glyph{font-size:3rem;opacity:.4;margin-bottom:1rem;color:var(--gold-hi)}
+.empty span{display:block;font-family:var(--F4);font-style:italic;font-size:.85rem;margin-top:.5rem;text-transform:none;letter-spacing:0;opacity:.7}
+
+.rec{border-radius:10px;overflow:hidden;background:linear-gradient(135deg,rgba(232,160,48,.05),rgba(0,0,0,.28));border:1px solid rgba(232,160,48,.18);transition:border-color .2s;animation:recIn .35s ease backwards}
+.rec.beast{background:linear-gradient(135deg,rgba(208,80,26,.06),rgba(0,0,0,.28));border-color:rgba(208,80,26,.2)}
+@keyframes recIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.rec:hover{border-color:rgba(232,160,48,.4)}
+.rec.beast:hover{border-color:rgba(208,80,26,.45)}
+/* header (always visible, click to collapse) */
+.rec-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;cursor:pointer;user-select:none}
+.rec-icon{color:var(--gold-hi);font-size:1.05rem;filter:drop-shadow(0 0 6px rgba(232,160,48,.5));flex-shrink:0}
+.rec.beast .rec-icon{color:#ff9a6a;filter:drop-shadow(0 0 6px rgba(208,80,26,.5))}
+.rec-title{font-family:var(--F2);font-weight:600;font-size:1.1rem;color:#fff;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-type{font-family:var(--F3);font-size:.5rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-hi);padding:.25rem .55rem;border:1px solid rgba(232,160,48,.3);border-radius:999px;background:rgba(232,160,48,.08);flex-shrink:0}
+.rec.beast .rec-type{color:#ff9a6a;border-color:rgba(208,80,26,.3);background:rgba(208,80,26,.08)}
+.rec-chev{color:rgba(232,160,48,.5);font-size:.8rem;transition:transform .2s;flex-shrink:0}
+.rec.open .rec-chev{transform:rotate(180deg)}
+.rec-body{display:none;padding:0 1rem 1rem;animation:bodyIn .2s ease}
+.rec.open .rec-body{display:block}
+@keyframes bodyIn{from{opacity:0}to{opacity:1}}
+.rec-text{font-family:var(--F4);font-size:1.05rem;line-height:1.7;color:#e0d0b0;white-space:pre-wrap;padding-top:.5rem;border-top:1px solid rgba(232,160,48,.12)}
+.rec.beast .rec-text{border-top-color:rgba(208,80,26,.15)}
+.beast-statline{display:flex;flex-wrap:wrap;gap:.5rem;margin:.7rem 0}
+.beast-stat{font-family:var(--F3);font-size:.62rem;letter-spacing:.06em;padding:.3rem .6rem;border-radius:7px;background:rgba(208,80,26,.1);border:1px solid rgba(208,80,26,.25);color:#ffb088}
+.beast-stat b{color:#fff;margin-left:.3rem}
+.rec-foot{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.8rem}
+.rec-date{font-family:var(--F3);font-size:.54rem;letter-spacing:.08em;color:rgba(232,160,48,.5);text-transform:uppercase}
+.rec-actions{display:flex;gap:.4rem}
+.rec-btn{font-family:var(--F3);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .65rem;border-radius:6px;cursor:pointer;transition:all .15s}
+.rec-edit{background:rgba(232,160,48,.1);border:1px solid rgba(232,160,48,.3);color:var(--gold-hi)}
+.rec-edit:hover{background:rgba(232,160,48,.2)}
+.rec-del{background:rgba(255,40,60,.08);border:1px solid rgba(255,40,60,.25);color:#ff7080}
+.rec-del:hover{background:rgba(255,40,60,.2);color:#fff}
+
+/* edit mode */
+.rec-edit-form{padding-top:.6rem}
+.rec-edit-form .add-row{margin-bottom:.5rem}
+.rec-edit-actions{display:flex;gap:.5rem;margin-top:.5rem}
+.save-btn{font-family:var(--F1);font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:.5rem 1rem;border-radius:8px;cursor:pointer;color:#1a1004;background:linear-gradient(180deg,var(--gold-hi),var(--gold));border:1px solid var(--gold-hi)}
+.cancel-btn{font-family:var(--F3);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1rem;border-radius:8px;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--muted)}
+.cancel-btn:hover{color:#fff}
+
+.readonly-note{font-family:var(--F3);font-size:.6rem;letter-spacing:.1em;color:var(--muted);text-align:center;padding:1rem;text-transform:uppercase}
+
+@media(max-width:640px){
+  .brand-title{font-size:1.3rem;letter-spacing:.18em}
+  .add-row{grid-template-columns:1fr}
+  .beast-stats{grid-template-columns:repeat(2,1fr)}
+  .mode-tab{font-size:.66rem;padding:.7rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-glyph">◈</div>
+      <div>
+        <div class="brand-title">ARCHIVE</div>
+        <div class="brand-sub">Eidetic Memory Interface · Magic Network</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a href="fairytail.html" class="btn ghost">← Sheet</a>
+      <a href="index.html" class="btn ghost">⌂ Hub</a>
+    </div>
+  </header>
+
+  <div class="char-picker">
+    <label>Archive of</label>
+    <select id="charSelect"></select>
+    <div class="char-status"><span class="dot"></span><span id="recCount">0 RECORDS</span></div>
+  </div>
+
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="archive"><span class="mt-icon">◈</span>Archive</div>
+    <div class="mode-tab bestiary" data-mode="bestiary"><span class="mt-icon">⬣</span>Bestiary</div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" class="search" type="text" placeholder="⌕ Search…">
+    <select id="filter" class="filter"></select>
+    <button id="collapseAll" class="collapse-all">⊟ Collapse All</button>
+  </div>
+
+  <div id="addZone"></div>
+  <div id="recList" class="rec-list"></div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+const FB_CONFIG = {
+  apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
+  projectId:"dand-3c76a",storageBucket:"dand-3c76a.firebasestorage.app",
+  messagingSenderId:"27455098509",appId:"1:27455098509:web:432929f697da9a947d5cc4",measurementId:"G-D1TQM5WJT8"
+};
+const app = initializeApp(FB_CONFIG, 'ft-archive');
+const db  = getFirestore(app);
+const CAMPAIGN = doc(db, 'campaigns', 'ft-campaign');
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+const ARCHIVE_TYPES = ['Person','Place','Event','Item','Knowledge','Spell','Other'];
+const ARCHIVE_ICONS = { Person:'◉', Place:'⬡', Event:'◈', Item:'◇', Knowledge:'❖', Spell:'✦', Other:'▪' };
+const BEAST_TYPES = ['Beast','Demon','Dragon','Undead','Construct','Humanoid','Spirit','Aberration','Other'];
+const BEAST_ICONS = { Beast:'🐾', Demon:'😈', Dragon:'🐉', Undead:'💀', Construct:'⚙', Humanoid:'🗡', Spirit:'👻', Aberration:'🌀', Other:'⬣' };
+
+let state = null;          // full campaign state
+let charIdx = 0;           // which character we're viewing
+let mode = 'archive';      // 'archive' | 'bestiary'
+let search = '';
+let filter = 'all';
+let _editId = null;
+let _isEditing = false;    // guard against snapshot clobber while typing
+let _lastRaw = null;
+// My presence id (set if this browser has claimed a character on the sheet)
+const MY_PID = localStorage.getItem('ft-pid');
+// Spectators can't write. Treat as read-only if not the owner of the selected char (and not DM).
+let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
+
+function hasArchiveMagic(c){ return /archive/i.test(c?.magicType||''); }
+function canEdit(){
+  if (dmUnlocked) return true;
+  if (sessionStorage.getItem('ft-spectator')==='1') return false;
+  const c = state?.characters?.[charIdx];
+  return !!c && c.claimedBy === MY_PID;  // only the owner edits their own archive
+}
+
+// ── load + live sync ──
+function start(){
+  onSnapshot(CAMPAIGN, snap=>{
+    if(!snap.exists()) return;
+    const raw = snap.data().data;
+    if(raw===_lastRaw){ return; }            // flicker guard
+    if(_isEditing){ _lastRaw=raw; return; }  // don't clobber while typing
+    _lastRaw = raw;
+    try { state = JSON.parse(raw); } catch(e){ return; }
+    populateCharSelect();
+    render();
+  }, e=>console.error(e));
+}
+
+async function pushState(){
+  if(!state) return;
+  try { await setDoc(CAMPAIGN, { data: JSON.stringify(state) }); }
+  catch(e){ console.error('push failed', e); }
+}
+
+function populateCharSelect(){
+  const sel = $('charSelect'); if(!sel) return;
+  const chars = state.characters||[];
+  // Prefer characters that actually have Archive Magic; otherwise show all active
+  const archivers = chars.map((c,i)=>({c,i})).filter(({c})=>hasArchiveMagic(c) && c.state!=='dead');
+  const list = archivers.length ? archivers : chars.map((c,i)=>({c,i})).filter(({c})=>c.state!=='dead');
+  // default to my claimed char if it's in the list
+  if(_firstLoad){
+    const mineIdx = chars.findIndex(c=>c.claimedBy===MY_PID && hasArchiveMagic(c));
+    if(mineIdx>=0) charIdx = mineIdx;
+    else if(list.length) charIdx = list[0].i;
+    _firstLoad = false;
+  }
+  sel.innerHTML = list.map(({c,i})=>`<option value="${i}" ${i===charIdx?'selected':''}>${esc(c.name||`Player ${i+1}`)}${hasArchiveMagic(c)?' ◈':''}</option>`).join('')
+    || '<option>No characters</option>';
+}
+let _firstLoad = true;
+
+// ── render ──
+function render(){
+  if(!state) return;
+  const c = state.characters?.[charIdx];
+  if(!c){ $('recList').innerHTML='<div class="empty"><div class="empty-glyph">◈</div>NO CHARACTER</div>'; return; }
+  if(!Array.isArray(c.archive)) c.archive=[];
+  if(!Array.isArray(c.bestiary)) c.bestiary=[];
+
+  const records = mode==='archive' ? c.archive : c.bestiary;
+  const types = mode==='archive' ? ARCHIVE_TYPES : BEAST_TYPES;
+  const icons = mode==='archive' ? ARCHIVE_ICONS : BEAST_ICONS;
+
+  // count + filter dropdown
+  $('recCount').textContent = `${records.length} ${mode==='archive'?(records.length===1?'RECORD':'RECORDS'):(records.length===1?'ENTRY':'ENTRIES')}`;
+  const fil = $('filter');
+  fil.innerHTML = `<option value="all">All ${mode==='archive'?'Records':'Creatures'}</option>` + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+  fil.value = filter;
+
+  renderAddForm(types);
+
+  // filter + search
+  let display = records.map((r,i)=>({r,i}));
+  if(filter!=='all') display = display.filter(({r})=>r.type===filter);
+  if(search.trim()){ const q=search.toLowerCase(); display = display.filter(({r})=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q)); }
+  display.sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+
+  const list = $('recList');
+  if(!records.length){
+    list.innerHTML = `<div class="empty"><div class="empty-glyph">${mode==='archive'?'◈':'⬣'}</div>${mode==='archive'?'THE ARCHIVE IS EMPTY':'NO CREATURES CATALOGUED'}<span>${mode==='archive'?'Commit your first memory above. Nothing seen is forgotten.':'Record the monsters you encounter — their strengths, weaknesses, and lore.'}</span></div>`;
+    return;
+  }
+  if(!display.length){ list.innerHTML = `<div class="empty"><div class="empty-glyph">⌕</div>NO MATCHES<span>Adjust your search or filter.</span></div>`; return; }
+
+  const editable = canEdit();
+  list.innerHTML = display.map(({r,i})=>{
+    const icon = icons[r.type]||'▪';
+    const date = r.ts ? new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
+    const open = _openIds.has(r.id);
+    let statLine = '';
+    if(mode==='bestiary'){
+      const stats=[];
+      if(r.hp) stats.push(`<span class="beast-stat">HP<b>${esc(r.hp)}</b></span>`);
+      if(r.ac) stats.push(`<span class="beast-stat">AC<b>${esc(r.ac)}</b></span>`);
+      if(r.threat) stats.push(`<span class="beast-stat">THREAT<b>${esc(r.threat)}</b></span>`);
+      if(r.weakness) stats.push(`<span class="beast-stat">WEAK<b>${esc(r.weakness)}</b></span>`);
+      if(stats.length) statLine = `<div class="beast-statline">${stats.join('')}</div>`;
+    }
+    if(_editId===r.id && editable){
+      return renderEditForm(r, types);
+    }
+    return `
+    <div class="rec ${mode==='bestiary'?'beast':''} ${open?'open':''}" data-id="${r.id}">
+      <div class="rec-head" data-toggle="${r.id}">
+        <span class="rec-icon">${icon}</span>
+        <span class="rec-title">${esc(r.title||'Untitled')}</span>
+        <span class="rec-type">${esc(r.type||'Other')}</span>
+        <span class="rec-chev">▾</span>
+      </div>
+      <div class="rec-body">
+        ${statLine}
+        <div class="rec-text">${esc(r.body||'')}</div>
+        <div class="rec-foot">
+          <span class="rec-date">⌖ ${date}</span>
+          ${editable?`<div class="rec-actions"><button class="rec-btn rec-edit" data-edit="${r.id}">✎ Amend</button><button class="rec-btn rec-del" data-del="${r.id}">✕ Purge</button></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // toggles
+  list.querySelectorAll('[data-toggle]').forEach(h=>h.addEventListener('click',()=>{
+    const id=h.dataset.toggle;
+    if(_openIds.has(id)) _openIds.delete(id); else _openIds.add(id);
+    render();
+  }));
+  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    const id=b.dataset.del;
+    if(!confirm('Purge this entry?'))return;
+    const arr = mode==='archive'?c.archive:c.bestiary;
+    const idx = arr.findIndex(x=>x.id===id);
+    if(idx>=0) arr.splice(idx,1);
+    pushState(); render();
+  }));
+  list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    _editId=b.dataset.edit; _openIds.add(_editId); render();
+    setTimeout(()=>$('editBody')?.focus(),30);
+  }));
+  bindEditForm(c);
+}
+let _openIds = new Set();
+
+function renderAddForm(types){
+  const zone = $('addZone');
+  if(!canEdit()){ zone.innerHTML = `<div class="readonly-note">👁 Read-only — only ${esc(state.characters?.[charIdx]?.name||'the owner')} (or the DM) can add entries.</div>`; return; }
+  if(mode==='archive'){
+    zone.innerHTML = `
+    <div class="add-form">
+      <div class="add-row">
+        <input id="newTitle" class="ai-title" type="text" placeholder="Record title — name, place, thing…">
+        <select id="newType" class="ai-type">${types.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+      </div>
+      <textarea id="newBody" class="add-body" placeholder="Everything recorded… what was seen, heard, learned."></textarea>
+      <button id="commitBtn" class="commit-btn">⟢ COMMIT TO ARCHIVE</button>
+    </div>`;
+  } else {
+    zone.innerHTML = `
+    <div class="add-form bestiary-form">
+      <div class="add-row">
+        <input id="newTitle" class="ai-title" type="text" placeholder="Creature name…">
+        <select id="newType" class="ai-type">${types.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+      </div>
+      <div class="beast-stats">
+        <div><div class="bs-label">HP</div><input id="newHp" placeholder="—"></div>
+        <div><div class="bs-label">AC</div><input id="newAc" placeholder="—"></div>
+        <div><div class="bs-label">Threat</div><input id="newThreat" placeholder="Low…"></div>
+        <div><div class="bs-label">Weakness</div><input id="newWeak" placeholder="Fire…"></div>
+      </div>
+      <textarea id="newBody" class="add-body" placeholder="Description, abilities, lore, tactics…"></textarea>
+      <button id="commitBtn" class="commit-btn">⟢ CATALOGUE CREATURE</button>
+    </div>`;
+  }
+  // typing guard
+  ['newTitle','newBody','newHp','newAc','newThreat','newWeak'].forEach(id=>{
+    const e=$(id); if(!e)return;
+    e.addEventListener('focus',()=>_isEditing=true);
+    e.addEventListener('blur',()=>_isEditing=false);
+  });
+  $('commitBtn')?.addEventListener('click',commit);
+  $('newTitle')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('newBody')?.focus();}});
+}
+
+function commit(){
+  const c = state.characters[charIdx];
+  const title=$('newTitle').value.trim();
+  const type=$('newType').value;
+  const body=$('newBody').value.trim();
+  if(!title&&!body) return;
+  const rec={ id:(mode==='archive'?'arc':'beast')+'-'+Date.now(), title:title||'Untitled', type, body, ts:Date.now() };
+  if(mode==='bestiary'){
+    rec.hp=$('newHp').value.trim(); rec.ac=$('newAc').value.trim();
+    rec.threat=$('newThreat').value.trim(); rec.weakness=$('newWeak').value.trim();
+    if(!Array.isArray(c.bestiary)) c.bestiary=[];
+    c.bestiary.unshift(rec);
+  } else {
+    if(!Array.isArray(c.archive)) c.archive=[];
+    c.archive.unshift(rec);
+  }
+  _isEditing=false;
+  pushState(); render();
+  setTimeout(()=>$('newTitle')?.focus(),30);
+}
+
+function renderEditForm(r, types){
+  const isBeast = mode==='bestiary';
+  return `
+  <div class="rec ${isBeast?'beast':''} open" data-id="${r.id}">
+    <div class="rec-body" style="display:block;padding:1rem">
+      <div class="rec-edit-form">
+        <div class="add-row">
+          <input id="editTitle" class="ai-title" value="${esc(r.title||'')}" placeholder="Title…">
+          <select id="editType" class="ai-type">${types.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}</select>
+        </div>
+        ${isBeast?`<div class="beast-stats">
+          <div><div class="bs-label">HP</div><input id="editHp" value="${esc(r.hp||'')}"></div>
+          <div><div class="bs-label">AC</div><input id="editAc" value="${esc(r.ac||'')}"></div>
+          <div><div class="bs-label">Threat</div><input id="editThreat" value="${esc(r.threat||'')}"></div>
+          <div><div class="bs-label">Weakness</div><input id="editWeak" value="${esc(r.weakness||'')}"></div>
+        </div>`:''}
+        <textarea id="editBody" class="add-body">${esc(r.body||'')}</textarea>
+        <div class="rec-edit-actions">
+          <button id="saveEdit" class="save-btn">⟢ SAVE</button>
+          <button id="cancelEdit" class="cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindEditForm(c){
+  const sv=$('saveEdit'); if(!sv) return;
+  ['editTitle','editBody','editHp','editAc','editThreat','editWeak'].forEach(id=>{
+    const e=$(id); if(!e)return;
+    e.addEventListener('focus',()=>_isEditing=true);
+    e.addEventListener('blur',()=>_isEditing=false);
+  });
+  sv.addEventListener('click',()=>{
+    const arr = mode==='archive'?c.archive:c.bestiary;
+    const r = arr.find(x=>x.id===_editId); if(!r)return;
+    r.title=$('editTitle').value.trim()||'Untitled';
+    r.type=$('editType').value;
+    r.body=$('editBody').value.trim();
+    if(mode==='bestiary'){ r.hp=$('editHp').value.trim(); r.ac=$('editAc').value.trim(); r.threat=$('editThreat').value.trim(); r.weakness=$('editWeak').value.trim(); }
+    r.edited=Date.now();
+    _editId=null; _isEditing=false; pushState(); render();
+  });
+  $('cancelEdit')?.addEventListener('click',()=>{ _editId=null; _isEditing=false; render(); });
+}
+
+// ── UI events ──
+$('charSelect').addEventListener('change',e=>{ charIdx=Number(e.target.value); _editId=null; _openIds.clear(); render(); });
+document.querySelectorAll('.mode-tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.mode-tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  mode=t.dataset.mode; filter='all'; search=''; _editId=null; _openIds.clear();
+  $('search').value=''; render();
+}));
+$('search').addEventListener('input',e=>{ search=e.target.value; render(); });
+$('filter').addEventListener('change',e=>{ filter=e.target.value; render(); });
+$('collapseAll').addEventListener('click',()=>{
+  const c=state?.characters?.[charIdx]; if(!c)return;
+  const arr=mode==='archive'?(c.archive||[]):(c.bestiary||[]);
+  const anyOpen = arr.some(r=>_openIds.has(r.id));
+  if(anyOpen){ _openIds.clear(); $('collapseAll').textContent='⊞ Expand All'; }
+  else { arr.forEach(r=>_openIds.add(r.id)); $('collapseAll').textContent='⊟ Collapse All'; }
+  render();
+});
+
+start();
+</script>
+</body>
+</html>

@@ -162,7 +162,7 @@ function blankChar(i) {
     deathSaves:{successes:0,failures:0,stable:false},
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     relationships:[],
-    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[]
+    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[]
   };
 }
 const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
@@ -171,6 +171,8 @@ let state  = structuredClone(DEF_STATE);
 let _unsub = null;
 let _welcomeShown = false;
 let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
+let spectator = sessionStorage.getItem('ft-spectator') === '1';
+let _lastAppliedRaw = null;
 
 // ── PRESENCE ──
 const MY_PRESENCE_ID = localStorage.getItem('ft-pid') || (() => { const id = Math.random().toString(36).slice(2); localStorage.setItem('ft-pid', id); return id; })();
@@ -259,6 +261,7 @@ function bindBroadcast(){document.getElementById('broadcastBtn')?.addEventListen
 
 let _pushDebounce=null;
 async function pushState(immediate=false){
+  if(spectator)return;
   const hasData=state.characters.some(c=>c.name&&c.name.trim());
   if(!hasData)return;
   if(immediate){
@@ -280,7 +283,10 @@ function startListener(){
   _unsub=onSnapshot(doc(db,'campaigns','ft-campaign'),snap=>{
     if(!snap.exists())return;
     try{
-      const remote=normalize(JSON.parse(snap.data().data));
+      const raw=snap.data().data;
+      if(raw===_lastAppliedRaw){setSyncDot('synced');return;}
+      _lastAppliedRaw=raw;
+      const remote=normalize(JSON.parse(raw));
       checkStateChanges(remote);
 
       // TYPING GUARD: don't overwrite / re-render the field the user is editing
@@ -346,7 +352,7 @@ function normalize(raw){
     const b=blankChar(i);const mc={...b,...c};
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
     mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
-    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];
+    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];
     const blankSk=makeBlankSkills();mc.skills={};
     Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
     return mc;
@@ -359,12 +365,33 @@ function normalize(raw){
 // HELPERS
 // ================================================================
 function getChar(){
-  if(dmUnlocked)return state.characters[state.selectedCharacter]||state.characters[0];
+  if(dmUnlocked||spectator)return state.characters[state.selectedCharacter]||state.characters[0];
   const mine=state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
   if(mine)return mine;
   return state.characters[state.selectedCharacter]||state.characters[0];
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function applySpectatorMode(){
+  if(!spectator)return;
+  document.body.classList.add('spectator-mode');
+  if(!document.getElementById('spectatorBanner')){
+    const b=document.createElement('div');b.id='spectatorBanner';b.className='spectator-banner';
+    b.innerHTML=`<span>👁 Spectating — read only</span><button id="spectatorExit">Join instead</button>`;
+    document.body.appendChild(b);
+    document.getElementById('spectatorExit')?.addEventListener('click',()=>{
+      spectator=false;sessionStorage.removeItem('ft-spectator');
+      document.body.classList.remove('spectator-mode');b.remove();checkWelcome();
+    });
+  }
+  disableAllInputs();
+}
+function disableAllInputs(){
+  if(!spectator)return;
+  document.querySelectorAll('.main-content input, .main-content textarea, .main-content select, .main-content button').forEach(elx=>{
+    if(elx.closest('.tab-bar')||elx.closest('.character-tabs')||elx.classList.contains('sidebar-toggle')||elx.closest('.dm-overlay'))return;
+    elx.setAttribute('disabled','disabled');elx.classList.add('spectator-disabled');
+  });
+}
 function rollD10(){return Math.floor(Math.random()*10)+1;}
 function rollD8(){return Math.floor(Math.random()*8)+1;}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -564,7 +591,7 @@ function renderCharacterTabs(){
       </div>
       <span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span>
       <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
-    if(dmUnlocked){
+    if(dmUnlocked||spectator){
       btn.addEventListener('click',()=>{state.selectedCharacter=i;_archiveSearch='';_archiveFilter='all';const as=el('archiveSearch');if(as)as.value='';const af=el('archiveFilter');if(af)af.value='all';render();});
     }else{
       btn.style.cursor='default';
@@ -1147,6 +1174,7 @@ function render(){
   try{renderThemeFields();}catch(e){}
   try{renderTabs();}catch(e){}
   try{pushPresence();}catch(e){}
+  try{if(spectator)disableAllInputs();}catch(e){}
 }
 
 // ================================================================
@@ -1273,7 +1301,10 @@ function bindAll(){
   ii('armor','armor');ii('speed','speed');
   ii('weaponsText','weaponsText');ii('abilitiesText','abilitiesText');ii('inventoryText','inventoryText');ii('notesText','notesText');
 
-  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.addEventListener('click',()=>{state.activeTab=b.dataset.tab;pushState();renderTabs();}));
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>{
+    if(b.dataset.tab==='archive-link')return; // archive link opens standalone file, not a tab
+    b.addEventListener('click',()=>{state.activeTab=b.dataset.tab;pushState();renderTabs();});
+  });
   el('statsGrid')?.addEventListener('click',e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const c=getChar();c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);pushState();renderStats();renderSkillsMatrix();renderCalcPanel();renderMagicBanner();});
   document.addEventListener('click',e=>{const btn=e.target.closest('.adj-btn');if(!btn)return;adjustResource(btn.dataset.resource,Number(btn.dataset.amt));});
   el('rollHpBtn')?.addEventListener('click',rollHp);
@@ -1553,6 +1584,8 @@ function claimCharacter(realIdx){
 }
 
 function checkWelcome(){
+  if(spectator){applySpectatorMode();return;}
+  if(dmUnlocked)return;
   document.getElementById('welcomeOverlay')?.remove();
   const active=state.characters.filter(c=>c.state==='active'&&c.name);
   if(!active.length)return;
@@ -1581,7 +1614,7 @@ function checkWelcome(){
     btn.addEventListener('click',()=>{if(btn.disabled)return;claimCharacter(realIdx);closeWelcome();showToast(`You are ${c.name} ✓`,'success',4000);});
     list.appendChild(btn);
   });
-  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{closeWelcome();});
+  document.getElementById('welcomeSkipBtn')?.addEventListener('click',()=>{spectator=true;sessionStorage.setItem('ft-spectator','1');closeWelcome();applySpectatorMode();render();});
   document.getElementById('welcomeDmBtn')?.addEventListener('click',()=>{closeWelcome();openDmOverlay();});
 }
 
@@ -1606,6 +1639,7 @@ bindInventory();
 bindAccentColor();
 bindFullscreen();
 render();
+if(spectator)applySpectatorMode();
 
 // ── MIGRATION: ft-chars → campaigns/ft-campaign ──
 async function migrateIfNeeded(){

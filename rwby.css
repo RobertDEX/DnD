@@ -2549,3 +2549,21 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   display:flex; align-items:center; justify-content:center;
 }
 .rel-move:hover { background:color-mix(in srgb, var(--rel-color) 18%, transparent); border-color:var(--rel-color); color:#fff; }
+
+/* ── SPECTATOR MODE ── */
+.spectator-banner {
+  position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+  z-index: 99997; display: flex; align-items: center; gap: .8rem;
+  padding: .4rem 1rem; border-radius: 0 0 12px 12px;
+  background: rgba(8,16,32,.96); border: 1px solid rgba(0,210,255,.3); border-top: none;
+  font-family: var(--F2); font-size: .68rem; letter-spacing: .08em; color: var(--aura);
+  box-shadow: 0 4px 20px rgba(0,0,0,.5); backdrop-filter: blur(8px);
+}
+.spectator-banner button {
+  font-family: var(--F2); font-size: .6rem; letter-spacing: .06em; cursor: pointer;
+  padding: .3rem .7rem; border-radius: 6px; text-transform: uppercase;
+  background: rgba(0,210,255,.12); border: 1px solid rgba(0,210,255,.3); color: var(--aura);
+}
+.spectator-banner button:hover { background: rgba(0,210,255,.25); color: #fff; }
+.spectator-disabled { opacity: .65; cursor: not-allowed !important; }
+.spectator-mode .quick-adj, .spectator-mode .use-btn { pointer-events: none; opacity: .5; }

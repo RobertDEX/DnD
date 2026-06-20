@@ -245,22 +245,47 @@ async function pushPresence() {
     });
   } catch(e) {}
 }
+let _livePresenceIds = new Set([MY_PRESENCE_ID]); // who is actually here right now
 function startPresenceListener() {
   if (_presenceUnsub) _presenceUnsub();
   _presenceUnsub = onSnapshot(collection(db, 'rwby-presence'), snap => {
     const now = Date.now();
     const active = [];
+    const liveIds = new Set();
     snap.forEach(d => {
       const p = d.data();
       if (now - p.ts < 35000) {
         active.push(p);
+        liveIds.add(p.id);
       } else {
         // Auto-purge stale presence docs (older than 35s with no heartbeat)
         deleteDoc(doc(db, 'rwby-presence', d.id)).catch(()=>{});
       }
     });
+    liveIds.add(MY_PRESENCE_ID); // always count myself
+    _livePresenceIds = liveIds;
     renderPresence(active);
+    // A claim only counts as "taken" if the claimer is still present
+    try { refreshWelcomeTaken(); } catch(e) {}
+    try { renderCharacterTabs(); } catch(e) {}
   }, ()=>{});
+}
+// True only if someone OTHER than me currently holds this character AND is live
+function isTakenByLiveOther(c) {
+  return !!c.claimedBy && c.claimedBy !== MY_PRESENCE_ID && _livePresenceIds.has(c.claimedBy);
+}
+function refreshWelcomeTaken() {
+  const list = document.getElementById('welcomeCharList'); if (!list) return;
+  state.characters.forEach((c, realIdx) => {
+    if (c.state !== 'active') return;
+    const btn = list.querySelector(`[data-welcome-idx="${realIdx}"]`); if (!btn) return;
+    const taken = isTakenByLiveOther(c);
+    btn.disabled = taken;
+    btn.classList.toggle('taken', taken);
+    const lbl = btn.querySelector('.taken-label');
+    if (taken && !lbl) { const s = document.createElement('span'); s.className = 'taken-label'; s.textContent = 'Taken'; btn.appendChild(s); }
+    else if (!taken && lbl) { lbl.remove(); }
+  });
 }
 function renderPresence(players) {
   const el2 = document.getElementById('presenceBar'); if (!el2) return;
@@ -778,7 +803,7 @@ function renderCharacterTabs() {
     const pct    = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
     const isOwn  = c.claimedBy === MY_PRESENCE_ID;
     const isSel  = i === state.selectedCharacter;
-    const takenByOther = c.claimedBy && c.claimedBy !== MY_PRESENCE_ID;
+    const takenByOther = isTakenByLiveOther(c);
     const hpColor= pct > 50 ? 'var(--safe)' : pct > 25 ? 'var(--warn)' : 'var(--danger)';
     const color  = c.accentColor || (isOwn ? 'var(--aura)' : 'rgba(255,255,255,.15)');
     const btn = document.createElement('button'); btn.type='button';
@@ -2213,15 +2238,17 @@ function checkWelcome() {
   const list = document.getElementById('welcomeCharList');
   state.characters.forEach((c, realIdx) => {
     if (c.state !== 'active') return;
-    const taken = c.claimedBy && c.claimedBy !== MY_PRESENCE_ID;
+    const taken = isTakenByLiveOther(c);
     const btn = document.createElement('button');
     btn.className = `welcome-char-btn ${taken ? 'taken' : ''}`;
+    btn.dataset.welcomeIdx = realIdx;
     btn.disabled = taken;
     btn.innerHTML = `
       ${c.portrait ? `<img src="${c.portrait}" class="welcome-portrait">` : `<div class="welcome-portrait-empty">${c.name ? c.name[0].toUpperCase() : '?'}</div>`}
       <span>${esc(c.name || `Player ${realIdx + 1}`)}</span>
       ${taken ? '<span class="taken-label">Taken</span>' : ''}`;
     btn.addEventListener('click', () => {
+      if (btn.disabled) return;
       claimCharacter(realIdx);
       closeWelcome();
       showToast(`You are ${c.name} ✓`, 'success', 4000);

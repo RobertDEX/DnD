@@ -1280,19 +1280,6 @@ input:focus, textarea:focus, select:focus {
 
 /* #21 — RELATIONSHIPS */
 .relationships-list { display: flex; flex-direction: column; gap: .75rem; }
-.rel-card {
-  border: 1px solid rgba(0,210,255,.1); border-radius: 10px;
-  background: rgba(0,210,255,.025); padding: .85rem; overflow: hidden; position: relative;
-}
-.rel-card::before {
-  content:''; position:absolute; left:0; top:0; bottom:0; width:2px;
-  background: linear-gradient(180deg, transparent, var(--aura), transparent); opacity:.5;
-}
-.rel-card-top { display: grid; grid-template-columns: 1fr auto auto; gap: .5rem; align-items: center; margin-bottom: .5rem; }
-.rel-name { font-family: var(--F1); font-size: .9rem; color: #fff; background: transparent !important; border: none !important; border-bottom: 1px solid rgba(0,210,255,.2) !important; border-radius: 0 !important; padding: .2rem 0 !important; }
-.rel-type { font-family: var(--F2); font-size: .65rem; padding: .35rem .5rem; width: auto; }
-.rel-notes { min-height: 60px !important; font-size: .85rem !important; }
-
 /* #23 — ACCENT COLORS on sidebar tabs */
 .character-tab {
   border-left: 2px solid transparent;
@@ -1503,16 +1490,6 @@ input:focus, textarea:focus, select:focus {
 
 /* Relationships (full block in case partially missing) */
 .relationships-list { display:flex; flex-direction:column; gap:.75rem; }
-.rel-card {
-  border:1px solid rgba(0,210,255,.1); border-radius:10px;
-  background:rgba(0,210,255,.025); padding:.85rem; position:relative; overflow:hidden;
-}
-.rel-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:linear-gradient(180deg,transparent,var(--aura),transparent); opacity:.5; }
-.rel-card-top { display:grid; grid-template-columns:1fr auto auto; gap:.5rem; align-items:center; margin-bottom:.5rem; }
-.rel-name { font-family:var(--F1); font-size:.9rem; color:#fff; background:transparent!important; border:none!important; border-bottom:1px solid rgba(0,210,255,.2)!important; border-radius:0!important; padding:.2rem 0!important; }
-.rel-type { font-family:var(--F2); font-size:.65rem; padding:.35rem .5rem; width:auto; }
-.rel-notes { min-height:60px!important; font-size:.85rem!important; }
-
 /* Toast (in case missing) */
 .toast {
   position:fixed; bottom:1.5rem; right:1.5rem; z-index:99998;

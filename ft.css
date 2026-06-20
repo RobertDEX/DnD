@@ -576,6 +576,11 @@ input[readonly] { color:var(--mana); font-family:var(--F4); font-size:.78rem; te
   .stats-grid { grid-template-columns:repeat(3,1fr) !important; }
   .identity-grid, .form-grid, .resource-inputs, .calc-settings { grid-template-columns:1fr 1fr; }
   .calc-row { grid-template-columns:repeat(3,1fr); }
+  .archive-add-row { flex-wrap:wrap; }
+  .archive-add-row .archive-input { min-width:100%; }
+  .archive-header { gap:.6rem; }
+  .archive-title { font-size:1.2rem; letter-spacing:.18em; }
+  .archive-record-head { flex-wrap:wrap; }
 }
 .sidebar-toggle { display:none; }
 

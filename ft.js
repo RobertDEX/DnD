@@ -424,7 +424,6 @@ function renderMagicBanner(){
     <span class="magic-type-modifier">Mana Die: ${cat.manaRoll}</span>
     ${isPower?'<span class="magic-type-modifier">🥊 Unarmed Strike</span>':''}
     ${isAgility?'<span class="magic-type-modifier">⚡ Attack: Speed +10</span>':''}`;
-  const saEl=el('spellAtkBonus');if(saEl)saEl.value=fmtMod(atk);
 }
 
 // ================================================================
@@ -566,7 +565,7 @@ function renderCharacterTabs(){
       <span>${esc(c.magicType||c.className||'—')} · Lv${c.level}</span>
       <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
     if(dmUnlocked){
-      btn.addEventListener('click',()=>{state.selectedCharacter=i;render();});
+      btn.addEventListener('click',()=>{state.selectedCharacter=i;_archiveSearch='';_archiveFilter='all';const as=el('archiveSearch');if(as)as.value='';const af=el('archiveFilter');if(af)af.value='all';render();});
     }else{
       btn.style.cursor='default';
       if(!isOwn)btn.classList.add('locked-tab');
@@ -620,7 +619,6 @@ function renderMainFields(){
   const title=el('magicSpellTitle');if(title)title.textContent=c.magicType?`${c.magicType} Spells`:'Magic Spells';
   // Auto-calculated display fields
   const id2=el('initiativeDisplay');if(id2)id2.value=fmtMod(calcInitiative(c));
-  const sa2=el('spellAtkDisplay');if(sa2)sa2.value=fmtMod(spellAtkBonus(c));
 }
 
 // ================================================================
@@ -864,6 +862,10 @@ function renderArchive(){
 
   const countEl = el('archiveCount');
   if(countEl) countEl.textContent = `${records.length} RECORD${records.length===1?'':'S'}`;
+
+  // Perf: only rebuild the (potentially large) record list when the Archive
+  // tab is actually showing. The count above still updates cheaply.
+  if(state.activeTab !== 'archive') return;
 
   let display = records.map((r,i)=>({r,i}));
   if(_archiveFilter!=='all') display = display.filter(({r})=>r.type===_archiveFilter);

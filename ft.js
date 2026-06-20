@@ -387,9 +387,26 @@ function applySpectatorMode(){
 }
 function disableAllInputs(){
   if(!spectator)return;
-  document.querySelectorAll('.main-content input, .main-content textarea, .main-content select, .main-content button').forEach(elx=>{
-    if(elx.closest('.tab-bar')||elx.closest('.character-tabs')||elx.classList.contains('sidebar-toggle')||elx.closest('.dm-overlay'))return;
-    elx.setAttribute('disabled','disabled');elx.classList.add('spectator-disabled');
+  document.querySelectorAll('input, textarea, select, button, [contenteditable]').forEach(elx=>{
+    if(elx.closest('#characterTabs')||
+       elx.closest('.character-tabs')||
+       elx.classList.contains('sidebar-toggle')||
+       elx.id==='sidebarToggle'||
+       elx.closest('.spectator-banner')||
+       elx.closest('.tab-bar')){
+      return;
+    }
+    if(elx.tagName==='INPUT'||elx.tagName==='TEXTAREA'||elx.tagName==='SELECT'){
+      elx.setAttribute('readonly','readonly');elx.setAttribute('disabled','disabled');
+    }else{
+      elx.setAttribute('disabled','disabled');
+    }
+    if(elx.hasAttribute('contenteditable'))elx.setAttribute('contenteditable','false');
+    elx.classList.add('spectator-disabled');
+  });
+  document.querySelectorAll('.portrait-slot, .portrait-upload-label, label[for]').forEach(l=>{
+    if(l.closest('#characterTabs'))return;
+    l.classList.add('spectator-disabled');l.style.pointerEvents='none';
   });
 }
 function rollD10(){return Math.floor(Math.random()*10)+1;}

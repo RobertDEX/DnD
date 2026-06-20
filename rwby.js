@@ -721,13 +721,36 @@ function applySpectatorMode() {
   disableAllInputs();
 }
 // Disable every editable control so a spectator can't change anything
+// Disable every editable control so a spectator can't change anything.
+// The ONLY things left interactive are the character tabs (to cycle chars)
+// and the sidebar toggle. Everything else — names, titles, stats, the DM
+// overlay, theme, notes — is locked.
 function disableAllInputs() {
   if (!spectator) return;
-  document.querySelectorAll('.main-content input, .main-content textarea, .main-content select, .main-content button').forEach(elx => {
-    // leave tab navigation + character tabs + sidebar toggle usable
-    if (elx.closest('.tab-bar') || elx.closest('.character-tabs') || elx.classList.contains('sidebar-toggle') || elx.closest('.dm-overlay')) return;
-    elx.setAttribute('disabled', 'disabled');
+  document.querySelectorAll('input, textarea, select, button, [contenteditable]').forEach(elx => {
+    // Keep character cycling + sidebar toggle + the spectator banner usable
+    if (elx.closest('#characterTabs') ||
+        elx.closest('.character-tabs') ||
+        elx.classList.contains('sidebar-toggle') ||
+        elx.id === 'sidebarToggle' ||
+        elx.closest('.spectator-banner') ||
+        elx.closest('.tab-bar')) {        // content tab nav (Skills/Loadout/etc.) still browsable
+      return;
+    }
+    if (elx.tagName === 'INPUT' || elx.tagName === 'TEXTAREA' || elx.tagName === 'SELECT') {
+      elx.setAttribute('readonly', 'readonly');
+      elx.setAttribute('disabled', 'disabled');
+    } else {
+      elx.setAttribute('disabled', 'disabled');
+    }
+    if (elx.hasAttribute('contenteditable')) elx.setAttribute('contenteditable', 'false');
     elx.classList.add('spectator-disabled');
+  });
+  // Also block portrait upload click + any drag handles
+  document.querySelectorAll('.portrait-slot, .portrait-upload-label, label[for]').forEach(l => {
+    if (l.closest('#characterTabs')) return;
+    l.classList.add('spectator-disabled');
+    l.style.pointerEvents = 'none';
   });
 }
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }

@@ -2565,5 +2565,10 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   background: rgba(0,210,255,.12); border: 1px solid rgba(0,210,255,.3); color: var(--aura);
 }
 .spectator-banner button:hover { background: rgba(0,210,255,.25); color: #fff; }
-.spectator-disabled { opacity: .65; cursor: not-allowed !important; }
-.spectator-mode .quick-adj, .spectator-mode .use-btn { pointer-events: none; opacity: .5; }
+.spectator-disabled { opacity: .6; cursor: not-allowed !important; pointer-events: none !important; user-select: none; }
+.spectator-mode .quick-adj, .spectator-mode .use-btn,
+.spectator-mode .portrait-slot, .spectator-mode .hero-name-input,
+.spectator-mode [data-action], .spectator-mode .dm-trigger { pointer-events: none !important; opacity: .55; }
+/* Character tabs stay fully interactive for cycling */
+.spectator-mode #characterTabs, .spectator-mode #characterTabs * { pointer-events: auto !important; opacity: 1 !important; cursor: pointer; }
+.spectator-mode #characterTabs .character-tab { filter: none !important; }

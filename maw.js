@@ -79,6 +79,12 @@ const DMG_TYPES = ['Ballistic','Slashing','Bludgeoning','Fire','Cryo','Electric'
 const TRAINING  = ['Untrained','Trained','Specialist'];
 const ITEM_CATEGORIES = ['Weapon','Armor','Tool','Consumable','Anomalous','Document','Misc'];
 
+// Requisitions catalog categories + tier access
+const SHOP_CATEGORIES = ['Warding & Barriers','Tech & Detection','Combat','Containment','Protection','Medical','Utility','Anomalous Items'];
+const RANK_TO_TIER = { 'I':1, 'II':2, 'III':3, 'IV':4 };   // an agent of rank R can access all tiers <= R
+const TIER_LABEL = { 1:'TIER 1 · EMPLOYEE', 2:'TIER 2 · SUPERVISOR', 3:'TIER 3 · DEPUTY', 4:'TIER 4 · CHIEF' };
+const TIER_COLOR = { 1:'#7a8590', 2:'#9aa6b2', 3:'#c2b067', 4:'#d94f4f' };
+
 // ================================================================
 // STATE
 // ================================================================
@@ -185,6 +191,14 @@ function normalize(raw){
   while(m.characters.length<6) m.characters.push(blankChar(m.characters.length));
   if(m.selectedCharacter>=m.characters.length) m.selectedCharacter = 0;
   if(!Array.isArray(m.shop)) m.shop = [];
+  m.shop = m.shop.map(it=>({
+    tier: Number(it.tier)||1,
+    name: it.name||'',
+    category: it.category||'Utility',
+    price: Number(it.price)||0,
+    stock: (it.stock===undefined?null:it.stock),
+    desc: it.desc||''
+  }));
   return m;
 }
 
@@ -625,28 +639,59 @@ function renderShop(){
   const c = getChar();
   const host = el('shopList'); if(!host) return;
   const bal = el('shopBalance'); if(bal) bal.textContent = fmtPoints(c.points)+' pts';
+  const myTier = RANK_TO_TIER[c.rank] || 1;
+  // clearance banner
+  const clr = el('shopClearance');
+  if(clr) clr.innerHTML = `CLEARANCE <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to Tier ${myTier} requisitions and below`;
+
   if(!Array.isArray(state.shop) || !state.shop.length){
     host.innerHTML = `<div class="empty-note">The requisitions catalog is empty. The DM stocks it from the DM Panel.</div>`;
     return;
   }
-  host.innerHTML = state.shop.map((item,i)=>{
-    const price = Number(item.price)||0;
-    const afford = (Number(c.points)||0) >= price;
-    const stock = item.stock==null?'∞':item.stock;
-    const out = item.stock!=null && item.stock<=0;
+
+  // Build a list of {item, realIndex} accessible at this tier, grouped by category
+  const accessible = state.shop
+    .map((item,i)=>({item,i}))
+    .filter(({item})=> (Number(item.tier)||1) <= myTier);
+
+  if(!accessible.length){
+    host.innerHTML = `<div class="empty-note">No requisitions available at your clearance level.</div>`;
+    return;
+  }
+
+  // group by category (in catalog order), then by tier within
+  const cats = [...SHOP_CATEGORIES, 'Misc'].filter(cat => accessible.some(({item})=> (item.category||'Misc')===cat));
+  // include any custom categories not in the standard list
+  accessible.forEach(({item})=>{ const cc=item.category||'Misc'; if(!cats.includes(cc)) cats.push(cc); });
+
+  host.innerHTML = cats.map(cat=>{
+    const rows = accessible.filter(({item})=> (item.category||'Misc')===cat)
+      .sort((a,b)=> (Number(a.item.tier)||1)-(Number(b.item.tier)||1) || (Number(a.item.price)||0)-(Number(b.item.price)||0));
     return `
-    <div class="shop-item ${out?'out':''}">
-      <div class="shop-item-main">
-        <div class="shop-item-name">${esc(item.name||'Item')}</div>
-        <div class="shop-item-meta"><span class="shop-cat">${esc(item.category||'Misc')}</span><span class="shop-stock">Stock: ${out?'SOLD OUT':stock}</span></div>
-        ${item.desc?`<div class="shop-item-desc">${esc(item.desc)}</div>`:''}
-      </div>
-      <div class="shop-item-buy">
-        <div class="shop-price">${fmtPoints(price)} pts</div>
-        ${canEdit()&&!out? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'REQUISITION':'INSUFFICIENT'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
-      </div>
+    <div class="shop-cat-group">
+      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span></div>
+      ${rows.map(({item,i})=>{
+        const price = Number(item.price)||0;
+        const afford = (Number(c.points)||0) >= price;
+        const out = item.stock!=null && item.stock<=0;
+        const tier = Number(item.tier)||1;
+        const stock = item.stock==null?'∞':item.stock;
+        return `
+        <div class="shop-item ${out?'out':''}" style="--tier-c:${TIER_COLOR[tier]}">
+          <div class="shop-item-main">
+            <div class="shop-item-name">${esc(item.name||'Item')}<span class="shop-tier-tag" style="color:${TIER_COLOR[tier]};border-color:${TIER_COLOR[tier]}">T${tier}</span></div>
+            <div class="shop-item-meta"><span class="shop-stock">Stock: ${out?'SOLD OUT':stock}</span></div>
+            ${item.desc?`<div class="shop-item-desc">${esc(item.desc)}</div>`:''}
+          </div>
+          <div class="shop-item-buy">
+            <div class="shop-price">${fmtPoints(price)}<span>pts</span></div>
+            ${canEdit()&&!out? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'REQUISITION':'INSUFFICIENT'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
   }).join('');
+
   host.querySelectorAll('.shop-buy-btn').forEach(b=>{
     if(b.classList.contains('cant')) return;
     b.addEventListener('click', ()=> buyItem(+b.dataset.i));
@@ -654,6 +699,9 @@ function renderShop(){
 }
 function buyItem(i){
   const c=getChar(); const item=state.shop[i]; if(!item) return;
+  const myTier = RANK_TO_TIER[c.rank] || 1;
+  const itemTier = Number(item.tier)||1;
+  if(itemTier > myTier){ showToast(`Requires ${TIER_LABEL[itemTier]} clearance`,'warn'); return; }
   const price=Number(item.price)||0;
   if((Number(c.points)||0) < price){ showToast('Insufficient points','warn'); return; }
   if(item.stock!=null && item.stock<=0){ showToast('Sold out','warn'); return; }
@@ -661,11 +709,22 @@ function buyItem(i){
   c.points -= price;
   if(item.stock!=null) item.stock -= 1;
   if(!Array.isArray(c.inventory)) c.inventory=[];
-  const existing = c.inventory.find(x=> x.name===item.name && x.category===(item.category||'Misc'));
+  const existing = c.inventory.find(x=> x.name===item.name);
   if(existing) existing.qty = (Number(existing.qty)||1)+1;
-  else c.inventory.push({ name:item.name, qty:1, category:item.category||'Misc', value:Math.floor(price*0.5), notes:item.desc||'' });
+  else c.inventory.push({ name:item.name, qty:1, category:mapShopCatToInv(item.category), value:Math.floor(price*0.5), notes:item.desc||'' });
   pushState(true); renderShop(); renderInventory(); renderHeader();
   showToast(`Acquired ${item.name}`,'buy');
+}
+// map a requisitions category to an inventory category bucket
+function mapShopCatToInv(cat){
+  switch(cat){
+    case 'Combat': return 'Weapon';
+    case 'Protection': return 'Armor';
+    case 'Anomalous Items': return 'Anomalous';
+    case 'Medical': case 'Warding & Barriers': return 'Consumable';
+    case 'Tech & Detection': case 'Utility': case 'Containment': return 'Tool';
+    default: return 'Misc';
+  }
 }
 
 // ================================================================
@@ -772,11 +831,13 @@ function renderDmPanel(){
   if(roster){
     roster.innerHTML = state.characters.map((c,i)=>{
       const rk = rankOf(c);
+      const st = c.state||'active';
       return `
-      <div class="dm-agent ${i===state.selectedCharacter?'sel':''}">
+      <div class="dm-agent state-${st} ${i===state.selectedCharacter?'sel':''}">
         <div class="dm-agent-top">
           <button class="dm-agent-pick" data-i="${i}">${esc(c.name||`Agent ${i+1}`)}</button>
           <span class="dm-agent-rank" style="color:${rk.color}">${rk.tier} · ${rk.title}</span>
+          <span class="dm-agent-state-tag ${st}">${st==='active'?'ACTIVE':st==='reserve'?'RESERVE':'KIA'}</span>
         </div>
         <div class="dm-agent-controls">
           <label class="dm-mini"><span>Rank</span>
@@ -785,13 +846,27 @@ function renderDmPanel(){
           <label class="dm-mini"><span>Points</span>
             <input class="dm-points" data-i="${i}" type="number" value="${c.points||0}">
           </label>
+          <label class="dm-mini"><span>Status</span>
+            <select class="dm-state" data-i="${i}">
+              <option value="active" ${st==='active'?'selected':''}>Active</option>
+              <option value="reserve" ${st==='reserve'?'selected':''}>Reserve</option>
+              <option value="dead" ${st==='dead'?'selected':''}>KIA</option>
+            </select>
+          </label>
+        </div>
+        <div class="dm-agent-actions">
           <span class="dm-pts-display">${fmtPoints(c.points)} pts</span>
+          <button class="dm-agent-reserve" data-i="${i}" title="Toggle reserve">${st==='reserve'?'⟲ Reinstate':'⇩ To Reserve'}</button>
+          <button class="dm-agent-del" data-i="${i}" title="Terminate record">✕ Delete</button>
         </div>
       </div>`;
     }).join('');
     roster.querySelectorAll('.dm-agent-pick').forEach(b=> b.addEventListener('click',()=>{ state.selectedCharacter=+b.dataset.i; render(); }));
     roster.querySelectorAll('.dm-rank').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].rank=s.value; pushState(true); render(); }));
     roster.querySelectorAll('.dm-points').forEach(inp=> inp.addEventListener('input',()=>{ state.characters[+inp.dataset.i].points=Math.max(0,Number(inp.value)||0); pushState(); renderHeader(); }));
+    roster.querySelectorAll('.dm-state').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].state=s.value; pushState(true); render(); }));
+    roster.querySelectorAll('.dm-agent-reserve').forEach(b=> b.addEventListener('click',()=>{ const c=state.characters[+b.dataset.i]; c.state = c.state==='reserve'?'active':'reserve'; pushState(true); render(); showToast(c.state==='reserve'?`${c.name||'Agent'} moved to reserve`:`${c.name||'Agent'} reinstated`,'info'); }));
+    roster.querySelectorAll('.dm-agent-del').forEach(b=> b.addEventListener('click',()=> dmDeleteAgent(+b.dataset.i)));
   }
 
   // Mission point award by threat grade
@@ -837,21 +912,27 @@ function awardMissionPoints(grade){
 function renderDmShop(){
   const host = el('dmShopList'); if(!host) return;
   if(!Array.isArray(state.shop)) state.shop=[];
+  // header: count + reset/seed control
+  const meta = el('dmShopMeta');
+  if(meta) meta.textContent = `${state.shop.length} items stocked`;
+
   host.innerHTML = state.shop.length ? state.shop.map((it,i)=>`
-    <div class="dm-shop-row">
+    <div class="dm-shop-row" style="--tier-c:${TIER_COLOR[Number(it.tier)||1]}">
       <input class="ds-name" data-i="${i}" value="${esc(it.name||'')}" placeholder="Item name">
-      <select class="ds-cat" data-i="${i}">${ITEM_CATEGORIES.map(t=>`<option ${it.category===t?'selected':''}>${t}</option>`).join('')}</select>
+      <select class="ds-tier" data-i="${i}" title="Required tier">${[1,2,3,4].map(t=>`<option value="${t}" ${(Number(it.tier)||1)===t?'selected':''}>T${t}</option>`).join('')}</select>
+      <select class="ds-cat" data-i="${i}">${SHOP_CATEGORIES.map(t=>`<option ${it.category===t?'selected':''}>${t}</option>`).join('')}</select>
       <input class="ds-price" data-i="${i}" type="number" value="${it.price||0}" placeholder="Price" title="Price in points">
       <input class="ds-stock" data-i="${i}" type="number" value="${it.stock==null?'':it.stock}" placeholder="∞" title="Stock (blank = unlimited)">
       <button class="ds-del" data-i="${i}">✕</button>
     </div>
     <input class="ds-desc" data-i="${i}" value="${esc(it.desc||'')}" placeholder="Short description (optional)">
-  `).join('') : `<div class="empty-note">No items stocked. Add requisition items below.</div>`;
+  `).join('') : `<div class="empty-note">No items stocked. Add requisitions below, or load the default MAW catalog.</div>`;
   host.querySelectorAll('.ds-name').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].name=inp.value; pushState(); }));
   host.querySelectorAll('.ds-desc').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].desc=inp.value; pushState(); }));
   host.querySelectorAll('.ds-price').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].price=Math.max(0,Number(inp.value)||0); pushState(); }));
   host.querySelectorAll('.ds-stock').forEach(inp=> inp.addEventListener('input',()=>{ const v=inp.value.trim(); state.shop[+inp.dataset.i].stock = v===''?null:Math.max(0,Number(v)||0); pushState(); }));
   host.querySelectorAll('.ds-cat').forEach(s=> s.addEventListener('change',()=>{ state.shop[+s.dataset.i].category=s.value; pushState(true); }));
+  host.querySelectorAll('.ds-tier').forEach(s=> s.addEventListener('change',()=>{ state.shop[+s.dataset.i].tier=Number(s.value)||1; pushState(true); renderDmShop(); }));
   host.querySelectorAll('.ds-del').forEach(b=> b.addEventListener('click',()=>{ state.shop.splice(+b.dataset.i,1); pushState(true); renderDmShop(); renderShop(); }));
   // populate award target dropdown
   const tgt = el('dmAwardTarget');
@@ -861,7 +942,43 @@ function renderDmShop(){
     if(cur) tgt.value = cur;
   }
 }
-function addShopItem(){ if(!Array.isArray(state.shop)) state.shop=[]; state.shop.push({name:'',category:'Tool',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
+function addShopItem(){ if(!Array.isArray(state.shop)) state.shop=[]; state.shop.push({tier:1,name:'',category:'Utility',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
+function loadDefaultCatalog(replace){
+  const def = (window.MAW_DEFAULT_SHOP||[]).map(x=>({ ...x, stock:null }));
+  if(!def.length){ showToast('Default catalog not found','warn'); return; }
+  if(replace){
+    if(!confirm(`Replace the entire catalog with the ${def.length}-item MAW default? Current items will be removed.`)) return;
+    state.shop = def;
+  } else {
+    // append only items not already present by name
+    const have = new Set(state.shop.map(i=>i.name));
+    const add = def.filter(i=>!have.has(i.name));
+    if(!add.length){ showToast('Default items already loaded','info'); return; }
+    state.shop = state.shop.concat(add);
+  }
+  pushState(true); renderDmShop(); renderShop();
+  showToast(`Catalog loaded · ${state.shop.length} items`,'buy');
+}
+
+// ── DM CHARACTER MANAGEMENT ──
+function dmDeleteAgent(i){
+  const c = state.characters[i]; if(!c) return;
+  if(state.characters.length<=1){ showToast('Cannot delete the last personnel file','warn'); return; }
+  if(!confirm(`TERMINATE personnel record for ${c.name||`Agent ${i+1}`}?\n\nThis permanently deletes the file for everyone.`)) return;
+  state.characters.splice(i,1);
+  if(state.selectedCharacter>=state.characters.length) state.selectedCharacter = state.characters.length-1;
+  pushState(true); render();
+  showToast(`Record terminated: ${c.name||'Agent'}`,'warn');
+}
+function dmAddAgent(){
+  const nc = blankChar(state.characters.length);
+  nc.state = 'reserve';
+  state.characters.push(nc);
+  state.selectedCharacter = state.characters.length-1;
+  state.showReserve = true;
+  pushState(true); render();
+  showToast('New personnel file created (Reserve)','buy');
+}
 
 // ================================================================
 // RESOURCE ADJUST (HP / Sanity / Points quick buttons)
@@ -884,6 +1001,72 @@ function showToast(msg, kind='info', dur=3200){
   t.textContent = msg; t.className = 'toast show '+kind;
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(()=>{ t.className='toast '+kind; }, dur);
+}
+
+// ================================================================
+// BROADCAST — full-screen eerie takeover, pushed by the DM
+// ================================================================
+let _broadcastUnsub = null;
+let _lastBroadcastTs = 0;
+
+async function sendBroadcast(msg){
+  if(!dmUnlocked) return;
+  try { await setDoc(doc(db,'maw-meta','broadcast'), { msg, ts:Date.now(), cleared:false }); }
+  catch(e){ console.error(e); }
+}
+async function clearBroadcast(){
+  try { await setDoc(doc(db,'maw-meta','broadcast'), { msg:'', ts:Date.now(), cleared:true }); }
+  catch(e){ console.error(e); }
+}
+function startBroadcastListener(){
+  if(_broadcastUnsub) _broadcastUnsub();
+  _broadcastUnsub = onSnapshot(doc(db,'maw-meta','broadcast'), snap=>{
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(d.ts && d.ts > _lastBroadcastTs){
+      _lastBroadcastTs = d.ts;
+      if(d.cleared || !d.msg){ removeBroadcastScreen(); }
+      else showBroadcastScreen(d.msg);
+    }
+  }, ()=>{});
+}
+function removeBroadcastScreen(){ el('broadcastScreen')?.remove(); }
+function showBroadcastScreen(msg){
+  removeBroadcastScreen();
+  const ov = document.createElement('div');
+  ov.id = 'broadcastScreen';
+  ov.className = 'broadcast-screen';
+  const canDismiss = dmUnlocked;
+  ov.innerHTML = `
+    <div class="bcs-noise"></div>
+    <div class="bcs-scan"></div>
+    <div class="bcs-vignette"></div>
+    <div class="bcs-inner">
+      <div class="bcs-head">
+        <span class="bcs-dot"></span>
+        <span class="bcs-channel">MAKE A WISH INCORPORATED · INTERNAL BROADCAST</span>
+        <span class="bcs-dot"></span>
+      </div>
+      <div class="bcs-tag">// PRIORITY TRANSMISSION //</div>
+      <div class="bcs-message" id="bcsMessage"></div>
+      <div class="bcs-foot">
+        <span>THIS MESSAGE IS MANDATORY VIEWING</span>
+        <span class="bcs-id">REF ${Math.random().toString(36).slice(2,8).toUpperCase()}-${new Date().getFullYear()}</span>
+      </div>
+      ${canDismiss?'<button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>':'<div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>'}
+    </div>`;
+  document.body.appendChild(ov);
+  // typewriter reveal for eerie effect
+  const target = el('bcsMessage');
+  const text = String(msg);
+  let idx = 0;
+  target.classList.add('typing');
+  const tick = ()=>{
+    if(idx<=text.length){ target.textContent = text.slice(0,idx); idx++; setTimeout(tick, 34); }
+    else { target.classList.remove('typing'); }
+  };
+  tick();
+  el('bcsDismiss')?.addEventListener('click', ()=>{ clearBroadcast(); removeBroadcastScreen(); });
 }
 
 // ================================================================
@@ -977,7 +1160,7 @@ function applySpectatorMode(){
 function disableAllInputs(){
   if(!spectator) return;
   document.querySelectorAll('input, textarea, select, button, [contenteditable]').forEach(elx=>{
-    if(elx.closest('#characterTabs')||elx.closest('.character-tabs')||elx.classList.contains('sidebar-toggle')||elx.id==='sidebarToggle'||elx.closest('.spectator-banner')||elx.closest('.tab-bar')) return;
+    if(elx.closest('#characterTabs')||elx.closest('.character-tabs')||elx.classList.contains('sidebar-toggle')||elx.id==='sidebarToggle'||elx.closest('.spectator-banner')||elx.closest('.broadcast-screen')||elx.closest('.tab-bar')) return;
     if(elx.tagName==='INPUT'||elx.tagName==='TEXTAREA'||elx.tagName==='SELECT'){ elx.setAttribute('readonly','readonly'); elx.setAttribute('disabled','disabled'); }
     else elx.setAttribute('disabled','disabled');
     if(elx.hasAttribute('contenteditable')) elx.setAttribute('contenteditable','false');
@@ -1106,6 +1289,17 @@ function bindFields(){
   el('dmCloseBtn')?.addEventListener('click', closeDmOverlay);
   el('dmLockBtn')?.addEventListener('click', lockDm);
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
+  el('dmLoadCatalogBtn')?.addEventListener('click', ()=> loadDefaultCatalog(false));
+  el('dmResetCatalogBtn')?.addEventListener('click', ()=> loadDefaultCatalog(true));
+  el('dmAddAgentBtn')?.addEventListener('click', dmAddAgent);
+  el('dmBroadcastSendBtn')?.addEventListener('click', ()=>{
+    const msg = el('dmBroadcastInput')?.value.trim();
+    if(!msg){ showToast('Enter a broadcast message','warn'); return; }
+    sendBroadcast(msg);
+    if(el('dmBroadcastInput')) el('dmBroadcastInput').value='';
+    showToast('Broadcast transmitted to all terminals','info');
+  });
+  el('dmBroadcastClearBtn')?.addEventListener('click', ()=>{ clearBroadcast(); removeBroadcastScreen(); });
 
   // sidebar toggle (mobile)
   el('sidebarToggle')?.addEventListener('click', ()=> document.querySelector('.sidebar')?.classList.toggle('open'));
@@ -1121,7 +1315,10 @@ async function migrateIfNeeded(){
   try {
     const mainSnap = await getDoc(doc(db,'campaigns',DOC));
     if(mainSnap.exists()){ startListener(); return; }
-    // seed fresh doc
+    // seed fresh doc — stock the default requisitions catalog
+    if(window.MAW_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
+      state.shop = window.MAW_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
+    }
     await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) });
     startListener();
   } catch(e){ console.error('init', e); startListener(); }
@@ -1132,4 +1329,5 @@ render();
 if(spectator) applySpectatorMode();
 migrateIfNeeded();
 startPresenceListener();
+startBroadcastListener();
 pushPresence();

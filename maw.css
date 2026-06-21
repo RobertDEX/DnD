@@ -499,7 +499,7 @@ body{filter:saturate(.82)}
 .dm-broadcast-actions{display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap}
 
 /* ── FULL-SCREEN BROADCAST TAKEOVER ── */
-.broadcast-screen{position:fixed;inset:0;z-index:99999;background:#060708;overflow:hidden;animation:bcs-flickin .4s ease}
+.broadcast-screen{position:fixed;inset:0;z-index:99999;background:#060708;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(3rem,8vh,6rem) 1.2rem;box-sizing:border-box;animation:bcs-flickin .4s ease}
 .broadcast-screen.no-intro{animation:none}
 @keyframes bcs-flickin{0%{opacity:0}15%{opacity:.4}25%{opacity:.1}40%{opacity:.7}55%{opacity:.25}100%{opacity:1}}
 /* decorative layers — fixed to viewport, never affect scroll */
@@ -509,15 +509,15 @@ body{filter:saturate(.82)}
 @keyframes bcs-scan-move{0%{transform:translateY(-200px)}100%{transform:translateY(100vh)}}
 .broadcast-screen::before{content:'';position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.35) 3px,rgba(0,0,0,0) 4px);opacity:.6}
 .bcs-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 50%,transparent,rgba(0,0,0,.85))}
-/* scrollable content wrapper that fills the viewport and centers its child */
-.bcs-scroll{position:absolute;inset:0;z-index:2;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.2rem;box-sizing:border-box}
+/* content wrapper — parent (.broadcast-screen) handles centering now */
+.bcs-scroll{position:relative;z-index:2;width:100%;display:flex;justify-content:center;margin:auto 0}
 .bcs-inner{position:relative;width:100%;max-width:780px;text-align:center}
 .bcs-head{display:flex;align-items:center;justify-content:center;gap:.8rem;font-family:var(--F4);font-size:.6rem;letter-spacing:.3em;color:#7a8590;text-transform:uppercase;margin-bottom:1.4rem}
 .bcs-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 1.4s infinite}
 .bcs-channel{opacity:.7}
 .bcs-tag{font-family:var(--F1);font-size:.7rem;font-weight:700;letter-spacing:.4em;color:var(--accent);text-transform:uppercase;margin-bottom:2rem;opacity:.85;animation:bcs-flicker 3.5s infinite}
 @keyframes bcs-flicker{0%,100%{opacity:.85}48%{opacity:.85}49%{opacity:.2}50%{opacity:.85}92%{opacity:.85}93%{opacity:.35}94%{opacity:.85}}
-.bcs-message{font-family:var(--F1);font-size:2rem;font-weight:700;line-height:1.45;color:#e8edf2;letter-spacing:.04em;text-shadow:0 0 24px rgba(180,200,220,.18);min-height:1.5em;word-break:break-word;white-space:pre-wrap}
+.bcs-message{font-family:var(--F1);font-size:clamp(1.3rem,4vw,2.4rem);font-weight:700;line-height:1.4;color:#e8edf2;letter-spacing:.04em;text-shadow:0 0 24px rgba(180,200,220,.18);min-height:1.5em;word-break:break-word;white-space:pre-wrap}
 .bcs-message.typing::after{content:'▋';color:var(--accent);animation:pulse .8s infinite;margin-left:.1em}
 .bcs-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:2.4rem;font-family:var(--F4);font-size:.54rem;letter-spacing:.18em;color:#4a535c;text-transform:uppercase;border-top:1px solid rgba(150,160,170,.12);padding-top:1rem}
 .bcs-id{opacity:.7}
@@ -540,7 +540,7 @@ body{filter:saturate(.82)}
 .bcs-dm-actions{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
 .bcs-dm-update,.bcs-dm-append{font-family:var(--F4);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:.55rem 1rem;background:rgba(150,165,180,.08);border:1px solid rgba(150,160,170,.3);color:#aeb9c4;cursor:pointer;transition:all .15s}
 .bcs-dm-update:hover,.bcs-dm-append:hover{background:rgba(150,165,180,.18);border-color:#8a96a2;color:#fff}
-@media (max-width:620px){.bcs-message{font-size:1.3rem}.bcs-channel{font-size:.5rem;letter-spacing:.18em}}
+@media (max-width:620px){.bcs-channel{font-size:.5rem;letter-spacing:.18em}}
 
 /* ── SHOP: TIER GATING + CATEGORY GROUPS ── */
 .shop-clearance{font-family:var(--F4);font-size:.58rem;letter-spacing:.06em;color:var(--text-dim);text-transform:uppercase;border:1px solid var(--line2);border-left:3px solid var(--amber);padding:.5rem .8rem;margin-bottom:1rem;background:var(--bg)}

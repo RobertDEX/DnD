@@ -12,7 +12,7 @@ html,body{height:100%;overflow:hidden}
 /* ── SPLIT LAYOUT ── */
 .split{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:1fr 1fr 1fr;
   height:100vh;
   width:100vw;
   position:relative;
@@ -362,6 +362,136 @@ html,body{height:100%;overflow:hidden}
   100%{bottom:110%;opacity:0;transform:scale(1.5)}
 }
 
+/* ═══ MAKE A WISH (Campaign Three) ═══ */
+.half-maw{
+  background:#08090b;
+  grid-column:3;
+}
+.half-maw::before{
+  content:'';
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 70% 60% at 120% -10%, rgba(217,79,79,.18) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at -10% 110%, rgba(60,68,78,.25) 0%, transparent 55%),
+    linear-gradient(165deg, #0c0e11 0%, #08090b 55%, #050608 100%);
+  z-index:0;
+}
+/* Cold institutional grid */
+.half-maw::after{
+  content:'';
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(150,160,170,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(150,160,170,.04) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,#000 30%,transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 45%,#000 30%,transparent 100%);
+}
+.maw-slit{
+  position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent 0%,rgba(217,79,79,.4) 35%,rgba(217,79,79,.85) 50%,rgba(217,79,79,.4) 65%,transparent 100%);
+  box-shadow:0 0 20px rgba(217,79,79,.35), 0 0 60px rgba(217,79,79,.12);
+  z-index:15;
+}
+.maw-content{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;
+  gap:1.4rem;text-align:center;
+  padding:3rem 3.5rem;
+  max-width:460px;
+}
+.maw-emblem{
+  position:relative;
+  width:110px;height:120px;
+  display:flex;align-items:center;justify-content:center;
+}
+.maw-emblem-ring{
+  position:absolute;inset:0;
+  border:1px solid rgba(217,79,79,.35);
+  box-shadow:inset 0 0 26px rgba(217,79,79,.06), 0 0 26px rgba(217,79,79,.12);
+}
+.maw-emblem-ring::before{
+  content:'';position:absolute;inset:10px;
+  border:1px solid rgba(150,160,170,.14);
+}
+.maw-emblem-ring::after{
+  content:'';position:absolute;inset:0;
+  border-top:2px solid rgba(217,79,79,.6);
+  animation:maw-scan 4s linear infinite;
+}
+@keyframes maw-scan{
+  0%{transform:translateY(0);opacity:0}
+  10%{opacity:1}
+  90%{opacity:1}
+  100%{transform:translateY(118px);opacity:0}
+}
+.maw-symbol{
+  font-family:'Orbitron',sans-serif;
+  font-size:3rem;line-height:1;font-weight:900;
+  color:#d94f4f;
+  position:relative;z-index:1;
+  filter:drop-shadow(0 0 12px rgba(217,79,79,.55)) drop-shadow(0 0 30px rgba(217,79,79,.25));
+}
+.maw-logo-img{
+  width:96px;height:80px;
+  object-fit:contain;
+  position:relative;z-index:1;
+  filter:drop-shadow(0 0 14px rgba(217,79,79,.5)) drop-shadow(0 0 36px rgba(180,40,40,.3));
+  transition:filter .3s, transform .3s;
+}
+.half-maw:hover .maw-logo-img{
+  filter:drop-shadow(0 0 20px rgba(255,80,80,.7)) drop-shadow(0 0 50px rgba(200,30,30,.4));
+}
+.half-maw:hover .maw-symbol{
+  filter:drop-shadow(0 0 18px rgba(255,80,80,.8)) drop-shadow(0 0 44px rgba(200,30,30,.4));
+}
+.maw-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:.62rem;letter-spacing:.3em;text-transform:uppercase;
+  color:rgba(150,160,170,.55);
+}
+.maw-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(1.1rem,2.4vw,1.7rem);font-weight:900;
+  letter-spacing:.08em;line-height:1.25;
+  color:#e6ebf0;
+  text-shadow:0 0 36px rgba(217,79,79,.28), 0 2px 0 rgba(0,0,0,.7);
+}
+.maw-title span{
+  display:block;
+  background:linear-gradient(180deg,#e6ebf0 0%,#9aa6b2 55%,#d94f4f 130%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.maw-title small{
+  display:block;font-size:.5em;letter-spacing:.42em;font-weight:700;
+  color:rgba(217,79,79,.7);margin-top:.4rem;-webkit-text-fill-color:rgba(217,79,79,.7);
+}
+.maw-enter{
+  display:inline-flex;align-items:center;gap:.65rem;
+  font-family:'Share Tech Mono',monospace;font-size:.72rem;
+  letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(150,160,170,.6);
+  border-top:1px solid rgba(150,160,170,.16);
+  padding-top:1.2rem;width:100%;justify-content:center;
+  transition:color .25s, letter-spacing .25s;
+}
+.half-maw:hover .maw-enter{color:rgba(217,79,79,.95);letter-spacing:.3em}
+.half-maw:hover .enter-arrow{transform:translateX(6px)}
+.maw-particles{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.maw-particles span{
+  position:absolute;
+  width:1px;height:14px;
+  background:linear-gradient(180deg,transparent,rgba(217,79,79,.5));
+  animation:maw-fall linear infinite;
+  opacity:0;
+}
+@keyframes maw-fall{
+  0%{top:-5%;opacity:0}
+  10%{opacity:.6}
+  90%{opacity:.4}
+  100%{top:105%;opacity:0}
+}
+
 /* ── FOOTER ── */
 .hub-footer{
   position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);
@@ -370,20 +500,21 @@ html,body{height:100%;overflow:hidden}
   z-index:40;white-space:nowrap;pointer-events:none;
 }
 
-@media(max-width:640px){
-  .split{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:100vh}
+@media(max-width:900px){
+  .split{grid-template-columns:1fr;grid-template-rows:repeat(3,1fr);height:auto;min-height:100vh}
   .half-rwby{grid-column:1;grid-row:1}
   .half-ft{grid-column:1;grid-row:2}
+  .half-maw{grid-column:1;grid-row:3}
   .rwby-slit{right:auto;bottom:0;top:auto;left:0;width:100%;height:2px}
   .ft-slit{left:auto;top:0;bottom:auto;right:0;width:100%;height:2px}
-  .divider{left:0;right:0;top:50%;bottom:auto;width:100%;height:1px}
-  .divider-label{top:50%;left:50%}
+  .maw-slit{left:0;top:0;bottom:auto;width:100%;height:2px}
+  .divider,.divider-label{display:none}
+  .rwby-content,.ft-content,.maw-content{padding:2.4rem 2rem}
 }
 /* ── POLISH PASS ── */
 *{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-.split:has(.half-rwby:hover) .half-ft{filter:brightness(.6) saturate(.7)}
-.split:has(.half-ft:hover) .half-rwby{filter:brightness(.6) saturate(.7)}
-.rwby-enter,.ft-enter{transition:color .25s, letter-spacing .25s}
+.split:has(.half:hover) .half:not(:hover){filter:brightness(.55) saturate(.7)}
+.rwby-enter,.ft-enter,.maw-enter{transition:color .25s, letter-spacing .25s}
 .half-rwby:hover .rwby-enter{letter-spacing:.3em}
 .half-ft:hover .ft-enter{letter-spacing:.3em}
 </style>
@@ -412,12 +543,6 @@ html,body{height:100%;overflow:hidden}
     </div>
   </a>
 
-  <!-- ═══ DIVIDER ═══ -->
-  <div class="divider"></div>
-  <div class="divider-label">
-    <span class="divider-vs">VS</span>
-  </div>
-
   <!-- ═══ FAIRY TAIL SIDE ═══ -->
   <a class="half half-ft" href="fairytail.html">
     <div class="ft-orbs" id="ftOrbs"></div>
@@ -432,6 +557,24 @@ html,body{height:100%;overflow:hidden}
       <h2 class="ft-title"><span>Fairy Tail DnD</span></h2>
       <div class="ft-enter">
         Enter Fiore <i class="enter-arrow">→</i>
+      </div>
+    </div>
+  </a>
+
+  <!-- ═══ MAKE A WISH SIDE ═══ -->
+  <a class="half half-maw" href="makeawish.html">
+    <div class="maw-particles" id="mawParticles"></div>
+    <div class="maw-slit"></div>
+
+    <div class="maw-content">
+      <div class="maw-emblem">
+        <div class="maw-emblem-ring"></div>
+        <img class="maw-logo-img" src="MW.png" alt="Make a Wish Incorporated">
+      </div>
+      <div class="maw-tag">Campaign Three</div>
+      <h2 class="maw-title"><span>Make a Wish</span><small>Incorporated</small></h2>
+      <div class="maw-enter">
+        Report to Site <i class="enter-arrow">→</i>
       </div>
     </div>
   </a>
@@ -473,6 +616,17 @@ for (let i = 0; i < 18; i++) {
   s.style.animationDuration = (3 + Math.random() * 6) + 's';
   s.style.animationDelay   = (Math.random() * 6) + 's';
   ftO.appendChild(s);
+}
+
+// Falling data streaks — Make a Wish
+const mawP = document.getElementById('mawParticles');
+for (let i = 0; i < 18; i++) {
+  const s = document.createElement('span');
+  s.style.left              = (Math.random() * 100) + '%';
+  s.style.height            = (10 + Math.random() * 26) + 'px';
+  s.style.animationDuration = (5 + Math.random() * 7) + 's';
+  s.style.animationDelay    = (Math.random() * 9) + 's';
+  mawP.appendChild(s);
 }
 </script>
 

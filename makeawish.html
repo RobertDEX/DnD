@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Make a Wish Incorporated — Personnel Files</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Oswald:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="maw.css">
+</head>
+<body>
+<button class="sidebar-toggle" id="sidebarToggle">☰</button>
+<div class="bg-grid"></div>
+<div class="bg-vignette"></div>
+<div class="bg-scanline"></div>
+<div class="app">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+  <a href="index.html" class="back-link">‹ RETURN TO HUB</a>
+  <div class="brand">
+    <div class="brand-mark"><img src="MW.png" alt="MAW" class="brand-logo-img"></div>
+    <div class="brand-text">
+      <h1>MAKE A WISH</h1>
+      <p class="brand-sub">INCORPORATED</p>
+    </div>
+  </div>
+  <div class="brand-status">PARANORMAL INVESTIGATION DIVISION <span class="sync-dot" id="syncDot"></span></div>
+
+  <div class="sidebar-section">
+    <div class="section-label">▸ Personnel</div>
+    <div id="presenceBar" class="presence-bar"></div>
+    <div id="characterTabs" class="character-tabs"></div>
+    <button id="showReserveToggle" type="button" class="maw-btn ghost small">Show Reserve</button>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="section-label">▸ System</div>
+    <button id="dmTriggerBtn" type="button" class="maw-btn dm">⚿ Administrator</button>
+  </div>
+
+  <div class="sidebar-foot">CLASSIFIED // INTERNAL USE ONLY<br>UNAUTHORIZED ACCESS IS A TERMINABLE OFFENSE</div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-id">
+      <div class="topbar-rank-badge" id="topRankBadge">I</div>
+      <div class="topbar-id-text">
+        <div class="topbar-name" id="topAgentName">—</div>
+        <div class="topbar-role" id="topAgentRole">Unassigned</div>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <div class="tmeta"><span>CLEARANCE</span><strong id="topRank">TIER 1 · EMPLOYEE</strong></div>
+      <div class="tmeta"><span>BALANCE</span><strong id="topPoints" class="points-val">0 pts</strong></div>
+    </div>
+    <div class="topbar-bars">
+      <div class="tbar">
+        <div class="tbar-label">VITALS <span id="topHpMini">0 / 0</span></div>
+        <div class="tbar-track"><div class="tbar-fill hp" id="topHpBar"></div></div>
+      </div>
+      <div class="tbar">
+        <div class="tbar-label">SANITY <span id="topSanityMini">0 / 0</span></div>
+        <div class="tbar-track"><div class="tbar-fill san" id="topSanityBar"></div></div>
+      </div>
+      <div class="tbar armor-mini"><span>AC</span><strong id="topArmorMini">10</strong></div>
+    </div>
+  </header>
+
+  <div class="sheet-columns">
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+      <!-- IDENTITY -->
+      <section class="panel">
+        <div class="panel-title">Personnel File</div>
+        <div class="identity-row">
+          <label class="portrait-label" for="portraitInput">
+            <div class="portrait-slot" id="portraitSlot"></div>
+            <span class="portrait-hint">UPLOAD</span>
+            <input type="file" id="portraitInput" accept="image/*" hidden>
+          </label>
+          <div class="identity-fields">
+            <div class="field big"><label>Name</label><input id="charName" type="text" placeholder="Agent name"></div>
+            <div class="field"><label>Codename</label><input id="charCodename" type="text" placeholder="Field alias"></div>
+            <div class="field"><label>Role / Specialty</label><input id="charRole" type="text" placeholder="e.g. Containment Specialist"></div>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>Clearance</label><input id="charClearance" type="text" placeholder="e.g. Level 3"></div>
+          <div class="field"><label>Rank / Tier</label>
+            <select id="charRank">
+              <option value="I">Tier I · Employee</option>
+              <option value="II">Tier II · Supervisor</option>
+              <option value="III">Tier III · Deputy</option>
+              <option value="IV">Tier IV · Chief</option>
+            </select>
+          </div>
+          <div class="field"><label>Division</label><input id="charDivision" type="text" placeholder="Division"></div>
+          <div class="field"><label>Assigned Site</label><input id="charSite" type="text" placeholder="Site-██"></div>
+          <div class="field"><label>Level</label><input id="charLevel" type="number" min="1" value="1"></div>
+          <div class="field"><label>Age</label><input id="charAge" type="text" placeholder="—"></div>
+        </div>
+        <div class="field"><label>Background</label><input id="charBackground" type="text" placeholder="Recruitment history…"></div>
+        <div class="rank-display" id="rankDisplay"></div>
+      </section>
+
+      <!-- VITALS -->
+      <section class="panel">
+        <div class="panel-title">Vitals & Status</div>
+        <div class="resource-grid">
+          <div class="resource-block hp-block">
+            <div class="res-label">VITALS (HP)</div>
+            <div class="res-inputs">
+              <input id="currentHp" type="number" value="0"><span>/</span><input id="maxHp" type="number" value="0">
+            </div>
+            <div class="res-adjust">
+              <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
+              <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
+              <button class="adj-btn" data-resource="hp" data-amt="1">+1</button>
+              <button class="adj-btn" data-resource="hp" data-amt="5">+5</button>
+            </div>
+          </div>
+          <div class="resource-block san-block">
+            <div class="res-label">SANITY</div>
+            <div class="res-inputs">
+              <input id="currentSanity" type="number" value="0"><span>/</span><input id="maxSanity" type="number" value="0">
+            </div>
+            <div class="res-adjust">
+              <button class="adj-btn" data-resource="sanity" data-amt="-5">−5</button>
+              <button class="adj-btn" data-resource="sanity" data-amt="-1">−1</button>
+              <button class="adj-btn" data-resource="sanity" data-amt="1">+1</button>
+              <button class="adj-btn" data-resource="sanity" data-amt="5">+5</button>
+            </div>
+          </div>
+        </div>
+        <div class="vitals-mini">
+          <div class="field small"><label>Armor Class</label><input id="charArmor" type="number" value="10"></div>
+          <div class="field small"><label>Temp HP</label><input id="charTempHp" type="number" value="0"></div>
+          <div class="field small"><label>Speed</label><input id="charSpeed" type="text" value="30 ft"></div>
+          <div class="field small"><label>Initiative</label><input id="initiativeDisplay" type="text" readonly></div>
+        </div>
+        <div class="death-saves-box">
+          <div class="death-title">Death Saves</div>
+          <div id="deathSaves"></div>
+        </div>
+        <div class="state-radios">
+          <label><input type="radio" name="agentState" id="stateActive"> Active</label>
+          <label><input type="radio" name="agentState" id="stateReserve"> Reserve</label>
+          <label><input type="radio" name="agentState" id="stateDead"> KIA</label>
+        </div>
+      </section>
+
+      <!-- STATS -->
+      <section class="panel">
+        <div class="panel-title">Attributes</div>
+        <div class="stats-grid" id="statsGrid"></div>
+      </section>
+
+      <!-- CALC -->
+      <section class="panel">
+        <div class="panel-title">Combat & Derived <span class="passive-perc">Passive Perception <strong id="passivePerc">10</strong></span></div>
+        <div id="calcPanel"></div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="skills">Skills</button>
+        <button class="tab-btn" data-tab="loadout">Loadout</button>
+        <button class="tab-btn" data-tab="abilities">Talents</button>
+        <button class="tab-btn" data-tab="anomalies">Anomaly Log</button>
+        <button class="tab-btn" data-tab="relations">Personnel</button>
+        <button class="tab-btn" data-tab="shop">Requisitions</button>
+        <button class="tab-btn" data-tab="notes">Notes</button>
+      </div>
+
+      <!-- SKILLS -->
+      <div class="tab-content active panel tab-panel" data-tab="skills">
+        <div class="panel-title">Skill Proficiencies</div>
+        <div class="skills-legend"><span class="lg trained">● Trained</span><span class="lg specialist">● Specialist ×2</span><span class="lg sense">◈ Sensitivity — paranormal perception</span></div>
+        <div class="skills-matrix" id="skillsMatrix"></div>
+      </div>
+
+      <!-- LOADOUT -->
+      <div class="tab-content panel tab-panel" data-tab="loadout">
+        <div class="panel-title">Weapons</div>
+        <div id="weaponsList" class="weapons-list"></div>
+        <button id="addWeaponBtn" class="maw-btn" style="margin-top:.7rem">+ Add Weapon</button>
+
+        <div class="panel-title" style="margin-top:1.6rem">Inventory <span class="inv-total">Est. value <strong id="inventoryValue">0 pts</strong></span></div>
+        <div id="inventoryList" class="inventory-list"></div>
+        <div class="inv-add-row">
+          <input id="invAddName" type="text" placeholder="Item name…">
+          <input id="invAddQty" type="number" min="1" value="1">
+          <button id="addInvBtn" class="maw-btn small">+ Add</button>
+        </div>
+      </div>
+
+      <!-- ABILITIES -->
+      <div class="tab-content panel tab-panel" data-tab="abilities">
+        <div class="panel-title">Talents & Anomalous Abilities</div>
+        <div id="abilitiesList" class="abilities-list"></div>
+        <button id="addAbilityBtn" class="maw-btn" style="margin-top:.7rem">+ Add Talent</button>
+      </div>
+
+      <!-- ANOMALIES -->
+      <div class="tab-content panel tab-panel anomaly-panel" data-tab="anomalies">
+        <div class="anom-header">
+          <div class="anom-title-block">
+            <div class="anom-glyph">⬡</div>
+            <div><div class="anom-title">ANOMALY LOG</div><div class="anom-subtitle">Documented Entities · Classified</div></div>
+          </div>
+          <div class="anom-status"><span class="anom-status-dot"></span><span id="anomalyCount">0 FILED</span></div>
+        </div>
+        <button id="addAnomalyBtn" class="maw-btn" style="margin-bottom:1rem">+ File New Anomaly</button>
+        <div id="anomaliesList" class="anomalies-list"></div>
+      </div>
+
+      <!-- RELATIONS -->
+      <div class="tab-content panel tab-panel" data-tab="relations">
+        <div class="panel-title">Personnel & Contacts</div>
+        <div id="relationshipsList" class="relationships-list"></div>
+        <button id="addRelBtn" class="maw-btn" style="margin-top:.7rem">+ Add Record</button>
+      </div>
+
+      <!-- SHOP / REQUISITIONS -->
+      <div class="tab-content panel tab-panel shop-panel" data-tab="shop">
+        <div class="shop-header">
+          <div class="shop-title-block">
+            <div class="shop-glyph">⊞</div>
+            <div><div class="shop-title">REQUISITIONS</div><div class="shop-subtitle">Make a Wish Inc. · Internal Procurement</div></div>
+          </div>
+          <div class="shop-balance-box">BALANCE<strong id="shopBalance">0 pts</strong></div>
+        </div>
+        <div id="shopList" class="shop-list"></div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="tab-content panel tab-panel" data-tab="notes">
+        <div class="panel-title">Field Notes</div>
+        <textarea id="notesText" class="notes-area" placeholder="Mission logs, observations, leads…"></textarea>
+        <div class="panel-title" style="margin-top:1.2rem">Abilities Summary</div>
+        <textarea id="abilitiesText" class="notes-area" placeholder="Quick reference notes…"></textarea>
+        <div style="margin-top:1rem;display:flex;align-items:center;gap:.8rem">
+          <span class="micro-label">Agent Color</span>
+          <input type="color" id="accentColorInput" value="#d94f4f">
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ═══ DM OVERLAY ═══ -->
+<div id="dmOverlay" class="dm-overlay hidden">
+  <div class="dm-modal">
+    <button class="dm-x" id="dmCloseBtn">✕</button>
+
+    <!-- LOGIN -->
+    <div id="dmLoginPanel" class="dm-login">
+      <div class="dm-login-mark">⚿</div>
+      <div class="dm-login-title">ADMINISTRATOR ACCESS</div>
+      <div class="dm-login-sub">Credentials required</div>
+      <input id="dmPasswordInput" type="password" placeholder="Access code">
+      <button id="dmUnlockBtn" class="maw-btn dm">AUTHENTICATE</button>
+    </div>
+
+    <!-- FULL PANEL -->
+    <div id="dmFullPanel" class="dm-full hidden">
+      <div class="dm-full-head">
+        <div class="dm-full-title">⚿ ADMINISTRATOR CONSOLE <span class="dm-sel">Viewing: <strong id="dmSelectedName">—</strong></span></div>
+        <button id="dmLockBtn" class="maw-btn ghost small">Lock</button>
+      </div>
+      <div class="dm-nav">
+        <button class="dm-nav-btn active" data-dm="roster">Roster & Ranks</button>
+        <button class="dm-nav-btn" data-dm="missions">Mission Points</button>
+        <button class="dm-nav-btn" data-dm="shop">Requisitions</button>
+      </div>
+
+      <div class="dm-section active" data-dm="roster">
+        <div class="dm-section-title">Personnel Roster — Assign Rank & Points</div>
+        <div id="dmRoster" class="dm-roster"></div>
+      </div>
+
+      <div class="dm-section" data-dm="missions">
+        <div class="dm-section-title">Award Mission Points</div>
+        <div class="dm-award-config">
+          <label class="dm-mini"><span>Award To</span><select id="dmAwardTarget"></select></label>
+          <label class="dm-mini grow"><span>Mission / Operation Name</span><input id="dmMissionName" type="text" placeholder="Operation designation…"></label>
+        </div>
+        <div class="dm-section-subtitle">Threat Grade Bounties</div>
+        <div id="dmAwardGrades" class="dm-award-grades"></div>
+        <div class="dm-grade-legend">F · 100 &nbsp;|&nbsp; D · 500 &nbsp;|&nbsp; C · 1,000 &nbsp;|&nbsp; B · 5,000 &nbsp;|&nbsp; A · 10,000 &nbsp;|&nbsp; S · 50,000+ (separate review)</div>
+      </div>
+
+      <div class="dm-section" data-dm="shop">
+        <div class="dm-section-title">Requisitions Catalog</div>
+        <div id="dmShopList" class="dm-shop-list"></div>
+        <button id="addShopItemBtn" class="maw-btn" style="margin-top:.8rem">+ Stock New Item</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="maw.js"></script>
+</body>
+</html>

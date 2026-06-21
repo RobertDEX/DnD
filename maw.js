@@ -1032,15 +1032,22 @@ function startBroadcastListener(){
 }
 function removeBroadcastScreen(){ el('broadcastScreen')?.remove(); }
 function showBroadcastScreen(msg){
+  const alreadyShowing = !!el('broadcastScreen');
   removeBroadcastScreen();
   const ov = document.createElement('div');
   ov.id = 'broadcastScreen';
-  ov.className = 'broadcast-screen';
+  ov.className = alreadyShowing ? 'broadcast-screen no-intro' : 'broadcast-screen';
   const canDismiss = dmUnlocked;
   ov.innerHTML = `
     <div class="bcs-noise"></div>
     <div class="bcs-scan"></div>
     <div class="bcs-vignette"></div>
+    ${canDismiss ? `
+    <div class="bcs-pin">
+      <span class="bcs-pin-label">ADMIN CONTROLS</span>
+      <button class="bcs-pin-edit" id="bcsPinEdit" title="Jump to editor">✎ EDIT</button>
+      <button class="bcs-pin-end" id="bcsPinEnd" title="End the transmission for everyone">▣ END</button>
+    </div>` : ''}
     <div class="bcs-inner">
       <div class="bcs-head">
         <span class="bcs-dot"></span>
@@ -1053,7 +1060,15 @@ function showBroadcastScreen(msg){
         <span>THIS MESSAGE IS MANDATORY VIEWING</span>
         <span class="bcs-id">REF ${Math.random().toString(36).slice(2,8).toUpperCase()}-${new Date().getFullYear()}</span>
       </div>
-      ${canDismiss?'<button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>':'<div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>'}
+      ${canDismiss ? `
+      <div class="bcs-dm-bar" id="bcsDmBar">
+        <textarea class="bcs-dm-input" id="bcsDmInput" placeholder="Amend or extend the transmission… (this replaces the message on every screen)"></textarea>
+        <div class="bcs-dm-actions">
+          <button class="bcs-dm-update" id="bcsUpdate">⟳ UPDATE MESSAGE</button>
+          <button class="bcs-dm-append" id="bcsAppend">＋ APPEND LINE</button>
+          <button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>
+        </div>
+      </div>` : '<div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>'}
     </div>`;
   document.body.appendChild(ov);
   // typewriter reveal for eerie effect
@@ -1066,7 +1081,32 @@ function showBroadcastScreen(msg){
     else { target.classList.remove('typing'); }
   };
   tick();
+  // pre-fill the DM editor with the current message so they can edit in place
+  const dmInput = el('bcsDmInput');
+  if(dmInput) dmInput.value = text;
+  el('bcsUpdate')?.addEventListener('click', ()=>{
+    const v = el('bcsDmInput')?.value.trim();
+    if(!v){ showToast('Message is empty','warn'); return; }
+    sendBroadcast(v);   // re-broadcast → all screens (incl. this one) re-render via snapshot
+    showToast('Transmission updated','info');
+  });
+  el('bcsAppend')?.addEventListener('click', ()=>{
+    const extra = el('bcsDmInput')?.value.trim();
+    if(!extra){ showToast('Nothing to append','warn'); return; }
+    const current = el('bcsMessage')?.textContent || '';
+    const combined = current ? (current + '\n' + extra) : extra;
+    sendBroadcast(combined);
+    if(el('bcsDmInput')) el('bcsDmInput').value = combined;
+    showToast('Line appended to transmission','info');
+  });
   el('bcsDismiss')?.addEventListener('click', ()=>{ clearBroadcast(); removeBroadcastScreen(); });
+  // Always-visible pinned controls
+  el('bcsPinEnd')?.addEventListener('click', ()=>{ clearBroadcast(); removeBroadcastScreen(); });
+  el('bcsPinEdit')?.addEventListener('click', ()=>{
+    const bar = el('bcsDmBar');
+    bar?.scrollIntoView({ behavior:'smooth', block:'center' });
+    el('bcsDmInput')?.focus();
+  });
 }
 
 // ================================================================

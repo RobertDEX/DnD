@@ -499,7 +499,8 @@ body{filter:saturate(.82)}
 .dm-broadcast-actions{display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap}
 
 /* ── FULL-SCREEN BROADCAST TAKEOVER ── */
-.broadcast-screen{position:fixed;inset:0;z-index:99999;background:#060708;display:flex;align-items:center;justify-content:center;overflow:hidden;animation:bcs-flickin .4s ease}
+.broadcast-screen{position:fixed;inset:0;z-index:99999;background:#060708;display:flex;align-items:center;justify-content:center;overflow-y:auto;overflow-x:hidden;padding:4rem 1rem 2.5rem;animation:bcs-flickin .4s ease}
+.broadcast-screen.no-intro{animation:none}
 @keyframes bcs-flickin{0%{opacity:0}15%{opacity:.4}25%{opacity:.1}40%{opacity:.7}55%{opacity:.25}100%{opacity:1}}
 .bcs-noise{position:absolute;inset:0;opacity:.04;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E");animation:bcs-noise-shift .4s steps(3) infinite}
 @keyframes bcs-noise-shift{0%{transform:translate(0,0)}33%{transform:translate(-2%,1%)}66%{transform:translate(1%,-2%)}}
@@ -507,19 +508,33 @@ body{filter:saturate(.82)}
 @keyframes bcs-scan-move{0%{transform:translateY(-200px)}100%{transform:translateY(100vh)}}
 .broadcast-screen::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.35) 3px,rgba(0,0,0,0) 4px);opacity:.6}
 .bcs-vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 50%,transparent,rgba(0,0,0,.85))}
-.bcs-inner{position:relative;z-index:2;max-width:820px;width:90%;text-align:center;padding:2rem}
+.bcs-inner{position:relative;z-index:2;max-width:820px;width:90%;text-align:center;padding:2rem;margin:auto}
 .bcs-head{display:flex;align-items:center;justify-content:center;gap:.8rem;font-family:var(--F4);font-size:.6rem;letter-spacing:.3em;color:#7a8590;text-transform:uppercase;margin-bottom:1.4rem}
 .bcs-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 1.4s infinite}
 .bcs-channel{opacity:.7}
 .bcs-tag{font-family:var(--F1);font-size:.7rem;font-weight:700;letter-spacing:.4em;color:var(--accent);text-transform:uppercase;margin-bottom:2rem;opacity:.85;animation:bcs-flicker 3.5s infinite}
 @keyframes bcs-flicker{0%,100%{opacity:.85}48%{opacity:.85}49%{opacity:.2}50%{opacity:.85}92%{opacity:.85}93%{opacity:.35}94%{opacity:.85}}
-.bcs-message{font-family:var(--F1);font-size:2rem;font-weight:700;line-height:1.45;color:#e8edf2;letter-spacing:.04em;text-shadow:0 0 24px rgba(180,200,220,.18);min-height:2.6em;word-break:break-word}
+.bcs-message{font-family:var(--F1);font-size:2rem;font-weight:700;line-height:1.45;color:#e8edf2;letter-spacing:.04em;text-shadow:0 0 24px rgba(180,200,220,.18);min-height:2.6em;word-break:break-word;white-space:pre-wrap}
 .bcs-message.typing::after{content:'▋';color:var(--accent);animation:pulse .8s infinite;margin-left:.1em}
 .bcs-foot{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:2.4rem;font-family:var(--F4);font-size:.54rem;letter-spacing:.18em;color:#4a535c;text-transform:uppercase;border-top:1px solid rgba(150,160,170,.12);padding-top:1rem}
 .bcs-id{opacity:.7}
-.bcs-dismiss{margin-top:1.8rem;font-family:var(--F4);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;padding:.6rem 1.4rem;background:rgba(217,79,79,.1);border:1px solid var(--accent);color:var(--accent);cursor:pointer;transition:all .15s}
+.bcs-dismiss{font-family:var(--F4);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;padding:.6rem 1.4rem;background:rgba(217,79,79,.1);border:1px solid var(--accent);color:var(--accent);cursor:pointer;transition:all .15s}
 .bcs-dismiss:hover{background:var(--accent);color:#fff}
 .bcs-wait{margin-top:1.8rem;font-family:var(--F4);font-size:.6rem;letter-spacing:.16em;color:#4a535c;text-transform:uppercase;animation:pulse 2s infinite}
+/* DM live-control bar on the broadcast screen */
+.bcs-pin{position:fixed;top:0;right:0;left:0;z-index:10;display:flex;align-items:center;justify-content:flex-end;gap:.6rem;padding:.7rem 1rem;background:linear-gradient(180deg,rgba(6,7,8,.96),rgba(6,7,8,.75) 70%,transparent);backdrop-filter:blur(2px)}
+.bcs-pin-label{font-family:var(--F4);font-size:.54rem;letter-spacing:.18em;color:#6b7681;text-transform:uppercase;margin-right:auto;padding-left:.3rem}
+.bcs-pin-edit,.bcs-pin-end{font-family:var(--F4);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:.5rem .9rem;cursor:pointer;transition:all .15s}
+.bcs-pin-edit{background:rgba(150,165,180,.1);border:1px solid rgba(150,160,170,.35);color:#aeb9c4}
+.bcs-pin-edit:hover{background:rgba(150,165,180,.22);color:#fff}
+.bcs-pin-end{background:rgba(217,79,79,.16);border:1px solid var(--accent);color:var(--accent)}
+.bcs-pin-end:hover{background:var(--accent);color:#fff}
+.bcs-dm-bar{margin-top:2rem;border-top:1px solid rgba(217,79,79,.2);padding-top:1.2rem;display:flex;flex-direction:column;gap:.7rem}
+.bcs-dm-input{width:100%;min-height:64px;resize:vertical;font-family:var(--F4);font-size:.8rem;line-height:1.55;letter-spacing:.02em;color:#c3cad2;background:rgba(10,11,13,.7);border:1px solid rgba(150,160,170,.2);border-radius:3px;padding:.6rem .8rem}
+.bcs-dm-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px rgba(217,79,79,.25)}
+.bcs-dm-actions{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+.bcs-dm-update,.bcs-dm-append{font-family:var(--F4);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:.55rem 1rem;background:rgba(150,165,180,.08);border:1px solid rgba(150,160,170,.3);color:#aeb9c4;cursor:pointer;transition:all .15s}
+.bcs-dm-update:hover,.bcs-dm-append:hover{background:rgba(150,165,180,.18);border-color:#8a96a2;color:#fff}
 @media (max-width:620px){.bcs-message{font-size:1.3rem}.bcs-channel{font-size:.5rem;letter-spacing:.18em}}
 
 /* ── SHOP: TIER GATING + CATEGORY GROUPS ── */

@@ -357,6 +357,49 @@ function renderPresence(players){
 function isTakenByLiveOther(c){ return !!c.claimedBy && c.claimedBy!==MY_PRESENCE_ID && _livePresenceIds.has(c.claimedBy); }
 setInterval(pushPresence, 20000);
 
+// ── RELEASE CHARACTER ON LEAVE ──
+// When this person leaves the site, free up whatever character they claimed
+// so it isn't hard-locked for the next session / another player.
+function releaseMyCharacterSync(){
+  try {
+    const mine = state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
+    if(!mine) { // still drop presence
+      navigator.sendBeacon && _beaconDelete('maw-presence', MY_PRESENCE_ID);
+      return;
+    }
+    mine.claimedBy = '';
+    // Write the freed state + remove presence using sendBeacon so it survives unload.
+    _beaconSetCampaign();
+    _beaconDelete('maw-presence', MY_PRESENCE_ID);
+  } catch(e){}
+}
+// Firestore REST beacon helpers (regular setDoc won't reliably finish during unload)
+function _fbProjectUrl(path){
+  return `https://firestore.googleapis.com/v1/projects/${FB_CONFIG.projectId}/databases/(default)/documents/${path}`;
+}
+function _beaconDelete(coll, id){
+  // best-effort; presence also self-expires after 35s if this fails
+  try { fetch(_fbProjectUrl(`${coll}/${id}`), { method:'DELETE', keepalive:true }); } catch(e){}
+}
+function _beaconSetCampaign(){
+  try {
+    const body = JSON.stringify({ fields: { data: { stringValue: JSON.stringify(state) } } });
+    fetch(_fbProjectUrl(`campaigns/${DOC}`) + `?updateMask.fieldPaths=data`, {
+      method:'PATCH', keepalive:true, headers:{'Content-Type':'application/json'}, body
+    });
+  } catch(e){}
+}
+function releaseMyCharacter(){
+  // Used for explicit "release" actions while the page is alive (normal setDoc path).
+  const mine = state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
+  if(!mine) return;
+  mine.claimedBy = '';
+  localStorage.removeItem('maw-my-idx');
+  pushState(true); pushPresence(); render();
+}
+window.addEventListener('pagehide', releaseMyCharacterSync);
+window.addEventListener('beforeunload', releaseMyCharacterSync);
+
 // ================================================================
 // RENDER ENGINE
 // ================================================================
@@ -378,6 +421,7 @@ function render(){
   try{ renderDeathSaves(); }catch(e){}
   try{ renderDmPanel(); }catch(e){}
   try{ applyCharacterAccents(); }catch(e){}
+  try{ renderIdentityBar(); }catch(e){}
   try{ renderTabs(); }catch(e){}
   try{ pushPresence(); }catch(e){}
   if(spectator) disableAllInputs();
@@ -1534,6 +1578,30 @@ function claimCharacter(realIdx){
   state.selectedCharacter = realIdx;
   localStorage.setItem('maw-my-idx', realIdx);
   pushState(true); pushPresence(); render();
+  renderIdentityBar();
+}
+
+// Small persistent bar showing your claimed identity + a release/switch control.
+function renderIdentityBar(){
+  // Only for players (not DM, not spectator) who currently hold a character.
+  const existing = el('identityBar');
+  const mine = (!dmUnlocked && !spectator) ? getMyCharacter() : null;
+  if(!mine){ existing?.remove(); return; }
+  let bar = existing;
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'identityBar'; bar.className = 'identity-bar';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `<span class="idb-label">IDENTITY</span><span class="idb-name">${esc(mine.name||'Agent')}</span><button id="idbRelease" title="Free this character so you (or someone else) can pick another">⮌ Switch / Release</button>`;
+  el('idbRelease')?.addEventListener('click', ()=>{
+    if(!confirm(`Release ${mine.name||'this agent'}? You'll return to the identification screen and the character will be free for anyone.`)) return;
+    releaseMyCharacter();
+    el('identityBar')?.remove();
+    _welcomeShown = false;
+    checkWelcome();
+    SFX?.click?.();
+  });
 }
 
 // ================================================================

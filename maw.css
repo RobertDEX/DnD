@@ -852,3 +852,13 @@ body.corrupt-3 #corruptionOverlay::after{content:'';position:absolute;inset:0;ba
   .dm-commend-grid{grid-template-columns:1fr 1fr}
   .evidence-board{height:420px}
 }
+
+/* ── IDENTITY BAR (claimed character + release) ── */
+.identity-bar{position:fixed;bottom:1rem;left:1rem;z-index:99985;display:flex;align-items:center;gap:.7rem;padding:.5rem .8rem;background:rgba(10,11,13,.95);border:1px solid var(--line2);border-left:3px solid var(--accent);box-shadow:0 8px 24px -12px #000;backdrop-filter:blur(6px);font-family:var(--F4)}
+.idb-label{font-size:.5rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+.idb-name{font-family:var(--F2);font-size:.85rem;font-weight:500;color:#fff;letter-spacing:.02em}
+.identity-bar button{font-family:var(--F4);font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;padding:.35rem .6rem;background:rgba(217,79,79,.1);border:1px solid rgba(217,79,79,.35);color:var(--accent);cursor:pointer;transition:all .14s}
+.identity-bar button:hover{background:var(--accent);color:#fff}
+@media (max-width:860px){
+  .identity-bar{bottom:auto;top:.5rem;left:50%;transform:translateX(-50%)}
+}

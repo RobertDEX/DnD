@@ -510,8 +510,8 @@ body{filter:saturate(.82)}
 .broadcast-screen::before{content:'';position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.35) 3px,rgba(0,0,0,0) 4px);opacity:.6}
 .bcs-vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 50%,transparent,rgba(0,0,0,.85))}
 /* scrollable content wrapper that fills the viewport and centers its child */
-.bcs-scroll{position:relative;z-index:2;width:100%;height:100%;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;padding:4.5rem 1rem 3rem}
-.bcs-inner{position:relative;width:100%;max-width:820px;text-align:center;margin:auto 0}
+.bcs-scroll{position:absolute;inset:0;z-index:2;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1.2rem;box-sizing:border-box}
+.bcs-inner{position:relative;width:100%;max-width:780px;text-align:center}
 .bcs-head{display:flex;align-items:center;justify-content:center;gap:.8rem;font-family:var(--F4);font-size:.6rem;letter-spacing:.3em;color:#7a8590;text-transform:uppercase;margin-bottom:1.4rem}
 .bcs-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 1.4s infinite}
 .bcs-channel{opacity:.7}
@@ -558,3 +558,183 @@ body{filter:saturate(.82)}
 .dm-shop-toolbar{display:flex;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap}
 .dm-shop-legend{font-family:var(--F4);font-size:.56rem;color:var(--muted);letter-spacing:.03em;margin-bottom:.9rem;line-height:1.6}
 .ds-tier{font-family:var(--F4);font-size:.7rem;padding:.4rem .2rem;text-align:center}
+
+/* ════════════════════════════════════════════════════════════
+   UI UPGRADE LAYER — depth, lighting, motion, polish
+   (overrides/augments base styles; corporate-cold aesthetic)
+   ════════════════════════════════════════════════════════════ */
+
+/* Deeper page backdrop with a faint top-down corporate glow */
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(217,79,79,.05), transparent 60%),
+    radial-gradient(100% 60% at 50% 110%, rgba(90,130,170,.04), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+/* Panels: subtle gradient, soft inset top highlight, real shadow, accent corner */
+.panel{
+  background:linear-gradient(180deg, var(--panel2), var(--panel));
+  border:1px solid var(--line2);
+  box-shadow:0 1px 0 rgba(255,255,255,.025) inset, 0 8px 24px -12px rgba(0,0,0,.7);
+  position:relative;
+  transition:border-color .2s, box-shadow .2s;
+}
+.panel::after{
+  content:'';position:absolute;top:-1px;left:-1px;width:14px;height:14px;
+  border-top:2px solid var(--accent);border-left:2px solid var(--accent);
+  opacity:.5;pointer-events:none;
+}
+.panel:hover{box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px -10px rgba(0,0,0,.8)}
+.panel-title{position:relative}
+.panel-title::before{
+  content:'';position:absolute;left:0;bottom:-1px;width:42px;height:1px;
+  background:linear-gradient(90deg,var(--accent),transparent);
+}
+
+/* Topbar: layered gradient + glow under the accent line */
+.topbar{
+  background:linear-gradient(180deg, rgba(20,24,30,.95), var(--panel));
+  border-top:2px solid var(--accent);
+  box-shadow:0 6px 30px -14px rgba(217,79,79,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+}
+.topbar-rank-badge{
+  background:radial-gradient(circle at 50% 35%, rgba(217,79,79,.18), rgba(0,0,0,.35));
+  box-shadow:0 0 18px -4px rgba(217,79,79,.5), 0 2px 0 rgba(255,255,255,.04) inset;
+}
+
+/* Sidebar depth + brand glow pulse */
+.sidebar{
+  background:linear-gradient(180deg, #0c0e11, var(--bg2));
+  box-shadow:1px 0 0 rgba(255,255,255,.02) inset, 16px 0 40px -30px #000;
+}
+.brand-mark{animation:brand-breathe 4s ease-in-out infinite}
+@keyframes brand-breathe{0%,100%{filter:drop-shadow(0 0 8px rgba(217,79,79,.35))}50%{filter:drop-shadow(0 0 16px rgba(217,79,79,.6))}}
+
+/* Character tabs: richer hover, active glow, lift */
+.character-tab{
+  background:linear-gradient(180deg, var(--panel2), var(--panel));
+  transition:transform .14s cubic-bezier(.3,.7,.4,1.3), border-color .14s, box-shadow .14s, background .14s;
+}
+.character-tab:hover{transform:translateX(2px);box-shadow:-4px 0 12px -8px var(--accent)}
+.character-tab.active{
+  background:linear-gradient(180deg, rgba(217,79,79,.08), var(--panel2));
+  box-shadow:inset 0 0 0 1px rgba(217,79,79,.25), -6px 0 18px -10px rgba(217,79,79,.5);
+}
+.character-tab.active .ctab-name{color:#fff}
+
+/* Stat blocks: depth + accent hover */
+.stat-block{
+  background:linear-gradient(180deg, var(--panel2), var(--bg));
+  box-shadow:0 1px 0 rgba(255,255,255,.02) inset;
+  transition:transform .14s, border-color .14s, box-shadow .14s;
+}
+.stat-block:hover{transform:translateY(-2px);border-color:rgba(217,79,79,.4);box-shadow:0 8px 18px -12px rgba(217,79,79,.4)}
+.stat-mod{text-shadow:0 0 14px rgba(217,79,79,.3)}
+
+/* Buttons: gradient, sheen on hover, press feedback */
+.maw-btn{
+  background:linear-gradient(180deg, #1a1f25, var(--panel2));
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 2px 8px -4px rgba(0,0,0,.6);
+  position:relative;overflow:hidden;
+  transition:transform .12s, border-color .14s, color .14s, box-shadow .14s;
+}
+.maw-btn::before{
+  content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.08),transparent);
+  transition:left .5s ease;
+}
+.maw-btn:hover::before{left:140%}
+.maw-btn:hover{transform:translateY(-1px)}
+.maw-btn:active{transform:translateY(0) scale(.99)}
+.maw-btn.dm{box-shadow:0 0 18px -8px rgba(217,79,79,.5), 0 1px 0 rgba(255,255,255,.03) inset}
+
+/* Tab bar buttons: animated underline */
+.tab-btn{position:relative;transition:color .15s, background .15s}
+.tab-btn::after{
+  content:'';position:absolute;left:50%;right:50%;bottom:-1px;height:2px;
+  background:var(--accent);transition:left .2s, right .2s;opacity:0;
+}
+.tab-btn:hover::after{left:20%;right:20%;opacity:.5}
+.tab-btn.active::after{left:0;right:0;opacity:1;box-shadow:0 0 10px var(--accent)}
+
+/* Sync dot: glow ring when synced */
+.sync-dot.synced{box-shadow:0 0 6px var(--green), 0 0 0 3px rgba(90,154,120,.12)}
+.sync-dot.error{box-shadow:0 0 6px var(--accent), 0 0 0 3px rgba(217,79,79,.12)}
+
+/* Inputs: focus glow + subtle inner depth */
+input,select,textarea{
+  background:linear-gradient(180deg, rgba(0,0,0,.25), var(--bg));
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+input:focus,select:focus,textarea:focus{
+  box-shadow:0 0 0 1px rgba(217,79,79,.3), 0 0 16px -6px rgba(217,79,79,.4);
+}
+
+/* Resource bars: gradient sheen + glow */
+.tbar-fill{position:relative;overflow:hidden}
+.tbar-fill::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+  transform:translateX(-100%);animation:bar-sheen 3.5s ease-in-out infinite;
+}
+@keyframes bar-sheen{0%,60%{transform:translateX(-100%)}100%{transform:translateX(280%)}}
+.tbar-fill.hp{box-shadow:0 0 10px -2px rgba(217,79,79,.5)}
+.tbar-fill.san{box-shadow:0 0 10px -2px rgba(90,130,194,.5)}
+
+/* Shop items: hover lift + tier glow */
+.shop-item{transition:transform .14s, border-color .14s, box-shadow .14s, background .14s}
+.shop-item:hover{transform:translateX(3px);background:rgba(255,255,255,.015);box-shadow:-6px 0 16px -10px var(--tier-c,var(--amber))}
+.shop-buy-btn{transition:transform .12s, background .14s, color .14s, box-shadow .14s}
+.shop-buy-btn:hover{box-shadow:0 0 16px -4px var(--amber)}
+.shop-cat-header{position:relative}
+.shop-cat-header::after{content:'';position:absolute;left:0;bottom:-1px;width:60px;height:2px;background:linear-gradient(90deg,var(--steel),transparent)}
+
+/* Anomaly cards: threat-tinted glow on hover */
+.anom-card{transition:transform .14s, box-shadow .14s, border-color .14s}
+.anom-card:hover{box-shadow:-6px 0 18px -10px var(--tg,#b04ad9)}
+.anom-card.open{box-shadow:0 0 0 1px color-mix(in srgb, var(--tg,#b04ad9) 22%, transparent), 0 10px 30px -16px #000}
+
+/* Rank pips: active glow */
+.rank-pip.active{box-shadow:0 0 18px -6px var(--rk), inset 0 0 0 1px color-mix(in srgb,var(--rk) 40%,transparent)}
+.rank-pip{transition:transform .14s, box-shadow .2s, opacity .2s}
+.rank-pip:hover{transform:translateY(-2px)}
+
+/* DM grade buttons: stronger interactive feedback */
+.grade-btn{transition:transform .12s, background .14s, box-shadow .16s}
+.grade-btn:hover{transform:translateY(-2px)}
+.grade-letter{text-shadow:0 0 12px color-mix(in srgb,var(--gc) 50%,transparent)}
+
+/* Skill rows: smoother hover with accent slide */
+.skill-row{transition:background .12s, box-shadow .12s}
+.skill-row:hover{box-shadow:inset 2px 0 0 var(--accent)}
+.skill-row.sense-row:hover{box-shadow:inset 2px 0 0 var(--amber)}
+
+/* Toast: glassy with glow */
+.toast{backdrop-filter:blur(6px);background:rgba(17,20,24,.92);box-shadow:0 12px 40px -14px #000, 0 0 0 1px var(--line2)}
+
+/* Smooth scrollbars in the corporate palette */
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#333b44,#262c33);border-radius:0}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#445,#333b44)}
+
+/* Global focus-visible ring for accessibility */
+:focus-visible{outline:1px solid rgba(217,79,79,.6);outline-offset:1px}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.05ms!important}
+}
+
+/* ── BROADCAST: premium polish ── */
+.bcs-message{
+  background:linear-gradient(180deg,#fff,#cdd6df);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:none;filter:drop-shadow(0 0 28px rgba(180,200,220,.22));
+}
+.bcs-message.typing::after{-webkit-text-fill-color:var(--accent);color:var(--accent)}
+.bcs-tag{text-shadow:0 0 18px rgba(217,79,79,.5)}
+.bcs-dm-bar{background:rgba(0,0,0,.3);border:1px solid rgba(217,79,79,.18);border-top:1px solid rgba(217,79,79,.35);padding:1.2rem;border-radius:4px}
+.bcs-pin{box-shadow:0 8px 24px -16px #000}
+.bcs-pin-end{box-shadow:0 0 16px -6px rgba(217,79,79,.5)}
+.bcs-dot{box-shadow:0 0 10px var(--accent), 0 0 0 3px rgba(217,79,79,.1)}

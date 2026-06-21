@@ -188,7 +188,9 @@ function normalize(raw){
     Object.keys(blankSk).forEach(n=>{ mc.skills[n] = { ...blankSk[n], ...(c.skills?.[n]||{}) }; });
     return mc;
   });
-  while(m.characters.length<6) m.characters.push(blankChar(m.characters.length));
+  // Never force the roster back up to a fixed count — that re-spawned deleted agents.
+  // Only guarantee at least one personnel file exists so the sheet can render.
+  if(m.characters.length === 0) m.characters.push(blankChar(0));
   if(m.selectedCharacter>=m.characters.length) m.selectedCharacter = 0;
   if(!Array.isArray(m.shop)) m.shop = [];
   m.shop = m.shop.map(it=>({
@@ -266,8 +268,14 @@ function startListener(){
         if(isTyping && i===(myIdx>=0?myIdx:state.selectedCharacter)) return;
         state.characters[i] = rc;
       });
-      while(state.characters.length<remote.characters.length)
-        state.characters.push(remote.characters[state.characters.length]);
+      // Match the remote roster length exactly — grow if added, shrink if deleted.
+      if(state.characters.length > remote.characters.length){
+        state.characters.length = remote.characters.length;
+      } else {
+        while(state.characters.length < remote.characters.length)
+          state.characters.push(remote.characters[state.characters.length]);
+      }
+      if(state.selectedCharacter >= state.characters.length) state.selectedCharacter = 0;
       state.shop = remote.shop;
       state.theme = remote.theme;
       setSyncDot('synced');

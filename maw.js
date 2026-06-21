@@ -1054,29 +1054,31 @@ function showBroadcastScreen(msg){
       <button class="bcs-pin-edit" id="bcsPinEdit" title="Jump to editor">✎ EDIT</button>
       <button class="bcs-pin-end" id="bcsPinEnd" title="End the transmission for everyone">▣ END</button>
     </div>` : ''}
-    <div class="bcs-inner">
-      <div class="bcs-head">
-        <span class="bcs-dot"></span>
-        <span class="bcs-channel">MAKE A WISH INCORPORATED · INTERNAL BROADCAST</span>
-        <span class="bcs-dot"></span>
-      </div>
-      <div class="bcs-tag">// PRIORITY TRANSMISSION //</div>
-      <div class="bcs-message" id="bcsMessage"></div>
-      <div class="bcs-foot">
-        <span>THIS MESSAGE IS MANDATORY VIEWING</span>
-        <span class="bcs-id">REF ${Math.random().toString(36).slice(2,8).toUpperCase()}-${new Date().getFullYear()}</span>
-      </div>
-      ${canDismiss ? `
-      <div class="bcs-dm-bar" id="bcsDmBar">
-        <textarea class="bcs-dm-input" id="bcsDmInput" placeholder="Amend or extend the transmission… (this replaces the message on every screen)"></textarea>
-        <div class="bcs-dm-actions">
-          <button class="bcs-dm-update" id="bcsUpdate">⟳ UPDATE MESSAGE</button>
-          <button class="bcs-dm-append" id="bcsAppend">＋ APPEND LINE</button>
-          <button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>
+    <div class="bcs-scroll">
+      <div class="bcs-inner">
+        <div class="bcs-head">
+          <span class="bcs-dot"></span>
+          <span class="bcs-channel">MAKE A WISH INCORPORATED · INTERNAL BROADCAST</span>
+          <span class="bcs-dot"></span>
         </div>
-      </div>` : `
-      <div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>
-      <button class="bcs-admin-login" id="bcsAdminLogin">⚿ ADMINISTRATOR OVERRIDE</button>`}
+        <div class="bcs-tag">// PRIORITY TRANSMISSION //</div>
+        <div class="bcs-message" id="bcsMessage"></div>
+        <div class="bcs-foot">
+          <span>THIS MESSAGE IS MANDATORY VIEWING</span>
+          <span class="bcs-id">REF ${Math.random().toString(36).slice(2,8).toUpperCase()}-${new Date().getFullYear()}</span>
+        </div>
+        ${canDismiss ? `
+        <div class="bcs-dm-bar" id="bcsDmBar">
+          <textarea class="bcs-dm-input" id="bcsDmInput" placeholder="Amend or extend the transmission… (this replaces the message on every screen)"></textarea>
+          <div class="bcs-dm-actions">
+            <button class="bcs-dm-update" id="bcsUpdate">⟳ UPDATE MESSAGE</button>
+            <button class="bcs-dm-append" id="bcsAppend">＋ APPEND LINE</button>
+            <button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>
+          </div>
+        </div>` : `
+        <div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>
+        <button class="bcs-admin-login" id="bcsAdminLogin">⚿ ADMINISTRATOR OVERRIDE</button>`}
+      </div>
     </div>`;
   document.body.appendChild(ov);
   // typewriter reveal for eerie effect

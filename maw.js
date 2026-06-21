@@ -135,7 +135,8 @@ let state = {
   theme: null,
   shop: [],  // shared shop catalog managed by the DM
   evidenceBoard: { nodes: [], links: [] },   // DM evidence board
-  siteAlert: 'normal'                         // normal | lockdown | uncontained
+  siteAlert: 'normal',                        // normal | lockdown | uncontained
+  requests: []  // player requisition requests awaiting DM review
 };
 
 // Commendation/achievement catalog (DM grants these)
@@ -197,7 +198,9 @@ function normalize(raw){
     mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
     mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
     mc.missions   = Array.isArray(c.missions)?c.missions:[];
-    mc.abilities  = Array.isArray(c.abilities)?c.abilities:[];
+    mc.abilities  = (Array.isArray(c.abilities)?c.abilities:[]).map(a=>({
+      name:a.name||'', type:a.type||'Talent', cost:a.cost||'', cooldown:a.cooldown||'', desc:a.desc||''
+    }));
     mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
     if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
     if(!RANK_BY_ID[mc.rank]) mc.rank = 'I';
@@ -224,6 +227,8 @@ function normalize(raw){
   if(!Array.isArray(m.evidenceBoard.links)) m.evidenceBoard.links = [];
   // Site alert state
   if(!['normal','lockdown','uncontained'].includes(m.siteAlert)) m.siteAlert = 'normal';
+  // Requisition requests
+  if(!Array.isArray(m.requests)) m.requests = [];
   return m;
 }
 
@@ -272,6 +277,10 @@ async function pushState(immediate=false){
     catch(e){ console.error(e); setSyncDot('error'); }
   }, 600);
 }
+// Force any pending debounced write to go out right now (e.g. on blur / before unload).
+function flushPendingPush(){
+  if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; pushState(true); }
+}
 
 function startListener(){
   if(_unsub) _unsub();
@@ -300,6 +309,7 @@ function startListener(){
       }
       if(state.selectedCharacter >= state.characters.length) state.selectedCharacter = 0;
       state.shop = remote.shop;
+      state.requests = remote.requests;
       state.theme = remote.theme;
       state.evidenceBoard = remote.evidenceBoard;
       const prevAlert = state.siteAlert;
@@ -362,6 +372,8 @@ setInterval(pushPresence, 20000);
 // so it isn't hard-locked for the next session / another player.
 function releaseMyCharacterSync(){
   try {
+    // Make sure any pending debounced edit is included in what we beacon out.
+    if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; }
     const mine = state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
     if(!mine) { // still drop presence
       navigator.sendBeacon && _beaconDelete('maw-presence', MY_PRESENCE_ID);
@@ -399,6 +411,9 @@ function releaseMyCharacter(){
 }
 window.addEventListener('pagehide', releaseMyCharacterSync);
 window.addEventListener('beforeunload', releaseMyCharacterSync);
+// When the tab is hidden (switched away / about to close), flush pending edits — this is
+// the most reliable save hook on mobile, where unload events often don't fire.
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden'){ if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; } _beaconSetCampaign(); } });
 
 // ================================================================
 // RENDER ENGINE
@@ -417,11 +432,13 @@ function render(){
   try{ renderAnomalies(); }catch(e){}
   try{ renderAbilities(); }catch(e){}
   try{ renderShop(); }catch(e){}
+  try{ renderRequests(); }catch(e){}
   try{ renderCommendations(); }catch(e){}
   try{ renderDeathSaves(); }catch(e){}
   try{ renderDmPanel(); }catch(e){}
   try{ applyCharacterAccents(); }catch(e){}
   try{ renderIdentityBar(); }catch(e){}
+  try{ applySanityDamage(); }catch(e){}
   try{ renderTabs(); }catch(e){}
   try{ pushPresence(); }catch(e){}
   if(spectator) disableAllInputs();
@@ -437,7 +454,7 @@ function renderTabs(){
       case 'relations': renderRelationships(); break;
       case 'anomalies': renderAnomalies(); break;
       case 'abilities': renderAbilities(); renderCommendations(); break;
-      case 'shop':      renderShop(); break;
+      case 'shop':      renderShop(); renderRequests(); break;
     }
   } catch(e){}
 }
@@ -808,6 +825,96 @@ function mapShopCatToInv(cat){
 }
 
 // ================================================================
+// REQUISITION REQUESTS — players ask for items not in the catalog
+// ================================================================
+function submitRequest(){
+  if(spectator) return;
+  const c = getChar();
+  const name = el('reqItemName')?.value.trim();
+  const note = el('reqItemNote')?.value.trim();
+  if(!name){ showToast('Enter an item name','warn'); return; }
+  if(!Array.isArray(state.requests)) state.requests = [];
+  state.requests.push({
+    id: 'req-'+Date.now()+Math.random().toString(16).slice(2,5),
+    item: name, note: note||'',
+    by: c.name || 'Unknown Agent',
+    byId: c.claimedBy || MY_PRESENCE_ID,
+    status: 'pending',
+    ts: Date.now()
+  });
+  if(el('reqItemName')) el('reqItemName').value='';
+  if(el('reqItemNote')) el('reqItemNote').value='';
+  pushState(true); renderRequests();
+  SFX?.confirm?.();
+  showToast('Requisition request submitted for review','buy');
+}
+// Player-side: see your own requests + their status
+function renderRequests(){
+  const host = el('myRequestsList'); if(!host) return;
+  const c = getChar();
+  const mine = (state.requests||[]).filter(r=> r.byId===(c.claimedBy||MY_PRESENCE_ID) || r.by===c.name);
+  if(!mine.length){ host.innerHTML = `<div class="empty-note">No active requests.</div>`; return; }
+  host.innerHTML = mine.slice().reverse().map(r=>`
+    <div class="req-row status-${r.status}">
+      <span class="req-item">${esc(r.item)}</span>
+      ${r.note?`<span class="req-note">${esc(r.note)}</span>`:''}
+      <span class="req-status ${r.status}">${r.status==='pending'?'PENDING REVIEW':r.status==='approved'?'✓ APPROVED':'✕ DENIED'}</span>
+    </div>`).join('');
+}
+// DM-side: review queue
+function renderDmRequests(){
+  const host = el('dmRequestsList'); if(!host) return;
+  const reqs = (state.requests||[]).filter(r=>r.status==='pending');
+  const badge = el('reqBadge');
+  if(badge){ badge.textContent = reqs.length||''; badge.style.display = reqs.length?'inline-flex':'none'; }
+  if(!reqs.length){ host.innerHTML = `<div class="empty-note">No pending requests.</div>`; return; }
+  host.innerHTML = reqs.slice().reverse().map(r=>`
+    <div class="dm-req-card" data-id="${r.id}">
+      <div class="dm-req-head">
+        <span class="dm-req-item">${esc(r.item)}</span>
+        <span class="dm-req-by">— ${esc(r.by)}</span>
+      </div>
+      ${r.note?`<div class="dm-req-note">"${esc(r.note)}"</div>`:''}
+      <div class="dm-req-controls">
+        <input class="dm-req-price" data-id="${r.id}" type="number" min="0" placeholder="Price" value="100">
+        <select class="dm-req-tier" data-id="${r.id}">${[1,2,3,4].map(t=>`<option value="${t}">T${t}</option>`).join('')}</select>
+        <select class="dm-req-cat" data-id="${r.id}">${SHOP_CATEGORIES.map(cat=>`<option>${cat}</option>`).join('')}</select>
+        <button class="dm-req-approve" data-id="${r.id}">✓ Stock & Approve</button>
+        <button class="dm-req-deny" data-id="${r.id}">✕ Deny</button>
+      </div>
+    </div>`).join('');
+  host.querySelectorAll('.dm-req-approve').forEach(b=> b.addEventListener('click', ()=> approveRequest(b.dataset.id)));
+  host.querySelectorAll('.dm-req-deny').forEach(b=> b.addEventListener('click', ()=> denyRequest(b.dataset.id)));
+}
+function approveRequest(id){
+  if(!dmUnlocked) return;
+  const r = (state.requests||[]).find(x=>x.id===id); if(!r) return;
+  const card = document.querySelector(`.dm-req-card[data-id="${id}"]`);
+  const price = Math.max(0, Number(card?.querySelector('.dm-req-price')?.value)||0);
+  const tier = Number(card?.querySelector('.dm-req-tier')?.value)||1;
+  const category = card?.querySelector('.dm-req-cat')?.value || 'Utility';
+  if(!Array.isArray(state.shop)) state.shop=[];
+  state.shop.push({ tier, name:r.item, category, price, stock:null, desc:r.note||'' });
+  r.status = 'approved';
+  pushState(true); render();
+  SFX?.buy?.();
+  showToast(`Stocked "${r.item}" · ${fmtPoints(price)} pts`,'buy');
+}
+function denyRequest(id){
+  if(!dmUnlocked) return;
+  const r = (state.requests||[]).find(x=>x.id===id); if(!r) return;
+  r.status = 'denied';
+  pushState(true); render();
+  showToast(`Denied request: ${r.item}`,'warn');
+}
+function clearResolvedRequests(){
+  if(!dmUnlocked) return;
+  state.requests = (state.requests||[]).filter(r=>r.status==='pending');
+  pushState(true); render();
+  showToast('Cleared resolved requests','info');
+}
+
+// ================================================================
 // RELATIONSHIPS
 // ================================================================
 const REL_TYPES = ['Handler','Colleague','Asset','Rival','Threat','Superior','Subordinate','Contact','Unknown'];
@@ -882,24 +989,45 @@ function addAnomaly(){ const c=getChar(); if(!Array.isArray(c.anomalies))c.anoma
 // ================================================================
 // ABILITIES / TALENTS
 // ================================================================
+const TALENT_TYPES = ['Talent','Anomalous','Combat','Utility','Passive','Ritual'];
 function renderAbilities(){
   const c = getChar();
   const host = el('abilitiesList'); if(!host) return;
   if(!Array.isArray(c.abilities)) c.abilities=[];
-  if(!c.abilities.length){ host.innerHTML = `<div class="empty-note">No talents or anomalous abilities recorded.</div>`; return; }
-  host.innerHTML = c.abilities.map((a,i)=>`
-    <div class="ability-card">
-      <div class="ability-head">
-        <input class="ab-name" data-i="${i}" value="${esc(a.name||'')}" placeholder="Talent / ability name">
-        <button class="ab-del" data-i="${i}">✕</button>
+  const cnt = el('talentCount'); if(cnt) cnt.textContent = `${c.abilities.length} ON FILE`;
+  if(!c.abilities.length){
+    host.innerHTML = `<div class="empty-note big">✶<br>NO TALENTS RECORDED<br><span>Log your agent's trained skills, anomalous abilities, and special techniques.</span></div>`;
+    return;
+  }
+  host.innerHTML = c.abilities.map((a,i)=>{
+    const type = a.type||'Talent';
+    return `
+    <div class="talent-card type-${type.toLowerCase()}">
+      <div class="talent-head">
+        <span class="talent-type-badge">${esc(type)}</span>
+        <input class="ab-name" data-i="${i}" value="${esc(a.name||'')}" placeholder="Talent name">
+        <button class="ab-del" data-i="${i}" title="Remove">✕</button>
       </div>
-      <textarea class="ab-desc" data-i="${i}" placeholder="What it does, cost, cooldown…">${esc(a.desc||'')}</textarea>
-    </div>`).join('');
-  host.querySelectorAll('.ab-name').forEach(inp=> inp.addEventListener('input',()=>{ c.abilities[+inp.dataset.i].name=inp.value; pushState(); }));
-  host.querySelectorAll('.ab-desc').forEach(inp=> inp.addEventListener('input',()=>{ c.abilities[+inp.dataset.i].desc=inp.value; pushState(); }));
-  host.querySelectorAll('.ab-del').forEach(b=> b.addEventListener('click',()=>{ c.abilities.splice(+b.dataset.i,1); pushState(true); renderAbilities(); }));
+      <div class="talent-meta">
+        <label><span>Type</span>
+          <select class="ab-type" data-i="${i}">${TALENT_TYPES.map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}</select>
+        </label>
+        <label><span>Cost</span><input class="ab-cost" data-i="${i}" value="${esc(a.cost||'')}" placeholder="e.g. 2 Sanity"></label>
+        <label><span>Cooldown</span><input class="ab-cooldown" data-i="${i}" value="${esc(a.cooldown||'')}" placeholder="e.g. 1/day"></label>
+      </div>
+      <textarea class="ab-desc" data-i="${i}" placeholder="What it does, how it works, any risks…">${esc(a.desc||'')}</textarea>
+    </div>`;
+  }).join('');
+  // text fields: live-update state on input, FLUSH to server on blur (prevents data loss on leave)
+  const wire = (sel,key)=> host.querySelectorAll(sel).forEach(inp=>{
+    inp.addEventListener('input',()=>{ c.abilities[+inp.dataset.i][key]=inp.value; pushState(); });
+    inp.addEventListener('blur', flushPendingPush);
+  });
+  wire('.ab-name','name'); wire('.ab-cost','cost'); wire('.ab-cooldown','cooldown'); wire('.ab-desc','desc');
+  host.querySelectorAll('.ab-type').forEach(s=> s.addEventListener('change',()=>{ c.abilities[+s.dataset.i].type=s.value; pushState(true); renderAbilities(); }));
+  host.querySelectorAll('.ab-del').forEach(b=> b.addEventListener('click',()=>{ if(confirm('Remove this talent?')){ c.abilities.splice(+b.dataset.i,1); pushState(true); renderAbilities(); } }));
 }
-function addAbility(){ const c=getChar(); if(!Array.isArray(c.abilities))c.abilities=[]; c.abilities.push({name:'',desc:''}); pushState(true); renderAbilities(); }
+function addAbility(){ const c=getChar(); if(!Array.isArray(c.abilities))c.abilities=[]; c.abilities.push({name:'',type:'Talent',cost:'',cooldown:'',desc:''}); pushState(true); renderAbilities(); }
 
 // ================================================================
 // DM PANEL
@@ -965,6 +1093,7 @@ function renderDmPanel(){
   renderDmShop();
   // New systems
   try{ renderDmCommendations(); }catch(e){}
+  try{ renderDmRequests(); }catch(e){}
   try{ renderEvidenceBoard(); }catch(e){}
   try{ syncSiteAlertButtons(); }catch(e){}
 }
@@ -1108,6 +1237,7 @@ function adjustResource(resource, amt){
   else if(resource==='sanity'){ c.sanity.current = clamp((c.sanity.current||0)+amt, 0, c.sanity.max); }
   else if(resource==='points'){ c.points = Math.max(0,(Number(c.points)||0)+amt); }
   ensureClamp(c); pushState(true); renderMainFields(); renderHeader();
+  if(resource==='sanity') applySanityDamage();
 }
 
 // ================================================================
@@ -1348,6 +1478,77 @@ function beginCorruption(){
     if(_corruptionLevel>=2 && Math.random()<0.5) SFX.hum();
   }, 45000); // deepens every 45s of continued idle
 }
+
+// ================================================================
+// LOW-SANITY SCREEN DAMAGE — the whole screen degrades as sanity falls
+// Tied to the character you're viewing/controlling. Four bands:
+//   >50% none · 50-30% level1 · 30-15% level2 · <15% level3 (critical)
+// ================================================================
+let _sanityBand = 0;
+let _sanityWhisperTimer = null;
+function applySanityDamage(){
+  const c = getChar();
+  const max = Number(c?.sanity?.max)||0;
+  const cur = Number(c?.sanity?.current)||0;
+  const pct = max>0 ? (cur/max)*100 : 100;   // no max set = treat as stable
+  let band = 0;
+  if(max>0){
+    if(pct<=15) band = 3;
+    else if(pct<=30) band = 2;
+    else if(pct<=50) band = 1;
+  }
+  if(band === _sanityBand){ ensureSanityOverlay(band); return; }
+  const rising = band > _sanityBand;
+  _sanityBand = band;
+  document.body.classList.remove('sanity-1','sanity-2','sanity-3');
+  ensureSanityOverlay(band);
+  if(band>0){
+    document.body.classList.add('sanity-'+band);
+    if(rising){
+      // sensory sting when it gets worse
+      if(band>=2) SFX?.warn?.();
+      if(band>=3){ SFX?.alarm?.(); startSanityWhispers(); }
+    }
+  }
+  if(band<3) stopSanityWhispers();
+}
+function ensureSanityOverlay(band){
+  let o = el('sanityOverlay');
+  if(band<=0){ o?.remove(); return; }
+  if(!o){
+    o = document.createElement('div');
+    o.id = 'sanityOverlay';
+    o.innerHTML = `
+      <div class="san-vignette"></div>
+      <div class="san-grain"></div>
+      <div class="san-scan"></div>
+      <div class="san-rgb"></div>
+      <div class="san-cracks"></div>
+      <div class="san-pulse"></div>`;
+    document.body.appendChild(o);
+  }
+  o.className = 'san-band-'+band;
+}
+// faint distorted "whispers" at critical sanity (synthesized, no audio files)
+function startSanityWhispers(){
+  if(_sfxEnabled===false) return;
+  stopSanityWhispers();
+  const whisper = ()=>{
+    const ac = _ac(); if(!ac){ return; }
+    // breathy noise burst through a bandpass — sounds like a distant voice
+    const dur = 0.5 + Math.random()*0.6;
+    const buf = ac.createBuffer(1, ac.sampleRate*dur, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){ d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 1.5); }
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=600+Math.random()*700; bp.Q.value=6;
+    const g = ac.createGain(); g.gain.value=0.05;
+    src.connect(bp); bp.connect(g); g.connect(ac.destination);
+    src.start();
+  };
+  _sanityWhisperTimer = setInterval(()=>{ if(Math.random()<0.6) whisper(); }, 4000);
+}
+function stopSanityWhispers(){ clearInterval(_sanityWhisperTimer); _sanityWhisperTimer=null; }
 
 // ================================================================
 // COMMENDATIONS / ACHIEVEMENTS
@@ -1684,6 +1885,13 @@ function updateField(field, value){
 
 function bindFields(){
   const ii = (id,field)=>{ const e=el(id); if(e) e.addEventListener('input', ev=>updateField(field,ev.target.value)); };
+  // GLOBAL SAFETY NET: whenever any field loses focus, push pending edits to the server
+  // immediately so nothing is lost when leaving the page mid-edit.
+  document.addEventListener('focusout', e=>{
+    if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'||e.target.isContentEditable)){
+      flushPendingPush();
+    }
+  });
   ii('charName','name'); ii('charCodename','codename'); ii('charRole','role');
   ii('charClearance','clearance'); ii('charAge','age'); ii('charLevel','level');
   ii('charBackground','background'); ii('charDivision','division'); ii('charSite','site');
@@ -1771,6 +1979,9 @@ function bindFields(){
   el('dmCommendTarget')?.addEventListener('change', ()=>{});
   document.querySelectorAll('.ev-add-btn[data-evtype]').forEach(b=> b.addEventListener('click', ()=> addEvidenceNode(b.dataset.evtype)));
   document.querySelectorAll('.bulk-btn[data-bulk]').forEach(b=> b.addEventListener('click', ()=> bulkApply(b.dataset.bulk)));
+  el('reqSubmitBtn')?.addEventListener('click', submitRequest);
+  el('reqItemName')?.addEventListener('keydown', e=>{ if(e.key==='Enter') submitRequest(); });
+  el('dmClearRequestsBtn')?.addEventListener('click', clearResolvedRequests);
 
   // sidebar toggle (mobile)
   el('sidebarToggle')?.addEventListener('click', ()=> document.querySelector('.sidebar')?.classList.toggle('open'));

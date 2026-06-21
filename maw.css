@@ -277,11 +277,33 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .inv-add-row{display:grid;grid-template-columns:1fr 70px auto;gap:.5rem;margin-top:.7rem}
 
 /* ABILITIES */
-.abilities-list{display:flex;flex-direction:column;gap:.6rem}
-.ability-card{border:1px solid var(--line2);border-left:3px solid var(--steel);background:var(--bg);padding:.7rem}
-.ability-head{display:flex;gap:.5rem;margin-bottom:.5rem}
-.ab-name{font-family:var(--F2);font-weight:500;color:#fff;background:transparent;border:none;border-bottom:1px solid var(--line2)}
-.ab-desc{font-family:var(--F4);font-size:.78rem;min-height:50px;resize:vertical}
+.abilities-list{display:flex;flex-direction:column;gap:.7rem}
+/* ── TALENT CARDS (redesigned) ── */
+.talent-card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);border-left:3px solid var(--steel);padding:.85rem;transition:transform .14s, box-shadow .14s, border-color .14s}
+.talent-card:hover{transform:translateX(2px);box-shadow:-6px 0 16px -10px var(--steel)}
+.talent-card.type-anomalous{border-left-color:#b04ad9}
+.talent-card.type-anomalous:hover{box-shadow:-6px 0 16px -10px #b04ad9}
+.talent-card.type-combat{border-left-color:var(--accent)}
+.talent-card.type-combat:hover{box-shadow:-6px 0 16px -10px var(--accent)}
+.talent-card.type-utility{border-left-color:var(--steel)}
+.talent-card.type-passive{border-left-color:var(--green)}
+.talent-card.type-ritual{border-left-color:var(--amber)}
+.talent-head{display:flex;align-items:center;gap:.55rem;margin-bottom:.6rem}
+.talent-type-badge{font-family:var(--F4);font-size:.46rem;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .4rem;border:1px solid var(--line2);color:var(--text-dim);white-space:nowrap}
+.type-anomalous .talent-type-badge{color:#c9a0e0;border-color:rgba(176,74,217,.4)}
+.type-combat .talent-type-badge{color:var(--accent);border-color:rgba(217,79,79,.4)}
+.type-passive .talent-type-badge{color:var(--green);border-color:rgba(90,154,120,.4)}
+.type-ritual .talent-type-badge{color:var(--amber);border-color:rgba(194,162,58,.4)}
+.ab-name{flex:1;font-family:var(--F2);font-size:1rem;font-weight:500;color:#fff;background:transparent;border:none;border-bottom:1px solid var(--line2);padding:.25rem .1rem;letter-spacing:.02em}
+.ab-name:focus{border-bottom-color:var(--accent);box-shadow:none}
+.ab-del{width:24px;height:24px;flex-shrink:0;background:transparent;border:1px solid var(--line2);color:var(--text-dim);cursor:pointer;font-size:.7rem}
+.ab-del:hover{border-color:var(--accent);color:var(--accent)}
+.talent-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.6rem}
+.talent-meta label{display:flex;flex-direction:column;gap:.2rem}
+.talent-meta label span{font-family:var(--F4);font-size:.46rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.talent-meta input,.talent-meta select{font-size:.76rem;padding:.35rem}
+.ab-desc{width:100%;font-family:var(--F4);font-size:.8rem;line-height:1.55;min-height:60px;resize:vertical}
+@media (max-width:520px){.talent-meta{grid-template-columns:1fr}}
 
 /* RELATIONS */
 .relationships-list{display:flex;flex-direction:column;gap:.6rem}
@@ -862,3 +884,107 @@ body.corrupt-3 #corruptionOverlay::after{content:'';position:absolute;inset:0;ba
 @media (max-width:860px){
   .identity-bar{bottom:auto;top:.5rem;left:50%;transform:translateX(-50%)}
 }
+
+/* ════════════════════════════════════════════════════════════
+   REQUISITION REQUESTS
+   ════════════════════════════════════════════════════════════ */
+.req-section{border-top:1px solid var(--line);padding-top:.5rem}
+.req-form{display:grid;grid-template-columns:1.4fr 1.6fr auto;gap:.5rem;margin-bottom:.8rem}
+.req-form input{font-size:.8rem}
+.my-requests-list{display:flex;flex-direction:column;gap:.4rem}
+.req-row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;padding:.5rem .7rem;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--steel)}
+.req-row.status-approved{border-left-color:var(--green)}
+.req-row.status-denied{border-left-color:var(--accent);opacity:.7}
+.req-item{font-family:var(--F2);font-size:.85rem;color:#fff;font-weight:500}
+.req-note{font-family:var(--F4);font-size:.68rem;color:var(--text-dim);flex:1}
+.req-status{font-family:var(--F4);font-size:.54rem;letter-spacing:.08em;padding:.15rem .45rem;border:1px solid currentColor;margin-left:auto}
+.req-status.pending{color:var(--amber)}
+.req-status.approved{color:var(--green)}
+.req-status.denied{color:var(--accent)}
+.req-badge{display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 .25rem;margin-left:.35rem;background:var(--accent);color:#fff;font-family:var(--F4);font-size:.56rem;border-radius:8px;vertical-align:middle}
+/* DM request cards */
+.dm-requests-list{display:flex;flex-direction:column;gap:.6rem}
+.dm-req-card{background:var(--bg);border:1px solid var(--line2);border-left:3px solid var(--amber);padding:.8rem}
+.dm-req-head{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.35rem}
+.dm-req-item{font-family:var(--F2);font-size:.95rem;font-weight:600;color:#fff}
+.dm-req-by{font-family:var(--F4);font-size:.62rem;color:var(--text-dim)}
+.dm-req-note{font-family:var(--F4);font-size:.74rem;color:var(--steel-hi);font-style:italic;margin-bottom:.6rem;line-height:1.5}
+.dm-req-controls{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.dm-req-price{width:80px;font-size:.76rem;padding:.4rem}
+.dm-req-tier,.dm-req-cat{font-size:.72rem;padding:.4rem}
+.dm-req-approve{font-family:var(--F4);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem .7rem;background:rgba(90,154,120,.12);border:1px solid var(--green);color:var(--green);cursor:pointer}
+.dm-req-approve:hover{background:var(--green);color:#000}
+.dm-req-deny{font-family:var(--F4);font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem .7rem;background:rgba(217,79,79,.1);border:1px solid var(--accent);color:var(--accent);cursor:pointer}
+.dm-req-deny:hover{background:var(--accent);color:#fff}
+@media (max-width:860px){.req-form{grid-template-columns:1fr}}
+
+/* ════════════════════════════════════════════════════════════
+   LOW-SANITY SCREEN DAMAGE — full-screen psychological degradation
+   ════════════════════════════════════════════════════════════ */
+#sanityOverlay{position:fixed;inset:0;z-index:99970;pointer-events:none;overflow:hidden}
+#sanityOverlay > div{position:absolute;inset:0}
+/* vignette closing in */
+.san-vignette{background:radial-gradient(ellipse 80% 70% at 50% 50%, transparent 40%, rgba(40,0,0,.55) 100%);opacity:0;transition:opacity 1.2s}
+/* film grain */
+.san-grain{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");opacity:0;mix-blend-mode:overlay;animation:san-grain-move .3s steps(3) infinite}
+@keyframes san-grain-move{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}}
+/* slow horror scanline */
+.san-scan{background:linear-gradient(180deg,transparent,rgba(180,0,0,.06) 50%,transparent);height:40%;opacity:0;animation:san-scan-move 7s ease-in-out infinite}
+@keyframes san-scan-move{0%{transform:translateY(-120%)}100%{transform:translateY(320%)}}
+/* RGB chromatic-aberration edges */
+.san-rgb{opacity:0;box-shadow:inset 7px 0 22px -6px rgba(255,0,40,.5), inset -7px 0 22px -6px rgba(0,180,255,.5);mix-blend-mode:screen}
+/* creeping cracks (radial fractures from corners) */
+.san-cracks{opacity:0;background:
+  radial-gradient(circle at 0% 0%, rgba(0,0,0,.5) 0, transparent 22%),
+  radial-gradient(circle at 100% 0%, rgba(0,0,0,.5) 0, transparent 22%),
+  radial-gradient(circle at 0% 100%, rgba(0,0,0,.5) 0, transparent 22%),
+  radial-gradient(circle at 100% 100%, rgba(0,0,0,.5) 0, transparent 22%);
+  mix-blend-mode:multiply}
+/* heartbeat-ish red pulse */
+.san-pulse{opacity:0;background:radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, rgba(180,0,0,.35));}
+
+/* ── BAND 1: unease (50–30%) ── */
+#sanityOverlay.san-band-1 .san-vignette{opacity:.5}
+#sanityOverlay.san-band-1 .san-grain{opacity:.05}
+#sanityOverlay.san-band-1 .san-scan{opacity:.5}
+body.sanity-1{animation:san-sway-1 9s ease-in-out infinite}
+@keyframes san-sway-1{0%,100%{filter:saturate(.9)}50%{filter:saturate(.78) brightness(.97)}}
+
+/* ── BAND 2: distress (30–15%) ── */
+#sanityOverlay.san-band-2 .san-vignette{opacity:.75}
+#sanityOverlay.san-band-2 .san-grain{opacity:.1}
+#sanityOverlay.san-band-2 .san-scan{opacity:.7;animation-duration:5s}
+#sanityOverlay.san-band-2 .san-rgb{opacity:.6}
+#sanityOverlay.san-band-2 .san-pulse{opacity:1;animation:san-pulse 2.6s ease-in-out infinite}
+body.sanity-2{animation:san-sway-2 6s ease-in-out infinite}
+@keyframes san-sway-2{0%,100%{filter:saturate(.8) hue-rotate(0deg)}25%{filter:saturate(.85) hue-rotate(-4deg) brightness(.95)}50%{filter:saturate(.7) hue-rotate(3deg) brightness(.92)}75%{transform:translateX(.5px)}}
+@keyframes san-pulse{0%,100%{opacity:.3}50%{opacity:.9}}
+
+/* ── BAND 3: critical breakdown (<15%) ── */
+#sanityOverlay.san-band-3 .san-vignette{opacity:.95}
+#sanityOverlay.san-band-3 .san-grain{opacity:.16}
+#sanityOverlay.san-band-3 .san-scan{opacity:.85;animation-duration:3.5s}
+#sanityOverlay.san-band-3 .san-rgb{opacity:1;animation:san-rgb-jitter .4s steps(2) infinite}
+#sanityOverlay.san-band-3 .san-cracks{opacity:1}
+#sanityOverlay.san-band-3 .san-pulse{opacity:1;animation:san-pulse 1.5s ease-in-out infinite}
+@keyframes san-rgb-jitter{0%{box-shadow:inset 7px 0 22px -6px rgba(255,0,40,.5), inset -7px 0 22px -6px rgba(0,180,255,.5)}100%{box-shadow:inset 11px 0 26px -6px rgba(255,0,40,.7), inset -11px 0 26px -6px rgba(0,180,255,.7)}}
+body.sanity-3{animation:san-breakdown 2.4s steps(28) infinite}
+@keyframes san-breakdown{
+  0%,82%,100%{filter:saturate(.65) brightness(.9);transform:translate(0)}
+  83%{filter:saturate(1.4) hue-rotate(-14deg) contrast(1.12);transform:translate(-3px,1px)}
+  85%{transform:translate(3px,-2px) skewX(.4deg)}
+  87%{filter:invert(.05) saturate(.6);transform:translate(-2px,1px)}
+  89%{transform:translate(1px,1px)}
+  91%{filter:saturate(.65) brightness(.9);transform:translate(0)}
+}
+/* the sheet itself trembles at critical */
+body.sanity-3 .app{animation:san-tremble 5s ease-in-out infinite}
+@keyframes san-tremble{0%,90%,100%{transform:translate(0)}92%{transform:translate(-1px,1px)}94%{transform:translate(1px,-1px)}96%{transform:translate(-1px,-1px)}98%{transform:translate(1px,1px)}}
+
+@media (prefers-reduced-motion: reduce){
+  body.sanity-1,body.sanity-2,body.sanity-3,body.sanity-3 .app,
+  #sanityOverlay *{animation:none!important}
+}
+
+/* talent count badge */
+.talent-count{font-family:var(--F4);font-size:.52rem;letter-spacing:.1em;color:var(--muted);font-weight:400;text-transform:none}

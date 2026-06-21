@@ -204,10 +204,10 @@
 
       <!-- ABILITIES -->
       <div class="tab-content panel tab-panel" data-tab="abilities">
-        <div class="panel-title">Talents & Anomalous Abilities</div>
+        <div class="panel-title">Talents &amp; Anomalous Abilities <span id="talentCount" class="talent-count">0 ON FILE</span></div>
         <div id="abilitiesList" class="abilities-list"></div>
-        <button id="addAbilityBtn" class="maw-btn" style="margin-top:.7rem">+ Add Talent</button>
-        <div class="panel-title" style="margin-top:1.6rem">Commendations</div>
+        <button id="addAbilityBtn" class="maw-btn" style="margin-top:.8rem">+ Add Talent</button>
+        <div class="panel-title" style="margin-top:1.8rem">Commendations</div>
         <div id="commendationsList" class="commendations-list"></div>
       </div>
 
@@ -242,6 +242,16 @@
         </div>
         <div id="shopClearance" class="shop-clearance"></div>
         <div id="shopList" class="shop-list"></div>
+        <div class="req-section">
+          <div class="panel-title" style="margin-top:1.4rem">Special Requisition Request</div>
+          <p class="small-note" style="font-family:var(--F4);font-size:.66rem;color:var(--text-dim);margin-bottom:.7rem">Need something not in the catalog? Request it. The DM will review, price, and stock it if approved.</p>
+          <div class="req-form">
+            <input id="reqItemName" type="text" placeholder="Item you want…">
+            <input id="reqItemNote" type="text" placeholder="Reason / details (optional)">
+            <button id="reqSubmitBtn" class="maw-btn">Submit Request</button>
+          </div>
+          <div id="myRequestsList" class="my-requests-list"></div>
+        </div>
       </div>
 
       <!-- NOTES -->
@@ -284,6 +294,7 @@
         <button class="dm-nav-btn active" data-dm="roster">Roster & Ranks</button>
         <button class="dm-nav-btn" data-dm="missions">Mission Points</button>
         <button class="dm-nav-btn" data-dm="shop">Requisitions</button>
+        <button class="dm-nav-btn" data-dm="requests">Requests <span id="reqBadge" class="req-badge"></span></button>
         <button class="dm-nav-btn" data-dm="broadcast">Broadcast</button>
         <button class="dm-nav-btn" data-dm="bulk">Bulk Actions</button>
         <button class="dm-nav-btn" data-dm="commend">Commendations</button>
@@ -317,6 +328,13 @@
         <div class="dm-shop-legend">Tier gates access: <b style="color:#7a8590">T1 Employee</b> · <b style="color:#9aa6b2">T2 Supervisor</b> · <b style="color:#c2b067">T3 Deputy</b> · <b style="color:#d94f4f">T4 Chief</b>. Agents see their tier and below.</div>
         <div id="dmShopList" class="dm-shop-list"></div>
         <button id="addShopItemBtn" class="maw-btn" style="margin-top:.8rem">+ Stock New Item</button>
+      </div>
+
+      <div class="dm-section" data-dm="requests">
+        <div class="dm-section-title">Requisition Requests — Review Queue</div>
+        <p class="dm-broadcast-note">Agents request items not in the catalog. Set a price, tier, and category, then approve to stock it (it lands in the catalog and they're notified), or deny it.</p>
+        <div id="dmRequestsList" class="dm-requests-list"></div>
+        <button id="dmClearRequestsBtn" class="maw-btn ghost small" style="margin-top:.8rem">Clear Resolved</button>
       </div>
 
       <div class="dm-section" data-dm="broadcast">

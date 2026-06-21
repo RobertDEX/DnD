@@ -645,7 +645,7 @@ function renderShop(){
   if(clr) clr.innerHTML = `CLEARANCE <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to Tier ${myTier} requisitions and below`;
 
   if(!Array.isArray(state.shop) || !state.shop.length){
-    host.innerHTML = `<div class="empty-note">The requisitions catalog is empty. The DM stocks it from the DM Panel.</div>`;
+    host.innerHTML = `<div class="empty-note">The requisitions catalog is empty.${dmUnlocked?' Open the DM Panel → Requisitions and press <b>Load MAW Default Catalog</b> to stock it.':' The DM stocks it from the DM Panel.'}</div>`;
     return;
   }
 
@@ -1314,8 +1314,20 @@ function bindFields(){
 async function migrateIfNeeded(){
   try {
     const mainSnap = await getDoc(doc(db,'campaigns',DOC));
-    if(mainSnap.exists()){ startListener(); return; }
-    // seed fresh doc — stock the default requisitions catalog
+    if(mainSnap.exists()){
+      // Doc exists. If its shop is empty but we have a default catalog, seed it once.
+      try {
+        const existing = JSON.parse(mainSnap.data().data || '{}');
+        const shopEmpty = !Array.isArray(existing.shop) || existing.shop.length === 0;
+        if(shopEmpty && window.MAW_DEFAULT_SHOP && window.MAW_DEFAULT_SHOP.length){
+          existing.shop = window.MAW_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
+          await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(existing) });
+        }
+      } catch(seedErr){ console.error('catalog seed check failed', seedErr); }
+      startListener();
+      return;
+    }
+    // No doc yet — seed fresh with the default requisitions catalog.
     if(window.MAW_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
       state.shop = window.MAW_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
     }

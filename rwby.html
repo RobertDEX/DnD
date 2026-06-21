@@ -52,6 +52,7 @@
       <div><span>State</span><strong id="selectedState">Active</strong></div>
       <div><span>Ascended</span><strong id="selectedAscendedStatus">Locked</strong></div>
       <div><span>Techniques</span><strong id="selectedTechniqueCount">0</strong></div>
+      <div><span>Lien</span><strong id="moneyDisplay" class="money-val">0 Lien</strong></div>
     </div>
   </div>
 </aside>
@@ -242,6 +243,7 @@
         <button class="tab-btn" data-tab="techniques">Techniques</button>
         <button class="tab-btn" data-tab="dust">Dust</button>
         <button class="tab-btn" data-tab="loadout">Loadout</button>
+        <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
@@ -292,6 +294,15 @@
 
         <div class="section-title" style="margin-top:1.6rem">Abilities &amp; Feats</div>
         <textarea id="abilitiesText" placeholder="Feats and extra abilities…"></textarea>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="shop">
+        <div class="shop-head">
+          <div class="section-title" style="margin:0">Lien Exchange</div>
+          <div class="shop-balance-box">BALANCE<strong id="shopBalance">0 Lien</strong></div>
+        </div>
+        <p class="small-note" style="margin:.4rem 0 1rem">Spend your Lien on gear stocked by the DM. Your balance is set by the DM.</p>
+        <div id="shopList" class="shop-list"></div>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="relations">
@@ -390,6 +401,9 @@
         </button>
         <button class="dm-nav-btn" data-dm-tab="theme">
           <span class="dm-nav-icon">🎨</span>Theme
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="economy">
+          <span class="dm-nav-icon">₥</span>Shop &amp; Lien
         </button>
       </nav>
 
@@ -520,6 +534,26 @@
                 <button id="saveThemeBtn"  type="button" class="neo-btn" style="flex:1">Save Theme</button>
                 <button id="resetThemeBtn" type="button" class="neo-btn ghost">Reset</button>
               </div>
+            </div>
+          </div>
+        </div>
+        <!-- ECONOMY TAB -->
+        <div class="dm-tab" data-dm-tab="economy">
+          <div class="dm-tab-title">Shop &amp; Lien</div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">₥ Grant Lien</div>
+            <div class="dm-card-body">
+              <p class="small-note" style="margin-bottom:.8rem">Give, take, or set each character's Lien. Players cannot change their own balance.</p>
+              <div id="dmMoneyList" class="dm-money-list"></div>
+            </div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">🛒 Shop Catalogue <span id="dmShopMeta" class="dm-shop-meta"></span></div>
+            <div class="dm-card-body">
+              <div id="dmShopList" class="dm-shop-list"></div>
+              <button id="addShopItemBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">+ Add Item to Shop</button>
             </div>
           </div>
         </div>

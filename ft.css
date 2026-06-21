@@ -1498,3 +1498,48 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
 /* Character tabs stay fully interactive for cycling */
 .spectator-mode #characterTabs, .spectator-mode #characterTabs * { pointer-events: auto !important; opacity: 1 !important; cursor: pointer; }
 .spectator-mode #characterTabs .character-tab { filter: none !important; }
+
+/* ── SHOP / JEWELS ECONOMY ── */
+.money-val{color:var(--gold-hi)!important}
+.shop-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.4rem}
+.shop-balance-box{font-family:var(--F4);font-size:.55rem;letter-spacing:.12em;color:var(--muted);text-align:right;border:1px solid var(--line);border-radius:var(--rs);padding:.4rem .8rem}
+.shop-balance-box strong{display:block;font-family:var(--F1);font-size:1.05rem;color:var(--gold-hi);margin-top:.15rem}
+.shop-list{display:flex;flex-direction:column;gap:1.1rem}
+.shop-cat-group{display:flex;flex-direction:column;gap:.5rem}
+.shop-cat-header{font-family:var(--F1);font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-hi);border-bottom:1px solid var(--line);padding-bottom:.45rem;display:flex;align-items:center;gap:.6rem}
+.shop-cat-count{font-family:var(--F4);font-size:.54rem;color:var(--muted);background:rgba(232,160,48,.08);border:1px solid var(--line);border-radius:6px;padding:.1rem .4rem}
+.shop-item{display:flex;justify-content:space-between;gap:1rem;background:rgba(232,160,48,.03);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:var(--rs);padding:.7rem .9rem}
+.shop-item.out{opacity:.45;border-left-color:var(--muted)}
+.shop-item-name{font-family:var(--F2);font-size:.92rem;font-weight:700;color:var(--text)}
+.shop-item-meta{margin-top:.25rem}
+.shop-stock{font-family:var(--F4);font-size:.52rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.shop-item-desc{font-family:var(--F3);font-size:.78rem;color:var(--muted);margin-top:.4rem;line-height:1.5}
+.shop-item-buy{display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0}
+.shop-price{font-family:var(--F1);font-size:1rem;font-weight:700;color:var(--gold-hi)}
+.shop-price span{font-family:var(--F4);font-size:.6rem;color:var(--muted);margin-left:.15rem}
+.shop-buy-btn{font-family:var(--F2);font-size:.66rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:.45rem .85rem;background:rgba(232,160,48,.12);border:1px solid var(--gold);border-radius:var(--rs);color:var(--gold-hi);cursor:pointer;white-space:nowrap;transition:var(--transition)}
+.shop-buy-btn:hover{background:var(--gold);color:#1a0e02}
+.shop-buy-btn.cant{opacity:.4;cursor:not-allowed;border-color:var(--muted);color:var(--muted);background:transparent}
+.shop-out-tag{font-family:var(--F4);font-size:.56rem;color:var(--muted)}
+
+/* DM money + shop management */
+.dm-shop-meta{font-family:var(--F4);font-size:.54rem;color:var(--muted);letter-spacing:.06em;margin-left:.5rem;text-transform:none}
+.dm-money-list{display:flex;flex-direction:column;gap:.5rem}
+.dm-money-row{display:grid;grid-template-columns:1.4fr auto 1fr auto auto auto;gap:.4rem;align-items:center;background:rgba(232,160,48,.03);border:1px solid var(--line);border-radius:var(--rs);padding:.5rem .6rem}
+.dm-money-name{font-family:var(--F2);font-size:.82rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dm-money-bal{font-family:var(--F1);font-size:.78rem;color:var(--gold-hi);white-space:nowrap}
+.dm-money-amt{font-family:var(--F4);font-size:.76rem;padding:.35rem .4rem}
+.dm-money-give,.dm-money-take,.dm-money-set{font-family:var(--F4);font-size:.56rem;letter-spacing:.04em;padding:.35rem .5rem;border-radius:var(--rs);border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;text-transform:uppercase;white-space:nowrap}
+.dm-money-give:hover{border-color:var(--safe);color:var(--safe)}
+.dm-money-take:hover{border-color:var(--danger);color:var(--danger)}
+.dm-money-set:hover{border-color:var(--gold);color:var(--gold-hi)}
+.dm-shop-list{display:flex;flex-direction:column;gap:.35rem}
+.dm-shop-row{display:grid;grid-template-columns:1.6fr 1fr .8fr .7fr auto;gap:.4rem;margin-bottom:.1rem}
+.dm-shop-row input,.dm-shop-row select{font-family:var(--F4);font-size:.74rem;padding:.4rem;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text)}
+.ds-desc{width:100%;font-family:var(--F4);font-size:.72rem;padding:.4rem;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);margin-bottom:.5rem}
+.ds-del{background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--muted);cursor:pointer}
+.ds-del:hover{border-color:var(--danger);color:var(--danger)}
+@media (max-width:680px){
+  .dm-money-row{grid-template-columns:1fr 1fr;gap:.4rem}
+  .dm-shop-row{grid-template-columns:1fr 1fr}
+}

@@ -154,6 +154,7 @@ function blankChar(i) {
     magicType:'',magicCategory:'',guild:'',guildMark:'',religion:'',magicRank:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
+    money: 0,            // Jewels — DM-controlled currency
     portrait: '', accentColor: '', claimedBy: '',
     stats:{STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
     skills:makeBlankSkills(),
@@ -165,7 +166,7 @@ function blankChar(i) {
     spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[]
   };
 }
-const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
+const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},shop:[],characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
 
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
@@ -301,6 +302,7 @@ function startListener(){
       while(state.characters.length<remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme=remote.theme;
+      state.shop=remote.shop;
       setSyncDot('synced');
 
       if(isTyping){
@@ -353,11 +355,14 @@ function normalize(raw){
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
     mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
     mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];
+    mc.money=Number(c.money)||0;
     const blankSk=makeBlankSkills();mc.skills={};
     Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
     return mc;
   });
   if(m.selectedCharacter>=m.characters.length)m.selectedCharacter=Math.max(0,m.characters.length-1);
+  if(!Array.isArray(m.shop))m.shop=[];
+  m.shop=m.shop.map(it=>({name:it.name||'',category:it.category||'General',price:Number(it.price)||0,stock:(it.stock===undefined?null:it.stock),desc:it.desc||''}));
   return m;
 }
 
@@ -629,6 +634,7 @@ function renderHeader(){
   s('selectedNameSmall',name);
   s('selectedState',c.state.charAt(0).toUpperCase()+c.state.slice(1));
   s('selectedMagicType',c.magicType||'—');s('selectedSpellCount',c.spells.length);
+  s('moneyDisplay',`${(Number(c.money)||0).toLocaleString('en-US')} Jewels`);
   // Topbar bars always show YOUR OWN character
   s('topHpMini',`${c.hp.current} / ${c.hp.max}`);
   s('topManaMini',`${c.mana.current} / ${c.mana.max}`);
@@ -873,6 +879,129 @@ function renderInventory() {
 let _invPushTimer = null;
 function scheduleInvPush() { clearTimeout(_invPushTimer); _invPushTimer = setTimeout(()=>pushState(true), 600); }
 
+// ================================================================
+// SHOP / CURRENCY  (Fairy Tail uses Jewels — DM-controlled)
+// ================================================================
+const CURRENCY = { name:'Jewels', symbol:'J', short:'Jewels' };
+const SHOP_CATEGORIES_FT = ['Weapons','Magic Items','Gear','Consumables','Lacrima','Keys','Rare','General'];
+function fmtMoney(n){ return (Number(n)||0).toLocaleString('en-US'); }
+
+function renderShop() {
+  const c = getChar();
+  const host = el('shopList'); if (!host) return;
+  const bal = el('shopBalance'); if (bal) bal.textContent = `${fmtMoney(c.money)} ${CURRENCY.short}`;
+
+  if (!Array.isArray(state.shop) || !state.shop.length) {
+    host.innerHTML = `<div class="inv-empty">The shop is empty. The DM stocks it from the DM Panel.</div>`;
+    return;
+  }
+  const cats = [];
+  state.shop.forEach(it => { const cc = it.category||'General'; if (!cats.includes(cc)) cats.push(cc); });
+
+  host.innerHTML = cats.map(cat => {
+    const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat);
+    return `
+    <div class="shop-cat-group">
+      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span></div>
+      ${rows.map(({it,i})=>{
+        const price = Number(it.price)||0;
+        const afford = (Number(c.money)||0) >= price;
+        const out = it.stock!=null && it.stock<=0;
+        const stock = it.stock==null?'∞':it.stock;
+        return `
+        <div class="shop-item ${out?'out':''}">
+          <div class="shop-item-main">
+            <div class="shop-item-name">${esc(it.name||'Item')}</div>
+            <div class="shop-item-meta"><span class="shop-stock">Stock: ${out?'SOLD OUT':stock}</span></div>
+            ${it.desc?`<div class="shop-item-desc">${esc(it.desc)}</div>`:''}
+          </div>
+          <div class="shop-item-buy">
+            <div class="shop-price">${fmtMoney(price)}<span>${CURRENCY.symbol}</span></div>
+            ${!spectator && !out ? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'BUY':'NOT ENOUGH'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  host.querySelectorAll('.shop-buy-btn').forEach(b => {
+    if (b.classList.contains('cant')) return;
+    b.addEventListener('click', () => buyItem(parseInt(b.dataset.i)));
+  });
+}
+function buyItem(i) {
+  const c = getChar(); const item = state.shop[i]; if (!item) return;
+  if (!dmUnlocked && !spectator) {
+    const mine = state.characters.find(x => x.claimedBy === MY_PRESENCE_ID);
+    if (!mine || mine !== c) { showToast('You can only buy for your own character', 'warn'); return; }
+  }
+  if (spectator) return;
+  const price = Number(item.price)||0;
+  if ((Number(c.money)||0) < price) { showToast('Not enough Jewels', 'warn'); return; }
+  if (item.stock!=null && item.stock<=0) { showToast('Sold out', 'warn'); return; }
+  if (!confirm(`Buy ${item.name} for ${fmtMoney(price)} ${CURRENCY.short}?`)) return;
+  c.money -= price;
+  if (item.stock!=null) item.stock -= 1;
+  if (!Array.isArray(c.inventory)) c.inventory = [];
+  const existing = c.inventory.find(x => x.name === item.name);
+  if (existing) existing.qty = (Number(existing.qty)||1) + 1;
+  else c.inventory.push({ name:item.name, qty:1, notes:item.desc? item.desc.slice(0,60) : 'Purchased' });
+  pushState(true); renderShop(); renderInventory(); renderHeader();
+  showToast(`Purchased ${item.name}`, 'success');
+}
+
+// ── DM shop management ──
+function renderDmShop() {
+  const host = el('dmShopList'); if (!host) return;
+  if (!Array.isArray(state.shop)) state.shop = [];
+  const meta = el('dmShopMeta'); if (meta) meta.textContent = `${state.shop.length} items`;
+  host.innerHTML = state.shop.length ? state.shop.map((it,i)=>`
+    <div class="dm-shop-row">
+      <input class="ds-name" data-i="${i}" value="${esc(it.name||'')}" placeholder="Item name">
+      <select class="ds-cat" data-i="${i}">${SHOP_CATEGORIES_FT.map(t=>`<option ${it.category===t?'selected':''}>${t}</option>`).join('')}</select>
+      <input class="ds-price" data-i="${i}" type="number" min="0" value="${it.price||0}" title="Price">
+      <input class="ds-stock" data-i="${i}" type="number" min="0" value="${it.stock==null?'':it.stock}" placeholder="∞" title="Stock (blank = unlimited)">
+      <button class="ds-del" data-i="${i}">✕</button>
+    </div>
+    <input class="ds-desc" data-i="${i}" value="${esc(it.desc||'')}" placeholder="Description (optional)">
+  `).join('') : `<div class="inv-empty">No items stocked. Add items below.</div>`;
+  host.querySelectorAll('.ds-name').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].name=inp.value; scheduleInvPush(); }));
+  host.querySelectorAll('.ds-desc').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].desc=inp.value; scheduleInvPush(); }));
+  host.querySelectorAll('.ds-price').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].price=Math.max(0,Number(inp.value)||0); scheduleInvPush(); }));
+  host.querySelectorAll('.ds-stock').forEach(inp=> inp.addEventListener('input',()=>{ const v=inp.value.trim(); state.shop[+inp.dataset.i].stock=v===''?null:Math.max(0,Number(v)||0); scheduleInvPush(); }));
+  host.querySelectorAll('.ds-cat').forEach(s=> s.addEventListener('change',()=>{ state.shop[+s.dataset.i].category=s.value; pushState(true); }));
+  host.querySelectorAll('.ds-del').forEach(b=> b.addEventListener('click',()=>{ state.shop.splice(+b.dataset.i,1); pushState(true); renderDmShop(); renderShop(); }));
+}
+function addShopItem() { if (!Array.isArray(state.shop)) state.shop=[]; state.shop.push({name:'',category:'General',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
+
+// ── DM money granting ──
+function renderDmMoney() {
+  const host = el('dmMoneyList'); if (!host) return;
+  host.innerHTML = state.characters.map((c,i)=>`
+    <div class="dm-money-row">
+      <span class="dm-money-name">${esc(c.name||`Character ${i+1}`)}</span>
+      <span class="dm-money-bal">${fmtMoney(c.money)} ${CURRENCY.short}</span>
+      <input class="dm-money-amt" data-i="${i}" type="number" placeholder="amount">
+      <button class="dm-money-give" data-i="${i}">+ Give</button>
+      <button class="dm-money-take" data-i="${i}">− Take</button>
+      <button class="dm-money-set" data-i="${i}">Set</button>
+    </div>`).join('');
+  const apply = (i, mode) => {
+    const inp = host.querySelector(`.dm-money-amt[data-i="${i}"]`);
+    const amt = Number(inp?.value)||0;
+    const c = state.characters[i]; if (!c) return;
+    if (mode==='give') c.money = (Number(c.money)||0) + amt;
+    else if (mode==='take') c.money = Math.max(0, (Number(c.money)||0) - amt);
+    else if (mode==='set') c.money = Math.max(0, amt);
+    if (inp) inp.value = '';
+    pushState(true); renderDmMoney(); renderHeader(); renderShop();
+    showToast(`${c.name||'Character'}: ${fmtMoney(c.money)} ${CURRENCY.short}`, 'success');
+  };
+  host.querySelectorAll('.dm-money-give').forEach(b=> b.addEventListener('click',()=>apply(+b.dataset.i,'give')));
+  host.querySelectorAll('.dm-money-take').forEach(b=> b.addEventListener('click',()=>apply(+b.dataset.i,'take')));
+  host.querySelectorAll('.dm-money-set').forEach(b=> b.addEventListener('click',()=>apply(+b.dataset.i,'set')));
+}
+
 function bindInventory() {
   const add = () => {
     const c = getChar();
@@ -887,6 +1016,7 @@ function bindInventory() {
   };
   el('addInvBtn')?.addEventListener('click', add);
   el('invAddName')?.addEventListener('keydown', e => { if (e.key==='Enter') add(); });
+  el('addShopItemBtn')?.addEventListener('click', addShopItem);
 }
 
 
@@ -1154,6 +1284,7 @@ function renderTabs(){
       case 'skills':    renderSkillsMatrix(); break;
       case 'magic':     renderSpells?.(); renderMagicsKnown?.(); break;
       case 'loadout':   renderWeapons?.(); renderInventory?.(); break;
+      case 'shop':      renderShop?.(); break;
       case 'lostmagic': renderLostMagic?.(); break;
     }
   } catch(e) {}
@@ -1180,6 +1311,9 @@ function render(){
   try{renderArchive();}catch(e){}
   try{renderWeapons();}catch(e){}
   try{renderInventory();}catch(e){}
+  try{renderShop();}catch(e){}
+  try{renderDmShop();}catch(e){}
+  try{renderDmMoney();}catch(e){}
   try{renderCalcPanel();}catch(e){}
   try{renderStats();}catch(e){}
   try{renderSkillsMatrix();}catch(e){}

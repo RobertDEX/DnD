@@ -37,6 +37,7 @@
   <div class="sidebar-section">
     <div class="section-label">▸ System</div>
     <button id="dmTriggerBtn" type="button" class="maw-btn dm">⚿ Administrator</button>
+    <button id="sfxToggle" type="button" class="maw-btn ghost small">♪ SFX</button>
   </div>
 
   <div class="sidebar-foot">CLASSIFIED // INTERNAL USE ONLY<br>UNAUTHORIZED ACCESS IS A TERMINABLE OFFENSE</div>
@@ -206,6 +207,8 @@
         <div class="panel-title">Talents & Anomalous Abilities</div>
         <div id="abilitiesList" class="abilities-list"></div>
         <button id="addAbilityBtn" class="maw-btn" style="margin-top:.7rem">+ Add Talent</button>
+        <div class="panel-title" style="margin-top:1.6rem">Commendations</div>
+        <div id="commendationsList" class="commendations-list"></div>
       </div>
 
       <!-- ANOMALIES -->
@@ -282,6 +285,10 @@
         <button class="dm-nav-btn" data-dm="missions">Mission Points</button>
         <button class="dm-nav-btn" data-dm="shop">Requisitions</button>
         <button class="dm-nav-btn" data-dm="broadcast">Broadcast</button>
+        <button class="dm-nav-btn" data-dm="bulk">Bulk Actions</button>
+        <button class="dm-nav-btn" data-dm="commend">Commendations</button>
+        <button class="dm-nav-btn" data-dm="evidence">Evidence Board</button>
+        <button class="dm-nav-btn" data-dm="site">Site Control</button>
       </div>
 
       <div class="dm-section active" data-dm="roster">
@@ -319,6 +326,64 @@
         <div class="dm-broadcast-actions">
           <button id="dmBroadcastSendBtn" class="maw-btn dm">⚠ TRANSMIT TO ALL</button>
           <button id="dmBroadcastClearBtn" class="maw-btn ghost">End Active Transmission</button>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="bulk">
+        <div class="dm-section-title">Bulk Actions — Apply to Multiple Agents</div>
+        <div class="bulk-config">
+          <label class="dm-mini"><span>Scope</span>
+            <select id="bulkScope">
+              <option value="active">All Active Agents</option>
+              <option value="all">Entire Roster</option>
+              <option value="selected">Selected Agent Only</option>
+            </select>
+          </label>
+          <label class="dm-mini"><span>Amount</span><input id="bulkAmount" type="number" value="5" min="0"></label>
+        </div>
+        <div class="dm-section-subtitle">Vitals</div>
+        <div class="bulk-grid">
+          <button class="bulk-btn dmg" data-bulk="hp-dmg">− HP Damage</button>
+          <button class="bulk-btn heal" data-bulk="hp-heal">+ HP Heal</button>
+          <button class="bulk-btn full" data-bulk="hp-full">↺ Full HP</button>
+          <button class="bulk-btn dmg" data-bulk="san-dmg">− Sanity</button>
+          <button class="bulk-btn heal" data-bulk="san-heal">+ Sanity</button>
+          <button class="bulk-btn full" data-bulk="san-full">↺ Full Sanity</button>
+        </div>
+        <div class="dm-section-subtitle">Points</div>
+        <div class="bulk-grid pts">
+          <button class="bulk-btn heal" data-bulk="pts-give">+ Give Points</button>
+          <button class="bulk-btn dmg" data-bulk="pts-take">− Take Points</button>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="commend">
+        <div class="dm-section-title">Commendations — Award & Revoke</div>
+        <label class="dm-mini" style="max-width:280px;margin-bottom:.9rem"><span>Recipient</span><select id="dmCommendTarget"></select></label>
+        <p class="dm-broadcast-note">Click a commendation to grant it to the selected agent. Click again to revoke. Awarded badges appear on the agent's Talents tab.</p>
+        <div id="dmCommendList" class="dm-commend-grid"></div>
+      </div>
+
+      <div class="dm-section" data-dm="evidence">
+        <div class="dm-section-title">Evidence Board</div>
+        <p class="dm-broadcast-note">Pin elements and drag to arrange. Use the “link” button on a node, then click another node to connect them. All agents see the board update live.</p>
+        <div class="ev-toolbar">
+          <button class="ev-add-btn" data-evtype="anomaly">⬡ Anomaly</button>
+          <button class="ev-add-btn" data-evtype="person">☖ Person</button>
+          <button class="ev-add-btn" data-evtype="location">⌖ Location</button>
+          <button class="ev-add-btn" data-evtype="evidence">❖ Evidence</button>
+          <button class="ev-add-btn" data-evtype="note">✎ Note</button>
+        </div>
+        <div id="evidenceBoard" class="evidence-board"></div>
+      </div>
+
+      <div class="dm-section" data-dm="site">
+        <div class="dm-section-title">Site Status Control</div>
+        <p class="dm-broadcast-note">Changes the entire site's atmosphere for every connected terminal — emergency lighting, warning bars, and alert klaxons.</p>
+        <div class="site-alert-controls">
+          <button class="site-alert-btn" data-alert="normal"><span class="sab-dot normal"></span>NORMAL OPERATIONS</button>
+          <button class="site-alert-btn" data-alert="lockdown"><span class="sab-dot lockdown"></span>SITE LOCKDOWN</button>
+          <button class="site-alert-btn" data-alert="uncontained"><span class="sab-dot uncontained"></span>CONTAINMENT BREACH</button>
         </div>
       </div>
     </div>

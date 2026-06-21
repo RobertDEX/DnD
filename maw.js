@@ -123,7 +123,7 @@ function blankChar(i) {
     armor:10, speed:'30 ft', tempHp:0,
     deathSaves:{successes:0,failures:0,stable:false},
     abilitiesText:'', notesText:'',
-    relationships:[], weapons:[], inventory:[], anomalies:[], missions:[], abilities:[]
+    relationships:[], weapons:[], inventory:[], anomalies:[], missions:[], abilities:[], commendations:[]
   };
 }
 
@@ -133,8 +133,24 @@ let state = {
   activeTab: 'skills',
   showReserve: false,
   theme: null,
-  shop: []  // shared shop catalog managed by the DM
+  shop: [],  // shared shop catalog managed by the DM
+  evidenceBoard: { nodes: [], links: [] },   // DM evidence board
+  siteAlert: 'normal'                         // normal | lockdown | uncontained
 };
+
+// Commendation/achievement catalog (DM grants these)
+const COMMENDATIONS = [
+  { id:'first_contain', icon:'◈', name:'First Containment',   desc:'Successfully contained your first anomaly.' },
+  { id:'survived_keter', icon:'☣', name:'Keter Survivor',     desc:'Survived direct contact with a Keter-class entity.' },
+  { id:'tier4',         icon:'★', name:'Ascension',           desc:'Reached Tier IV — Chief clearance.' },
+  { id:'flawless',      icon:'✦', name:'Flawless Operation',  desc:'Completed a mission with no casualties or losses.' },
+  { id:'scholar',       icon:'❖', name:'Field Scholar',       desc:'Documented 10+ anomalies in the log.' },
+  { id:'big_game',      icon:'⬡', name:'Big Game',            desc:'Captured an A-grade or higher anomaly.' },
+  { id:'sole_survivor', icon:'☩', name:'Sole Survivor',       desc:'The only agent to walk out of an operation.' },
+  { id:'loyal',         icon:'⚒', name:'Company Loyalist',    desc:'Exemplary service to Make a Wish Incorporated.' },
+  { id:'sacrifice',     icon:'✝', name:'Ultimate Sacrifice',  desc:'Gave everything in the line of duty. (Posthumous)' }
+];
+const COMMENDATION_BY_ID = Object.fromEntries(COMMENDATIONS.map(c=>[c.id,c]));
 
 // ================================================================
 // HELPERS
@@ -182,6 +198,7 @@ function normalize(raw){
     mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
     mc.missions   = Array.isArray(c.missions)?c.missions:[];
     mc.abilities  = Array.isArray(c.abilities)?c.abilities:[];
+    mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
     if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
     if(!RANK_BY_ID[mc.rank]) mc.rank = 'I';
     const blankSk = makeBlankSkills(); mc.skills = {};
@@ -201,6 +218,12 @@ function normalize(raw){
     stock: (it.stock===undefined?null:it.stock),
     desc: it.desc||''
   }));
+  // Evidence board
+  if(!m.evidenceBoard || typeof m.evidenceBoard!=='object') m.evidenceBoard = { nodes:[], links:[] };
+  if(!Array.isArray(m.evidenceBoard.nodes)) m.evidenceBoard.nodes = [];
+  if(!Array.isArray(m.evidenceBoard.links)) m.evidenceBoard.links = [];
+  // Site alert state
+  if(!['normal','lockdown','uncontained'].includes(m.siteAlert)) m.siteAlert = 'normal';
   return m;
 }
 
@@ -278,6 +301,10 @@ function startListener(){
       if(state.selectedCharacter >= state.characters.length) state.selectedCharacter = 0;
       state.shop = remote.shop;
       state.theme = remote.theme;
+      state.evidenceBoard = remote.evidenceBoard;
+      const prevAlert = state.siteAlert;
+      state.siteAlert = remote.siteAlert;
+      if(prevAlert !== state.siteAlert) applySiteAlert();
       setSyncDot('synced');
 
       if(isTyping){
@@ -347,6 +374,7 @@ function render(){
   try{ renderAnomalies(); }catch(e){}
   try{ renderAbilities(); }catch(e){}
   try{ renderShop(); }catch(e){}
+  try{ renderCommendations(); }catch(e){}
   try{ renderDeathSaves(); }catch(e){}
   try{ renderDmPanel(); }catch(e){}
   try{ applyCharacterAccents(); }catch(e){}
@@ -364,7 +392,7 @@ function renderTabs(){
       case 'loadout':   renderWeapons(); renderInventory(); break;
       case 'relations': renderRelationships(); break;
       case 'anomalies': renderAnomalies(); break;
-      case 'abilities': renderAbilities(); break;
+      case 'abilities': renderAbilities(); renderCommendations(); break;
       case 'shop':      renderShop(); break;
     }
   } catch(e){}
@@ -891,6 +919,15 @@ function renderDmPanel(){
 
   // Shop management
   renderDmShop();
+  // New systems
+  try{ renderDmCommendations(); }catch(e){}
+  try{ renderEvidenceBoard(); }catch(e){}
+  try{ syncSiteAlertButtons(); }catch(e){}
+}
+function syncSiteAlertButtons(){
+  document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.alert===(state.siteAlert||'normal'));
+  });
 }
 
 function awardMissionPoints(grade){
@@ -915,6 +952,36 @@ function awardMissionPoints(grade){
   pushState(true); render();
   const who = idx===-1?'all active agents':(state.characters[idx]?.name||'agent');
   showToast(`Awarded ${fmtPoints(amount)} pts to ${who} · Grade ${grade}`,'buy');
+  SFX.buy();
+}
+
+// ── BULK ACTIONS — apply to all active / all / selected ──
+function bulkApply(kind){
+  if(!dmUnlocked) return;
+  const scope = el('bulkScope')?.value || 'active';
+  const amt = Number(el('bulkAmount')?.value)||0;
+  let targets = state.characters;
+  if(scope==='active') targets = state.characters.filter(c=>c.state==='active');
+  else if(scope==='selected') targets = [state.characters[state.selectedCharacter]];
+  targets = targets.filter(Boolean);
+  if(!targets.length){ showToast('No targets in scope','warn'); return; }
+  let verb = '';
+  targets.forEach(c=>{
+    switch(kind){
+      case 'hp-dmg':   c.hp.current = clamp((c.hp.current||0)-amt,0,c.hp.max); verb=`−${amt} HP`; break;
+      case 'hp-heal':  c.hp.current = clamp((c.hp.current||0)+amt,0,c.hp.max); verb=`+${amt} HP`; break;
+      case 'hp-full':  c.hp.current = c.hp.max; verb='HP restored'; break;
+      case 'san-dmg':  c.sanity.current = clamp((c.sanity.current||0)-amt,0,c.sanity.max); verb=`−${amt} Sanity`; break;
+      case 'san-heal': c.sanity.current = clamp((c.sanity.current||0)+amt,0,c.sanity.max); verb=`+${amt} Sanity`; break;
+      case 'san-full': c.sanity.current = c.sanity.max; verb='Sanity restored'; break;
+      case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtPoints(amt)} pts`; break;
+      case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtPoints(amt)} pts`; break;
+    }
+  });
+  pushState(true); render();
+  const scopeLabel = scope==='active'?'all active agents':scope==='all'?'entire roster':'selected agent';
+  showToast(`${verb} → ${scopeLabel} (${targets.length})`, kind.includes('dmg')||kind.includes('take')?'warn':'buy');
+  if(kind.includes('dmg')||kind.includes('take')) SFX.warn(); else SFX.confirm();
 }
 
 function renderDmShop(){
@@ -1139,6 +1206,264 @@ function showBroadcastScreen(msg){
 }
 
 // ================================================================
+// SOUND DESIGN — subtle terminal SFX (Web Audio, no asset files)
+// ================================================================
+let _audioCtx = null;
+let _sfxEnabled = localStorage.getItem('maw-sfx') !== '0';
+function _ac(){
+  if(_sfxEnabled===false) return null;
+  if(!_audioCtx){ try{ _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
+  if(_audioCtx.state==='suspended') _audioCtx.resume().catch(()=>{});
+  return _audioCtx;
+}
+// generic tone
+function _tone(freq, dur, type='square', vol=0.04, when=0){
+  const ac=_ac(); if(!ac) return;
+  const t=ac.currentTime+when;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(vol,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+const SFX = {
+  key(){ _tone(420+Math.random()*120, 0.03, 'square', 0.018); },      // typewriter keystroke
+  click(){ _tone(880, 0.04, 'square', 0.03); _tone(1320,0.03,'square',0.015,0.01); },
+  tab(){ _tone(600, 0.05, 'triangle', 0.03); },
+  confirm(){ _tone(660,0.06,'square',0.035); _tone(990,0.08,'square',0.03,0.06); },
+  warn(){ _tone(220,0.12,'sawtooth',0.04); _tone(180,0.18,'sawtooth',0.035,0.08); },
+  alarm(){ const ac=_ac(); if(!ac) return; for(let i=0;i<3;i++){ _tone(740,0.18,'square',0.05,i*0.42); _tone(560,0.18,'square',0.05,i*0.42+0.2);} },
+  hum(){ _tone(70,1.4,'sine',0.06); _tone(105,1.4,'sine',0.03); },
+  buy(){ _tone(523,0.05,'square',0.03); _tone(784,0.06,'square',0.03,0.05); _tone(1046,0.1,'square',0.03,0.11); }
+};
+function toggleSfx(){
+  _sfxEnabled = !_sfxEnabled;
+  localStorage.setItem('maw-sfx', _sfxEnabled?'1':'0');
+  const b=el('sfxToggle'); if(b){ b.classList.toggle('off',!_sfxEnabled); b.textContent = _sfxEnabled?'♪ SFX':'♪ SFX OFF'; }
+  if(_sfxEnabled) SFX.click();
+  showToast(_sfxEnabled?'Audio enabled':'Audio muted','info');
+}
+
+// ================================================================
+// DYNAMIC SITE STATE — normal / lockdown / uncontained
+// ================================================================
+function applySiteAlert(){
+  const s = state.siteAlert || 'normal';
+  document.body.classList.remove('alert-lockdown','alert-uncontained');
+  let banner = el('siteAlertBanner');
+  if(s==='normal'){ banner?.remove(); return; }
+  document.body.classList.add(s==='lockdown'?'alert-lockdown':'alert-uncontained');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'siteAlertBanner';
+    document.body.appendChild(banner);
+  }
+  if(s==='lockdown'){
+    banner.className = 'site-alert lockdown';
+    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">SITE LOCKDOWN IN EFFECT — ALL PERSONNEL REMAIN AT STATIONS</span><span class="sa-icon">⚠</span>`;
+    SFX.alarm();
+  } else {
+    banner.className = 'site-alert uncontained';
+    banner.innerHTML = `<span class="sa-icon">☣</span><span class="sa-text">CONTAINMENT BREACH — UNCONTAINED ANOMALY ON SITE</span><span class="sa-icon">☣</span>`;
+    SFX.alarm();
+  }
+}
+function setSiteAlert(level){
+  if(!dmUnlocked) return;
+  state.siteAlert = level;
+  pushState(true); applySiteAlert();
+  showToast(`Site status: ${level.toUpperCase()}`, level==='normal'?'info':'warn');
+}
+
+// ================================================================
+// IDLE CORRUPTION — subtle glitches creep in when the sheet sits idle
+// ================================================================
+let _idleTimer = null;
+let _corruptionLevel = 0;
+let _corruptionTick = null;
+function resetIdle(){
+  _corruptionLevel = 0;
+  document.body.classList.remove('corrupt-1','corrupt-2','corrupt-3');
+  el('corruptionOverlay')?.classList.remove('active');
+  clearTimeout(_idleTimer);
+  clearInterval(_corruptionTick);
+  _idleTimer = setTimeout(beginCorruption, 90000); // 90s of inactivity
+}
+function beginCorruption(){
+  if(!el('corruptionOverlay')){
+    const o=document.createElement('div'); o.id='corruptionOverlay'; o.innerHTML='<div class="corrupt-scan"></div><div class="corrupt-glitch"></div>';
+    document.body.appendChild(o);
+  }
+  el('corruptionOverlay').classList.add('active');
+  _corruptionTick = setInterval(()=>{
+    _corruptionLevel = Math.min(3, _corruptionLevel+1);
+    document.body.classList.remove('corrupt-1','corrupt-2','corrupt-3');
+    document.body.classList.add('corrupt-'+_corruptionLevel);
+    if(_corruptionLevel>=2 && Math.random()<0.5) SFX.hum();
+  }, 45000); // deepens every 45s of continued idle
+}
+
+// ================================================================
+// COMMENDATIONS / ACHIEVEMENTS
+// ================================================================
+function renderCommendations(){
+  const c = getChar();
+  const host = el('commendationsList'); if(!host) return;
+  if(!Array.isArray(c.commendations)) c.commendations=[];
+  if(!c.commendations.length){
+    host.innerHTML = `<div class="empty-note">No commendations on record.</div>`;
+    return;
+  }
+  host.innerHTML = c.commendations.map(id=>{
+    const m = COMMENDATION_BY_ID[id]; if(!m) return '';
+    return `<div class="commend-badge" title="${esc(m.desc)}">
+      <span class="commend-icon">${m.icon}</span>
+      <span class="commend-name">${esc(m.name)}</span>
+    </div>`;
+  }).join('');
+}
+function renderDmCommendations(){
+  const host = el('dmCommendList'); if(!host) return;
+  const targetSel = el('dmCommendTarget');
+  if(targetSel){
+    const cur = targetSel.value;
+    targetSel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Agent ${i+1}`)}</option>`).join('');
+    if(cur) targetSel.value = cur;
+  }
+  host.innerHTML = COMMENDATIONS.map(m=>`
+    <button class="dm-commend-card" data-id="${m.id}" title="${esc(m.desc)}">
+      <span class="dm-commend-icon">${m.icon}</span>
+      <span class="dm-commend-name">${esc(m.name)}</span>
+      <span class="dm-commend-desc">${esc(m.desc)}</span>
+    </button>`).join('');
+  host.querySelectorAll('.dm-commend-card').forEach(b=> b.addEventListener('click', ()=> grantCommendation(b.dataset.id)));
+}
+function grantCommendation(id){
+  if(!dmUnlocked) return;
+  const idx = parseInt(el('dmCommendTarget')?.value);
+  const c = state.characters[idx]; if(!c) return;
+  if(!Array.isArray(c.commendations)) c.commendations=[];
+  const m = COMMENDATION_BY_ID[id];
+  if(c.commendations.includes(id)){
+    c.commendations = c.commendations.filter(x=>x!==id);
+    pushState(true); render();
+    showToast(`Revoked: ${m.name} from ${c.name||'agent'}`,'warn');
+  } else {
+    c.commendations.push(id);
+    pushState(true); render();
+    SFX.confirm();
+    showToast(`✦ ${c.name||'Agent'} awarded: ${m.name}`,'buy');
+  }
+}
+
+// ================================================================
+// EVIDENCE BOARD — DM pins nodes and draws connections
+// ================================================================
+const EVIDENCE_TYPES = {
+  anomaly:  { label:'Anomaly',  color:'#b04ad9', icon:'⬡' },
+  person:   { label:'Person',   color:'#5a82c2', icon:'☖' },
+  location: { label:'Location', color:'#5a9a78', icon:'⌖' },
+  evidence: { label:'Evidence', color:'#c2a23a', icon:'❖' },
+  note:     { label:'Note',     color:'#8a96a2', icon:'✎' }
+};
+let _evLinkFrom = null;  // node id when drawing a connection
+
+function renderEvidenceBoard(){
+  const board = el('evidenceBoard'); if(!board) return;
+  const eb = state.evidenceBoard || {nodes:[],links:[]};
+  const canEditBoard = dmUnlocked;
+
+  // SVG links layer + node layer
+  const linksSvg = eb.links.map(l=>{
+    const a = eb.nodes.find(n=>n.id===l.from), b = eb.nodes.find(n=>n.id===l.to);
+    if(!a||!b) return '';
+    return `<line x1="${a.x+70}" y1="${a.y+28}" x2="${b.x+70}" y2="${b.y+28}" class="ev-link" data-link="${l.id}" />
+      ${l.label?`<text x="${(a.x+b.x)/2+70}" y="${(a.y+b.y)/2+24}" class="ev-link-label">${esc(l.label)}</text>`:''}`;
+  }).join('');
+
+  const nodesHtml = eb.nodes.map(n=>{
+    const t = EVIDENCE_TYPES[n.type]||EVIDENCE_TYPES.note;
+    const linking = _evLinkFrom===n.id;
+    return `<div class="ev-node ${linking?'linking':''}" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px;--ev:${t.color}">
+      <div class="ev-node-head"><span class="ev-node-icon">${t.icon}</span><span class="ev-node-type">${t.label}</span>
+        ${canEditBoard?`<button class="ev-node-del" data-del="${n.id}">✕</button>`:''}</div>
+      <div class="ev-node-title" ${canEditBoard?'contenteditable="true"':''} data-title="${n.id}">${esc(n.title||'')}</div>
+      ${canEditBoard?`<button class="ev-node-link" data-link-from="${n.id}">${linking?'cancel':'⃔ link'}</button>`:''}
+    </div>`;
+  }).join('');
+
+  board.innerHTML = `
+    <svg class="ev-links-layer">${linksSvg}</svg>
+    <div class="ev-nodes-layer">${nodesHtml}</div>
+    ${!eb.nodes.length?'<div class="ev-empty">Empty board. The DM pins anomalies, persons, locations, and evidence here — then draws the connections between them.</div>':''}`;
+
+  if(!canEditBoard) return;
+
+  // dragging
+  board.querySelectorAll('.ev-node').forEach(node=>{
+    const id = node.dataset.node;
+    const head = node.querySelector('.ev-node-head');
+    head.addEventListener('mousedown', e=>{
+      if(e.target.closest('button')) return;
+      e.preventDefault();
+      const n = state.evidenceBoard.nodes.find(x=>x.id===id);
+      const startX=e.clientX, startY=e.clientY, ox=n.x, oy=n.y;
+      const move = ev=>{ n.x=Math.max(0,ox+ev.clientX-startX); n.y=Math.max(0,oy+ev.clientY-startY); renderEvidenceBoardLight(); };
+      const up = ()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); pushState(true); };
+      document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+    });
+  });
+  // title editing
+  board.querySelectorAll('.ev-node-title').forEach(t=>{
+    t.addEventListener('blur', ()=>{ const n=state.evidenceBoard.nodes.find(x=>x.id===t.dataset.title); if(n){ n.title=t.textContent; pushState(true);} });
+  });
+  // delete
+  board.querySelectorAll('.ev-node-del').forEach(b=> b.addEventListener('click', ()=>{
+    state.evidenceBoard.nodes = state.evidenceBoard.nodes.filter(x=>x.id!==b.dataset.del);
+    state.evidenceBoard.links = state.evidenceBoard.links.filter(l=>l.from!==b.dataset.del && l.to!==b.dataset.del);
+    pushState(true); renderEvidenceBoard();
+  }));
+  // linking
+  board.querySelectorAll('.ev-node-link').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.linkFrom;
+    if(_evLinkFrom===null){ _evLinkFrom = id; renderEvidenceBoard(); }
+    else if(_evLinkFrom===id){ _evLinkFrom=null; renderEvidenceBoard(); }
+    else {
+      const label = prompt('Connection label (optional):','');
+      state.evidenceBoard.links.push({ id:'lnk-'+Date.now(), from:_evLinkFrom, to:id, label:label||'' });
+      _evLinkFrom=null; pushState(true); renderEvidenceBoard();
+    }
+  }));
+  // delete link on click
+  board.querySelectorAll('.ev-link').forEach(l=> l.addEventListener('click', ()=>{
+    if(confirm('Remove this connection?')){ state.evidenceBoard.links = state.evidenceBoard.links.filter(x=>x.id!==l.dataset.link); pushState(true); renderEvidenceBoard(); }
+  }));
+}
+// lightweight reposition during drag (no full rebuild / no re-bind)
+function renderEvidenceBoardLight(){
+  const board = el('evidenceBoard'); if(!board) return;
+  const eb = state.evidenceBoard;
+  eb.nodes.forEach(n=>{ const el2=board.querySelector(`.ev-node[data-node="${n.id}"]`); if(el2){ el2.style.left=n.x+'px'; el2.style.top=n.y+'px'; } });
+  const svg = board.querySelector('.ev-links-layer');
+  if(svg){
+    svg.innerHTML = eb.links.map(l=>{
+      const a=eb.nodes.find(n=>n.id===l.from), b=eb.nodes.find(n=>n.id===l.to);
+      if(!a||!b) return '';
+      return `<line x1="${a.x+70}" y1="${a.y+28}" x2="${b.x+70}" y2="${b.y+28}" class="ev-link" data-link="${l.id}"/>${l.label?`<text x="${(a.x+b.x)/2+70}" y="${(a.y+b.y)/2+24}" class="ev-link-label">${esc(l.label)}</text>`:''}`;
+    }).join('');
+  }
+}
+function addEvidenceNode(type){
+  if(!dmUnlocked) return;
+  if(!state.evidenceBoard) state.evidenceBoard={nodes:[],links:[]};
+  const offset = state.evidenceBoard.nodes.length*14 % 200;
+  state.evidenceBoard.nodes.push({ id:'ev-'+Date.now()+Math.random().toString(16).slice(2,6), type, title:'', x:40+offset, y:40+offset });
+  pushState(true); renderEvidenceBoard();
+}
+
+// ================================================================
 // WELCOME / CLAIM
 // ================================================================
 function checkWelcome(){
@@ -1342,12 +1667,12 @@ function bindFields(){
   el('addAbilityBtn')?.addEventListener('click', addAbility);
 
   // tab nav
-  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ state.activeTab=b.dataset.tab; pushState(); renderTabs(); }));
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ state.activeTab=b.dataset.tab; SFX.tab(); pushState(); renderTabs(); }));
   // DM nav (sub-tabs inside DM panel)
   document.querySelectorAll('.dm-nav-btn[data-dm]').forEach(b=> b.addEventListener('click', ()=>{
     document.querySelectorAll('.dm-nav-btn').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.dm-section').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
+    b.classList.add('active'); SFX.tab();
     document.querySelector(`.dm-section[data-dm="${b.dataset.dm}"]`)?.classList.add('active');
   }));
 
@@ -1369,6 +1694,15 @@ function bindFields(){
     showToast('Broadcast transmitted to all terminals','info');
   });
   el('dmBroadcastClearBtn')?.addEventListener('click', ()=>{ clearBroadcast(); removeBroadcastScreen(); });
+  // live typing SFX on the broadcast composer (terminal feel)
+  el('dmBroadcastInput')?.addEventListener('keydown', e=>{ if(e.key.length===1||e.key==='Backspace') SFX.key(); });
+
+  // New feature bindings
+  el('sfxToggle')?.addEventListener('click', toggleSfx);
+  document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=> b.addEventListener('click', ()=> setSiteAlert(b.dataset.alert)));
+  el('dmCommendTarget')?.addEventListener('change', ()=>{});
+  document.querySelectorAll('.ev-add-btn[data-evtype]').forEach(b=> b.addEventListener('click', ()=> addEvidenceNode(b.dataset.evtype)));
+  document.querySelectorAll('.bulk-btn[data-bulk]').forEach(b=> b.addEventListener('click', ()=> bulkApply(b.dataset.bulk)));
 
   // sidebar toggle (mobile)
   el('sidebarToggle')?.addEventListener('click', ()=> document.querySelector('.sidebar')?.classList.toggle('open'));
@@ -1412,3 +1746,13 @@ migrateIfNeeded();
 startPresenceListener();
 startBroadcastListener();
 pushPresence();
+
+// New systems init
+applySiteAlert();
+// reflect saved SFX preference on the toggle
+(function(){ const b=el('sfxToggle'); if(b && !_sfxEnabled){ b.classList.add('off'); b.textContent='♪ SFX OFF'; } })();
+// idle corruption: any interaction resets the timer
+['mousemove','keydown','click','touchstart','scroll'].forEach(ev=> document.addEventListener(ev, resetIdle, {passive:true}));
+resetIdle();
+// resume audio on first user gesture (browser autoplay policy)
+document.addEventListener('click', ()=>{ _ac(); }, { once:true });

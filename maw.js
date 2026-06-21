@@ -1020,13 +1020,19 @@ async function clearBroadcast(){
 }
 function startBroadcastListener(){
   if(_broadcastUnsub) _broadcastUnsub();
+  const _loadTime = Date.now();
   _broadcastUnsub = onSnapshot(doc(db,'maw-meta','broadcast'), snap=>{
     if(!snap.exists()) return;
     const d = snap.data();
     if(d.ts && d.ts > _lastBroadcastTs){
       _lastBroadcastTs = d.ts;
-      if(d.cleared || !d.msg){ removeBroadcastScreen(); }
-      else showBroadcastScreen(d.msg);
+      if(d.cleared || !d.msg){ removeBroadcastScreen(); return; }
+      // Don't let a stale broadcast (sent long before this page loaded) ambush a new visitor.
+      // Only auto-show broadcasts that are fresh (within 2h) OR sent after we loaded.
+      const age = Date.now() - d.ts;
+      const isFresh = age < 2*60*60*1000;          // under 2 hours old
+      const sentAfterLoad = d.ts >= _loadTime - 5000;
+      if(isFresh || sentAfterLoad) showBroadcastScreen(d.msg);
     }
   }, ()=>{});
 }
@@ -1068,7 +1074,9 @@ function showBroadcastScreen(msg){
           <button class="bcs-dm-append" id="bcsAppend">＋ APPEND LINE</button>
           <button class="bcs-dismiss" id="bcsDismiss">▣ END TRANSMISSION</button>
         </div>
-      </div>` : '<div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>'}
+      </div>` : `
+      <div class="bcs-wait">AWAITING CLEARANCE FROM ADMINISTRATOR…</div>
+      <button class="bcs-admin-login" id="bcsAdminLogin">⚿ ADMINISTRATOR OVERRIDE</button>`}
     </div>`;
   document.body.appendChild(ov);
   // typewriter reveal for eerie effect
@@ -1106,6 +1114,17 @@ function showBroadcastScreen(msg){
     const bar = el('bcsDmBar');
     bar?.scrollIntoView({ behavior:'smooth', block:'center' });
     el('bcsDmInput')?.focus();
+  });
+  // Non-DM: administrator override — log in as DM right from the broadcast screen
+  el('bcsAdminLogin')?.addEventListener('click', ()=>{
+    const pass = prompt('Administrator access code:');
+    if(pass===null) return;
+    if(pass !== DM_PASS){ showToast('Access denied','warn'); return; }
+    dmUnlocked = true; sessionStorage.setItem('maw-dm','1');
+    render();
+    // re-render the broadcast screen so DM controls now appear
+    showBroadcastScreen(el('bcsMessage')?.textContent || msg);
+    showToast('Administrator access granted','buy');
   });
 }
 

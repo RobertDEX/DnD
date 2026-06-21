@@ -521,6 +521,8 @@ body{filter:saturate(.82)}
 .bcs-dismiss{font-family:var(--F4);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;padding:.6rem 1.4rem;background:rgba(217,79,79,.1);border:1px solid var(--accent);color:var(--accent);cursor:pointer;transition:all .15s}
 .bcs-dismiss:hover{background:var(--accent);color:#fff}
 .bcs-wait{margin-top:1.8rem;font-family:var(--F4);font-size:.6rem;letter-spacing:.16em;color:#4a535c;text-transform:uppercase;animation:pulse 2s infinite}
+.bcs-admin-login{margin-top:1.4rem;font-family:var(--F4);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;padding:.5rem 1.1rem;background:rgba(217,79,79,.08);border:1px solid rgba(217,79,79,.4);color:var(--accent);cursor:pointer;transition:all .15s}
+.bcs-admin-login:hover{background:rgba(217,79,79,.2);color:#fff;border-color:var(--accent)}
 /* DM live-control bar on the broadcast screen */
 .bcs-pin{position:fixed;top:0;right:0;left:0;z-index:10;display:flex;align-items:center;justify-content:flex-end;gap:.6rem;padding:.7rem 1rem;background:linear-gradient(180deg,rgba(6,7,8,.96),rgba(6,7,8,.75) 70%,transparent);backdrop-filter:blur(2px)}
 .bcs-pin-label{font-family:var(--F4);font-size:.54rem;letter-spacing:.18em;color:#6b7681;text-transform:uppercase;margin-right:auto;padding-left:.3rem}

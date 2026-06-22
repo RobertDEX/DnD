@@ -278,6 +278,7 @@ async function pushState(immediate=false){
     catch(e){console.error(e);setSyncDot('error');}
   },600);
 }
+function flushPendingPush(){ if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; pushState(true); } }
 
 function startListener(){
   if(_unsub)_unsub();
@@ -1442,6 +1443,8 @@ function updateField(field,value){
   if(field==='level'||field==='magicCategory'){renderCalcPanel();renderSkillsMatrix();renderStats();}
 }
 function bindAll(){
+  document.addEventListener('focusout',e=>{const t=e.target;if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable))flushPendingPush();});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingPush();});
   const ii=(id,field)=>{const e=el(id);if(e)e.addEventListener('input',ev=>updateField(field,ev.target.value));};
   const ic=(id,field)=>{const e=el(id);if(e)e.addEventListener('change',ev=>updateField(field,ev.target.value));};
   ii('charName','name');ii('charLevel','level');ii('charRace','race');ii('charClass','className');

@@ -988,3 +988,7 @@ body.sanity-3 .app{animation:san-tremble 5s ease-in-out infinite}
 
 /* talent count badge */
 .talent-count{font-family:var(--F4);font-size:.52rem;letter-spacing:.1em;color:var(--muted);font-weight:400;text-transform:none}
+
+/* smooth scrolling (was missing) */
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }

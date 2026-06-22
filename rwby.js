@@ -562,6 +562,8 @@ async function pushState(immediate = false) {
     } catch(e) { console.error(e); setSyncDot('error'); }
   }, 600);
 }
+// Force any pending debounced write to flush immediately (on blur / before leaving).
+function flushPendingPush(){ if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; pushState(true); } }
 
 function startListener() {
   if (_unsub) _unsub();
@@ -1353,6 +1355,7 @@ function adjustResource(res, amt) {
   if (res==='hp')   c.hp.current   = clamp(c.hp.current   + amt, 0, c.hp.max);
   if (res==='aura') c.aura.current = clamp(c.aura.current + amt, 0, c.aura.max);
   pushState(true); renderHeader(); renderMainFields(); renderCharacterTabs();
+  try { checkResourceFlash(c); } catch(e) {}
 }
 function useTechnique(id) {
   const c = getChar(); const t = c.techniques.find(t=>t.id===id); if(!t) return;
@@ -1503,10 +1506,18 @@ function updateField(field, value) {
   if (['maxHp','currentHp','maxAura','currentAura','level','armor','tempHp'].includes(field)) {
     renderMainFields(); renderCalcPanel();
     if (field==='level') renderSkillsMatrix();
+    if (field==='currentAura' || field==='maxAura') { try { checkResourceFlash(c); } catch(e){} }
   }
 }
 
 function bindAll() {
+  // SAFETY NET: flush pending edits to the server the moment any field loses focus,
+  // so text is never lost when leaving the page mid-edit.
+  document.addEventListener('focusout', e=>{
+    const t=e.target;
+    if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) flushPendingPush();
+  });
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushPendingPush(); });
   const ii = (id,field) => { const e=el(id); if(e) e.addEventListener('input', ev=>updateField(field,ev.target.value)); };
   ii('charName','name'); ii('charLevel','level'); ii('charRace','race'); ii('charClass','className');
   ii('charAge','age'); ii('charBackground','background'); ii('charSemblanceName','semblanceName');
@@ -2335,7 +2346,7 @@ function renderAccentColor() {
 // ================================================================
 // #26 — HP/AURA DAMAGE FLASH
 // ================================================================
-let _prevHp = null, _prevAura = null;
+let _prevHp = null, _prevAura = null, _prevResChar = null;
 let _auraBreakChar = null; // id of the char whose break we last showed (avoid repeats)
 
 // ================================================================
@@ -2472,6 +2483,13 @@ function grantCommendation(id){
 }
 
 function checkResourceFlash(c) {
+  // Track previous values per-character so switching sheets never mis-fires.
+  if (_prevResChar !== c.id) {
+    _prevResChar = c.id;
+    _prevHp = c.hp.current; _prevAura = c.aura.current;
+    if (c.aura.current > 0) _auraBreakChar = null; // allow a fresh break for this char
+    return; // first look at this character — establish baseline, don't flash
+  }
   if (_prevHp !== null && c.hp.current < _prevHp) flashBar('topHpBar', 'flash-damage');
   if (_prevHp !== null && c.hp.current > _prevHp) flashBar('topHpBar', 'flash-heal');
   if (_prevAura !== null && c.aura.current < _prevAura) flashBar('topAuraBar', 'flash-damage');

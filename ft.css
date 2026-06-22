@@ -1543,3 +1543,20 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   .dm-money-row{grid-template-columns:1fr 1fr;gap:.4rem}
   .dm-shop-row{grid-template-columns:1fr 1fr}
 }
+
+/* ════════════════════════════════════════════════════════════
+   POLISH & ACCESSIBILITY LAYER
+   ════════════════════════════════════════════════════════════ */
+html{scroll-behavior:smooth}
+/* clearer keyboard focus */
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px}
+/* smoother interactive feedback on buttons */
+.neo-btn,.tab-btn,.dm-nav-btn,.character-tab{transition:var(--transition)}
+.neo-btn:active{transform:translateY(1px) scale(.99)}
+/* gentle hover lift on cards/panels that don't already have it */
+.panel{transition:box-shadow .2s ease, border-color .2s ease}
+/* respect reduced motion globally */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.05ms!important;scroll-behavior:auto!important}
+}

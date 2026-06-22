@@ -208,6 +208,7 @@ function blankChar(i) {
     inventory: [],       // [{name, qty, notes}]
     relationships: [],   // #21 — [{name, type, notes}]
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
+    commendations: [],   // earned commendation ids (DM-granted)
     dustInventory: dust, dustSpells:[], techniques:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -659,6 +660,7 @@ function normalize(raw) {
     mc.dustSpells    = Array.isArray(c.dustSpells)  ? c.dustSpells  : [];
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
+    mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.inventory     = Array.isArray(c.inventory)   ? c.inventory   : [];
     mc.money         = Number(c.money) || 0;
@@ -1301,6 +1303,7 @@ function renderTabs() {
       case 'techniques': renderTechniques(); break;
       case 'dust':       renderDust(); break;
       case 'semblance':  renderSemblance(); break;
+      case 'honors':     renderCommendations(); break;
     }
   } catch(e) {}
 }
@@ -1318,6 +1321,8 @@ function render() {
   try { renderDeathSaves(c); }     catch(e) {}
   try { renderRelationships(); }   catch(e) {}
   try { renderCurses(); }          catch(e) {}
+  try { renderCommendations(); }   catch(e) {}
+  try { renderDmCommendations(); } catch(e) {}
   try { renderAccentColor(); }     catch(e) {}
   try { applyCharacterAccents(); } catch(e) {}
   try { checkResourceFlash(c); }   catch(e) {}
@@ -1569,6 +1574,7 @@ function bindAll() {
       // Render tab-specific content
       if (tab === 'semblance')  { renderDmSemblance(); }
       if (tab === 'techniques') { renderDmTechniques(); }
+      if (tab === 'commend')    { renderDmCommendations(); }
       if (tab === 'curse')      { renderCurseTargetSelect(); }
     });
   });
@@ -2330,13 +2336,204 @@ function renderAccentColor() {
 // #26 — HP/AURA DAMAGE FLASH
 // ================================================================
 let _prevHp = null, _prevAura = null;
+let _auraBreakChar = null; // id of the char whose break we last showed (avoid repeats)
+
+// ================================================================
+// COMMENDATIONS — DM-granted achievements (RWBY-themed)
+// ================================================================
+const COMMENDATIONS = [
+  // ── INITIATE ──
+  { id:'aura_unlocked',   icon:'✶', name:'Aura Unlocked',        tier:'initiate', desc:'Awakened your Aura for the first time.' },
+  { id:'semblance_awoken',icon:'❂', name:'Semblance Awakened',   tier:'initiate', desc:'Manifested your Semblance under pressure.' },
+  { id:'first_hunt',      icon:'⚔', name:'First Hunt',           tier:'initiate', desc:'Completed your first official mission.' },
+  { id:'initiation',      icon:'⛰', name:'Survived Initiation',  tier:'initiate', desc:'Made it through the Emerald Forest initiation.' },
+  { id:'team_formed',     icon:'❖', name:'Team Assembled',       tier:'initiate', desc:'Formed or joined a Huntsman team.' },
+  { id:'first_blood',     icon:'⚐', name:'First Blood',          tier:'initiate', desc:'Scored your team\u2019s first kill in a real fight.' },
+  { id:'weapon_forged',   icon:'⚒', name:'Forged in Steel',      tier:'initiate', desc:'Crafted or customized your signature weapon.' },
+  { id:'combat_school',   icon:'✎', name:'Combat School Grad',   tier:'initiate', desc:'Graduated from a combat school (Signal, Sanctum, etc.).' },
+  // ── FIELD ──
+  { id:'grimm_slayer',    icon:'☠', name:'Grimm Slayer',         tier:'field',    desc:'Slew 25 creatures of Grimm.' },
+  { id:'nevermore',       icon:'⩜', name:'Nevermore Down',       tier:'field',    desc:'Brought down a Giant Nevermore.' },
+  { id:'deathstalker',    icon:'⦂', name:'Deathstalker Bane',    tier:'field',    desc:'Defeated a Deathstalker in close combat.' },
+  { id:'aura_break',      icon:'✷', name:'Through the Break',    tier:'field',    desc:'Kept fighting after your Aura shattered.' },
+  { id:'flawless_op',     icon:'✦', name:'Flawless Operation',   tier:'field',    desc:'Completed a mission without taking damage.' },
+  { id:'protector',       icon:'⛨', name:'Protector',            tier:'field',    desc:'Took a fatal blow meant for a teammate.' },
+  { id:'dust_master',     icon:'❉', name:'Dust Maven',           tier:'field',    desc:'Mastered combat application of every Dust type.' },
+  { id:'semblance_master',icon:'❃', name:'Semblance Mastery',    tier:'field',    desc:'Fully evolved your Semblance to its ascended form.' },
+  { id:'beast_master',    icon:'❦', name:'Beast Whisperer',      tier:'field',    desc:'Tamed or bonded with a dangerous creature.' },
+  { id:'pack_hunter',     icon:'⛓', name:'Pack Hunter',          tier:'field',    desc:'Cleared an entire pack of Beowolves solo.' },
+  { id:'night_op',        icon:'☾', name:'Night Operative',      tier:'field',    desc:'Completed a covert mission undetected.' },
+  { id:'medic',           icon:'✚', name:'Field Medic',          tier:'field',    desc:'Saved a teammate from the brink of death.' },
+  { id:'dust_smith',      icon:'✤', name:'Dust Artificer',       tier:'field',    desc:'Engineered a new Dust application or hybrid round.' },
+  // ── ELITE ──
+  { id:'team_leader',     icon:'♛', name:'Team Leader',          tier:'elite',    desc:'Led your team to victory as appointed leader.' },
+  { id:'tournament',      icon:'⚑', name:'Vytal Champion',       tier:'elite',    desc:'Won a match in the Vytal Festival Tournament.' },
+  { id:'breach_hero',     icon:'⊛', name:'Breach Hero',          tier:'elite',    desc:'Held the line during a Grimm breach of the city.' },
+  { id:'huntsman',        icon:'★', name:'Licensed Huntsman',    tier:'elite',    desc:'Earned a full Huntsman/Huntress license.' },
+  { id:'s_class',         icon:'✪', name:'Apex Hunter',          tier:'elite',    desc:'Recognized among the most elite Hunters of your generation.' },
+  { id:'goliath',         icon:'⬢', name:'Goliath Felled',       tier:'elite',    desc:'Took down an ancient Goliath \u2014 a feat few survive.' },
+  { id:'kingdom_shield',  icon:'⛉', name:'Shield of the Kingdom',tier:'elite',    desc:'Defended a Kingdom from catastrophe.' },
+  { id:'maiden_touched',  icon:'❈', name:'Maiden\u2019s Favor',  tier:'elite',    desc:'Blessed with a fragment of a Maiden\u2019s power.' },
+  { id:'silver_eyes',     icon:'◉', name:'Silver-Eyed Warrior',  tier:'elite',    desc:'Unleashed the legendary power of the silver eyes.' },
+  // ── LEGEND ──
+  { id:'last_stand',      icon:'☩', name:'Last Stand',           tier:'legend',   desc:'Sole survivor of a catastrophic operation.' },
+  { id:'sacrifice',       icon:'✝', name:'Ultimate Sacrifice',   tier:'legend',   desc:'Gave everything to protect others. (Posthumous)' },
+  { id:'wizard_saint',    icon:'☸', name:'Living Legend',        tier:'legend',   desc:'Your name is spoken across all four Kingdoms.' },
+  { id:'godslayer',       icon:'☄', name:'Godslayer',            tier:'legend',   desc:'Struck down something that should not have been killable.' },
+  { id:'relic_bearer',    icon:'❖', name:'Relic Bearer',         tier:'legend',   desc:'Entrusted with one of the four Relics of Remnant.' },
+  // ── SACRED (radiant / divine) ──
+  { id:'angels_herald',   icon:'✧', name:'Angel’s Herald',   tier:'sacred',   desc:'Chosen as the voice and blade of a higher power.' },
+  { id:'seraphs_blessing',icon:'✺', name:'Seraph\u2019s Blessing',tier:'sacred',  desc:'Touched by radiant grace; wounds mend, light follows.' },
+  { id:'holy_judgment',   icon:'✟', name:'Holy Judgment',        tier:'sacred',   desc:'Smote the wicked with sanctified power.' },
+  { id:'guardian_angel',  icon:'⛧', name:'Guardian Angel',       tier:'sacred',   desc:'Shielded the innocent against impossible odds.' },
+  { id:'ascendant',       icon:'⟁', name:'Ascendant',            tier:'sacred',   desc:'Transcended mortal limits, if only for a moment.' },
+  { id:'martyr',          icon:'☦', name:'Hallowed Martyr',      tier:'sacred',   desc:'Died for a cause greater than yourself, and were remembered.' },
+  { id:'divine_aegis',    icon:'❂', name:'Divine Aegis',         tier:'sacred',   desc:'Became an unbreakable bulwark of light.' },
+  // ── CURSED (infernal / forbidden) ──
+  { id:'devils_deal',     icon:'⛧', name:'Devil\u2019s Deal',     tier:'cursed',  desc:'Bargained with something infernal \u2014 and paid the price.' },
+  { id:'demons_apostle',  icon:'⛥', name:'Demon\u2019s Apostle',  tier:'cursed',  desc:'Pledged yourself to a dark master and bear its mark.' },
+  { id:'soul_eater',      icon:'☄', name:'Soul Eater',           tier:'cursed',   desc:'Consumed the essence of the fallen to grow stronger.' },
+  { id:'hellforged',      icon:'⚿', name:'Hellforged',           tier:'cursed',   desc:'Wield a weapon tempered in cursed fire.' },
+  { id:'blood_pact',      icon:'⛤', name:'Blood Pact',           tier:'cursed',   desc:'Sealed an oath in blood that cannot be broken.' },
+  { id:'forbidden_power', icon:'☣', name:'Forbidden Power',      tier:'cursed',   desc:'Tapped a power no one was ever meant to wield.' },
+  { id:'fallen',          icon:'⩩', name:'The Fallen',           tier:'cursed',   desc:'Turned from the light and embraced the dark.' },
+  { id:'harbinger',       icon:'☠', name:'Harbinger of Ruin',    tier:'cursed',   desc:'Where you walk, devastation follows.' },
+  { id:'damned',          icon:'⛧', name:'Damned Soul',          tier:'cursed',   desc:'Beyond salvation \u2014 and unstoppable because of it.' }
+];
+const COMMENDATION_BY_ID = Object.fromEntries(COMMENDATIONS.map(c=>[c.id,c]));
+const COMMEND_TIERS = {
+  initiate:{label:'Initiate', color:'#00d4ff'},
+  field:   {label:'Field',    color:'#5ad17a'},
+  elite:   {label:'Elite',    color:'#c2a23a'},
+  legend:  {label:'Legend',   color:'#c0000a'},
+  sacred:  {label:'Sacred',   color:'#ffe9a8'},
+  cursed:  {label:'Cursed',   color:'#a020c0'}
+};
+
+function renderCommendations() {
+  const c = getChar();
+  const host = el('commendationsList'); if(!host) return;
+  if(!Array.isArray(c.commendations)) c.commendations = [];
+  if(!c.commendations.length){
+    host.innerHTML = `<div class="commend-empty">No commendations earned yet. Distinction is granted by the Headmaster.</div>`;
+    return;
+  }
+  host.innerHTML = c.commendations.map(id=>{
+    const m = COMMENDATION_BY_ID[id]; if(!m) return '';
+    const t = COMMEND_TIERS[m.tier]||COMMEND_TIERS.initiate;
+    return `<div class="commend-badge tier-${m.tier}" title="${esc(m.desc)}" style="--ct:${t.color}">
+      <span class="commend-icon">${m.icon}</span>
+      <span class="commend-info"><span class="commend-name">${esc(m.name)}</span><span class="commend-tier">${t.label}</span></span>
+    </div>`;
+  }).join('');
+}
+
+function renderDmCommendations() {
+  const host = el('dmCommendList'); if(!host) return;
+  const sel = el('commendTarget');
+  if(sel){
+    const cur = sel.value;
+    sel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Slot ${i+1}`)}</option>`).join('');
+    if(cur && cur < state.characters.length) sel.value = cur;
+  }
+  // group by tier
+  let html = '';
+  Object.keys(COMMEND_TIERS).forEach(tierKey=>{
+    const t = COMMEND_TIERS[tierKey];
+    const items = COMMENDATIONS.filter(m=>m.tier===tierKey);
+    html += `<div class="dm-commend-tier-label" style="--ct:${t.color}">${t.label}</div><div class="dm-commend-row">`;
+    html += items.map(m=>`
+      <button class="dm-commend-card" data-id="${m.id}" title="${esc(m.desc)}" style="--ct:${t.color}">
+        <span class="dm-commend-icon">${m.icon}</span>
+        <span class="dm-commend-name">${esc(m.name)}</span>
+        <span class="dm-commend-desc">${esc(m.desc)}</span>
+      </button>`).join('');
+    html += `</div>`;
+  });
+  host.innerHTML = html;
+  host.querySelectorAll('.dm-commend-card').forEach(b=> b.addEventListener('click', ()=> grantCommendation(b.dataset.id)));
+}
+
+function grantCommendation(id){
+  if(!dmUnlocked) return;
+  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const c = state.characters[idx]; if(!c) return;
+  if(!Array.isArray(c.commendations)) c.commendations = [];
+  const m = COMMENDATION_BY_ID[id];
+  if(c.commendations.includes(id)){
+    c.commendations = c.commendations.filter(x=>x!==id);
+    pushState(true); render();
+    showToast(`Revoked "${m.name}" from ${c.name||'character'}`, 'warn');
+  } else {
+    c.commendations.push(id);
+    pushState(true); render();
+    showToast(`★ ${c.name||'Character'} earned "${m.name}"`, 'success', 4000);
+  }
+}
 
 function checkResourceFlash(c) {
   if (_prevHp !== null && c.hp.current < _prevHp) flashBar('topHpBar', 'flash-damage');
   if (_prevHp !== null && c.hp.current > _prevHp) flashBar('topHpBar', 'flash-heal');
   if (_prevAura !== null && c.aura.current < _prevAura) flashBar('topAuraBar', 'flash-damage');
   if (_prevAura !== null && c.aura.current > _prevAura) flashBar('topAuraBar', 'flash-heal');
+  // AURA BREAK: aura just shattered (crossed from >0 to 0 with a real max set)
+  if (_prevAura !== null && _prevAura > 0 && c.aura.current === 0 && c.aura.max > 0) {
+    triggerAuraBreak(c);
+  }
+  // reset the "shown" guard once aura is restored, so it can break again later
+  if (c.aura.current > 0) _auraBreakChar = null;
   _prevHp = c.hp.current; _prevAura = c.aura.current;
+}
+
+// ── AURA BREAK SCREEN EFFECT ──
+function triggerAuraBreak(c) {
+  if (_auraBreakChar === c.id) return; // already shown for this break
+  _auraBreakChar = c.id;
+  const color = c.accentColor || c.auraColor || '#00d4ff';
+  const ov = document.createElement('div');
+  ov.className = 'aura-break-fx';
+  ov.style.setProperty('--break-color', color);
+  let shards = '';
+  const N = 14;
+  for (let i = 0; i < N; i++) {
+    const ang = (360 / N) * i + (Math.random() * 18 - 9);
+    const dist = 50 + Math.random() * 40;
+    const delay = (Math.random() * 0.08).toFixed(2);
+    const size = 30 + Math.random() * 60;
+    shards += `<span class="ab-shard" style="--ang:${ang}deg;--dist:${dist}vmax;--sz:${size}px;--d:${delay}s"></span>`;
+  }
+  ov.innerHTML = `
+    <div class="ab-flash"></div>
+    <div class="ab-crack"></div>
+    <div class="ab-ring"></div>
+    <div class="ab-shards">${shards}</div>
+    <div class="ab-label">AURA SHATTERED</div>
+    <div class="ab-sub">${esc((c.name||'Agent').toUpperCase())} IS UNPROTECTED</div>`;
+  document.body.appendChild(ov);
+  try { playAuraBreakSound(); } catch(e){}
+  setTimeout(()=> ov.remove(), 2200);
+}
+
+// synthesized glass-shatter + low boom (no audio files)
+let _abAudioCtx = null;
+function playAuraBreakSound(){
+  try {
+    _abAudioCtx = _abAudioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ac = _abAudioCtx; if(ac.state==='suspended') ac.resume();
+    const t = ac.currentTime;
+    const dur = 0.5;
+    const buf = ac.createBuffer(1, ac.sampleRate*dur, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){ d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2.2); }
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const hp = ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2500;
+    const g = ac.createGain(); g.gain.value=0.12;
+    src.connect(hp); hp.connect(g); g.connect(ac.destination); src.start(t);
+    const o = ac.createOscillator(), og = ac.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(140,t); o.frequency.exponentialRampToValueAtTime(40,t+0.4);
+    og.gain.setValueAtTime(0.18,t); og.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    o.connect(og); og.connect(ac.destination); o.start(t); o.stop(t+0.55);
+  } catch(e){}
 }
 
 function flashBar(id, cls) {

@@ -247,6 +247,7 @@
         <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
+        <button class="tab-btn" data-tab="honors">Honors</button>
       </div>
 
       <div class="tab-content active panel tab-panel" data-tab="skills">
@@ -343,6 +344,11 @@
         <div id="cursesList" class="curses-list"></div>
       </div>
 
+      <div class="tab-content panel tab-panel" data-tab="honors">
+        <div class="section-title">Commendations &amp; Honors</div>
+        <div id="commendationsList" class="commendations-list"></div>
+      </div>
+
     </div><!-- /right-col -->
   </div><!-- /sheet-columns -->
 </main>
@@ -404,6 +410,9 @@
         </button>
         <button class="dm-nav-btn" data-dm-tab="economy">
           <span class="dm-nav-icon">₥</span>Shop &amp; Lien
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="commend">
+          <span class="dm-nav-icon">★</span>Commendations
         </button>
       </nav>
 
@@ -556,6 +565,16 @@
               <button id="addShopItemBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">+ Add Item to Shop</button>
             </div>
           </div>
+        </div>
+
+        <div class="dm-tab" data-dm-tab="commend">
+          <div class="dm-tab-title">Commendations &amp; Honors</div>
+          <p class="dm-hint">Award distinctions to your Hunters. Click a commendation to grant it to the selected character — click again to revoke. Earned honors appear on the player's Honors tab.</p>
+          <label class="dm-field" style="max-width:300px">
+            <span>Recipient</span>
+            <select id="commendTarget"></select>
+          </label>
+          <div id="dmCommendList" class="dm-commend-list"></div>
         </div>
 
       </div><!-- /dm-content -->

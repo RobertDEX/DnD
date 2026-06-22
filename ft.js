@@ -1306,6 +1306,8 @@ function render(){
   try{renderAccentColor();}catch(e){}
   try{applyCharacterAccents();}catch(e){}
   try{checkResourceFlash(c);}catch(e){}
+  try{applyHeartbeat();}catch(e){}
+  try{updateAmbient();}catch(e){}
   try{checkLowHp(c);}catch(e){}
   try{renderMagicBanner();}catch(e){}
   try{renderMagicsKnown();}catch(e){}
@@ -1689,6 +1691,120 @@ function renderAccentColor(){const c=getChar();const inp=el('accentColorInput');
 
 // ── RESOURCE FLASH ──
 let _prevHp=null,_prevMana=null;
+let _ftAudio=null;
+let _ftSfxOn=localStorage.getItem('ft-sfx')!=='0';
+function _ftac(){
+  if(!_ftSfxOn)return null;
+  if(!_ftAudio){try{_ftAudio=new (window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}
+  if(_ftAudio.state==='suspended')_ftAudio.resume().catch(()=>{});
+  return _ftAudio;
+}
+let _ftAmbient=null;
+function startAmbient(){
+  const ac=_ftac(); if(!ac||_ftAmbient)return;
+  const master=ac.createGain(); master.gain.value=0; master.connect(ac.destination);
+  const oscA=ac.createOscillator(); oscA.type='sine'; oscA.frequency.value=58;
+  const oscB=ac.createOscillator(); oscB.type='sine'; oscB.frequency.value=87;
+  const oscC=ac.createOscillator(); oscC.type='triangle'; oscC.frequency.value=174;
+  const gA=ac.createGain(); gA.gain.value=0.5;
+  const gB=ac.createGain(); gB.gain.value=0.3;
+  const gC=ac.createGain(); gC.gain.value=0.0;
+  const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.07;
+  const lfoGain=ac.createGain(); lfoGain.gain.value=5;
+  lfo.connect(lfoGain); lfoGain.connect(oscA.frequency);
+  oscA.connect(gA); oscB.connect(gB); oscC.connect(gC);
+  gA.connect(master); gB.connect(master); gC.connect(master);
+  oscA.start(); oscB.start(); oscC.start(); lfo.start();
+  master.gain.linearRampToValueAtTime(0.045,ac.currentTime+3);
+  _ftAmbient={ master, oscA, oscB, oscC, gC, lfo, ac };
+  updateAmbient();
+}
+function stopAmbient(){
+  if(!_ftAmbient)return;
+  const { master, oscA, oscB, oscC, lfo, ac }=_ftAmbient;
+  try{ master.gain.cancelScheduledValues(ac.currentTime); master.gain.linearRampToValueAtTime(0.0001,ac.currentTime+1.2);
+    [oscA,oscB,oscC,lfo].forEach(o=>{try{o.stop(ac.currentTime+1.3);}catch(e){}}); }catch(e){}
+  _ftAmbient=null;
+}
+function updateAmbient(){
+  if(!_ftAmbient)return;
+  const c=getChar();
+  const hpPct=c.hp.max>0?c.hp.current/c.hp.max:1;
+  const manaPct=c.mana.max>0?c.mana.current/c.mana.max:1;
+  const low=Math.min(hpPct,manaPct);
+  const tension=1-low;
+  const ac=_ftAmbient.ac;
+  try{
+    _ftAmbient.gC.gain.linearRampToValueAtTime(0.03+tension*0.14,ac.currentTime+1.5);
+    _ftAmbient.lfo.frequency.linearRampToValueAtTime(0.07+tension*0.45,ac.currentTime+1.5);
+  }catch(e){}
+}
+let _ftHeartbeat=null;
+function applyHeartbeat(){
+  const c=getChar();
+  const hpPct=c.hp.max>0?c.hp.current/c.hp.max:1;
+  const critical=c.hp.max>0&&hpPct>0&&hpPct<=0.25;
+  if(critical&&!_ftHeartbeat){
+    document.body.classList.add('heartbeat-active');
+    const beat=()=>{
+      pulseHeartbeatVisual();
+      if(_ftSfxOn)heartbeatSound();
+      const cc=getChar(); const p=cc.hp.max>0?cc.hp.current/cc.hp.max:1;
+      _ftHeartbeat=setTimeout(beat,600+Math.max(0,p/0.25)*600);
+    };
+    beat();
+  } else if(!critical&&_ftHeartbeat){
+    clearTimeout(_ftHeartbeat); _ftHeartbeat=null;
+    document.body.classList.remove('heartbeat-active');
+  }
+}
+function pulseHeartbeatVisual(){
+  let o=document.getElementById('heartbeatOverlay');
+  if(!o){o=document.createElement('div');o.id='heartbeatOverlay';document.body.appendChild(o);}
+  o.classList.remove('thump'); void o.offsetWidth; o.classList.add('thump');
+}
+function heartbeatSound(){
+  const ac=_ftac(); if(!ac)return;
+  const t=ac.currentTime;
+  const thump=(when)=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(64,when); o.frequency.exponentialRampToValueAtTime(36,when+0.12);
+    g.gain.setValueAtTime(0,when); g.gain.linearRampToValueAtTime(0.08,when+0.01); g.gain.exponentialRampToValueAtTime(0.0001,when+0.18);
+    o.connect(g); g.connect(ac.destination); o.start(when); o.stop(when+0.2);
+  };
+  thump(t); thump(t+0.16);
+}
+let _knockUnsub=null, _knockLoadTs=Date.now();
+async function sendKnock(){
+  const c=getChar(); const who=c.name||'A guild member';
+  try{ await setDoc(doc(db,'ft-meta','knock'),{ by:who, ts:Date.now() });
+    showToast('Signal sent to the Guild Master','success'); }
+  catch(e){ showToast('Could not send signal','warn'); }
+}
+function startKnockListener(){
+  if(_knockUnsub)_knockUnsub();
+  _knockUnsub=onSnapshot(doc(db,'ft-meta','knock'),snap=>{
+    if(!snap.exists())return;
+    const d=snap.data();
+    if(!d.ts||d.ts<=_knockLoadTs)return;
+    _knockLoadTs=d.ts;
+    if(dmUnlocked)showKnockAlert(d.by||'A guild member');
+  },()=>{});
+}
+function showKnockAlert(who){
+  const a=document.createElement('div');
+  a.className='knock-alert';
+  a.innerHTML=`<span class="knock-icon">✋</span><span class="knock-text"><strong>${esc(who)}</strong> is requesting your attention</span>`;
+  document.body.appendChild(a);
+  setTimeout(()=>{ a.classList.add('out'); setTimeout(()=>a.remove(),400); },5000);
+}
+function toggleAudio(){
+  _ftSfxOn=!_ftSfxOn;
+  localStorage.setItem('ft-sfx',_ftSfxOn?'1':'0');
+  const b=document.getElementById('audioToggle');
+  if(b){ b.classList.toggle('off',!_ftSfxOn); b.textContent=_ftSfxOn?'♪ Audio':'♪ Audio Off'; }
+  if(_ftSfxOn)startAmbient(); else stopAmbient();
+}
 function checkResourceFlash(c){
   if(_prevHp!==null&&c.hp.current<_prevHp)flashBar('topHpBar','flash-damage');
   if(_prevHp!==null&&c.hp.current>_prevHp)flashBar('topHpBar','flash-heal');
@@ -1784,6 +1900,11 @@ bindAll();
 initPortrait();
 bindDeathSaves();
 bindBroadcast();
+document.getElementById('knockBtn')?.addEventListener('click',sendKnock);
+document.getElementById('audioToggle')?.addEventListener('click',toggleAudio);
+startKnockListener();
+(function(){const b=document.getElementById('audioToggle');if(b&&!_ftSfxOn){b.classList.add('off');b.textContent='♪ Audio Off';}})();
+document.addEventListener('click',()=>{if(_ftSfxOn)startAmbient();},{once:true});
 bindGrant();
 bindRelationships();
 bindMagicsKnown();

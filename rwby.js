@@ -1328,6 +1328,8 @@ function render() {
   try { renderAccentColor(); }     catch(e) {}
   try { applyCharacterAccents(); } catch(e) {}
   try { checkResourceFlash(c); }   catch(e) {}
+  try { applyHeartbeat(); }         catch(e) {}
+  try { updateAmbient(); }          catch(e) {}
   try { checkLowHp(c); }           catch(e) {}
   try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
   try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
@@ -2346,6 +2348,121 @@ function renderAccentColor() {
 // ================================================================
 // #26 — HP/AURA DAMAGE FLASH
 // ================================================================
+let _rwAudio = null;
+let _rwSfxOn = localStorage.getItem('rwby-sfx') !== '0';
+function _rwac(){
+  if(!_rwSfxOn) return null;
+  if(!_rwAudio){ try{ _rwAudio = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
+  if(_rwAudio.state==='suspended') _rwAudio.resume().catch(()=>{});
+  return _rwAudio;
+}
+let _rwAmbient = null;
+function startAmbient(){
+  const ac=_rwac(); if(!ac||_rwAmbient) return;
+  const master=ac.createGain(); master.gain.value=0; master.connect(ac.destination);
+  const oscA=ac.createOscillator(); oscA.type='sine'; oscA.frequency.value=65;
+  const oscB=ac.createOscillator(); oscB.type='sine'; oscB.frequency.value=98;
+  const oscC=ac.createOscillator(); oscC.type='triangle'; oscC.frequency.value=131;
+  const gA=ac.createGain(); gA.gain.value=0.5;
+  const gB=ac.createGain(); gB.gain.value=0.3;
+  const gC=ac.createGain(); gC.gain.value=0.0;
+  const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.1;
+  const lfoGain=ac.createGain(); lfoGain.gain.value=7;
+  lfo.connect(lfoGain); lfoGain.connect(oscA.frequency);
+  oscA.connect(gA); oscB.connect(gB); oscC.connect(gC);
+  gA.connect(master); gB.connect(master); gC.connect(master);
+  oscA.start(); oscB.start(); oscC.start(); lfo.start();
+  master.gain.linearRampToValueAtTime(0.045, ac.currentTime+3);
+  _rwAmbient={ master, oscA, oscB, oscC, gC, lfo, ac };
+  updateAmbient();
+}
+function stopAmbient(){
+  if(!_rwAmbient) return;
+  const { master, oscA, oscB, oscC, lfo, ac }=_rwAmbient;
+  try{ master.gain.cancelScheduledValues(ac.currentTime); master.gain.linearRampToValueAtTime(0.0001, ac.currentTime+1.2);
+    [oscA,oscB,oscC,lfo].forEach(o=>{ try{o.stop(ac.currentTime+1.3);}catch(e){} }); }catch(e){}
+  _rwAmbient=null;
+}
+function updateAmbient(){
+  if(!_rwAmbient) return;
+  const c=getChar();
+  const hpPct=c.hp.max>0?c.hp.current/c.hp.max:1;
+  const auraPct=c.aura.max>0?c.aura.current/c.aura.max:1;
+  const low=Math.min(hpPct,auraPct);
+  const tension=1-low;
+  const ac=_rwAmbient.ac;
+  try{
+    _rwAmbient.gC.gain.linearRampToValueAtTime(0.03+tension*0.15, ac.currentTime+1.5);
+    _rwAmbient.lfo.frequency.linearRampToValueAtTime(0.1+tension*0.5, ac.currentTime+1.5);
+  }catch(e){}
+}
+let _rwHeartbeat=null;
+function applyHeartbeat(){
+  const c=getChar();
+  const hpPct=c.hp.max>0?c.hp.current/c.hp.max:1;
+  const critical=c.hp.max>0&&hpPct>0&&hpPct<=0.25;
+  if(critical&&!_rwHeartbeat){
+    document.body.classList.add('heartbeat-active');
+    const beat=()=>{
+      pulseHeartbeatVisual();
+      if(_rwSfxOn) heartbeatSound();
+      const cc=getChar(); const p=cc.hp.max>0?cc.hp.current/cc.hp.max:1;
+      _rwHeartbeat=setTimeout(beat, 600+Math.max(0,p/0.25)*600);
+    };
+    beat();
+  } else if(!critical&&_rwHeartbeat){
+    clearTimeout(_rwHeartbeat); _rwHeartbeat=null;
+    document.body.classList.remove('heartbeat-active');
+  }
+}
+function pulseHeartbeatVisual(){
+  let o=document.getElementById('heartbeatOverlay');
+  if(!o){ o=document.createElement('div'); o.id='heartbeatOverlay'; document.body.appendChild(o); }
+  o.classList.remove('thump'); void o.offsetWidth; o.classList.add('thump');
+}
+function heartbeatSound(){
+  const ac=_rwac(); if(!ac) return;
+  const t=ac.currentTime;
+  const thump=(when)=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(64,when); o.frequency.exponentialRampToValueAtTime(36,when+0.12);
+    g.gain.setValueAtTime(0,when); g.gain.linearRampToValueAtTime(0.08,when+0.01); g.gain.exponentialRampToValueAtTime(0.0001,when+0.18);
+    o.connect(g); g.connect(ac.destination); o.start(when); o.stop(when+0.2);
+  };
+  thump(t); thump(t+0.16);
+}
+let _knockUnsub=null, _knockLoadTs=Date.now();
+async function sendKnock(){
+  const c=getChar(); const who=c.name||'A Hunter';
+  try{ await setDoc(doc(db,'rwby-meta','knock'),{ by:who, ts:Date.now() });
+    showToast('Signal sent to the Headmaster','success'); }
+  catch(e){ showToast('Could not send signal','warn'); }
+}
+function startKnockListener(){
+  if(_knockUnsub) _knockUnsub();
+  _knockUnsub=onSnapshot(doc(db,'rwby-meta','knock'), snap=>{
+    if(!snap.exists()) return;
+    const d=snap.data();
+    if(!d.ts||d.ts<=_knockLoadTs) return;
+    _knockLoadTs=d.ts;
+    if(dmUnlocked) showKnockAlert(d.by||'A Hunter');
+  }, ()=>{});
+}
+function showKnockAlert(who){
+  const a=document.createElement('div');
+  a.className='knock-alert';
+  a.innerHTML=`<span class="knock-icon">✋</span><span class="knock-text"><strong>${esc(who)}</strong> is requesting your attention</span>`;
+  document.body.appendChild(a);
+  setTimeout(()=>{ a.classList.add('out'); setTimeout(()=>a.remove(),400); }, 5000);
+}
+function toggleAudio(){
+  _rwSfxOn=!_rwSfxOn;
+  localStorage.setItem('rwby-sfx', _rwSfxOn?'1':'0');
+  const b=document.getElementById('audioToggle');
+  if(b){ b.classList.toggle('off',!_rwSfxOn); b.textContent=_rwSfxOn?'♪ Audio':'♪ Audio Off'; }
+  if(_rwSfxOn) startAmbient(); else stopAmbient();
+}
+
 let _prevHp = null, _prevAura = null, _prevResChar = null;
 let _auraBreakChar = null; // id of the char whose break we last showed (avoid repeats)
 
@@ -2737,6 +2854,11 @@ function recheckWelcomeIfNeeded() {
 // INIT
 // ================================================================
 bindAll();
+document.getElementById('knockBtn')?.addEventListener('click', sendKnock);
+document.getElementById('audioToggle')?.addEventListener('click', toggleAudio);
+startKnockListener();
+(function(){ const b=document.getElementById('audioToggle'); if(b&&!_rwSfxOn){ b.classList.add('off'); b.textContent='♪ Audio Off'; } })();
+document.addEventListener('click', ()=>{ if(_rwSfxOn) startAmbient(); }, { once:true });
 initPortrait();
 bindDeathSaves();
 bindBroadcast();

@@ -992,3 +992,21 @@ body.sanity-3 .app{animation:san-tremble 5s ease-in-out infinite}
 /* smooth scrolling (was missing) */
 html{scroll-behavior:smooth}
 @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+
+.knock-alert{position:fixed;top:1.2rem;right:1.2rem;z-index:99988;display:flex;align-items:center;gap:.7rem;padding:.8rem 1.1rem;background:linear-gradient(135deg,rgba(217,79,79,.16),rgba(10,11,13,.96));border:1px solid var(--accent);border-left:3px solid var(--accent);box-shadow:0 10px 30px -12px #000,0 0 24px -10px var(--accent);backdrop-filter:blur(6px);animation:knock-in .4s cubic-bezier(.2,.8,.3,1.2)}
+.knock-alert.out{animation:knock-out .4s ease forwards}
+@keyframes knock-in{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes knock-out{to{opacity:0;transform:translateX(40px)}}
+.knock-icon{font-size:1.3rem;animation:knock-wave .6s ease-in-out infinite}
+@keyframes knock-wave{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+.knock-text{font-family:var(--F4);font-size:.72rem;letter-spacing:.04em;color:#e8edf2}
+.knock-text strong{color:var(--accent)}
+#heartbeatOverlay{position:fixed;inset:0;z-index:99960;pointer-events:none;opacity:0}
+#heartbeatOverlay.thump{animation:hb-thump .5s ease-out}
+@keyframes hb-thump{0%{opacity:0;box-shadow:inset 0 0 0 rgba(180,0,0,0)}18%{opacity:1;box-shadow:inset 0 0 160px -30px rgba(180,0,0,.55)}100%{opacity:0;box-shadow:inset 0 0 200px -20px rgba(180,0,0,0)}}
+body.heartbeat-active .topbar-rank-badge{animation:hb-badge 1s ease-in-out infinite}
+@keyframes hb-badge{0%,100%{box-shadow:0 0 18px -4px rgba(217,79,79,.5)}50%{box-shadow:0 0 26px -2px rgba(217,79,79,.9)}}
+@media (prefers-reduced-motion: reduce){
+  #heartbeatOverlay.thump,.knock-icon,body.heartbeat-active .topbar-rank-badge{animation:none}
+  #heartbeatOverlay.thump{opacity:0}
+}

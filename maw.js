@@ -439,6 +439,8 @@ function render(){
   try{ applyCharacterAccents(); }catch(e){}
   try{ renderIdentityBar(); }catch(e){}
   try{ applySanityDamage(); }catch(e){}
+  try{ applyHeartbeat(); }catch(e){}
+  try{ updateAmbient(); }catch(e){}
   try{ renderTabs(); }catch(e){}
   try{ pushPresence(); }catch(e){}
   if(spectator) disableAllInputs();
@@ -1416,8 +1418,126 @@ function toggleSfx(){
   _sfxEnabled = !_sfxEnabled;
   localStorage.setItem('maw-sfx', _sfxEnabled?'1':'0');
   const b=el('sfxToggle'); if(b){ b.classList.toggle('off',!_sfxEnabled); b.textContent = _sfxEnabled?'♪ SFX':'♪ SFX OFF'; }
-  if(_sfxEnabled) SFX.click();
+  if(_sfxEnabled){ SFX.click(); startAmbient(); } else { stopAmbient(); }
   showToast(_sfxEnabled?'Audio enabled':'Audio muted','info');
+}
+
+let _ambient = null;
+function startAmbient(){
+  const ac = _ac(); if(!ac) return;
+  if(_ambient) return;
+  const master = ac.createGain(); master.gain.value = 0.0; master.connect(ac.destination);
+  const oscA = ac.createOscillator(); oscA.type='sine'; oscA.frequency.value=55;
+  const oscB = ac.createOscillator(); oscB.type='sine'; oscB.frequency.value=82.5;
+  const oscC = ac.createOscillator(); oscC.type='triangle'; oscC.frequency.value=110;
+  const gA = ac.createGain(); gA.gain.value=0.5;
+  const gB = ac.createGain(); gB.gain.value=0.3;
+  const gC = ac.createGain(); gC.gain.value=0.0;
+  const lfo = ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.08;
+  const lfoGain = ac.createGain(); lfoGain.gain.value=6;
+  lfo.connect(lfoGain); lfoGain.connect(oscA.frequency);
+  oscA.connect(gA); oscB.connect(gB); oscC.connect(gC);
+  gA.connect(master); gB.connect(master); gC.connect(master);
+  oscA.start(); oscB.start(); oscC.start(); lfo.start();
+  master.gain.linearRampToValueAtTime(0.05, ac.currentTime+3);
+  _ambient = { master, oscA, oscB, oscC, gC, lfo, ac };
+  updateAmbient();
+}
+function stopAmbient(){
+  if(!_ambient) return;
+  const { master, oscA, oscB, oscC, lfo, ac } = _ambient;
+  try {
+    master.gain.cancelScheduledValues(ac.currentTime);
+    master.gain.linearRampToValueAtTime(0.0001, ac.currentTime+1.2);
+    [oscA,oscB,oscC,lfo].forEach(o=>{ try{ o.stop(ac.currentTime+1.3); }catch(e){} });
+  } catch(e){}
+  _ambient = null;
+}
+function updateAmbient(){
+  if(!_ambient) return;
+  const c = getChar();
+  const hpPct = c.hp.max>0 ? c.hp.current/c.hp.max : 1;
+  const sanPct = c.sanity.max>0 ? c.sanity.current/c.sanity.max : 1;
+  const low = Math.min(hpPct, sanPct);
+  const ac = _ambient.ac;
+  const tension = 1 - low;
+  try {
+    _ambient.gC.gain.linearRampToValueAtTime(0.04 + tension*0.16, ac.currentTime+1.5);
+    _ambient.lfo.frequency.linearRampToValueAtTime(0.08 + tension*0.5, ac.currentTime+1.5);
+    const dissonance = state.siteAlert==='uncontained' ? 4 : (state.siteAlert==='lockdown' ? 2 : 0);
+    _ambient.oscB.frequency.linearRampToValueAtTime(82.5 + dissonance, ac.currentTime+1.5);
+  } catch(e){}
+}
+
+let _heartbeat = null;
+function applyHeartbeat(){
+  const c = getChar();
+  const hpPct = c.hp.max>0 ? c.hp.current/c.hp.max : 1;
+  const critical = c.hp.max>0 && hpPct>0 && hpPct<=0.25;
+  if(critical && !_heartbeat){
+    document.body.classList.add('heartbeat-active');
+    const beat = ()=>{
+      pulseHeartbeatVisual();
+      if(_sfxEnabled) heartbeatSound();
+      const rate = hpPctRate();
+      _heartbeat = setTimeout(beat, rate);
+    };
+    beat();
+  } else if(!critical && _heartbeat){
+    clearTimeout(_heartbeat); _heartbeat=null;
+    document.body.classList.remove('heartbeat-active');
+  }
+}
+function hpPctRate(){
+  const c = getChar();
+  const hpPct = c.hp.max>0 ? c.hp.current/c.hp.max : 1;
+  return 600 + Math.max(0, hpPct/0.25) * 600;
+}
+function pulseHeartbeatVisual(){
+  let o = el('heartbeatOverlay');
+  if(!o){ o=document.createElement('div'); o.id='heartbeatOverlay'; document.body.appendChild(o); }
+  o.classList.remove('thump'); void o.offsetWidth; o.classList.add('thump');
+}
+function heartbeatSound(){
+  const ac=_ac(); if(!ac) return;
+  const t=ac.currentTime;
+  const thump=(when)=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(64,when); o.frequency.exponentialRampToValueAtTime(36,when+0.12);
+    g.gain.setValueAtTime(0.0,when); g.gain.linearRampToValueAtTime(0.09,when+0.01); g.gain.exponentialRampToValueAtTime(0.0001,when+0.18);
+    o.connect(g); g.connect(ac.destination); o.start(when); o.stop(when+0.2);
+  };
+  thump(t); thump(t+0.16);
+}
+
+let _knockUnsub = null;
+let _knockLoadTs = Date.now();
+async function sendKnock(){
+  const c = getChar();
+  const who = c.name || 'An agent';
+  try {
+    await setDoc(doc(db,'maw-meta','knock'), { by:who, ts:Date.now() });
+    SFX.confirm();
+    showToast('Signal sent to the Administrator','info');
+  } catch(e){ showToast('Could not send signal','warn'); }
+}
+function startKnockListener(){
+  if(_knockUnsub) _knockUnsub();
+  _knockUnsub = onSnapshot(doc(db,'maw-meta','knock'), snap=>{
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(!d.ts || d.ts <= _knockLoadTs) return;
+    _knockLoadTs = d.ts;
+    if(dmUnlocked) showKnockAlert(d.by||'An agent');
+  }, ()=>{});
+}
+function showKnockAlert(who){
+  const a=document.createElement('div');
+  a.className='knock-alert';
+  a.innerHTML=`<span class="knock-icon">✋</span><span class="knock-text"><strong>${esc(who)}</strong> is requesting your attention</span>`;
+  document.body.appendChild(a);
+  if(_sfxEnabled){ SFX.tab(); setTimeout(()=>SFX.tab(),180); }
+  setTimeout(()=>{ a.classList.add('out'); setTimeout(()=>a.remove(),400); }, 5000);
 }
 
 // ================================================================
@@ -1975,6 +2095,7 @@ function bindFields(){
 
   // New feature bindings
   el('sfxToggle')?.addEventListener('click', toggleSfx);
+  el('knockBtn')?.addEventListener('click', sendKnock);
   document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=> b.addEventListener('click', ()=> setSiteAlert(b.dataset.alert)));
   el('dmCommendTarget')?.addEventListener('change', ()=>{});
   document.querySelectorAll('.ev-add-btn[data-evtype]').forEach(b=> b.addEventListener('click', ()=> addEvidenceNode(b.dataset.evtype)));
@@ -2033,5 +2154,5 @@ applySiteAlert();
 // idle corruption: any interaction resets the timer
 ['mousemove','keydown','click','touchstart','scroll'].forEach(ev=> document.addEventListener(ev, resetIdle, {passive:true}));
 resetIdle();
-// resume audio on first user gesture (browser autoplay policy)
-document.addEventListener('click', ()=>{ _ac(); }, { once:true });
+document.addEventListener('click', ()=>{ _ac(); if(_sfxEnabled) startAmbient(); }, { once:true });
+startKnockListener();

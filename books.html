@@ -591,6 +591,14 @@ let library = { books: defaultBooks() };
 let dmUnlocked = sessionStorage.getItem('books-dm') === '1';
 
 const $ = id => document.getElementById(id);
+
+function splitNotePages(text){
+  if(!text || !text.trim()) return [''];
+  const norm = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const parts = norm.split(/^[ \t]*-{3,}[ \t]*$/m).map(s=>s.replace(/^\n+|\n+$/g,''));
+  const filtered = parts.filter(p=>p.trim().length>0);
+  return filtered.length ? filtered : [''];
+}
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
 // ── load players from campaign ──
@@ -675,7 +683,7 @@ async function loadPrivateNotes() {
     }
   } catch(e){ console.warn('loadPrivateNotes', e); }
   // Always create the private book so it can be edited even when empty.
-  const chunks = text.trim() ? text.split(/\n\s*---+\s*\n/) : [''];
+  const chunks = splitNotePages(text);
   _privateBook = {
     id:'__private_notes__',
     name: bookName,
@@ -767,7 +775,7 @@ function renderReaderPage() {
         <span class="notes-save-status" id="notesSaveStatus">Editable · only you can see this</span>
       </div>
       <textarea id="privateNotesEditor" class="private-notes-editor" placeholder="Write anything here… your private notes, theories, secrets. Use a line with just --- to split into pages.">${esc(fullText)}</textarea>
-      <div class="notes-edit-hint">Tip: put a line containing only <code>---</code> between sections to break them into separate pages on the shelf.</div>`;
+      <div class="notes-edit-hint">Tip: type a line containing only <code>---</code> to break your notes into separate pages. The split shows when you close this and open the notebook from the shelf — here in the editor everything stays together so you can edit freely.</div>`;
     const ta = $('privateNotesEditor');
     ta.addEventListener('input', () => schedulePrivateSave(ta.value));
     $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
@@ -815,7 +823,7 @@ async function savePrivateNotes(text) {
       updated: Date.now()
     });
     // rebuild local pages so the shelf reflects new splits
-    const chunks = text.split(/\n\s*---+\s*\n/);
+    const chunks = splitNotePages(text);
     if (_privateBook) _privateBook.pages = chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }));
     const st = $('notesSaveStatus');
     if (st) { st.textContent = '✓ Saved'; st.style.color = '#5ed4a0'; }

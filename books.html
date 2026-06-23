@@ -481,6 +481,15 @@ body::after{
 .private-notes-editor::placeholder{color:rgba(90,69,48,.4);font-style:italic}
 .notes-edit-hint{margin-top:.8rem;font-family:'EB Garamond',serif;font-size:.9rem;font-style:italic;color:#8a7050}
 .notes-edit-hint code{background:rgba(120,90,50,.15);padding:.1rem .4rem;border-radius:4px;font-family:'Share Tech Mono',monospace;font-style:normal;font-size:.82rem}
+.notes-edit-toolbar{display:flex;align-items:center;gap:.8rem}
+.notes-mode-btn{font-family:'Share Tech Mono',monospace;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .8rem;background:rgba(120,90,50,.12);border:1px solid rgba(120,90,50,.4);border-radius:5px;color:#6a4f30;cursor:pointer;transition:all .15s;white-space:nowrap}
+.notes-mode-btn:hover{background:rgba(120,90,50,.25);color:#3a2c1c;transform:translateY(-1px)}
+.reader.holo-reader .notes-mode-btn{color:#a8dcf0;border-color:rgba(80,180,220,.4);background:rgba(40,120,160,.15)}
+.reader.holo-reader .notes-mode-btn:hover{background:rgba(40,120,160,.3);color:#dff4ff}
+.notes-read-bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.4rem;padding-bottom:.8rem;border-bottom:1px solid rgba(120,90,50,.2);flex-wrap:wrap}
+.notes-read-label{font-family:'Share Tech Mono',monospace;font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:#8a7050}
+.reader.holo-reader .notes-read-label{color:#7ab8d0}
+.reader.holo-reader .notes-read-bar{border-bottom-color:rgba(80,180,220,.2)}
 
 </style>
 </head>
@@ -732,8 +741,10 @@ function renderShelf() {
 // ════════════ READER ════════════
 let _readerBook = null;
 let _readerPage = 0;
+let _privateMode = 'edit';
 function openReader(book) {
   _readerBook = book; _readerPage = 0;
+  _privateMode = 'edit';
   const reader = $('reader');
   reader.className = `reader ${book.style==='holo'?'holo-reader':'paper'}`;
   $('readerTitle').textContent = book.name;
@@ -758,28 +769,33 @@ function renderReaderToc() {
 function renderReaderPage() {
   const book = _readerBook; if(!book) return;
   const body = $('readerBody');
-  const isEditable = !!book.private; // the personal notes book can be edited inline
+  const isPrivate = !!book.private;
 
-  if (!book.pages.length && !isEditable) {
+  if (!book.pages.length && !isPrivate) {
     body.innerHTML = `<div class="page-empty">These pages are blank…</div>`;
     $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
     return;
   }
 
-  if (isEditable) {
-    // Personal notes: one big editable surface (all pages joined back together)
+  if (isPrivate && _privateMode === 'edit') {
     const fullText = book.pages.map(p=>p.text).join('\n\n---\n\n');
     body.innerHTML = `
       <div class="notes-edit-head">
         <span class="notes-edit-title">📝 My Personal Notes</span>
-        <span class="notes-save-status" id="notesSaveStatus">Editable · only you can see this</span>
+        <span class="notes-edit-toolbar">
+          <span class="notes-save-status" id="notesSaveStatus">Editable · only you can see this</span>
+          <button class="notes-mode-btn" id="notesReadBtn">📖 Read as pages</button>
+        </span>
       </div>
       <textarea id="privateNotesEditor" class="private-notes-editor" placeholder="Write anything here… your private notes, theories, secrets. Use a line with just --- to split into pages.">${esc(fullText)}</textarea>
-      <div class="notes-edit-hint">Tip: type a line containing only <code>---</code> to break your notes into separate pages. The split shows when you close this and open the notebook from the shelf — here in the editor everything stays together so you can edit freely.</div>`;
+      <div class="notes-edit-hint">Tip: type a line containing only <code>---</code> on its own to break your notes into separate pages, then hit <strong>Read as pages</strong> to flip through them.</div>`;
     const ta = $('privateNotesEditor');
     ta.addEventListener('input', () => schedulePrivateSave(ta.value));
+    $('notesReadBtn').addEventListener('click', ()=>{
+      flushPrivateSave(ta.value);
+      _privateMode = 'read'; _readerPage = 0; renderReaderPage();
+    });
     $('pageDots').innerHTML=''; $('prevPage').disabled=true; $('nextPage').disabled=true;
-    // hide TOC nav for the simple editor
     $('readerToc').innerHTML = `<div class="reader-toc-title">Personal Notes</div><div class="toc-item active"><span class="toc-num">✎</span><span class="toc-name">Editing</span></div>`;
     return;
   }
@@ -787,20 +803,27 @@ function renderReaderPage() {
   _readerPage = Math.max(0, Math.min(_readerPage, book.pages.length-1));
   const page = book.pages[_readerPage];
   body.innerHTML = `
+    ${isPrivate ? `<div class="notes-read-bar"><span class="notes-read-label">📖 My Personal Notes · page ${_readerPage+1} of ${book.pages.length}</span><button class="notes-mode-btn" id="notesEditBtn">✎ Edit</button></div>` : ''}
     ${page.title ? `<div class="page-title">${esc(page.title)}</div>` : ''}
     ${page.image ? `<img src="${page.image}" class="page-img" onerror="this.style.display='none'">` : ''}
     <div class="page-text">${esc(page.text||'')}</div>`;
   body.scrollTop = 0;
-  // dots
+  if (isPrivate) $('notesEditBtn')?.addEventListener('click', ()=>{ _privateMode='edit'; renderReaderPage(); });
   $('pageDots').innerHTML = book.pages.map((_,i)=>
     `<button class="page-dot ${i===_readerPage?'active':''}" data-i="${i}"></button>`).join('');
   $('pageDots').querySelectorAll('.page-dot').forEach(d=>
     d.addEventListener('click',()=>{ _readerPage=Number(d.dataset.i); renderReaderPage(); }));
   $('prevPage').disabled = _readerPage===0;
   $('nextPage').disabled = _readerPage===book.pages.length-1;
-  // update active TOC item
-  $('readerToc').querySelectorAll('[data-toc]').forEach(b=>
-    b.classList.toggle('active', Number(b.dataset.toc)===_readerPage));
+  if (isPrivate) {
+    $('readerToc').innerHTML = `<div class="reader-toc-title">Personal Notes</div>` + book.pages.map((p,i)=>
+      `<button class="toc-item ${i===_readerPage?'active':''}" data-toc="${i}"><span class="toc-num">${i+1}</span><span class="toc-name">${esc(p.title||('Page '+(i+1)))}</span></button>`).join('');
+    $('readerToc').querySelectorAll('[data-toc]').forEach(b=>
+      b.addEventListener('click',()=>{ _readerPage=Number(b.dataset.toc); renderReaderPage(); $('reader').classList.remove('toc-open'); }));
+  } else {
+    $('readerToc').querySelectorAll('[data-toc]').forEach(b=>
+      b.classList.toggle('active', Number(b.dataset.toc)===_readerPage));
+  }
 }
 
 // Save private notes back to Firestore (debounced)
@@ -810,6 +833,12 @@ function schedulePrivateSave(text) {
   if (st) { st.textContent = '✎ Unsaved…'; st.style.color = '#e0a830'; }
   clearTimeout(_privateSaveTimer);
   _privateSaveTimer = setTimeout(() => savePrivateNotes(text), 1000);
+}
+function flushPrivateSave(text) {
+  clearTimeout(_privateSaveTimer);
+  const chunks = splitNotePages(text);
+  if (_privateBook) _privateBook.pages = chunks.map((t,i)=>({ id:'pn-'+i, title: i===0?'Notes':`Notes (cont. ${i+1})`, text:t.trim(), image:'' }));
+  savePrivateNotes(text);
 }
 async function savePrivateNotes(text) {
   if (!MY_PID) return;

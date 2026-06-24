@@ -244,6 +244,7 @@
         <button class="tab-btn" data-tab="semblance">Semblance</button>
         <button class="tab-btn" data-tab="techniques">Techniques</button>
         <button class="tab-btn" data-tab="dust">Dust</button>
+        <button class="tab-btn" data-tab="status">Status</button>
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
@@ -280,6 +281,13 @@
           </div>
           <div id="dustSpellList" class="technique-list"></div>
         </div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="status">
+        <div class="section-title">Active Conditions</div>
+        <div id="conditionsActive" class="conditions-active"></div>
+        <div class="section-title" style="margin-top:1.4rem">Apply / Remove</div>
+        <div id="conditionsList" class="conditions-grid"></div>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="loadout">
@@ -356,6 +364,37 @@
 </main>
 </div><!-- /app -->
 
+<button id="diceFab" class="dice-fab" title="Dice Roller">🎲</button>
+<div id="dicePanel" class="dice-panel">
+  <div class="dice-panel-head">
+    <span class="dice-panel-title">🎲 Dice</span>
+    <button id="diceClose" class="dice-close">✕</button>
+  </div>
+  <div class="dice-mode-row">
+    <button class="dice-mode-btn active" data-mode="normal">Normal</button>
+    <button class="dice-mode-btn" data-mode="adv">Advantage</button>
+    <button class="dice-mode-btn" data-mode="dis">Disadvantage</button>
+  </div>
+  <div class="dice-section-label">Quick Rolls (your modifiers)</div>
+  <div id="diceSkillButtons" class="dice-skill-buttons"></div>
+  <div class="dice-section-label">Custom</div>
+  <div class="dice-custom-row">
+    <input id="diceCustomInput" type="text" placeholder="2d6+3, 1d20, 4d6…">
+    <button id="diceCustomRoll" class="dice-custom-btn">Roll</button>
+  </div>
+  <div class="dice-quick-dice">
+    <button class="dice-quick-d" data-d="4">d4</button>
+    <button class="dice-quick-d" data-d="6">d6</button>
+    <button class="dice-quick-d" data-d="8">d8</button>
+    <button class="dice-quick-d" data-d="10">d10</button>
+    <button class="dice-quick-d" data-d="12">d12</button>
+    <button class="dice-quick-d" data-d="20">d20</button>
+    <button class="dice-quick-d" data-d="100">d100</button>
+  </div>
+  <div class="dice-section-label">Results</div>
+  <div id="diceResultArea" class="dice-result-area"></div>
+</div>
+
 <!-- ═══ DM OVERLAY ═══ -->
 <div id="dmOverlay" class="dm-overlay hidden">
 <div class="dm-overlay-inner">
@@ -403,6 +442,12 @@
         </button>
         <button class="dm-nav-btn" data-dm-tab="broadcast">
           <span class="dm-nav-icon">📡</span>Broadcast
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="grouproll">
+          <span class="dm-nav-icon">🎲</span>Group Roll
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="whisper">
+          <span class="dm-nav-icon">💬</span>Whisper
         </button>
         <button class="dm-nav-btn" data-dm-tab="curse">
           <span class="dm-nav-icon">🎲</span>Curse Wheel
@@ -511,6 +556,37 @@
           </div>
         </div>
 
+        <div class="dm-tab" data-dm-tab="grouproll">
+          <div class="dm-tab-title">Group Roll</div>
+          <div class="dm-card">
+            <div class="dm-card-title">🎲 Call a Roll for Everyone</div>
+            <div class="dm-card-body">
+              <div class="field"><label>Skill / Save</label>
+                <select id="groupRollSkill" class="dm-select"></select>
+              </div>
+              <button id="groupRollBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Call Group Roll</button>
+              <div class="dm-card-title" style="margin-top:1.2rem">Results</div>
+              <div id="groupRollResults" class="group-roll-results"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dm-tab" data-dm-tab="whisper">
+          <div class="dm-tab-title">Private Whisper</div>
+          <div class="dm-card">
+            <div class="dm-card-title">💬 Whisper to One Player</div>
+            <div class="dm-card-body">
+              <div class="field"><label>Recipient</label>
+                <select id="whisperTarget" class="dm-select"></select>
+              </div>
+              <div class="field"><label>Message — only they will see it</label>
+                <textarea id="whisperInput" class="small-textarea" placeholder="A secret only for them…" style="min-height:90px"></textarea>
+              </div>
+              <button id="whisperBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Send Whisper</button>
+            </div>
+          </div>
+        </div>
+
         <!-- CURSE WHEEL TAB -->
         <div class="dm-tab" data-dm-tab="curse">
           <div class="dm-tab-title">Wheel of Misfortune</div>
@@ -531,6 +607,29 @@
         <!-- THEME TAB -->
         <div class="dm-tab" data-dm-tab="theme">
           <div class="dm-tab-title">Site Theme</div>
+          <div class="dm-card">
+            <div class="dm-card-title">🌦️ Atmosphere</div>
+            <div class="dm-card-body">
+              <div class="field"><label>Weather</label>
+                <div class="atmo-btn-row">
+                  <button class="atmo-btn" data-weather="none">Clear</button>
+                  <button class="atmo-btn" data-weather="rain">Rain</button>
+                  <button class="atmo-btn" data-weather="snow">Snow</button>
+                  <button class="atmo-btn" data-weather="ash">Ash</button>
+                </div>
+              </div>
+              <div class="field" style="margin-top:.8rem"><label>Scene / Time of Day</label>
+                <div class="atmo-btn-row">
+                  <button class="atmo-btn" data-scene="auto">Auto</button>
+                  <button class="atmo-btn" data-scene="dawn">Dawn</button>
+                  <button class="atmo-btn" data-scene="day">Day</button>
+                  <button class="atmo-btn" data-scene="dusk">Dusk</button>
+                  <button class="atmo-btn" data-scene="night">Night</button>
+                  <button class="atmo-btn" data-scene="bloodmoon">Blood Moon</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="dm-card">
             <div class="dm-card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">

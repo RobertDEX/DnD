@@ -209,7 +209,7 @@ function blankChar(i) {
     relationships: [],   // #21 — [{name, type, notes}]
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     commendations: [],   // earned commendation ids (DM-granted)
-    dustInventory: dust, dustSpells:[], techniques:[],
+    dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
       unlocked:{first:false,second:false,third:false,ascended:false}
@@ -222,6 +222,7 @@ const DEF_STATE = {
   showReserve:false, showDead:false,
   theme:{...DEF_THEME},
   shop:[],
+  weather:'none', sceneTime:'auto',
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -592,6 +593,9 @@ function startListener() {
       while (state.characters.length < remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
       state.theme = remote.theme;
+      state.weather = remote.weather;
+      state.sceneTime = remote.sceneTime;
+      try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       setSyncDot('synced');
 
@@ -646,6 +650,8 @@ function normalize(raw) {
   Object.assign(m, raw || {});
   // Always merge theme with defaults — old Firebase data may have rgba() strings not hex
   m.theme = {...DEF_THEME, ...(raw?.theme || {})};
+  if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
+  if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   // Ensure all theme values are hex strings
   Object.keys(DEF_THEME).forEach(k => {
     if (!m.theme[k] || typeof m.theme[k] !== 'string' || !m.theme[k].startsWith('#')) {
@@ -664,6 +670,7 @@ function normalize(raw) {
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
+    mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
     mc.inventory     = Array.isArray(c.inventory)   ? c.inventory   : [];
     mc.money         = Number(c.money) || 0;
     mc.relationships = Array.isArray(c.relationships)? c.relationships : [];
@@ -917,6 +924,7 @@ function renderCharacterTabs() {
         ${isOwn ? '<span class="tab-badge you">YOU</span>' : takenByOther ? '<span class="tab-badge taken">●</span>' : ''}
       </div>
       <span>${esc(c.className||'—')} · Lv${c.level}${c.race?' · '+esc(c.race):''}</span>
+      ${conditionBadges(c)}
       <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
     // The DM and spectators can switch which character is displayed.
     // Players are locked to their own claimed character.
@@ -1153,15 +1161,35 @@ function renderTechniques() {
 // ================================================================
 // RENDER — DUST
 // ================================================================
+const DUST_COLORS = {'Fire Dust':'#e0522a','Ice Dust':'#5ad1ff','Electricity Dust':'#d4d45a','Wind Dust':'#7ad6a0','Earth Dust':'#b08850','Gravity Dust':'#a060e0','Hard Light Dust':'#ffffff'};
 function renderDust() {
   const c = getChar(); const g = el('dustInventoryGrid'); if(!g) return; g.innerHTML='';
   DUST_TYPES.forEach(type => {
-    const card = document.createElement('div'); card.className=`dust-card ${DUST_CLASS[type]}`;
-    card.innerHTML = `<label>${type}</label><input type="number" min="0" data-dust="${type}" value="${c.dustInventory[type]||0}">`;
+    const qty = c.dustInventory[type]||0;
+    const col = DUST_COLORS[type]||'#00d4ff';
+    const fill = Math.min(100, qty*10);
+    const low = qty>0 && qty<=1;
+    const card = document.createElement('div'); card.className=`dust-card dust-card-v2 ${DUST_CLASS[type]}${qty===0?' empty':''}${low?' low':''}`;
+    card.style.setProperty('--dust-col', col);
+    card.innerHTML = `
+      <div class="dust-vial"><div class="dust-vial-fill" style="height:${fill}%"></div></div>
+      <div class="dust-card-body">
+        <label>${type}</label>
+        <div class="dust-controls">
+          <button class="dust-step" data-dust="${type}" data-step="-1" type="button">−</button>
+          <input type="number" min="0" data-dust="${type}" value="${qty}">
+          <button class="dust-step" data-dust="${type}" data-step="1" type="button">+</button>
+        </div>
+        ${low?'<span class="dust-low-tag">LOW</span>':qty===0?'<span class="dust-empty-tag">EMPTY</span>':''}
+      </div>`;
     g.appendChild(card);
   });
   g.querySelectorAll('input[data-dust]').forEach(inp => inp.addEventListener('input', e => {
-    c.dustInventory[e.target.dataset.dust] = Math.max(0, Number(e.target.value)||0); pushState();
+    c.dustInventory[e.target.dataset.dust] = Math.max(0, Number(e.target.value)||0); pushState(); renderDust();
+  }));
+  g.querySelectorAll('.dust-step').forEach(b => b.addEventListener('click', () => {
+    const t=b.dataset.dust; const step=Number(b.dataset.step);
+    c.dustInventory[t]=Math.max(0,(c.dustInventory[t]||0)+step); pushState(true); renderDust();
   }));
   const sel = el('dustSpellType'); if(sel) sel.innerHTML = DUST_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
   renderDustSpells();
@@ -1304,10 +1332,357 @@ function renderTabs() {
       case 'skills':     renderSkillsMatrix(); break;
       case 'techniques': renderTechniques(); break;
       case 'dust':       renderDust(); break;
+      case 'status':     renderConditions(); break;
       case 'semblance':  renderSemblance(); break;
       case 'honors':     renderCommendations(); break;
     }
   } catch(e) {}
+}
+
+const CONDITIONS = [
+  { id:'stunned',    icon:'💫', name:'Stunned',     color:'#c2a23a' },
+  { id:'burning',    icon:'🔥', name:'Burning',     color:'#e0602a' },
+  { id:'frozen',     icon:'❄️', name:'Frozen',      color:'#5ad1ff' },
+  { id:'poisoned',   icon:'☠️', name:'Poisoned',    color:'#5ad17a' },
+  { id:'bleeding',   icon:'🩸', name:'Bleeding',    color:'#c0000a' },
+  { id:'shocked',    icon:'⚡', name:'Shocked',     color:'#d4d45a' },
+  { id:'prone',      icon:'⬇️', name:'Prone',       color:'#8a96a2' },
+  { id:'restrained', icon:'🔗', name:'Restrained',  color:'#a08050' },
+  { id:'blinded',    icon:'🌑', name:'Blinded',     color:'#6a6a8a' },
+  { id:'charmed',    icon:'💗', name:'Charmed',      color:'#e060c0' },
+  { id:'frightened', icon:'😱', name:'Frightened',  color:'#9060e0' },
+  { id:'aura_lock',  icon:'🚫', name:'Aura Locked',  color:'#c0000a' },
+  { id:'empowered',  icon:'✨', name:'Empowered',    color:'#00d4ff' },
+  { id:'hidden',     icon:'👁️', name:'Hidden',      color:'#5a7a8a' }
+];
+const CONDITION_BY_ID = Object.fromEntries(CONDITIONS.map(c=>[c.id,c]));
+function renderConditions(){
+  const c=getChar();
+  const host=el('conditionsList'); if(!host) return;
+  if(!Array.isArray(c.conditions)) c.conditions=[];
+  const active=el('conditionsActive');
+  if(active){
+    if(!c.conditions.length){ active.innerHTML=`<div class="cond-none">No active conditions.</div>`; }
+    else active.innerHTML=c.conditions.map(cd=>{
+      const m=CONDITION_BY_ID[cd.id]; if(!m) return '';
+      const dur=cd.duration!=null&&cd.duration!==''?`<span class="cond-dur">${esc(String(cd.duration))}</span>`:'';
+      return `<div class="cond-chip" style="--cc:${m.color}"><span class="cond-icon">${m.icon}</span><span class="cond-name">${esc(m.name)}</span>${dur}<button class="cond-remove" data-cid="${m.id}">✕</button></div>`;
+    }).join('');
+    active.querySelectorAll('.cond-remove').forEach(b=>b.addEventListener('click',()=>toggleCondition(b.dataset.cid)));
+  }
+  host.innerHTML=CONDITIONS.map(m=>{
+    const on=c.conditions.some(x=>x.id===m.id);
+    return `<button class="cond-toggle${on?' on':''}" data-cid="${m.id}" style="--cc:${m.color}"><span class="cond-icon">${m.icon}</span><span>${esc(m.name)}</span></button>`;
+  }).join('');
+  host.querySelectorAll('.cond-toggle').forEach(b=>b.addEventListener('click',()=>toggleCondition(b.dataset.cid)));
+}
+function toggleCondition(id){
+  const c=getChar();
+  if(!Array.isArray(c.conditions)) c.conditions=[];
+  const idx=c.conditions.findIndex(x=>x.id===id);
+  if(idx>=0) c.conditions.splice(idx,1);
+  else c.conditions.push({ id, duration:'' });
+  pushState(true); renderConditions(); renderCharacterTabs();
+}
+function conditionBadges(c){
+  if(!Array.isArray(c.conditions)||!c.conditions.length) return '';
+  return `<span class="ctab-conditions">${c.conditions.map(cd=>{const m=CONDITION_BY_ID[cd.id];return m?`<span class="ctab-cond" title="${esc(m.name)}" style="--cc:${m.color}">${m.icon}</span>`:'';}).join('')}</span>`;
+}
+
+function runBootSequence(){
+  if(sessionStorage.getItem('rwby-booted')==='1'){ return; }
+  sessionStorage.setItem('rwby-booted','1');
+  const boot=document.createElement('div');
+  boot.className='boot-screen';
+  boot.innerHTML=`<div class="boot-inner">
+    <div class="boot-logo">RWBY</div>
+    <div class="boot-sub">HUNTSMAN FIELD TERMINAL</div>
+    <div class="boot-lines" id="bootLines"></div>
+  </div>`;
+  document.body.appendChild(boot);
+  const lines=['Initializing Aura matrix…','Linking CCT network…','Calibrating Dust resonance…','Loading Huntsman registry…','Authenticating clearance…','Terminal ready.'];
+  const host=boot.querySelector('#bootLines');
+  let i=0;
+  const tick=()=>{
+    if(i<lines.length){
+      const ln=document.createElement('div'); ln.className='boot-line'; ln.textContent='> '+lines[i];
+      host.appendChild(ln); i++;
+      setTimeout(tick, 200+Math.random()*180);
+    } else {
+      setTimeout(()=>{ boot.classList.add('boot-done'); setTimeout(()=>boot.remove(),700); }, 350);
+    }
+  };
+  setTimeout(tick, 300);
+}
+
+let _weatherActive=null;
+function applyWeather(){
+  const w = (state.weather && state.weather!=='none') ? state.weather : null;
+  if(w===_weatherActive) return;
+  _weatherActive=w;
+  let layer=el('weatherLayer');
+  if(!w){ layer?.remove(); return; }
+  if(!layer){ layer=document.createElement('div'); layer.id='weatherLayer'; layer.className='weather-layer'; document.body.appendChild(layer); }
+  layer.className='weather-layer weather-'+w;
+  layer.innerHTML='';
+  const count = w==='ash'?40:(w==='snow'?50:60);
+  for(let i=0;i<count;i++){
+    const p=document.createElement('span'); p.className='weather-particle';
+    p.style.left=Math.random()*100+'%';
+    p.style.animationDelay=(Math.random()*8)+'s';
+    p.style.animationDuration=(w==='rain'?(0.5+Math.random()*0.5):(5+Math.random()*7))+'s';
+    p.style.setProperty('--drift',(Math.random()*40-20)+'px');
+    if(w==='snow'||w==='ash'){ const s=2+Math.random()*4; p.style.width=s+'px'; p.style.height=s+'px'; }
+    layer.appendChild(p);
+  }
+}
+function setWeather(w){
+  if(!dmUnlocked) return;
+  state.weather = w;
+  pushState(true); applyWeather();
+  showToast(w==='none'?'Weather cleared':('Weather: '+w),'info');
+}
+
+function applyTimeSkin(){
+  const mode = state.sceneTime && state.sceneTime!=='auto' ? state.sceneTime : autoTimeOfDay();
+  document.body.classList.remove('scene-dawn','scene-day','scene-dusk','scene-night','scene-bloodmoon');
+  document.body.classList.add('scene-'+mode);
+}
+function autoTimeOfDay(){
+  const h=new Date().getHours();
+  if(h>=5&&h<8) return 'dawn';
+  if(h>=8&&h<17) return 'day';
+  if(h>=17&&h<20) return 'dusk';
+  return 'night';
+}
+function setSceneTime(t){
+  if(!dmUnlocked) return;
+  state.sceneTime=t;
+  pushState(true); applyTimeSkin();
+  showToast('Scene: '+t,'info');
+}
+
+let _prevLevelMap={};
+function checkLevelUp(){
+  state.characters.forEach(c=>{
+    const key=c.id||c.name;
+    if(!key) return;
+    const lv=Number(c.level)||0;
+    if(_prevLevelMap[key]!==undefined && lv>_prevLevelMap[key] && lv>0){
+      if(c.claimedBy===MY_PRESENCE_ID || dmUnlocked) triggerLevelUp(c);
+    }
+    _prevLevelMap[key]=lv;
+  });
+}
+function triggerLevelUp(c){
+  const color=c.accentColor||'#00d4ff';
+  const fx=document.createElement('div');
+  fx.className='levelup-fx'; fx.style.setProperty('--lu-color',color);
+  let rays='';
+  for(let i=0;i<12;i++) rays+=`<span class="lu-ray" style="--a:${i*30}deg"></span>`;
+  fx.innerHTML=`<div class="lu-burst"></div><div class="lu-rays">${rays}</div><div class="lu-text">LEVEL UP</div><div class="lu-sub">${esc((c.name||'Hunter').toUpperCase())} · LEVEL ${c.level}</div>`;
+  document.body.appendChild(fx);
+  levelUpSound();
+  setTimeout(()=>fx.remove(),2600);
+}
+function levelUpSound(){
+  if(typeof _rwSfxOn!=='undefined'&&!_rwSfxOn) return;
+  try{
+    _diceAudio=_diceAudio||new (window.AudioContext||window.webkitAudioContext)();
+    const ac=_diceAudio; if(ac.state==='suspended')ac.resume();
+    const t=ac.currentTime;
+    [523,659,784,1047,1319].forEach((f,i)=>{ const o=ac.createOscillator(),g=ac.createGain(); o.type='triangle'; o.frequency.value=f; const w=t+i*0.1; g.gain.setValueAtTime(0.06,w); g.gain.exponentialRampToValueAtTime(0.0001,w+0.4); o.connect(g);g.connect(ac.destination);o.start(w);o.stop(w+0.42); });
+  }catch(e){}
+}
+
+function rollDie(sides){ return Math.floor(Math.random()*sides)+1; }
+function parseDiceExpr(expr){
+  const cleaned = String(expr).replace(/\s+/g,'').toLowerCase();
+  const re = /([+-]?)(\d*)d(\d+)|([+-]?\d+)/g;
+  let m, parts=[], total=0, valid=false;
+  while((m=re.exec(cleaned))){
+    if(m[3]){
+      valid=true;
+      const sign = m[1]==='-'?-1:1;
+      const count = Math.min(50, Math.max(1, Number(m[2]||1)));
+      const sides = Math.min(1000, Number(m[3]));
+      const rolls=[]; for(let i=0;i<count;i++){ const r=rollDie(sides); rolls.push(r); total+=sign*r; }
+      parts.push({ type:'dice', sign, count, sides, rolls });
+    } else if(m[4]){
+      valid=true;
+      const n = Number(m[4]); total+=n;
+      parts.push({ type:'mod', value:n });
+    }
+  }
+  return valid ? { total, parts } : null;
+}
+function rollD20(modifier, mode){
+  const a = rollDie(20), b = rollDie(20);
+  let nat;
+  if(mode==='adv') nat = Math.max(a,b);
+  else if(mode==='dis') nat = Math.min(a,b);
+  else nat = a;
+  return { nat, both:[a,b], mode, total: nat + modifier, modifier };
+}
+function showDiceResult(label, res){
+  const panel = el('diceResultArea'); if(!panel) return;
+  if(res.nat!==undefined){
+    const crit = res.nat===20 ? ' crit' : (res.nat===1 ? ' fumble' : '');
+    const rollTxt = (res.mode==='adv'||res.mode==='dis')
+      ? `<span class="dice-rolls">[${res.both[0]}, ${res.both[1]}] ${res.mode==='adv'?'adv':'dis'}→${res.nat}</span>`
+      : `<span class="dice-rolls">d20→${res.nat}</span>`;
+    const detail = `${rollTxt}<span class="dice-mod">${res.modifier>=0?'+':''}${res.modifier}</span>`;
+    const card = document.createElement('div');
+    card.className = `dice-result${crit}`;
+    card.innerHTML = `<div class="dice-result-head"><span class="dice-label">${esc(label)}</span><span class="dice-total">${res.total}</span></div><div class="dice-detail">${detail}${crit===' crit'?'<span class="dice-flag crit">CRIT</span>':crit===' fumble'?'<span class="dice-flag fumble">FUMBLE</span>':''}</div>`;
+    panel.prepend(card);
+    if(crit===' crit') diceSound('crit'); else if(crit===' fumble') diceSound('fumble'); else diceSound('roll');
+  } else {
+    const breakdown = res.parts.map(p=> p.type==='dice' ? `${p.sign<0?'−':''}${p.count}d${p.sides}[${p.rolls.join(',')}]` : `${p.value>=0?'+':''}${p.value}`).join(' ');
+    const card = document.createElement('div');
+    card.className = 'dice-result';
+    card.innerHTML = `<div class="dice-result-head"><span class="dice-label">${esc(label)}</span><span class="dice-total">${res.total}</span></div><div class="dice-detail"><span class="dice-rolls">${esc(breakdown)}</span></div>`;
+    panel.prepend(card);
+    diceSound('roll');
+  }
+  while(panel.children.length>12) panel.removeChild(panel.lastChild);
+}
+let _diceAudio=null;
+function diceSound(kind){
+  if(typeof _rwSfxOn!=='undefined' && !_rwSfxOn) return;
+  try{
+    _diceAudio = _diceAudio || new (window.AudioContext||window.webkitAudioContext)();
+    const ac=_diceAudio; if(ac.state==='suspended') ac.resume();
+    const t=ac.currentTime;
+    if(kind==='crit'){
+      [523,659,784,1047].forEach((f,i)=>{ const o=ac.createOscillator(),g=ac.createGain(); o.type='square'; o.frequency.value=f; g.gain.setValueAtTime(0.05,t+i*0.06); g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.06+0.18); o.connect(g);g.connect(ac.destination);o.start(t+i*0.06);o.stop(t+i*0.06+0.2); });
+    } else if(kind==='fumble'){
+      const o=ac.createOscillator(),g=ac.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(60,t+0.4); g.gain.setValueAtTime(0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.45); o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+0.5);
+    } else {
+      for(let i=0;i<5;i++){ const o=ac.createOscillator(),g=ac.createGain(); o.type='triangle'; o.frequency.value=400+Math.random()*500; const w=t+i*0.025; g.gain.setValueAtTime(0.03,w); g.gain.exponentialRampToValueAtTime(0.0001,w+0.06); o.connect(g);g.connect(ac.destination);o.start(w);o.stop(w+0.07); }
+    }
+  }catch(e){}
+}
+let _diceMode='normal';
+function rollSkill(skillName){
+  const c=getChar();
+  const def=SKILL_DEFS.find(d=>d.name===skillName);
+  const m = def ? skillBonus(c, skillName) : 0;
+  showDiceResult(`${c.name||'Hunter'} · ${skillName}`, rollD20(m, _diceMode));
+}
+function rollCustom(){
+  const expr = el('diceCustomInput')?.value.trim(); if(!expr) return;
+  const res = parseDiceExpr(expr);
+  if(!res){ showToast('Invalid dice (try 2d6+3)','warn'); return; }
+  showDiceResult(expr, res);
+}
+function toggleDicePanel(){ el('dicePanel')?.classList.toggle('open'); }
+function setDiceMode(mode){
+  _diceMode=mode;
+  document.querySelectorAll('.dice-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+}
+function buildDiceSkillButtons(){
+  const host=el('diceSkillButtons'); if(!host) return;
+  const quick=['STR Save','DEX Save','CON Save','INT Save','WIS Save','CHA Save','Athletics','Acrobatics','Stealth','Perception','Investigation','Insight','Persuasion','Intimidation'];
+  host.innerHTML = quick.map(s=>`<button class="dice-skill-btn" data-skill="${esc(s)}">${esc(s.replace(' Save','♦'))}</button>`).join('');
+  host.querySelectorAll('.dice-skill-btn').forEach(b=> b.addEventListener('click', ()=>rollSkill(b.dataset.skill)));
+}
+let _groupRollUnsub=null, _groupRollLoadTs=Date.now(), _activeGroupRoll=null;
+async function startGroupRoll(){
+  if(!dmUnlocked) return;
+  const skill = el('groupRollSkill')?.value || 'Perception';
+  try{
+    await setDoc(doc(db,'rwby-meta','grouproll'), { skill, ts:Date.now(), by:'DM', results:{} });
+    showToast(`Group roll called: ${skill}`,'success');
+  }catch(e){ showToast('Could not start group roll','warn'); }
+}
+function startGroupRollListener(){
+  if(_groupRollUnsub) _groupRollUnsub();
+  _groupRollUnsub = onSnapshot(doc(db,'rwby-meta','grouproll'), snap=>{
+    if(!snap.exists()) return;
+    const d=snap.data(); if(!d.ts) return;
+    if(d.ts>_groupRollLoadTs && d.skill){
+      _groupRollLoadTs=d.ts; _activeGroupRoll=d;
+      showGroupRollPrompt(d.skill);
+    }
+    renderGroupRollResults(d);
+  }, ()=>{});
+}
+function showGroupRollPrompt(skill){
+  if(dmUnlocked||spectator) return;
+  el('groupRollPrompt')?.remove();
+  const c=getChar(); if(!c||!c.name) return;
+  const p=document.createElement('div');
+  p.id='groupRollPrompt'; p.className='group-roll-prompt';
+  p.innerHTML=`<div class="grp-head">📢 Group Roll: <strong>${esc(skill)}</strong></div><button class="grp-roll-btn" id="grpRollGo">Roll ${esc(skill)}</button>`;
+  document.body.appendChild(p);
+  el('grpRollGo').addEventListener('click', ()=>submitGroupRoll(skill));
+}
+async function submitGroupRoll(skill){
+  const c=getChar();
+  const res=rollD20(skillBonus(c,skill),_diceMode);
+  showDiceResult(`${c.name} · ${skill} (group)`, res);
+  try{
+    const ref=doc(db,'rwby-meta','grouproll');
+    const snap=await getDoc(ref);
+    const d=snap.exists()?snap.data():{results:{}};
+    d.results=d.results||{};
+    d.results[c.name||MY_PRESENCE_ID]={ name:c.name||'Hunter', total:res.total, nat:res.nat };
+    await setDoc(ref,d);
+  }catch(e){}
+  el('groupRollPrompt')?.remove();
+}
+function renderGroupRollResults(d){
+  const host=el('groupRollResults'); if(!host) return;
+  const results=d&&d.results?Object.values(d.results):[];
+  if(!d||!d.skill || !results.length){ host.innerHTML=`<div class="small-note">No group roll results yet.</div>`; return; }
+  results.sort((a,b)=>b.total-a.total);
+  host.innerHTML=`<div class="grp-results-title">${esc(d.skill)} — results</div>`+results.map(r=>`<div class="grp-result-row${r.nat===20?' crit':r.nat===1?' fumble':''}"><span>${esc(r.name)}</span><span class="grp-result-total">${r.total}</span></div>`).join('');
+}
+function populateRollSelects(){
+  const opts = SKILL_DEFS.map(d=>`<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('');
+  const gs=el('groupRollSkill'); if(gs && gs.innerHTML!==opts){ const cur=gs.value; gs.innerHTML=opts; if(cur) gs.value=cur; }
+  const wt=el('whisperTarget');
+  if(wt){
+    const cur=wt.value;
+    wt.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||('Slot '+(i+1)))}</option>`).join('');
+    if(cur && cur<state.characters.length) wt.value=cur;
+  }
+  document.querySelectorAll('.atmo-btn[data-weather]').forEach(b=>b.classList.toggle('active', b.dataset.weather===(state.weather||'none')));
+  document.querySelectorAll('.atmo-btn[data-scene]').forEach(b=>b.classList.toggle('active', b.dataset.scene===(state.sceneTime||'auto')));
+}
+let _whisperUnsub=null, _whisperLoadTs=Date.now();
+async function sendWhisper(){
+  if(!dmUnlocked) return;
+  const idx=parseInt(el('whisperTarget')?.value??'0');
+  const target=state.characters[idx];
+  const msg=el('whisperInput')?.value.trim();
+  if(!target||!msg){ showToast('Pick a recipient and write a message','warn'); return; }
+  try{
+    await setDoc(doc(db,'rwby-meta','whisper'),{ to:target.name||('slot'+idx), toIdx:idx, msg, ts:Date.now() });
+    if(el('whisperInput')) el('whisperInput').value='';
+    showToast(`Whisper sent to ${target.name||'player'}`,'success');
+  }catch(e){ showToast('Could not send whisper','warn'); }
+}
+function startWhisperListener(){
+  if(_whisperUnsub) _whisperUnsub();
+  _whisperUnsub=onSnapshot(doc(db,'rwby-meta','whisper'),snap=>{
+    if(!snap.exists()) return;
+    const d=snap.data();
+    if(!d.ts||d.ts<=_whisperLoadTs) return;
+    _whisperLoadTs=d.ts;
+    if(dmUnlocked||spectator) return;
+    const mine=getChar();
+    if(mine && mine.name && (mine.name===d.to)) showWhisper(d.msg);
+  },()=>{});
+}
+function showWhisper(msg){
+  const o=document.createElement('div');
+  o.className='whisper-overlay';
+  o.innerHTML=`<div class="whisper-card"><div class="whisper-head">💬 A private message reaches you</div><div class="whisper-msg">${esc(msg)}</div><button class="whisper-dismiss">Understood</button></div>`;
+  document.body.appendChild(o);
+  o.querySelector('.whisper-dismiss').addEventListener('click',()=>{ o.classList.add('out'); setTimeout(()=>o.remove(),300); });
+  if(typeof _rwSfxOn==='undefined'||_rwSfxOn) diceSound('roll');
 }
 
 // ================================================================
@@ -1325,6 +1700,10 @@ function render() {
   try { renderCurses(); }          catch(e) {}
   try { renderCommendations(); }   catch(e) {}
   try { renderDmCommendations(); } catch(e) {}
+  try { populateRollSelects(); }   catch(e) {}
+  try { applyWeather(); }          catch(e) {}
+  try { applyTimeSkin(); }         catch(e) {}
+  try { checkLevelUp(); }          catch(e) {}
   try { renderAccentColor(); }     catch(e) {}
   try { applyCharacterAccents(); } catch(e) {}
   try { checkResourceFlash(c); }   catch(e) {}
@@ -1337,6 +1716,7 @@ function render() {
   try { renderSemblance(); }       catch(e) { console.error('renderSemblance:', e); }
   try { renderTechniques(); }      catch(e) { console.error('renderTechniques:', e); }
   try { renderDust(); }            catch(e) { console.error('renderDust:', e); }
+  try { renderConditions(); }      catch(e) {}
   try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
   try { renderDmTechniques(); }    catch(e) { console.error('renderDmTechniques:', e); }
   try { renderDmTargetSelect(); }  catch(e) { console.error('renderDmTargetSelect:', e); }
@@ -1967,18 +2347,30 @@ function bindRelationships() {
 const DMG_TYPES = ['Slashing','Piercing','Bludgeoning','Fire','Ice','Lightning','Energy','Dust','Other'];
 const WEAPON_PROF = ['Untrained','Proficient','Expert'];
 
+function ensureWeaponForms(w){
+  if(!Array.isArray(w.forms) || !w.forms.length){
+    w.forms = [{ formName: w.formName||'Form 1', damage:w.damage||'', dmgType:w.dmgType||DMG_TYPES[0], range:w.range||'' }];
+    w.activeForm = 0;
+  }
+  if(typeof w.activeForm!=='number' || w.activeForm<0 || w.activeForm>=w.forms.length) w.activeForm=0;
+  return w;
+}
 function renderWeapons() {
   const c = getChar();
   const cont = el('weaponsList'); if (!cont) return;
   const weapons = c.weapons || [];
 
   if (!weapons.length) {
-    cont.innerHTML = `<div class="wpn-empty"><div class="wpn-empty-icon">⚔️</div><div>No weapons yet.</div><span>Add your armaments, their damage, and your training.</span></div>`;
+    cont.innerHTML = `<div class="wpn-empty"><div class="wpn-empty-icon">⚔️</div><div>No weapons yet.</div><span>Add your armaments, their forms, damage, and your training.</span></div>`;
     return;
   }
 
   cont.innerHTML = weapons.map((w, i) => {
+    ensureWeaponForms(w);
     const profClass = (w.prof||'Untrained').toLowerCase();
+    const af = w.activeForm;
+    const form = w.forms[af];
+    const formTabs = w.forms.map((f,fi)=>`<button class="wpn-form-tab${fi===af?' active':''}" data-i="${i}" data-form="${fi}">${esc(f.formName||('Form '+(fi+1)))}</button>`).join('');
     return `
     <div class="wpn-card prof-${profClass}" data-i="${i}">
       <div class="wpn-head">
@@ -1986,20 +2378,30 @@ function renderWeapons() {
         <span class="wpn-prof-badge prof-${profClass}">${esc(w.prof||'Untrained')}</span>
         <button class="wpn-del" data-i="${i}" title="Remove">✕</button>
       </div>
+      <div class="wpn-forms-bar">
+        <span class="wpn-forms-label">Forms</span>
+        ${formTabs}
+        <button class="wpn-form-add" data-i="${i}" title="Add a transformation form">+ Form</button>
+        ${w.forms.length>1?`<button class="wpn-form-del" data-i="${i}" data-form="${af}" title="Remove this form">✕ form</button>`:''}
+      </div>
       <div class="wpn-stats">
         <div class="wpn-stat">
+          <label>Form Name</label>
+          <input class="wpn-formname" data-i="${i}" value="${esc(form.formName||'')}" placeholder="Sword / Rifle…">
+        </div>
+        <div class="wpn-stat">
           <label>Damage</label>
-          <input class="wpn-dmg" data-i="${i}" value="${esc(w.damage||'')}" placeholder="1d8+3">
+          <input class="wpn-dmg" data-i="${i}" value="${esc(form.damage||'')}" placeholder="1d8+3">
         </div>
         <div class="wpn-stat">
           <label>Type</label>
           <select class="wpn-dmgtype" data-i="${i}">
-            ${DMG_TYPES.map(t=>`<option ${w.dmgType===t?'selected':''}>${t}</option>`).join('')}
+            ${DMG_TYPES.map(t=>`<option ${form.dmgType===t?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
         <div class="wpn-stat">
           <label>Range</label>
-          <input class="wpn-range" data-i="${i}" value="${esc(w.range||'')}" placeholder="Melee / 60ft">
+          <input class="wpn-range" data-i="${i}" value="${esc(form.range||'')}" placeholder="Melee / 60ft">
         </div>
         <div class="wpn-stat">
           <label>Training</label>
@@ -2012,7 +2414,19 @@ function renderWeapons() {
     </div>`;
   }).join('');
 
-  const upd = (sel, field, rerender=false) => {
+  const updForm = (sel, field) => {
+    cont.querySelectorAll(sel).forEach(inp => {
+      const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
+      inp.addEventListener(evt, () => {
+        const i = parseInt(inp.dataset.i);
+        const w = c.weapons[i]; ensureWeaponForms(w);
+        w.forms[w.activeForm][field] = inp.value;
+        if(field==='formName'){ pushState(true); renderWeapons(); }
+        else scheduleWpnPush();
+      });
+    });
+  };
+  const updWpn = (sel, field, rerender=false) => {
     cont.querySelectorAll(sel).forEach(inp => {
       const evt = inp.tagName === 'SELECT' ? 'change' : 'input';
       inp.addEventListener(evt, () => {
@@ -2023,10 +2437,26 @@ function renderWeapons() {
       });
     });
   };
-  upd('.wpn-name','name'); upd('.wpn-dmg','damage'); upd('.wpn-range','range'); upd('.wpn-notes','notes');
-  upd('.wpn-dmgtype','dmgType');
-  upd('.wpn-profsel','prof', true); // re-render to recolor badge
+  updWpn('.wpn-name','name'); updWpn('.wpn-notes','notes');
+  updForm('.wpn-formname','formName'); updForm('.wpn-dmg','damage'); updForm('.wpn-range','range'); updForm('.wpn-dmgtype','dmgType');
+  updWpn('.wpn-profsel','prof', true);
 
+  cont.querySelectorAll('.wpn-form-tab').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i); c.weapons[i].activeForm=parseInt(b.dataset.form);
+    pushState(true); renderWeapons();
+  }));
+  cont.querySelectorAll('.wpn-form-add').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i); const w=c.weapons[i]; ensureWeaponForms(w);
+    w.forms.push({ formName:'Form '+(w.forms.length+1), damage:'', dmgType:DMG_TYPES[0], range:'' });
+    w.activeForm=w.forms.length-1;
+    pushState(true); renderWeapons();
+  }));
+  cont.querySelectorAll('.wpn-form-del').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i); const w=c.weapons[i];
+    if(w.forms.length<=1) return;
+    w.forms.splice(parseInt(b.dataset.form),1);
+    w.activeForm=0; pushState(true); renderWeapons();
+  }));
   cont.querySelectorAll('.wpn-del').forEach(btn => {
     btn.addEventListener('click', () => {
       c.weapons.splice(parseInt(btn.dataset.i), 1);
@@ -2042,7 +2472,7 @@ function bindWeapons() {
   el('addWeaponBtn')?.addEventListener('click', () => {
     const c = getChar();
     if (!c.weapons) c.weapons = [];
-    c.weapons.push({ name:'', damage:'', dmgType:'Slashing', range:'Melee', prof:'Proficient', notes:'' });
+    c.weapons.push({ name:'', prof:'Proficient', notes:'', activeForm:0, forms:[{ formName:'Form 1', damage:'', dmgType:'Slashing', range:'Melee' }] });
     pushState(true); renderWeapons();
     setTimeout(() => {
       const inputs = el('weaponsList')?.querySelectorAll('.wpn-name');
@@ -2854,9 +3284,23 @@ function recheckWelcomeIfNeeded() {
 // INIT
 // ================================================================
 bindAll();
+runBootSequence();
 document.getElementById('knockBtn')?.addEventListener('click', sendKnock);
 document.getElementById('audioToggle')?.addEventListener('click', toggleAudio);
 startKnockListener();
+buildDiceSkillButtons();
+startGroupRollListener();
+startWhisperListener();
+el('groupRollBtn')?.addEventListener('click', startGroupRoll);
+el('whisperBtn')?.addEventListener('click', sendWhisper);
+document.querySelectorAll('.atmo-btn[data-weather]').forEach(b=> b.addEventListener('click', ()=>setWeather(b.dataset.weather)));
+document.querySelectorAll('.atmo-btn[data-scene]').forEach(b=> b.addEventListener('click', ()=>setSceneTime(b.dataset.scene)));
+el('diceFab')?.addEventListener('click', toggleDicePanel);
+el('diceClose')?.addEventListener('click', toggleDicePanel);
+el('diceCustomRoll')?.addEventListener('click', rollCustom);
+el('diceCustomInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') rollCustom(); });
+document.querySelectorAll('.dice-mode-btn').forEach(b=> b.addEventListener('click', ()=>setDiceMode(b.dataset.mode)));
+document.querySelectorAll('.dice-quick-d').forEach(b=> b.addEventListener('click', ()=>{ showDiceResult('d'+b.dataset.d, parseDiceExpr('1d'+b.dataset.d)); }));
 (function(){ const b=document.getElementById('audioToggle'); if(b&&!_rwSfxOn){ b.classList.add('off'); b.textContent='♪ Audio Off'; } })();
 document.addEventListener('click', ()=>{ if(_rwSfxOn) startAmbient(); }, { once:true });
 initPortrait();

@@ -224,6 +224,7 @@ const DEF_STATE = {
   shop:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
+  shopFaction:'none',
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -597,6 +598,7 @@ function startListener() {
       state.weather = remote.weather;
       state.sceneTime = remote.sceneTime;
       state.sessionLog = remote.sessionLog;
+      state.shopFaction = remote.shopFaction;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -658,6 +660,7 @@ function normalize(raw) {
   if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
+  if(typeof m.shopFaction!=='string') m.shopFaction='none';
   // Ensure all theme values are hex strings
   Object.keys(DEF_THEME).forEach(k => {
     if (!m.theme[k] || typeof m.theme[k] !== 'string' || !m.theme[k].startsWith('#')) {
@@ -2171,6 +2174,8 @@ const STANDING_LABELS = ['Hostile','Wary','Neutral','Warm','Devoted'];
 
 let _relSearch = '';
 let _relSort = 'manual';
+let _relCollapsed = new Set();
+let _relAllCollapsed = false;
 
 function renderRelationships() {
   const c = getChar();
@@ -2237,8 +2242,9 @@ function renderRelationships() {
     const initial = (r.name||'?').trim()[0]?.toUpperCase() || '?';
     const standing = standOf(r);
     const hasPortrait = !!r.portrait;
+    const collapsed = _relCollapsed.has(i);
     return `
-    <div class="rel-card" data-i="${i}" style="--rel-color:${color}">
+    <div class="rel-card${collapsed?' collapsed':''}" data-i="${i}" style="--rel-color:${color}">
       <div class="rel-avatar-wrap">
         <label class="rel-avatar" style="background:${color}22;border-color:${color}66;color:${color}" title="Click to add a photo">
           ${hasPortrait ? `<img src="${r.portrait}" class="rel-avatar-img" onerror="this.style.display='none'">` : `<span class="rel-avatar-initial">${esc(initial)}</span>`}
@@ -2253,8 +2259,10 @@ function renderRelationships() {
           <select class="rel-type" data-i="${i}" style="color:${color}">
             ${RELATION_TYPES.map(t=>`<option value="${t}" ${r.type===t?'selected':''}>${t}</option>`).join('')}
           </select>
+          <button class="rel-collapse" data-i="${i}" title="${collapsed?'Expand':'Collapse'}">${collapsed?'▸':'▾'}</button>
           <button class="rel-del" data-i="${i}" title="Remove">✕</button>
         </div>
+        ${collapsed ? `<div class="rel-collapsed-summary">${esc(r.role||STANDING_LABELS[standing])} · <span style="color:${color}">${STANDING_LABELS[standing]}</span></div>` : `
         <input class="rel-role" data-i="${i}" value="${esc(r.role||'')}" placeholder="Role / title — e.g. Team leader, Estranged sister, Crime boss…">
         <div class="rel-standing">
           <span class="rel-standing-label">${STANDING_LABELS[standing]}</span>
@@ -2266,10 +2274,16 @@ function renderRelationships() {
         <div class="rel-card-actions">
           <button class="rel-move" data-i="${i}" data-dir="up" title="Move up">↑</button>
           <button class="rel-move" data-i="${i}" data-dir="down" title="Move down">↓</button>
-        </div>
+        </div>`}
       </div>
     </div>`;
   }).join('');
+
+  cont.querySelectorAll('.rel-collapse').forEach(b => b.addEventListener('click', () => {
+    const i = parseInt(b.dataset.i);
+    if (_relCollapsed.has(i)) _relCollapsed.delete(i); else _relCollapsed.add(i);
+    renderRelationships();
+  }));
 
   // name
   cont.querySelectorAll('.rel-name').forEach(inp => {
@@ -2342,6 +2356,7 @@ function renderRelationships() {
     btn.addEventListener('click', () => {
       const i = parseInt(btn.dataset.i);
       c.relationships.splice(i, 1);
+      _relCollapsed.clear(); _relAllCollapsed = false;
       pushState(true); renderRelationships();
     });
   });
@@ -2369,6 +2384,7 @@ function bindRelationships() {
     if (!c.relationships) c.relationships = [];
     c.relationships.unshift({ name:'', type:'Neutral', role:'', notes:'', standing:2, portrait:'' });
     _relSearch = ''; const sb = el('relSearch'); if (sb) sb.value = '';
+    _relCollapsed.clear(); _relAllCollapsed = false;
     pushState(true); renderRelationships();
     setTimeout(() => {
       const inp = el('relationshipsContainer')?.querySelector('.rel-name');
@@ -2377,6 +2393,15 @@ function bindRelationships() {
   });
   el('relSearch')?.addEventListener('input', e => { _relSearch = e.target.value; renderRelationships(); });
   el('relSort')?.addEventListener('change', e => { _relSort = e.target.value; renderRelationships(); });
+  el('relCollapseAllBtn')?.addEventListener('click', () => {
+    const c = getChar();
+    const rels = Array.isArray(c.relationships) ? c.relationships : [];
+    _relAllCollapsed = !_relAllCollapsed;
+    _relCollapsed = new Set(_relAllCollapsed ? rels.map((_,i)=>i) : []);
+    const btn = el('relCollapseAllBtn');
+    if (btn) btn.textContent = _relAllCollapsed ? '⊞ Expand All' : '⊟ Collapse All';
+    renderRelationships();
+  });
 }
 
 // ================================================================
@@ -2572,7 +2597,7 @@ function seedShopIfEmpty(force){
   const cat = window.RWBY_DEFAULT_SHOP;
   if (!Array.isArray(cat) || !cat.length) return false;
   if (!force && Array.isArray(state.shop) && state.shop.length) return false;
-  state.shop = cat.map(x => ({ name:x.name, desc:x.desc||'', price:Number(x.price)||0, category:x.category||'General', stock:null }));
+  state.shop = cat.map(x => ({ name:x.name, desc:x.desc||'', price:Number(x.price)||0, category:x.category||'General', rarity:x.rarity||'Common', stock:null }));
   return true;
 }
 function renderSessionLog(){
@@ -2626,38 +2651,72 @@ function addSessionEntry(){
 const SHOP_CATEGORIES_RWBY = ['Weapons','Dust','Gear','Consumables','Tech','Upgrades','Rare','General'];
 function fmtMoney(n){ return (Number(n)||0).toLocaleString('en-US'); }
 
+const RARITY_META = {
+  Common:   { color:'#8a96a2', label:'Common' },
+  Uncommon: { color:'#5ad17a', label:'Uncommon' },
+  Rare:     { color:'#00d4ff', label:'Rare' },
+  Legendary:{ color:'#c2a23a', label:'Legendary' }
+};
+const SHOP_FACTIONS = {
+  none:    { label:'No Affiliation', desc:'Standard market rates.', discounts:{} },
+  huntsman:{ label:'Huntsman Academy', desc:'Academy supply credit: cheaper weapons & gear.', discounts:{ 'Weapons — Melee':0.10, 'Weapons — Ranged':0.10, 'Weapons — Mecha-Shift':0.10, 'Armor':0.10 } },
+  atlas:   { label:'Atlas Military', desc:'Military access: cheaper tech, but Dust is rationed at full price.', discounts:{ 'Tools & Tech':0.15 } },
+  faunus:  { label:'Faunus Co-op', desc:'Boycotting the SDC: cheaper Dust from independent miners.', discounts:{ 'Dust — Crystals':0.18, 'Dust — Vials & Powder':0.18, 'Dust — Ammunition':0.15 } },
+  merc:    { label:'Mercenary Guild', desc:'Connections everywhere: a flat cut on consumables & services.', discounts:{ 'Consumables':0.12, 'Services':0.15 } }
+};
+function shopDiscountFor(category){
+  const f = SHOP_FACTIONS[state.shopFaction] || SHOP_FACTIONS.none;
+  return f.discounts[category] || 0;
+}
+function discountedPrice(it){
+  const base = Number(it.price)||0;
+  const disc = shopDiscountFor(it.category||'General');
+  return Math.max(0, Math.round(base * (1 - disc)));
+}
 function renderShop() {
   const c = getChar();
   const host = el('shopList'); if (!host) return;
   const bal = el('shopBalance'); if (bal) bal.textContent = `${fmtMoney(c.money)} ${CURRENCY.short}`;
 
+  const fsel = el('shopFactionSelect');
+  if (fsel) {
+    const opts = Object.entries(SHOP_FACTIONS).map(([k,v])=>`<option value="${k}" ${state.shopFaction===k?'selected':''}>${esc(v.label)}</option>`).join('');
+    if (fsel.innerHTML !== opts) fsel.innerHTML = opts;
+    fsel.value = state.shopFaction || 'none';
+  }
+  const fnote = el('shopFactionNote');
+  if (fnote) fnote.textContent = (SHOP_FACTIONS[state.shopFaction]||SHOP_FACTIONS.none).desc;
+
   if (!Array.isArray(state.shop) || !state.shop.length) {
     host.innerHTML = `<div class="inv-empty">The shop is empty. The DM stocks it from the DM Panel.</div>`;
     return;
   }
-  // group by category
   const cats = [];
   state.shop.forEach(it => { const cc = it.category||'General'; if (!cats.includes(cc)) cats.push(cc); });
 
   host.innerHTML = cats.map(cat => {
     const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat);
+    const catDisc = shopDiscountFor(cat);
     return `
     <div class="shop-cat-group">
-      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span></div>
+      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span>${catDisc>0?`<span class="shop-cat-disc">−${Math.round(catDisc*100)}%</span>`:''}</div>
       ${rows.map(({it,i})=>{
-        const price = Number(it.price)||0;
+        const base = Number(it.price)||0;
+        const price = discountedPrice(it);
+        const hasDisc = price < base;
         const afford = (Number(c.money)||0) >= price;
         const out = it.stock!=null && it.stock<=0;
         const stock = it.stock==null?'∞':it.stock;
+        const rar = RARITY_META[it.rarity] || RARITY_META.Common;
         return `
         <div class="shop-item ${out?'out':''}">
           <div class="shop-item-main">
-            <div class="shop-item-name">${esc(it.name||'Item')}</div>
+            <div class="shop-item-name">${esc(it.name||'Item')} <span class="shop-rarity" style="--rar:${rar.color}">${rar.label}</span></div>
             <div class="shop-item-meta"><span class="shop-stock">Stock: ${out?'SOLD OUT':stock}</span></div>
             ${it.desc?`<div class="shop-item-desc">${esc(it.desc)}</div>`:''}
           </div>
           <div class="shop-item-buy">
-            <div class="shop-price">${fmtMoney(price)}<span>${CURRENCY.symbol}</span></div>
+            <div class="shop-price">${hasDisc?`<span class="shop-price-old">${fmtMoney(base)}</span>`:''}${fmtMoney(price)}<span>${CURRENCY.symbol}</span></div>
             ${!spectator && !out ? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'BUY':'NOT ENOUGH'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
           </div>
         </div>`;
@@ -2678,7 +2737,7 @@ function buyItem(i) {
     if (!mine || mine !== c) { showToast('You can only buy for your own character', 'warn'); return; }
   }
   if (spectator) return;
-  const price = Number(item.price)||0;
+  const price = discountedPrice(item);
   if ((Number(c.money)||0) < price) { showToast('Not enough Lien', 'warn'); return; }
   if (item.stock!=null && item.stock<=0) { showToast('Sold out', 'warn'); return; }
   if (!confirm(`Buy ${item.name} for ${fmtMoney(price)} ${CURRENCY.short}?`)) return;
@@ -2759,6 +2818,7 @@ function bindInventory() {
   el('addInvBtn')?.addEventListener('click', add);
   el('invAddName')?.addEventListener('keydown', e => { if (e.key==='Enter') add(); });
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
+  el('shopFactionSelect')?.addEventListener('change', e=>{ state.shopFaction = e.target.value; pushState(true); renderShop(); });
   el('restockShopBtn')?.addEventListener('click', ()=>{
     if(!dmUnlocked) return;
     const has = Array.isArray(state.shop) && state.shop.length;
@@ -2766,6 +2826,15 @@ function bindInventory() {
     if(seedShopIfEmpty(true)){ pushState(true); renderShop(); renderDmShop(); showToast('Shop catalogue loaded','success'); }
   });
   el('addSessionBtn')?.addEventListener('click', addSessionEntry);
+  el('refillStockBtn')?.addEventListener('click', ()=>{
+    if(!dmUnlocked) return;
+    if(!Array.isArray(state.shop)||!state.shop.length){ showToast('Shop is empty','warn'); return; }
+    let n=0;
+    state.shop.forEach(it=>{ if(it.stock!=null){ const base=Number(it.restockTo)||Number(it.maxStock)||10; it.stock=base; n++; } });
+    if(n===0){ showToast('No limited-stock items to refill','info'); return; }
+    pushState(true); renderShop(); renderDmShop();
+    showToast(`Refilled ${n} limited item${n>1?'s':''}`,'success');
+  });
 }
 
 // ================================================================
@@ -3296,6 +3365,8 @@ function claimCharacter(realIdx) {
   state.characters.forEach(ch => { if (ch.claimedBy === MY_PRESENCE_ID) ch.claimedBy = ''; });
   c.claimedBy = MY_PRESENCE_ID;
   state.selectedCharacter = realIdx;
+  _relCollapsed.clear(); _relAllCollapsed = false;
+  const rcab = el('relCollapseAllBtn'); if(rcab) rcab.textContent='⊟ Collapse All';
   localStorage.setItem('rwby-my-idx', realIdx); // shared with the Library for access gating
   pushState(true);
   pushPresence();

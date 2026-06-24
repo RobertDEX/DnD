@@ -325,6 +325,11 @@
           <div class="shop-balance-box">BALANCE<strong id="shopBalance">0 Lien</strong></div>
         </div>
         <p class="small-note" style="margin:.4rem 0 1rem">Spend your Lien on gear stocked by the DM. Your balance is set by the DM.</p>
+        <div class="shop-faction-bar">
+          <label>Affiliation</label>
+          <select id="shopFactionSelect" class="shop-faction-select"></select>
+          <span id="shopFactionNote" class="shop-faction-note"></span>
+        </div>
         <div id="shopList" class="shop-list"></div>
       </div>
 
@@ -340,6 +345,7 @@
             <option value="standing-low">Sort: Most hostile first</option>
           </select>
           <button id="addRelBtn" class="neo-btn">+ Add Person</button>
+          <button id="relCollapseAllBtn" class="neo-btn ghost">⊟ Collapse All</button>
         </div>
         <div id="relSummary" class="rel-summary"></div>
         <div id="relationshipsContainer" class="relationships-list"></div>
@@ -677,6 +683,7 @@
               <div id="dmShopList" class="dm-shop-list"></div>
               <button id="addShopItemBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">+ Add Item to Shop</button>
               <button id="restockShopBtn" type="button" class="neo-btn ghost" style="margin-top:.5rem;width:100%">⟳ Load Full Catalogue (73 items)</button>
+              <button id="refillStockBtn" type="button" class="neo-btn ghost" style="margin-top:.5rem;width:100%">↻ Refill All Limited Stock</button>
             </div>
           </div>
         </div>

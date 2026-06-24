@@ -2914,3 +2914,17 @@ body.scene-night::before{content:'';position:fixed;inset:0;z-index:55;pointer-ev
 .slog-del:hover{border-color:var(--accent);color:var(--accent)}
 .slog-date{font-family:var(--F2);font-size:.62rem;color:var(--muted);margin-top:.3rem}
 .slog-body{font-family:var(--F3);font-size:.92rem;line-height:1.6;color:var(--text);margin-top:.6rem}
+
+.rel-collapse{background:none;border:1px solid var(--line);color:var(--muted);width:26px;height:26px;border-radius:5px;cursor:pointer;font-size:.7rem;flex-shrink:0;transition:all .14s}
+.rel-collapse:hover{border-color:var(--rel-color,var(--aura));color:var(--rel-color,var(--aura))}
+.rel-card.collapsed{padding-bottom:.7rem}
+.rel-card.collapsed .rel-main{gap:.3rem}
+.rel-collapsed-summary{font-family:var(--F2);font-size:.72rem;color:var(--muted);padding:.1rem 0 .15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.shop-faction-bar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-bottom:1.2rem;padding:.7rem .9rem;background:rgba(0,212,255,.04);border:1px solid var(--line);border-radius:8px}
+.shop-faction-bar label{font-family:var(--F2);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.shop-faction-select{font-family:var(--F2);font-size:.78rem;background:rgba(0,0,0,.3);border:1px solid var(--line);color:#fff;border-radius:6px;padding:.4rem .6rem;cursor:pointer}
+.shop-faction-note{font-family:var(--F3);font-size:.8rem;font-style:italic;color:var(--muted);flex:1;min-width:160px}
+.shop-cat-disc{font-family:var(--F2);font-size:.6rem;font-weight:700;color:#5ed492;background:rgba(94,212,146,.12);border:1px solid #5ed492;padding:.1rem .45rem;border-radius:4px;margin-left:.5rem}
+.shop-rarity{font-family:var(--F2);font-size:.52rem;letter-spacing:.08em;text-transform:uppercase;color:var(--rar);border:1px solid var(--rar);padding:.08rem .4rem;border-radius:4px;vertical-align:middle;margin-left:.4rem;opacity:.9}
+.shop-price-old{font-family:var(--F2);font-size:.66rem;color:var(--muted);text-decoration:line-through;margin-right:.4rem;font-weight:400}

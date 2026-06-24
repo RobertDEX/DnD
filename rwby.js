@@ -77,6 +77,82 @@ function profBonus(level) {
   return Math.ceil(l / 4) + 1; // Lv1-4→+2, 5-8→+3, 9-12→+4, 13-16→+5, 17-20→+6
 }
 
+const HUNTSMAN_RANKS = [
+  { id:'initiate', label:'Initiate',           color:'#8a96a2', minLevel:1,  minCommend:0,  desc:'Aura newly unlocked. Not yet enrolled.' },
+  { id:'student',  label:'Academy Student',    color:'#00d4ff', minLevel:3,  minCommend:2,  desc:'Training at a combat school. Provisional field work only.' },
+  { id:'licensed', label:'Licensed Huntsman',  color:'#5ad17a', minLevel:7,  minCommend:6,  desc:'Holds a Huntsman license. Cleared for paid missions.' },
+  { id:'veteran',  label:'Veteran Huntsman',   color:'#c2a23a', minLevel:12, minCommend:14, desc:'A seasoned protector with a proven record against the Grimm.' },
+  { id:'legend',   label:'Legendary Huntsman', color:'#c0000a', minLevel:17, minCommend:24, desc:'A name spoken across the kingdoms. The stuff of fairy tales.' }
+];
+function autoHuntsmanRank(c){
+  const lvl = Number(c.level)||1;
+  const cm = Array.isArray(c.commendations) ? c.commendations.length : 0;
+  let rank = HUNTSMAN_RANKS[0];
+  for(const r of HUNTSMAN_RANKS){ if(lvl>=r.minLevel && cm>=r.minCommend) rank=r; }
+  return rank;
+}
+function huntsmanRank(c){
+  if(c.rankOverride){
+    const o = HUNTSMAN_RANKS.find(r=>r.id===c.rankOverride);
+    if(o) return o;
+  }
+  return autoHuntsmanRank(c);
+}
+function nextRankProgress(c){
+  const cur = autoHuntsmanRank(c);
+  const idx = HUNTSMAN_RANKS.findIndex(r=>r.id===cur.id);
+  if(idx>=HUNTSMAN_RANKS.length-1) return null;
+  const next = HUNTSMAN_RANKS[idx+1];
+  const lvl = Number(c.level)||1;
+  const cm = Array.isArray(c.commendations)?c.commendations.length:0;
+  return { next, needLevel:Math.max(0,next.minLevel-lvl), needCommend:Math.max(0,next.minCommend-cm) };
+}
+function renderHuntsmanLicense(){
+  const c = getChar();
+  const host = el('huntsmanLicense'); if(!host) return;
+  const rank = huntsmanRank(c);
+  const prog = nextRankProgress(c);
+  const lvl = Number(c.level)||1;
+  const cm = Array.isArray(c.commendations)?c.commendations.length:0;
+  const overridden = !!c.rankOverride;
+  let progLine = '';
+  if(prog){
+    const bits=[];
+    if(prog.needLevel>0) bits.push(`${prog.needLevel} more level${prog.needLevel>1?'s':''}`);
+    if(prog.needCommend>0) bits.push(`${prog.needCommend} more commendation${prog.needCommend>1?'s':''}`);
+    progLine = bits.length ? `<div class="lic-next">To <strong>${esc(prog.next.label)}</strong>: ${bits.join(' · ')}</div>` : `<div class="lic-next ready">Eligible for promotion to <strong>${esc(prog.next.label)}</strong></div>`;
+  } else {
+    progLine = `<div class="lic-next">Highest rank attained.</div>`;
+  }
+  host.innerHTML = `
+    <div class="lic-card" style="--lic:${rank.color}">
+      <div class="lic-head">
+        <span class="lic-seal">⬢</span>
+        <div class="lic-headtext">
+          <div class="lic-org">VALE COUNCIL · HUNTSMAN REGISTRY</div>
+          <div class="lic-rank">${esc(rank.label)}${overridden?'<span class="lic-manual">manual</span>':''}</div>
+        </div>
+      </div>
+      <div class="lic-name">${esc(c.name||'Unregistered')}</div>
+      <div class="lic-desc">${esc(rank.desc)}</div>
+      <div class="lic-stats"><span>Lv ${lvl}</span><span>${cm} commendation${cm===1?'':'s'}</span></div>
+      ${progLine}
+      ${dmUnlocked?`<div class="lic-dm">
+        <label>DM override rank</label>
+        <select id="rankOverrideSelect" class="lic-select">
+          <option value="">Auto (by level + commendations)</option>
+          ${HUNTSMAN_RANKS.map(r=>`<option value="${r.id}" ${c.rankOverride===r.id?'selected':''}>${esc(r.label)}</option>`).join('')}
+        </select>
+      </div>`:''}
+    </div>`;
+  if(dmUnlocked){
+    el('rankOverrideSelect')?.addEventListener('change', e=>{
+      c.rankOverride = e.target.value || null;
+      pushState(true); renderHuntsmanLicense(); renderPortrait(c);
+    });
+  }
+}
+
 // Skill total = stat mod + (proficiency if proficient) + extra bonus
 function skillTotal(c, skillName) {
   const def  = SKILL_DEFS.find(s => s.name === skillName);
@@ -195,6 +271,7 @@ function blankChar(i) {
     portrait: '',
     accentColor: '',   // #21/#23 — per-character color
     profBonusOverride: null,
+    rankOverride: null,
     attackStat: 'STR', initiativeBonus: 0,
     state: i < 4 ? 'active' : 'reserve',
     money: 0,            // Lien — DM-controlled currency
@@ -225,6 +302,7 @@ const DEF_STATE = {
   weather:'none', sceneTime:'auto',
   sessionLog:[],
   shopFaction:'none',
+  cctOnline:true,
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -307,6 +385,147 @@ function renderPresence(players) {
 // Heartbeat every 20s (well within 35s window)
 setInterval(pushPresence, 20000);
 
+let _threatLevel = 0;
+let _threatUnsub = null;
+const THREAT_BANDS = [
+  { min:0,  max:19,  id:'calm',     label:'Calm',          color:'#5ad17a', desc:'Grimm activity is minimal. The region breathes easy.' },
+  { min:20, max:39,  id:'unsettled',label:'Unsettled',     color:'#c2a23a', desc:'Negativity is drawing them closer. Scouts report movement.' },
+  { min:40, max:59,  id:'active',   label:'Active',        color:'#e0802a', desc:'Grimm are hunting. Travel between settlements is dangerous.' },
+  { min:60, max:79,  id:'swarming', label:'Swarming',      color:'#c0000a', desc:'A horde is gathering. The kingdom raises its defenses.' },
+  { min:80, max:100, id:'incursion',label:'Incursion',     color:'#a020c0', desc:'Full breach. The Grimm are at the walls. This is a battle for survival.' }
+];
+function threatBand(v){
+  const n = Math.max(0, Math.min(100, Number(v)||0));
+  return THREAT_BANDS.find(b=>n>=b.min && n<=b.max) || THREAT_BANDS[0];
+}
+async function setThreatLevel(v){
+  if(!dmUnlocked) return;
+  const n = Math.max(0, Math.min(100, Math.round(Number(v)||0)));
+  _threatLevel = n;
+  try{ await setDoc(doc(db,'rwby-meta','threat'),{ level:n, ts:Date.now() }); }catch(e){}
+  renderThreatMeter();
+}
+function startThreatListener(){
+  if(_threatUnsub) _threatUnsub();
+  _threatUnsub = onSnapshot(doc(db,'rwby-meta','threat'), snap=>{
+    if(!snap.exists()) return;
+    const d = snap.data();
+    if(typeof d.level==='number'){
+      const prevBand = threatBand(_threatLevel).id;
+      _threatLevel = Math.max(0, Math.min(100, d.level));
+      renderThreatMeter();
+      applyThreatAtmosphere();
+      const newBand = threatBand(_threatLevel).id;
+      if(newBand!==prevBand && newBand==='incursion') flashIncursion();
+    }
+  }, ()=>{});
+}
+function applyThreatAtmosphere(){
+  const band = threatBand(_threatLevel);
+  document.body.classList.remove('threat-calm','threat-unsettled','threat-active','threat-swarming','threat-incursion');
+  document.body.classList.add('threat-'+band.id);
+}
+function flashIncursion(){
+  if(document.getElementById('incursionFlash')) return;
+  const f=document.createElement('div');
+  f.id='incursionFlash'; f.className='incursion-flash';
+  f.innerHTML=`<div class="incursion-inner"><div class="incursion-title">⚠ GRIMM INCURSION ⚠</div><div class="incursion-sub">The walls are breached. All Huntsmen to arms.</div></div>`;
+  document.body.appendChild(f);
+  setTimeout(()=>{ f.classList.add('out'); setTimeout(()=>f.remove(),600); }, 3500);
+}
+function renderThreatMeter(){
+  const host = el('threatMeter'); if(!host) return;
+  const band = threatBand(_threatLevel);
+  const v = _threatLevel;
+  host.innerHTML = `
+    <div class="threat-card" style="--threat:${band.color}">
+      <div class="threat-head">
+        <span class="threat-glyph">☢</span>
+        <div class="threat-headtext">
+          <div class="threat-org">GRIMM ACTIVITY · REGIONAL ALERT</div>
+          <div class="threat-band">${esc(band.label)} <span class="threat-num">${v}</span></div>
+        </div>
+      </div>
+      <div class="threat-bar"><div class="threat-fill" style="width:${v}%"></div>
+        ${[20,40,60,80].map(t=>`<span class="threat-tick" style="left:${t}%"></span>`).join('')}
+      </div>
+      <div class="threat-desc">${esc(band.desc)}</div>
+      ${dmUnlocked?`<div class="threat-dm">
+        <input id="threatSlider" type="range" min="0" max="100" value="${v}" class="threat-slider">
+        <div class="threat-dm-btns">
+          <button class="threat-adj" data-d="-10">−10</button>
+          <button class="threat-adj" data-d="-5">−5</button>
+          <button class="threat-adj" data-d="5">+5</button>
+          <button class="threat-adj" data-d="10">+10</button>
+        </div>
+      </div>`:''}
+    </div>`;
+  if(dmUnlocked){
+    el('threatSlider')?.addEventListener('input', e=>{ _threatLevel=Number(e.target.value); const b=threatBand(_threatLevel); host.querySelector('.threat-fill').style.width=_threatLevel+'%'; host.querySelector('.threat-num').textContent=_threatLevel; host.querySelector('.threat-card').style.setProperty('--threat',b.color); host.querySelector('.threat-band').childNodes[0].textContent=b.label+' '; host.querySelector('.threat-desc').textContent=b.desc; });
+    el('threatSlider')?.addEventListener('change', e=>setThreatLevel(Number(e.target.value)));
+    host.querySelectorAll('.threat-adj').forEach(b=>b.addEventListener('click',()=>setThreatLevel(_threatLevel+Number(b.dataset.d))));
+  }
+}
+
+let _scrollTab = 'team';
+function toggleScroll(){
+  const p = el('scrollPanel'); if(!p) return;
+  p.classList.toggle('open');
+  if(p.classList.contains('open')) renderScroll();
+}
+function setScrollTab(t){ _scrollTab = t; renderScroll(); }
+function renderScroll(){
+  const body = el('scrollBody'); if(!body) return;
+  const online = state.cctOnline !== false;
+  const statusEl = el('scrollStatus');
+  if(statusEl){
+    statusEl.className = 'scroll-status ' + (online?'online':'offline');
+    statusEl.textContent = online ? '● CCT ONLINE' : '✕ CCT OFFLINE';
+  }
+  document.querySelectorAll('.scroll-tab').forEach(b=>b.classList.toggle('active', b.dataset.stab===_scrollTab));
+
+  if(_scrollTab==='team'){
+    const team = state.characters.filter(c=>c.state==='active' && (c.name||'').trim());
+    if(!team.length){ body.innerHTML=`<div class="scroll-empty">No active Huntsmen registered.</div>`; return; }
+    body.innerHTML = `<div class="scroll-list">`+team.map(c=>{
+      const hpPct = c.hp.max>0 ? Math.round(c.hp.current/c.hp.max*100) : 0;
+      const auPct = c.aura.max>0 ? Math.round(c.aura.current/c.aura.max*100) : 0;
+      const hpColor = hpPct<=25?'#c0000a':hpPct<=50?'#e0802a':'#5ad17a';
+      const down = c.hp.max>0 && c.hp.current<=0;
+      const col = c.accentColor||'#00d4ff';
+      return `<div class="scroll-member${down?' down':''}">
+        <div class="scroll-member-top">
+          <span class="scroll-dot" style="background:${col}"></span>
+          <span class="scroll-member-name">${esc(c.name)}</span>
+          ${down?'<span class="scroll-down-tag">DOWN</span>':''}
+        </div>
+        <div class="scroll-vital"><span>Aura</span><div class="scroll-vbar"><div style="width:${auPct}%;background:#00d4ff"></div></div><span>${auPct}%</span></div>
+        <div class="scroll-vital"><span>HP</span><div class="scroll-vbar"><div style="width:${hpPct}%;background:${hpColor}"></div></div><span>${hpPct}%</span></div>
+      </div>`;
+    }).join('')+`</div>`;
+  } else if(_scrollTab==='contacts'){
+    if(!online){ body.innerHTML=`<div class="scroll-offline-msg">📡 The CCT is down. Contacts are unavailable until the network is restored.</div>`; return; }
+    const c = getChar();
+    const rels = Array.isArray(c.relationships)?c.relationships:[];
+    if(!rels.length){ body.innerHTML=`<div class="scroll-empty">No contacts saved.</div>`; return; }
+    body.innerHTML = `<div class="scroll-list">`+rels.map(r=>{
+      const color = (typeof RELATION_COLORS!=='undefined' && RELATION_COLORS[r.type])||'#8090a0';
+      const icon = (typeof RELATION_ICONS!=='undefined' && RELATION_ICONS[r.type])||'•';
+      return `<div class="scroll-contact" style="--cc:${color}">
+        <span class="scroll-contact-icon">${icon}</span>
+        <div class="scroll-contact-main">
+          <span class="scroll-contact-name">${esc(r.name||'Unknown')}</span>
+          <span class="scroll-contact-role">${esc(r.role||r.type||'')}</span>
+        </div>
+      </div>`;
+    }).join('')+`</div>`;
+  } else if(_scrollTab==='alerts'){
+    if(!online){ body.innerHTML=`<div class="scroll-offline-msg">📡 The CCT is down. No alerts can be received.</div>`; return; }
+    if(!_scrollLastAlert){ body.innerHTML=`<div class="scroll-empty">No active mission alerts.</div>`; return; }
+    body.innerHTML = `<div class="scroll-alert"><div class="scroll-alert-head">⚠ PRIORITY TRANSMISSION</div><div class="scroll-alert-body">${esc(_scrollLastAlert)}</div></div>`;
+  }
+}
+
 // ── BROADCAST (DM message to all) ──
 async function sendBroadcast(msg) {
   if (!msg.trim()) return;
@@ -318,6 +537,7 @@ async function clearBroadcast() {
 }
 let _broadcastUnsub = null;
 let _lastBroadcastTs = 0;
+let _scrollLastAlert = '';
 function startBroadcastListener() {
   if (_broadcastUnsub) _broadcastUnsub();
   _broadcastUnsub = onSnapshot(doc(db,'rwby-meta','broadcast'), snap => {
@@ -327,9 +547,12 @@ function startBroadcastListener() {
       _lastBroadcastTs = d.ts;
       if (d.cleared || !d.msg) {
         document.getElementById('broadcastBanner')?.remove();
+        _scrollLastAlert = '';
       } else {
+        _scrollLastAlert = d.msg;
         showBroadcast(d.msg);
       }
+      if(document.getElementById('scrollPanel')?.classList.contains('open')) renderScroll();
     }
   },()=>{});
 }
@@ -603,6 +826,7 @@ function startListener() {
       state.sceneTime = remote.sceneTime;
       state.sessionLog = remote.sessionLog;
       state.shopFaction = remote.shopFaction;
+      state.cctOnline = remote.cctOnline;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -665,6 +889,7 @@ function normalize(raw) {
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
   if(typeof m.shopFaction!=='string') m.shopFaction='none';
+  if(typeof m.cctOnline!=='boolean') m.cctOnline=true;
   // Ensure all theme values are hex strings
   Object.keys(DEF_THEME).forEach(k => {
     if (!m.theme[k] || typeof m.theme[k] !== 'string' || !m.theme[k].startsWith('#')) {
@@ -682,6 +907,7 @@ function normalize(raw) {
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
+    mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
     mc.inventory     = Array.isArray(c.inventory)   ? c.inventory   : [];
@@ -1345,10 +1571,10 @@ function renderTabs() {
       case 'skills':     renderSkillsMatrix(); break;
       case 'techniques': renderTechniques(); break;
       case 'dust':       renderDust(); break;
-      case 'status':     renderConditions(); break;
+      case 'status':     renderConditions(); renderThreatMeter(); break;
       case 'log':        renderSessionLog(); break;
       case 'semblance':  renderSemblance(); break;
-      case 'honors':     renderCommendations(); break;
+      case 'honors':     renderCommendations(); renderHuntsmanLicense(); break;
     }
   } catch(e) {}
 }
@@ -1664,6 +1890,7 @@ function populateRollSelects(){
   }
   document.querySelectorAll('.atmo-btn[data-weather]').forEach(b=>b.classList.toggle('active', b.dataset.weather===(state.weather||'none')));
   document.querySelectorAll('.atmo-btn[data-scene]').forEach(b=>b.classList.toggle('active', b.dataset.scene===(state.sceneTime||'auto')));
+  document.querySelectorAll('.atmo-btn[data-cct]').forEach(b=>b.classList.toggle('active', (b.dataset.cct==='on')===(state.cctOnline!==false)));
 }
 let _whisperUnsub=null, _whisperLoadTs=Date.now();
 async function sendWhisper(){
@@ -1713,6 +1940,7 @@ function render() {
   try { renderRelationships(); }   catch(e) {}
   try { renderCurses(); }          catch(e) {}
   try { renderCommendations(); }   catch(e) {}
+  try { renderHuntsmanLicense(); }  catch(e) {}
   try { renderDmCommendations(); } catch(e) {}
   try { populateRollSelects(); }   catch(e) {}
   try { applyWeather(); }          catch(e) {}
@@ -1731,6 +1959,7 @@ function render() {
   try { renderTechniques(); }      catch(e) { console.error('renderTechniques:', e); }
   try { renderDust(); }            catch(e) { console.error('renderDust:', e); }
   try { renderConditions(); }      catch(e) {}
+  try { renderThreatMeter(); }      catch(e) {}
   try { renderSessionLog(); }      catch(e) {}
   try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
   try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
@@ -3470,7 +3699,11 @@ el('groupRollBtn')?.addEventListener('click', startGroupRoll);
 el('whisperBtn')?.addEventListener('click', sendWhisper);
 document.querySelectorAll('.atmo-btn[data-weather]').forEach(b=> b.addEventListener('click', ()=>setWeather(b.dataset.weather)));
 document.querySelectorAll('.atmo-btn[data-scene]').forEach(b=> b.addEventListener('click', ()=>setSceneTime(b.dataset.scene)));
+document.querySelectorAll('.atmo-btn[data-cct]').forEach(b=> b.addEventListener('click', ()=>{ if(!dmUnlocked) return; state.cctOnline = b.dataset.cct==='on'; pushState(true); renderScroll(); showToast(state.cctOnline?'CCT network online':'CCT network down','info'); }));
 el('diceFab')?.addEventListener('click', toggleDicePanel);
+el('scrollFab')?.addEventListener('click', toggleScroll);
+el('scrollClose')?.addEventListener('click', toggleScroll);
+document.querySelectorAll('.scroll-tab').forEach(b=> b.addEventListener('click', ()=>setScrollTab(b.dataset.stab)));
 el('diceClose')?.addEventListener('click', toggleDicePanel);
 el('diceCustomRoll')?.addEventListener('click', rollCustom);
 el('diceCustomInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') rollCustom(); });
@@ -3557,6 +3790,7 @@ migrateIfNeeded();
 
 startPresenceListener();
 startBroadcastListener();
+startThreatListener();
 startCurseListener();
 pushPresence();
 

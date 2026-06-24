@@ -285,7 +285,9 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="status">
-        <div class="section-title">Active Conditions</div>
+        <div class="section-title">Grimm Threat Level</div>
+        <div id="threatMeter" class="threat-meter"></div>
+        <div class="section-title" style="margin-top:1.6rem">Active Conditions</div>
         <div id="conditionsActive" class="conditions-active"></div>
         <div class="section-title" style="margin-top:1.4rem">Apply / Remove</div>
         <div id="conditionsList" class="conditions-grid"></div>
@@ -373,7 +375,9 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="honors">
-        <div class="section-title">Commendations &amp; Honors</div>
+        <div class="section-title">Huntsman License</div>
+        <div id="huntsmanLicense" class="huntsman-license"></div>
+        <div class="section-title" style="margin-top:1.6rem">Commendations &amp; Honors</div>
         <div id="commendationsList" class="commendations-list"></div>
       </div>
 
@@ -411,6 +415,23 @@
   </div>
   <div class="dice-section-label">Results</div>
   <div id="diceResultArea" class="dice-result-area"></div>
+</div>
+
+<button id="scrollFab" class="scroll-fab" title="Scroll">📱</button>
+<div id="scrollPanel" class="scroll-panel">
+  <div class="scroll-device">
+    <div class="scroll-topbar">
+      <span class="scroll-brand">SCROLL</span>
+      <span id="scrollStatus" class="scroll-status online">● CCT ONLINE</span>
+      <button id="scrollClose" class="scroll-close">✕</button>
+    </div>
+    <div class="scroll-tabs">
+      <button class="scroll-tab active" data-stab="team">👥 Team</button>
+      <button class="scroll-tab" data-stab="contacts">📇 Contacts</button>
+      <button class="scroll-tab" data-stab="alerts">⚠ Alerts</button>
+    </div>
+    <div id="scrollBody" class="scroll-body"></div>
+  </div>
 </div>
 
 <!-- ═══ DM OVERLAY ═══ -->
@@ -644,6 +665,12 @@
                   <button class="atmo-btn" data-scene="dusk">Dusk</button>
                   <button class="atmo-btn" data-scene="night">Night</button>
                   <button class="atmo-btn" data-scene="bloodmoon">Blood Moon</button>
+                </div>
+              </div>
+              <div class="field" style="margin-top:.8rem"><label>CCT Network (Scroll connectivity)</label>
+                <div class="atmo-btn-row">
+                  <button class="atmo-btn" data-cct="on">📡 Online</button>
+                  <button class="atmo-btn" data-cct="off">✕ Offline</button>
                 </div>
               </div>
             </div>

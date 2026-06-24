@@ -249,6 +249,7 @@
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
+        <button class="tab-btn" data-tab="log">Log</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
         <button class="tab-btn" data-tab="honors">Honors</button>
       </div>
@@ -288,6 +289,17 @@
         <div id="conditionsActive" class="conditions-active"></div>
         <div class="section-title" style="margin-top:1.4rem">Apply / Remove</div>
         <div id="conditionsList" class="conditions-grid"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="log">
+        <div class="section-title">Campaign Journal</div>
+        <div id="sessionLogDmForm" class="slog-form" style="display:none">
+          <div class="field"><label>Session Title</label><input id="slogTitle" type="text" placeholder="e.g. The Fall of Mountain Glenn"></div>
+          <div class="field"><label>Debrief / Summary</label><textarea id="slogBody" class="small-textarea" placeholder="What happened this session…" style="min-height:120px"></textarea></div>
+          <div class="field"><label>Lien reward to whole party (optional)</label><input id="slogLien" type="number" min="0" placeholder="0"></div>
+          <button id="addSessionBtn" type="button" class="neo-btn" style="width:100%">+ Log This Session</button>
+        </div>
+        <div id="sessionLogList" class="slog-list"></div>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="loadout">
@@ -664,6 +676,7 @@
             <div class="dm-card-body">
               <div id="dmShopList" class="dm-shop-list"></div>
               <button id="addShopItemBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">+ Add Item to Shop</button>
+              <button id="restockShopBtn" type="button" class="neo-btn ghost" style="margin-top:.5rem;width:100%">⟳ Load Full Catalogue (73 items)</button>
             </div>
           </div>
         </div>
@@ -686,6 +699,7 @@
 </div>
 
 <script src="curses.js"></script>
+<script src="rwby_shop.js"></script>
 <script type="module" src="rwby.js"></script>
 </body>
 </html>

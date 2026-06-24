@@ -2879,3 +2879,38 @@ body.scene-night::before{content:'';position:fixed;inset:0;z-index:55;pointer-ev
 .dust-empty-tag{font-family:var(--F2);font-size:.5rem;letter-spacing:.1em;color:var(--muted);align-self:flex-start;border:1px solid var(--line);padding:.05rem .35rem;border-radius:3px}
 .dust-card-v2.low{border-color:var(--warn)}
 .dust-card-v2.empty{opacity:.65}
+
+.portrait-slot{position:relative;border-radius:10px;transition:box-shadow .4s ease,border-color .4s ease}
+.portrait-slot.frame-normal{box-shadow:0 0 0 1px var(--line)}
+.portrait-slot.frame-initiate{box-shadow:0 0 0 2px #00d4ff,0 0 16px -4px #00d4ff}
+.portrait-slot.frame-field{box-shadow:0 0 0 2px #5ad17a,0 0 16px -4px #5ad17a}
+.portrait-slot.frame-elite{box-shadow:0 0 0 2px #c2a23a,0 0 18px -4px #c2a23a}
+.portrait-slot.frame-legend{box-shadow:0 0 0 2px #c0000a,0 0 20px -4px #c0000a}
+.portrait-slot.frame-sacred{box-shadow:0 0 0 2px #ffe9a8,0 0 24px -2px #ffe9a8;animation:pf-sacred 3s ease-in-out infinite}
+@keyframes pf-sacred{0%,100%{box-shadow:0 0 0 2px #ffe9a8,0 0 20px -4px #ffe9a8}50%{box-shadow:0 0 0 2px #fff5d0,0 0 32px 0 #ffe9a8}}
+.portrait-slot.frame-cursed{box-shadow:0 0 0 2px #a020c0,0 0 22px -4px #a020c0;animation:pf-cursed 1.6s steps(2) infinite}
+@keyframes pf-cursed{0%,100%{box-shadow:0 0 0 2px #a020c0,0 0 18px -6px #a020c0}50%{box-shadow:0 0 0 2px #7010a0,0 0 28px -2px #c040e0}}
+.portrait-slot.frame-empowered{box-shadow:0 0 0 2px #00d4ff,0 0 26px 0 #00d4ff;animation:pf-empower 1.4s ease-in-out infinite}
+@keyframes pf-empower{0%,100%{box-shadow:0 0 0 2px #00d4ff,0 0 18px -2px #00d4ff}50%{box-shadow:0 0 0 3px #6fe6ff,0 0 36px 4px #00d4ff}}
+.portrait-slot.frame-critical{box-shadow:0 0 0 2px #c0000a,0 0 22px -2px #c0000a;animation:pf-crit 1s ease-in-out infinite}
+@keyframes pf-crit{0%,100%{box-shadow:0 0 0 2px #c0000a,0 0 14px -4px #c0000a}50%{box-shadow:0 0 0 2px #ff2030,0 0 30px 2px #c0000a}}
+.portrait-slot.frame-aura-broken{box-shadow:0 0 0 2px #6a6a8a,0 0 16px -4px #8a8aaa}
+.portrait-slot.frame-aura-broken::after{content:'';position:absolute;inset:0;border-radius:10px;pointer-events:none;background:linear-gradient(135deg,transparent 46%,rgba(180,190,210,.5) 47%,rgba(180,190,210,.5) 48%,transparent 49%),linear-gradient(60deg,transparent 62%,rgba(180,190,210,.4) 63%,transparent 64%)}
+.portrait-slot.frame-dead{box-shadow:0 0 0 2px #3a3a3a,0 0 14px -6px #000;filter:grayscale(.85) contrast(.95)}
+.portrait-slot.frame-dead::after{content:'';position:absolute;inset:0;border-radius:10px;pointer-events:none;background:linear-gradient(115deg,transparent 40%,rgba(20,20,20,.7) 41%,transparent 42%),linear-gradient(160deg,transparent 55%,rgba(20,20,20,.6) 56%,transparent 57%),linear-gradient(75deg,transparent 68%,rgba(20,20,20,.5) 69%,transparent 70%)}
+@media (prefers-reduced-motion: reduce){
+  .portrait-slot.frame-sacred,.portrait-slot.frame-cursed,.portrait-slot.frame-empowered,.portrait-slot.frame-critical{animation:none}
+}
+
+.slog-form{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:10px;padding:1rem;margin-bottom:1.4rem}
+.slog-list{display:flex;flex-direction:column;gap:.8rem}
+.slog-empty{font-family:var(--F2);font-size:.8rem;color:var(--muted);font-style:italic;padding:1rem 0}
+.slog-entry{background:rgba(255,255,255,.02);border:1px solid var(--line);border-left:3px solid var(--aura);border-radius:8px;padding:.9rem 1.1rem}
+.slog-entry-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.slog-num{font-family:var(--F2);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--aura);background:rgba(0,212,255,.1);padding:.2rem .5rem;border-radius:4px}
+.slog-title{font-family:var(--F1);font-size:1rem;font-weight:700;color:#fff}
+.slog-award{font-family:var(--F2);font-size:.66rem;color:#5ed492;border:1px solid #5ed492;padding:.15rem .5rem;border-radius:4px}
+.slog-del{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);width:24px;height:24px;border-radius:5px;cursor:pointer}
+.slog-del:hover{border-color:var(--accent);color:var(--accent)}
+.slog-date{font-family:var(--F2);font-size:.62rem;color:var(--muted);margin-top:.3rem}
+.slog-body{font-family:var(--F3);font-size:.92rem;line-height:1.6;color:var(--text);margin-top:.6rem}

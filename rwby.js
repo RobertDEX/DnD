@@ -223,6 +223,7 @@ const DEF_STATE = {
   theme:{...DEF_THEME},
   shop:[],
   weather:'none', sceneTime:'auto',
+  sessionLog:[],
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -595,8 +596,12 @@ function startListener() {
       state.theme = remote.theme;
       state.weather = remote.weather;
       state.sceneTime = remote.sceneTime;
+      state.sessionLog = remote.sessionLog;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
+      if ((!Array.isArray(state.shop) || !state.shop.length)) {
+        if (seedShopIfEmpty() && dmUnlocked) pushState(true);
+      }
       setSyncDot('synced');
 
       if (isTyping) {
@@ -652,6 +657,7 @@ function normalize(raw) {
   m.theme = {...DEF_THEME, ...(raw?.theme || {})};
   if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
+  if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
   // Ensure all theme values are hex strings
   Object.keys(DEF_THEME).forEach(k => {
     if (!m.theme[k] || typeof m.theme[k] !== 'string' || !m.theme[k].startsWith('#')) {
@@ -1333,6 +1339,7 @@ function renderTabs() {
       case 'techniques': renderTechniques(); break;
       case 'dust':       renderDust(); break;
       case 'status':     renderConditions(); break;
+      case 'log':        renderSessionLog(); break;
       case 'semblance':  renderSemblance(); break;
       case 'honors':     renderCommendations(); break;
     }
@@ -1717,6 +1724,8 @@ function render() {
   try { renderTechniques(); }      catch(e) { console.error('renderTechniques:', e); }
   try { renderDust(); }            catch(e) { console.error('renderDust:', e); }
   try { renderConditions(); }      catch(e) {}
+  try { renderSessionLog(); }      catch(e) {}
+  try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
   try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
   try { renderDmTechniques(); }    catch(e) { console.error('renderDmTechniques:', e); }
   try { renderDmTargetSelect(); }  catch(e) { console.error('renderDmTargetSelect:', e); }
@@ -2024,6 +2033,31 @@ function initPortrait() {
     reader.readAsDataURL(file);
   });
 }
+function portraitFrameState(c){
+  if(!c) return 'frame-normal';
+  const dead = (c.hp && c.hp.max>0 && c.hp.current<=0) || c.dead;
+  if(dead) return 'frame-dead';
+  const hpPct = c.hp && c.hp.max>0 ? c.hp.current/c.hp.max : 1;
+  const auraBroken = c.aura && c.aura.max>0 && c.aura.current<=0;
+  const conds = Array.isArray(c.conditions)?c.conditions:[];
+  if(conds.some(x=>x.id==='empowered')) return 'frame-empowered';
+  if(hpPct<=0.25) return 'frame-critical';
+  if(auraBroken) return 'frame-aura-broken';
+  const tier = highestCommendTier(c);
+  if(tier) return 'frame-'+tier;
+  return 'frame-normal';
+}
+function highestCommendTier(c){
+  if(!Array.isArray(c.commendations)||!c.commendations.length) return null;
+  if(typeof COMMENDATIONS==='undefined'||typeof COMMEND_TIERS==='undefined') return null;
+  const order = Object.keys(COMMEND_TIERS);
+  let best=-1;
+  c.commendations.forEach(id=>{
+    const def = COMMENDATIONS.find(x=>x.id===id);
+    if(def){ const idx=order.indexOf(def.tier); if(idx>best) best=idx; }
+  });
+  return best>=0 ? order[best] : null;
+}
 function renderPortrait(c) {
   const img   = document.getElementById('portraitImg');
   const label = document.getElementById('portraitLabel');
@@ -2031,13 +2065,17 @@ function renderPortrait(c) {
   if (c.portrait) {
     img.src = c.portrait; img.onerror = () => { img.style.display='none'; if(label)label.style.display='flex'; };
     img.style.display = 'block';
-    label.style.display = 'none';   // hide the "Photo" placeholder
+    label.style.display = 'none';
   } else {
     img.src = '';
     img.style.display = 'none';
-    label.style.display = 'flex';   // show the "Photo" placeholder
+    label.style.display = 'flex';
   }
-  // Edit overlay is always in the DOM — CSS handles hover visibility
+  const slot = img.closest('.portrait-slot');
+  if(slot){
+    slot.className = slot.className.replace(/\bframe-[\w-]+/g,'').trim();
+    slot.classList.add('portrait-slot', portraitFrameState(c));
+  }
 }
 
 // ── DEATH SAVES ──
@@ -2530,6 +2568,61 @@ function scheduleInvPush() { clearTimeout(_invPushTimer); _invPushTimer = setTim
 // SHOP / CURRENCY  (RWBY uses Lien — DM-controlled)
 // ================================================================
 const CURRENCY = { name:'Lien', symbol:'₥', short:'Lien' };
+function seedShopIfEmpty(force){
+  const cat = window.RWBY_DEFAULT_SHOP;
+  if (!Array.isArray(cat) || !cat.length) return false;
+  if (!force && Array.isArray(state.shop) && state.shop.length) return false;
+  state.shop = cat.map(x => ({ name:x.name, desc:x.desc||'', price:Number(x.price)||0, category:x.category||'General', stock:null }));
+  return true;
+}
+function renderSessionLog(){
+  const host = el('sessionLogList'); if(!host) return;
+  const log = Array.isArray(state.sessionLog)?state.sessionLog:[];
+  if(!log.length){ host.innerHTML=`<div class="slog-empty">No session entries yet.${dmUnlocked?' Add the first debrief from the form above.':''}</div>`; return; }
+  host.innerHTML = log.slice().reverse().map(entry=>{
+    const awards = entry.lien ? `<span class="slog-award">+${fmtMoney(entry.lien)} ${CURRENCY.short}</span>` : '';
+    const del = dmUnlocked ? `<button class="slog-del" data-id="${entry.id}" title="Delete">✕</button>` : '';
+    return `<div class="slog-entry">
+      <div class="slog-entry-head">
+        <span class="slog-num">Session ${entry.num||'?'}</span>
+        <span class="slog-title">${esc(entry.title||'Untitled')}</span>
+        ${awards}${del}
+      </div>
+      ${entry.date?`<div class="slog-date">${esc(entry.date)}</div>`:''}
+      <div class="slog-body">${esc(entry.body||'').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  }).join('');
+  if(dmUnlocked){
+    host.querySelectorAll('.slog-del').forEach(b=>b.addEventListener('click',()=>{
+      if(!confirm('Delete this session entry?')) return;
+      state.sessionLog = state.sessionLog.filter(e=>e.id!==b.dataset.id);
+      pushState(true); renderSessionLog();
+    }));
+  }
+}
+function addSessionEntry(){
+  if(!dmUnlocked) return;
+  const title=el('slogTitle')?.value.trim();
+  const body=el('slogBody')?.value.trim();
+  const lien=Math.max(0,Number(el('slogLien')?.value)||0);
+  if(!title && !body){ showToast('Add a title or summary first','warn'); return; }
+  if(!Array.isArray(state.sessionLog)) state.sessionLog=[];
+  const num=state.sessionLog.length+1;
+  state.sessionLog.push({
+    id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    num, title:title||('Session '+num), body:body||'',
+    date:new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}),
+    lien
+  });
+  if(lien>0){
+    state.characters.forEach(c=>{ if(c.name && c.name.trim()) c.money=(Number(c.money)||0)+lien; });
+  }
+  if(el('slogTitle')) el('slogTitle').value='';
+  if(el('slogBody')) el('slogBody').value='';
+  if(el('slogLien')) el('slogLien').value='';
+  pushState(true); renderSessionLog(); renderHeader();
+  showToast(lien>0?`Session logged · +${fmtMoney(lien)} Lien to the party`:'Session logged','success');
+}
 const SHOP_CATEGORIES_RWBY = ['Weapons','Dust','Gear','Consumables','Tech','Upgrades','Rare','General'];
 function fmtMoney(n){ return (Number(n)||0).toLocaleString('en-US'); }
 
@@ -2666,6 +2759,13 @@ function bindInventory() {
   el('addInvBtn')?.addEventListener('click', add);
   el('invAddName')?.addEventListener('keydown', e => { if (e.key==='Enter') add(); });
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
+  el('restockShopBtn')?.addEventListener('click', ()=>{
+    if(!dmUnlocked) return;
+    const has = Array.isArray(state.shop) && state.shop.length;
+    if(has && !confirm('Replace the current shop with the full default catalogue (73 items)? Existing custom items will be removed.')) return;
+    if(seedShopIfEmpty(true)){ pushState(true); renderShop(); renderDmShop(); showToast('Shop catalogue loaded','success'); }
+  });
+  el('addSessionBtn')?.addEventListener('click', addSessionEntry);
 }
 
 // ================================================================

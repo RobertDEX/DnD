@@ -286,6 +286,7 @@ function blankChar(i) {
     relationships: [],   // #21 — [{name, type, notes}]
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     commendations: [],   // earned commendation ids (DM-granted)
+    feats: [],           // custom DM-created feats [{id, name, desc, ts}]
     dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -907,6 +908,7 @@ function normalize(raw) {
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
+    mc.feats         = Array.isArray(c.feats)? c.feats : [];
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
@@ -1570,7 +1572,7 @@ const TAB_DEFS = [
   { id:'notes',      label:'Notes' },
   { id:'log',        label:'Log' },
   { id:'curses',     label:'Curses' },
-  { id:'honors',     label:'Honors' }
+  { id:'honors',     label:'Feats' }
 ];
 function hiddenTabs(){
   try { return new Set(JSON.parse(localStorage.getItem('rwby-hidden-tabs')||'[]')); }
@@ -3441,18 +3443,39 @@ function renderCommendations() {
   const c = getChar();
   const host = el('commendationsList'); if(!host) return;
   if(!Array.isArray(c.commendations)) c.commendations = [];
-  if(!c.commendations.length){
-    host.innerHTML = `<div class="commend-empty">No commendations earned yet. Distinction is granted by the Headmaster.</div>`;
-    return;
+  if(!Array.isArray(c.feats)) c.feats = [];
+
+  let html = '';
+  if(c.feats.length){
+    html += `<div class="feats-section-label">Awarded Feats</div><div class="feats-list">`;
+    html += c.feats.map(f=>`
+      <div class="feat-badge" title="${esc(f.desc||'')}">
+        <span class="feat-icon">${esc(f.icon||'❖')}</span>
+        <div class="feat-info">
+          <span class="feat-name">${esc(f.name||'Feat')}</span>
+          ${f.desc?`<span class="feat-desc">${esc(f.desc)}</span>`:''}
+        </div>
+      </div>`).join('');
+    html += `</div>`;
   }
-  host.innerHTML = c.commendations.map(id=>{
-    const m = COMMENDATION_BY_ID[id]; if(!m) return '';
-    const t = COMMEND_TIERS[m.tier]||COMMEND_TIERS.initiate;
-    return `<div class="commend-badge tier-${m.tier}" title="${esc(m.desc)}" style="--ct:${t.color}">
-      <span class="commend-icon">${m.icon}</span>
-      <span class="commend-info"><span class="commend-name">${esc(m.name)}</span><span class="commend-tier">${t.label}</span></span>
-    </div>`;
-  }).join('');
+
+  if(c.commendations.length){
+    html += `<div class="feats-section-label" style="margin-top:1.2rem">Commendations</div><div class="commendations-grid">`;
+    html += c.commendations.map(id=>{
+      const m = COMMENDATION_BY_ID[id]; if(!m) return '';
+      const t = COMMEND_TIERS[m.tier]||COMMEND_TIERS.initiate;
+      return `<div class="commend-badge tier-${m.tier}" title="${esc(m.desc)}" style="--ct:${t.color}">
+        <span class="commend-icon">${m.icon}</span>
+        <span class="commend-info"><span class="commend-name">${esc(m.name)}</span><span class="commend-tier">${t.label}</span></span>
+      </div>`;
+    }).join('');
+    html += `</div>`;
+  }
+
+  if(!html){
+    html = `<div class="commend-empty">No feats or commendations earned yet. They are granted by the Headmaster.</div>`;
+  }
+  host.innerHTML = html;
 }
 
 function renderDmCommendations() {
@@ -3462,6 +3485,7 @@ function renderDmCommendations() {
     const cur = sel.value;
     sel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Slot ${i+1}`)}</option>`).join('');
     if(cur && cur < state.characters.length) sel.value = cur;
+    sel.onchange = ()=>renderDmCustomFeats();
   }
   // group by tier
   let html = '';
@@ -3479,6 +3503,52 @@ function renderDmCommendations() {
   });
   host.innerHTML = html;
   host.querySelectorAll('.dm-commend-card').forEach(b=> b.addEventListener('click', ()=> grantCommendation(b.dataset.id)));
+  renderDmCustomFeats();
+}
+
+function renderDmCustomFeats(){
+  const host = el('dmFeatGranted'); if(!host) return;
+  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const c = state.characters[idx];
+  if(!c){ host.innerHTML = ''; return; }
+  if(!Array.isArray(c.feats)) c.feats = [];
+  if(!c.feats.length){
+    host.innerHTML = `<div class="dm-feat-empty">No custom feats awarded to ${esc(c.name||'this character')} yet.</div>`;
+    return;
+  }
+  host.innerHTML = c.feats.map(f=>`
+    <div class="dm-feat-row">
+      <span class="dm-feat-icon">${esc(f.icon||'❖')}</span>
+      <div class="dm-feat-text"><span class="dm-feat-name">${esc(f.name||'Feat')}</span>${f.desc?`<span class="dm-feat-desc">${esc(f.desc)}</span>`:''}</div>
+      <button class="dm-feat-del" data-fid="${esc(f.id)}" title="Revoke">✕</button>
+    </div>`).join('');
+  host.querySelectorAll('.dm-feat-del').forEach(b=> b.addEventListener('click', ()=> revokeFeat(idx, b.dataset.fid)));
+}
+
+function createCustomFeat(){
+  if(!dmUnlocked) return;
+  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const c = state.characters[idx]; if(!c) return;
+  const name = el('featNameInput')?.value.trim();
+  const desc = el('featDescInput')?.value.trim();
+  const icon = el('featIconInput')?.value.trim() || '❖';
+  if(!name){ showToast('Give the feat a name first', 'warn'); return; }
+  if(!Array.isArray(c.feats)) c.feats = [];
+  c.feats.push({ id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, desc, icon, ts:Date.now() });
+  if(el('featNameInput')) el('featNameInput').value = '';
+  if(el('featDescInput')) el('featDescInput').value = '';
+  if(el('featIconInput')) el('featIconInput').value = '';
+  pushState(true); render();
+  showToast(`❖ ${c.name||'Character'} earned the feat "${name}"`, 'success', 4000);
+}
+
+function revokeFeat(idx, fid){
+  if(!dmUnlocked) return;
+  const c = state.characters[idx]; if(!c || !Array.isArray(c.feats)) return;
+  const f = c.feats.find(x=>x.id===fid);
+  c.feats = c.feats.filter(x=>x.id!==fid);
+  pushState(true); render();
+  showToast(`Revoked "${f?f.name:'feat'}" from ${c.name||'character'}`, 'warn');
 }
 
 function grantCommendation(id){
@@ -3764,6 +3834,7 @@ startGroupRollListener();
 startWhisperListener();
 el('groupRollBtn')?.addEventListener('click', startGroupRoll);
 el('whisperBtn')?.addEventListener('click', sendWhisper);
+el('createFeatBtn')?.addEventListener('click', createCustomFeat);
 document.querySelectorAll('.atmo-btn[data-weather]').forEach(b=> b.addEventListener('click', ()=>setWeather(b.dataset.weather)));
 document.querySelectorAll('.atmo-btn[data-scene]').forEach(b=> b.addEventListener('click', ()=>setSceneTime(b.dataset.scene)));
 document.querySelectorAll('.atmo-btn[data-cct]').forEach(b=> b.addEventListener('click', ()=>{ if(!dmUnlocked) return; state.cctOnline = b.dataset.cct==='on'; pushState(true); renderScroll(); showToast(state.cctOnline?'CCT network online':'CCT network down','info'); }));

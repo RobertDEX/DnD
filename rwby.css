@@ -3035,3 +3035,21 @@ body.threat-incursion::before{content:'';position:fixed;inset:0;z-index:54;point
 .tab-menu-check{width:14px;flex-shrink:0;color:var(--aura);font-size:.7rem;text-align:center}
 .tab-menu-label{flex:1}
 .tab-menu-lock{font-family:var(--F2);font-size:.5rem;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+
+.feats-section-label{font-family:var(--F2);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
+.feats-list{display:flex;flex-direction:column;gap:.6rem}
+.feat-badge{display:flex;align-items:flex-start;gap:.8rem;background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(255,255,255,.02));border:1px solid var(--line);border-left:3px solid var(--aura);border-radius:9px;padding:.7rem .9rem;transition:border-color .2s,box-shadow .2s}
+.feat-badge:hover{border-left-color:var(--aura);box-shadow:0 0 18px -8px var(--aura)}
+.feat-icon{font-size:1.4rem;line-height:1;flex-shrink:0;filter:drop-shadow(0 0 6px var(--aura))}
+.feat-info{display:flex;flex-direction:column;gap:.2rem}
+.feat-name{font-family:var(--F1);font-size:.95rem;font-weight:700;color:#fff}
+.feat-desc{font-family:var(--F3);font-size:.84rem;font-style:italic;color:var(--text);line-height:1.45}
+.dm-feat-granted{display:flex;flex-direction:column;gap:.4rem;margin-top:.8rem}
+.dm-feat-empty{font-family:var(--F2);font-size:.72rem;color:var(--muted);font-style:italic;padding:.4rem 0}
+.dm-feat-row{display:flex;align-items:flex-start;gap:.6rem;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:7px;padding:.5rem .7rem}
+.dm-feat-icon{font-size:1.1rem;flex-shrink:0}
+.dm-feat-text{flex:1;display:flex;flex-direction:column;gap:.15rem}
+.dm-feat-name{font-family:var(--F2);font-size:.8rem;font-weight:700;color:#fff}
+.dm-feat-desc{font-family:var(--F3);font-size:.76rem;font-style:italic;color:var(--muted);line-height:1.4}
+.dm-feat-del{background:none;border:1px solid var(--line);color:var(--muted);width:24px;height:24px;border-radius:5px;cursor:pointer;flex-shrink:0}
+.dm-feat-del:hover{border-color:var(--accent);color:var(--accent)}

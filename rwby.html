@@ -251,7 +251,7 @@
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn" data-tab="log">Log</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
-        <button class="tab-btn" data-tab="honors">Honors</button>
+        <button class="tab-btn" data-tab="honors">Feats</button>
         <div class="tab-menu-wrap">
           <button id="tabMenuBtn" class="tab-customize-btn" title="Choose which tabs to show">⚙</button>
           <div id="tabMenu" class="tab-menu">
@@ -384,7 +384,7 @@
       <div class="tab-content panel tab-panel" data-tab="honors">
         <div class="section-title">Huntsman License</div>
         <div id="huntsmanLicense" class="huntsman-license"></div>
-        <div class="section-title" style="margin-top:1.6rem">Commendations &amp; Honors</div>
+        <div class="section-title" style="margin-top:1.6rem">Feats &amp; Commendations</div>
         <div id="commendationsList" class="commendations-list"></div>
       </div>
 
@@ -723,12 +723,28 @@
         </div>
 
         <div class="dm-tab" data-dm-tab="commend">
-          <div class="dm-tab-title">Commendations &amp; Honors</div>
-          <p class="dm-hint">Award distinctions to your Hunters. Click a commendation to grant it to the selected character — click again to revoke. Earned honors appear on the player's Honors tab.</p>
+          <div class="dm-tab-title">Feats &amp; Commendations</div>
+          <p class="dm-hint">Award distinctions to your Hunters. Earned feats appear on the player's Feats tab.</p>
           <label class="dm-field" style="max-width:300px">
             <span>Recipient</span>
             <select id="commendTarget"></select>
           </label>
+
+          <div class="dm-card" style="margin-top:1rem">
+            <div class="dm-card-title">❖ Create a Custom Feat</div>
+            <div class="dm-card-body">
+              <div style="display:grid;grid-template-columns:60px 1fr;gap:.6rem">
+                <label class="dm-field"><span>Icon</span><input id="featIconInput" type="text" maxlength="2" placeholder="❖"></label>
+                <label class="dm-field"><span>Feat name</span><input id="featNameInput" type="text" placeholder="e.g. Slayer of the Nuckelavee"></label>
+              </div>
+              <label class="dm-field" style="margin-top:.6rem"><span>Description</span><textarea id="featDescInput" class="small-textarea" placeholder="What did they do to earn this?" style="min-height:70px"></textarea></label>
+              <button id="createFeatBtn" type="button" class="neo-btn" style="margin-top:.7rem;width:100%">❖ Award Feat to Recipient</button>
+            </div>
+          </div>
+          <div id="dmFeatGranted" class="dm-feat-granted"></div>
+
+          <div class="dm-card-title" style="margin-top:1.4rem">Preset Commendations</div>
+          <p class="dm-hint">Click a commendation to grant it — click again to revoke. These count toward Huntsman rank.</p>
           <div id="dmCommendList" class="dm-commend-list"></div>
         </div>
 

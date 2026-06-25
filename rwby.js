@@ -1558,7 +1558,69 @@ function renderCurseTargetSelect() {
   ).join('');
 }
 
+const TAB_DEFS = [
+  { id:'skills',     label:'Skills',     locked:true },
+  { id:'semblance',  label:'Semblance' },
+  { id:'techniques', label:'Techniques' },
+  { id:'dust',       label:'Dust' },
+  { id:'status',     label:'Status' },
+  { id:'loadout',    label:'Loadout' },
+  { id:'shop',       label:'Shop' },
+  { id:'relations',  label:'Relations' },
+  { id:'notes',      label:'Notes' },
+  { id:'log',        label:'Log' },
+  { id:'curses',     label:'Curses' },
+  { id:'honors',     label:'Honors' }
+];
+function hiddenTabs(){
+  try { return new Set(JSON.parse(localStorage.getItem('rwby-hidden-tabs')||'[]')); }
+  catch(e){ return new Set(); }
+}
+function setHiddenTabs(set){
+  localStorage.setItem('rwby-hidden-tabs', JSON.stringify([...set]));
+}
+function applyTabVisibility(){
+  const hidden = hiddenTabs();
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>{
+    const def = TAB_DEFS.find(t=>t.id===b.dataset.tab);
+    const hide = def && !def.locked && hidden.has(b.dataset.tab);
+    b.style.display = hide ? 'none' : '';
+  });
+  if (hidden.has(state.activeTab)) {
+    const firstVisible = TAB_DEFS.find(t=>t.locked || !hidden.has(t.id));
+    if (firstVisible) { state.activeTab = firstVisible.id; }
+  }
+}
+function renderTabMenu(){
+  const list = el('tabMenuList'); if(!list) return;
+  const hidden = hiddenTabs();
+  list.innerHTML = TAB_DEFS.map(t=>{
+    const on = t.locked || !hidden.has(t.id);
+    return `<button class="tab-menu-item${on?' on':''}${t.locked?' locked':''}" data-tabid="${t.id}" ${t.locked?'disabled':''}>
+      <span class="tab-menu-check">${on?'✓':''}</span>
+      <span class="tab-menu-label">${esc(t.label)}</span>
+      ${t.locked?'<span class="tab-menu-lock">always on</span>':''}
+    </button>`;
+  }).join('');
+  list.querySelectorAll('.tab-menu-item:not(.locked)').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id=b.dataset.tabid;
+      const h=hiddenTabs();
+      if(h.has(id)) h.delete(id); else h.add(id);
+      setHiddenTabs(h);
+      renderTabMenu(); applyTabVisibility(); renderTabs();
+    });
+  });
+}
+function toggleTabMenu(){
+  const m=el('tabMenu'); if(!m) return;
+  const opening = !m.classList.contains('open');
+  m.classList.toggle('open');
+  if(opening) renderTabMenu();
+}
+
 function renderTabs() {
+  applyTabVisibility();
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab===state.activeTab));
   document.querySelectorAll('.tab-content[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===state.activeTab));
   // Re-render the now-active tab's content so it's never stale (fixes click-twice)
@@ -2156,6 +2218,11 @@ function bindAll() {
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.addEventListener('click',()=>{
     state.activeTab=b.dataset.tab; pushState(); renderTabs();
   }));
+  el('tabMenuBtn')?.addEventListener('click', (e)=>{ e.stopPropagation(); toggleTabMenu(); });
+  document.addEventListener('click', (e)=>{
+    const m=el('tabMenu');
+    if(m && m.classList.contains('open') && !e.target.closest('.tab-menu-wrap')) m.classList.remove('open');
+  });
   el('statsGrid')?.addEventListener('click', e => {
     const btn=e.target.closest('button[data-action]'); if(!btn) return;
     const c=getChar(); c.stats[btn.dataset.stat]=(Number(c.stats[btn.dataset.stat])||0)+(btn.dataset.action==='plus'?1:-1);

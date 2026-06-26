@@ -2965,8 +2965,9 @@ body.scene-night::before{content:'';position:fixed;inset:0;z-index:55;pointer-ev
 .threat-dm-btns{display:flex;gap:.4rem;margin-top:.6rem}
 .threat-adj{flex:1;font-family:var(--F2);font-size:.7rem;padding:.4rem;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--text);border-radius:5px;cursor:pointer}
 .threat-adj:hover{border-color:var(--threat);color:var(--threat)}
-body.threat-swarming .app{filter:saturate(1.08) contrast(1.02)}
-body.threat-incursion .app{filter:saturate(1.15) contrast(1.05) brightness(.96)}
+body.threat-swarming::after,body.threat-incursion::after{content:'';position:fixed;inset:0;z-index:53;pointer-events:none;mix-blend-mode:overlay}
+body.threat-swarming::after{background:radial-gradient(circle at 50% 110%,rgba(192,40,40,.10),transparent 60%)}
+body.threat-incursion::after{background:radial-gradient(circle at 50% 110%,rgba(192,40,40,.16),transparent 65%)}
 body.threat-incursion::before{content:'';position:fixed;inset:0;z-index:54;pointer-events:none;background:radial-gradient(circle at 50% 120%,rgba(160,32,192,.14),transparent 55%);animation:threat-pulse 4s ease-in-out infinite}
 @keyframes threat-pulse{0%,100%{opacity:.6}50%{opacity:1}}
 .incursion-flash{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;background:rgba(20,2,12,.82);backdrop-filter:blur(3px);animation:inc-fade .5s ease}

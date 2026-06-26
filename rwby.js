@@ -235,10 +235,21 @@ window.previewDamage = () => {
   prev.textContent = msg;
   prev.className = 'damage-preview hit';
 };
+function evalMathInput(raw){
+  const s = String(raw||'').trim();
+  if(!s) return null;
+  if(/^-?\d+(\.\d+)?$/.test(s)) return Math.round(Number(s));
+  if(!/^[\d+\-*/().\s]+$/.test(s)) return null;
+  try {
+    const v = Function('"use strict";return ('+s+')')();
+    if(typeof v==='number' && isFinite(v)) return Math.round(v);
+  } catch(e){}
+  return null;
+}
 window.applyDamage = () => {
   const inp = document.getElementById('damageTaken');
-  const dmg = parseInt(inp?.value);
-  if (!dmg || dmg <= 0) { alert('Enter a damage amount.'); return; }
+  const dmg = evalMathInput(inp?.value);
+  if (!dmg || dmg <= 0) { alert('Enter a damage amount (you can use math like 12+8).'); return; }
   const c = getChar();
   const tmp = Number(c.tempHp) || 0;
   const absorbed = Math.min(tmp, dmg);
@@ -1205,7 +1216,8 @@ function renderHeader() {
 // ================================================================
 function renderMainFields() {
   const c = getChar();
-  const sv = (id,v) => { const e=el(id); if(e) e.value=v??''; };
+  const ae = document.activeElement;
+  const sv = (id,v) => { const e=el(id); if(e && e!==ae) e.value=v??''; };
   sv('charName',c.name);sv('charLevel',c.level);sv('charRace',c.race);sv('charClass',c.className);
   sv('charAge',c.age);sv('charBackground',c.background);sv('charSemblanceName',c.semblanceName);
   sv('charWeaponName',c.weaponName||'');
@@ -1215,7 +1227,6 @@ function renderMainFields() {
   sv('abilitiesText',c.abilitiesText);sv('notesText',c.notesText);
   try { renderWeapons(); }   catch(e) {}
   try { renderInventory(); } catch(e) {}
-  try { renderShop(); }      catch(e) {}
   const moneyDisp = el('moneyDisplay'); if (moneyDisp) moneyDisp.textContent = `${fmtMoney(c.money)} ${CURRENCY.short}`;
   const hd=el('hpDisplay');   if(hd) hd.textContent = `${c.hp.current} / ${c.hp.max}`;
   const ad=el('auraDisplay'); if(ad) ad.textContent = `${c.aura.current} / ${c.aura.max}`;
@@ -2001,11 +2012,7 @@ function render() {
   try { renderMainFields(); }      catch(e) { console.error('renderMainFields:', e); }
   try { renderPortrait(c); }       catch(e) {}
   try { renderDeathSaves(c); }     catch(e) {}
-  try { renderRelationships(); }   catch(e) {}
-  try { renderCurses(); }          catch(e) {}
-  try { renderCommendations(); }   catch(e) {}
-  try { renderHuntsmanLicense(); }  catch(e) {}
-  try { renderDmCommendations(); } catch(e) {}
+  try { renderHuntsmanLicense(); } catch(e) {}
   try { populateRollSelects(); }   catch(e) {}
   try { applyWeather(); }          catch(e) {}
   try { applyTimeSkin(); }         catch(e) {}
@@ -2013,26 +2020,22 @@ function render() {
   try { renderAccentColor(); }     catch(e) {}
   try { applyCharacterAccents(); } catch(e) {}
   try { checkResourceFlash(c); }   catch(e) {}
-  try { applyHeartbeat(); }         catch(e) {}
-  try { updateAmbient(); }          catch(e) {}
+  try { applyHeartbeat(); }        catch(e) {}
+  try { updateAmbient(); }         catch(e) {}
   try { checkLowHp(c); }           catch(e) {}
   try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
   try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
-  try { renderSkillsMatrix(); }    catch(e) { console.error('renderSkillsMatrix:', e); }
-  try { renderSemblance(); }       catch(e) { console.error('renderSemblance:', e); }
-  try { renderTechniques(); }      catch(e) { console.error('renderTechniques:', e); }
-  try { renderDust(); }            catch(e) { console.error('renderDust:', e); }
-  try { renderConditions(); }      catch(e) {}
-  try { renderThreatMeter(); }      catch(e) {}
-  try { renderSessionLog(); }      catch(e) {}
   try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
-  try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
-  try { renderDmTechniques(); }    catch(e) { console.error('renderDmTechniques:', e); }
-  try { renderDmTargetSelect(); }  catch(e) { console.error('renderDmTargetSelect:', e); }
-  try { renderGrantTargetSelect(); }catch(e) {}
-  try { renderDmShop(); }          catch(e) {}
-  try { renderDmMoney(); }         catch(e) {}
-  try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
+  if (dmUnlocked) {
+    try { renderDmCommendations(); } catch(e) {}
+    try { renderDmSemblance(); }     catch(e) { console.error('renderDmSemblance:', e); }
+    try { renderDmTechniques(); }    catch(e) { console.error('renderDmTechniques:', e); }
+    try { renderDmTargetSelect(); }  catch(e) { console.error('renderDmTargetSelect:', e); }
+    try { renderGrantTargetSelect(); }catch(e) {}
+    try { renderDmShop(); }          catch(e) {}
+    try { renderDmMoney(); }         catch(e) {}
+    try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
+  }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
   try { pushPresence(); }          catch(e) {}
   try { if (spectator) disableAllInputs(); } catch(e) {}
@@ -3372,7 +3375,63 @@ let _auraBreakChar = null; // id of the char whose break we last showed (avoid r
 // ================================================================
 const COMMENDATIONS = [
   // ── INITIATE ──
-  { id:'aura_unlocked',   icon:'✶', name:'Aura Unlocked',        tier:'initiate', desc:'Awakened your Aura for the first time.' }];
+  { id:'aura_unlocked',   icon:'✶', name:'Aura Unlocked',        tier:'initiate', desc:'Awakened your Aura for the first time.' },
+  { id:'semblance_awoken',icon:'❂', name:'Semblance Awakened',   tier:'initiate', desc:'Manifested your Semblance under pressure.' },
+  { id:'first_hunt',      icon:'⚔', name:'First Hunt',           tier:'initiate', desc:'Completed your first official mission.' },
+  { id:'initiation',      icon:'⛰', name:'Survived Initiation',  tier:'initiate', desc:'Made it through the Emerald Forest initiation.' },
+  { id:'team_formed',     icon:'❖', name:'Team Assembled',       tier:'initiate', desc:'Formed or joined a Huntsman team.' },
+  { id:'first_blood',     icon:'⚐', name:'First Blood',          tier:'initiate', desc:'Scored your team\u2019s first kill in a real fight.' },
+  { id:'weapon_forged',   icon:'⚒', name:'Forged in Steel',      tier:'initiate', desc:'Crafted or customized your signature weapon.' },
+  { id:'combat_school',   icon:'✎', name:'Combat School Grad',   tier:'initiate', desc:'Graduated from a combat school (Signal, Sanctum, etc.).' },
+  // ── FIELD ──
+  { id:'grimm_slayer',    icon:'☠', name:'Grimm Slayer',         tier:'field',    desc:'Slew 25 creatures of Grimm.' },
+  { id:'nevermore',       icon:'⩜', name:'Nevermore Down',       tier:'field',    desc:'Brought down a Giant Nevermore.' },
+  { id:'deathstalker',    icon:'⦂', name:'Deathstalker Bane',    tier:'field',    desc:'Defeated a Deathstalker in close combat.' },
+  { id:'aura_break',      icon:'✷', name:'Through the Break',    tier:'field',    desc:'Kept fighting after your Aura shattered.' },
+  { id:'flawless_op',     icon:'✦', name:'Flawless Operation',   tier:'field',    desc:'Completed a mission without taking damage.' },
+  { id:'protector',       icon:'⛨', name:'Protector',            tier:'field',    desc:'Took a fatal blow meant for a teammate.' },
+  { id:'dust_master',     icon:'❉', name:'Dust Maven',           tier:'field',    desc:'Mastered combat application of every Dust type.' },
+  { id:'semblance_master',icon:'❃', name:'Semblance Mastery',    tier:'field',    desc:'Fully evolved your Semblance to its ascended form.' },
+  { id:'beast_master',    icon:'❦', name:'Beast Whisperer',      tier:'field',    desc:'Tamed or bonded with a dangerous creature.' },
+  { id:'pack_hunter',     icon:'⛓', name:'Pack Hunter',          tier:'field',    desc:'Cleared an entire pack of Beowolves solo.' },
+  { id:'night_op',        icon:'☾', name:'Night Operative',      tier:'field',    desc:'Completed a covert mission undetected.' },
+  { id:'medic',           icon:'✚', name:'Field Medic',          tier:'field',    desc:'Saved a teammate from the brink of death.' },
+  { id:'dust_smith',      icon:'✤', name:'Dust Artificer',       tier:'field',    desc:'Engineered a new Dust application or hybrid round.' },
+  // ── ELITE ──
+  { id:'team_leader',     icon:'♛', name:'Team Leader',          tier:'elite',    desc:'Led your team to victory as appointed leader.' },
+  { id:'tournament',      icon:'⚑', name:'Vytal Champion',       tier:'elite',    desc:'Won a match in the Vytal Festival Tournament.' },
+  { id:'breach_hero',     icon:'⊛', name:'Breach Hero',          tier:'elite',    desc:'Held the line during a Grimm breach of the city.' },
+  { id:'huntsman',        icon:'★', name:'Licensed Huntsman',    tier:'elite',    desc:'Earned a full Huntsman/Huntress license.' },
+  { id:'s_class',         icon:'✪', name:'Apex Hunter',          tier:'elite',    desc:'Recognized among the most elite Hunters of your generation.' },
+  { id:'goliath',         icon:'⬢', name:'Goliath Felled',       tier:'elite',    desc:'Took down an ancient Goliath \u2014 a feat few survive.' },
+  { id:'kingdom_shield',  icon:'⛉', name:'Shield of the Kingdom',tier:'elite',    desc:'Defended a Kingdom from catastrophe.' },
+  { id:'maiden_touched',  icon:'❈', name:'Maiden\u2019s Favor',  tier:'elite',    desc:'Blessed with a fragment of a Maiden\u2019s power.' },
+  { id:'silver_eyes',     icon:'◉', name:'Silver-Eyed Warrior',  tier:'elite',    desc:'Unleashed the legendary power of the silver eyes.' },
+  // ── LEGEND ──
+  { id:'last_stand',      icon:'☩', name:'Last Stand',           tier:'legend',   desc:'Sole survivor of a catastrophic operation.' },
+  { id:'sacrifice',       icon:'✝', name:'Ultimate Sacrifice',   tier:'legend',   desc:'Gave everything to protect others. (Posthumous)' },
+  { id:'wizard_saint',    icon:'☸', name:'Living Legend',        tier:'legend',   desc:'Your name is spoken across all four Kingdoms.' },
+  { id:'godslayer',       icon:'☄', name:'Godslayer',            tier:'legend',   desc:'Struck down something that should not have been killable.' },
+  { id:'relic_bearer',    icon:'❖', name:'Relic Bearer',         tier:'legend',   desc:'Entrusted with one of the four Relics of Remnant.' },
+  // ── SACRED (radiant / divine) ──
+  { id:'angels_herald',   icon:'✧', name:'Angel’s Herald',   tier:'sacred',   desc:'Chosen as the voice and blade of a higher power.' },
+  { id:'seraphs_blessing',icon:'✺', name:'Seraph\u2019s Blessing',tier:'sacred',  desc:'Touched by radiant grace; wounds mend, light follows.' },
+  { id:'holy_judgment',   icon:'✟', name:'Holy Judgment',        tier:'sacred',   desc:'Smote the wicked with sanctified power.' },
+  { id:'guardian_angel',  icon:'⛧', name:'Guardian Angel',       tier:'sacred',   desc:'Shielded the innocent against impossible odds.' },
+  { id:'ascendant',       icon:'⟁', name:'Ascendant',            tier:'sacred',   desc:'Transcended mortal limits, if only for a moment.' },
+  { id:'martyr',          icon:'☦', name:'Hallowed Martyr',      tier:'sacred',   desc:'Died for a cause greater than yourself, and were remembered.' },
+  { id:'divine_aegis',    icon:'❂', name:'Divine Aegis',         tier:'sacred',   desc:'Became an unbreakable bulwark of light.' },
+  // ── CURSED (infernal / forbidden) ──
+  { id:'devils_deal',     icon:'⛧', name:'Devil\u2019s Deal',     tier:'cursed',  desc:'Bargained with something infernal \u2014 and paid the price.' },
+  { id:'demons_apostle',  icon:'⛥', name:'Demon\u2019s Apostle',  tier:'cursed',  desc:'Pledged yourself to a dark master and bear its mark.' },
+  { id:'soul_eater',      icon:'☄', name:'Soul Eater',           tier:'cursed',   desc:'Consumed the essence of the fallen to grow stronger.' },
+  { id:'hellforged',      icon:'⚿', name:'Hellforged',           tier:'cursed',   desc:'Wield a weapon tempered in cursed fire.' },
+  { id:'blood_pact',      icon:'⛤', name:'Blood Pact',           tier:'cursed',   desc:'Sealed an oath in blood that cannot be broken.' },
+  { id:'forbidden_power', icon:'☣', name:'Forbidden Power',      tier:'cursed',   desc:'Tapped a power no one was ever meant to wield.' },
+  { id:'fallen',          icon:'⩩', name:'The Fallen',           tier:'cursed',   desc:'Turned from the light and embraced the dark.' },
+  { id:'harbinger',       icon:'☠', name:'Harbinger of Ruin',    tier:'cursed',   desc:'Where you walk, devastation follows.' },
+  { id:'damned',          icon:'⛧', name:'Damned Soul',          tier:'cursed',   desc:'Beyond salvation \u2014 and unstoppable because of it.' }
+];
 const COMMENDATION_BY_ID = Object.fromEntries(COMMENDATIONS.map(c=>[c.id,c]));
 const COMMEND_TIERS = {
   initiate:{label:'Initiate', color:'#00d4ff'},

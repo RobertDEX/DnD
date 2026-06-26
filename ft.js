@@ -302,6 +302,10 @@ function startListener(){
       });
       while(state.characters.length<remote.characters.length)
         state.characters.push(remote.characters[state.characters.length]);
+      if(state.characters.length>remote.characters.length)
+        state.characters.length=remote.characters.length;
+      if(state.selectedCharacter>=state.characters.length)
+        state.selectedCharacter=Math.max(0,state.characters.length-1);
       state.theme=remote.theme;
       state.shop=remote.shop;
       setSyncDot('synced');

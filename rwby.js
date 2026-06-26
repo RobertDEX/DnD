@@ -84,9 +84,14 @@ const HUNTSMAN_RANKS = [
   { id:'veteran',  label:'Veteran Huntsman',   color:'#c2a23a', minLevel:12, minCommend:14, desc:'A seasoned protector with a proven record against the Grimm.' },
   { id:'legend',   label:'Legendary Huntsman', color:'#c0000a', minLevel:17, minCommend:24, desc:'A name spoken across the kingdoms. The stuff of fairy tales.' }
 ];
+function distinctionCount(c){
+  const feats = Array.isArray(c.feats) ? c.feats.length : 0;
+  const commend = Array.isArray(c.commendations) ? c.commendations.length : 0;
+  return feats + commend;
+}
 function autoHuntsmanRank(c){
   const lvl = Number(c.level)||1;
-  const cm = Array.isArray(c.commendations) ? c.commendations.length : 0;
+  const cm = distinctionCount(c);
   let rank = HUNTSMAN_RANKS[0];
   for(const r of HUNTSMAN_RANKS){ if(lvl>=r.minLevel && cm>=r.minCommend) rank=r; }
   return rank;
@@ -104,7 +109,7 @@ function nextRankProgress(c){
   if(idx>=HUNTSMAN_RANKS.length-1) return null;
   const next = HUNTSMAN_RANKS[idx+1];
   const lvl = Number(c.level)||1;
-  const cm = Array.isArray(c.commendations)?c.commendations.length:0;
+  const cm = distinctionCount(c);
   return { next, needLevel:Math.max(0,next.minLevel-lvl), needCommend:Math.max(0,next.minCommend-cm) };
 }
 function renderHuntsmanLicense(){
@@ -113,13 +118,13 @@ function renderHuntsmanLicense(){
   const rank = huntsmanRank(c);
   const prog = nextRankProgress(c);
   const lvl = Number(c.level)||1;
-  const cm = Array.isArray(c.commendations)?c.commendations.length:0;
+  const cm = distinctionCount(c);
   const overridden = !!c.rankOverride;
   let progLine = '';
   if(prog){
     const bits=[];
     if(prog.needLevel>0) bits.push(`${prog.needLevel} more level${prog.needLevel>1?'s':''}`);
-    if(prog.needCommend>0) bits.push(`${prog.needCommend} more commendation${prog.needCommend>1?'s':''}`);
+    if(prog.needCommend>0) bits.push(`${prog.needCommend} more feat${prog.needCommend>1?'s':''}`);
     progLine = bits.length ? `<div class="lic-next">To <strong>${esc(prog.next.label)}</strong>: ${bits.join(' · ')}</div>` : `<div class="lic-next ready">Eligible for promotion to <strong>${esc(prog.next.label)}</strong></div>`;
   } else {
     progLine = `<div class="lic-next">Highest rank attained.</div>`;
@@ -135,12 +140,12 @@ function renderHuntsmanLicense(){
       </div>
       <div class="lic-name">${esc(c.name||'Unregistered')}</div>
       <div class="lic-desc">${esc(rank.desc)}</div>
-      <div class="lic-stats"><span>Lv ${lvl}</span><span>${cm} commendation${cm===1?'':'s'}</span></div>
+      <div class="lic-stats"><span>Lv ${lvl}</span><span>${cm} feat${cm===1?'':'s'}</span></div>
       ${progLine}
       ${dmUnlocked?`<div class="lic-dm">
         <label>DM override rank</label>
         <select id="rankOverrideSelect" class="lic-select">
-          <option value="">Auto (by level + commendations)</option>
+          <option value="">Auto (by level + feats)</option>
           ${HUNTSMAN_RANKS.map(r=>`<option value="${r.id}" ${c.rankOverride===r.id?'selected':''}>${esc(r.label)}</option>`).join('')}
         </select>
       </div>`:''}
@@ -3463,7 +3468,7 @@ function renderCommendations() {
   }
 
   if(c.commendations.length){
-    html += `<div class="feats-section-label" style="margin-top:1.2rem">Commendations</div><div class="commendations-grid">`;
+    html += `<div class="feats-section-label" style="margin-top:1.2rem">Legacy Commendations</div><div class="commendations-grid">`;
     html += c.commendations.map(id=>{
       const m = COMMENDATION_BY_ID[id]; if(!m) return '';
       const t = COMMEND_TIERS[m.tier]||COMMEND_TIERS.initiate;
@@ -3476,13 +3481,12 @@ function renderCommendations() {
   }
 
   if(!html){
-    html = `<div class="commend-empty">No feats or commendations earned yet. They are granted by the Headmaster.</div>`;
+    html = `<div class="commend-empty">No feats earned yet. They are granted by the Headmaster.</div>`;
   }
   host.innerHTML = html;
 }
 
 function renderDmCommendations() {
-  const host = el('dmCommendList'); if(!host) return;
   const sel = el('commendTarget');
   if(sel){
     const cur = sel.value;
@@ -3490,22 +3494,6 @@ function renderDmCommendations() {
     if(cur && cur < state.characters.length) sel.value = cur;
     sel.onchange = ()=>renderDmCustomFeats();
   }
-  // group by tier
-  let html = '';
-  Object.keys(COMMEND_TIERS).forEach(tierKey=>{
-    const t = COMMEND_TIERS[tierKey];
-    const items = COMMENDATIONS.filter(m=>m.tier===tierKey);
-    html += `<div class="dm-commend-tier-label" style="--ct:${t.color}">${t.label}</div><div class="dm-commend-row">`;
-    html += items.map(m=>`
-      <button class="dm-commend-card" data-id="${m.id}" title="${esc(m.desc)}" style="--ct:${t.color}">
-        <span class="dm-commend-icon">${m.icon}</span>
-        <span class="dm-commend-name">${esc(m.name)}</span>
-        <span class="dm-commend-desc">${esc(m.desc)}</span>
-      </button>`).join('');
-    html += `</div>`;
-  });
-  host.innerHTML = html;
-  host.querySelectorAll('.dm-commend-card').forEach(b=> b.addEventListener('click', ()=> grantCommendation(b.dataset.id)));
   renderDmCustomFeats();
 }
 

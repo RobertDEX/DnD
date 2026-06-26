@@ -657,7 +657,8 @@ function renderHeader(){
 // ================================================================
 function renderMainFields(){
   const c=getChar();
-  const sv=(id,v)=>{const e=el(id);if(e)e.value=v??'';};
+  const ae=document.activeElement;
+  const sv=(id,v)=>{const e=el(id);if(e && e!==ae)e.value=v??'';};
   sv('charName',c.name);sv('charLevel',c.level);sv('charRace',c.race);sv('charClass',c.className);
   sv('charAge',c.age);sv('charBackground',c.background);sv('charMagicType',c.magicType);
   const mc=el('charMagicCategory');if(mc)mc.value=c.magicCategory||'';

@@ -101,10 +101,13 @@ body::before{
 .empty-glyph{font-size:3rem;opacity:.4;margin-bottom:1rem;color:var(--gold-hi)}
 .empty span{display:block;font-family:var(--F4);font-style:italic;font-size:.85rem;margin-top:.5rem;text-transform:none;letter-spacing:0;opacity:.7}
 
-.rec{border-radius:10px;overflow:hidden;background:linear-gradient(135deg,rgba(232,160,48,.05),rgba(0,0,0,.28));border:1px solid rgba(232,160,48,.18);transition:border-color .2s;animation:recIn .35s ease backwards}
+.rec{position:relative;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,rgba(232,160,48,.05),rgba(0,0,0,.28));border:1px solid rgba(232,160,48,.18);transition:border-color .2s,transform .2s,box-shadow .2s;animation:recIn .35s ease backwards}
+.rec::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--gold),transparent);opacity:0;transition:opacity .2s}
 .rec.beast{background:linear-gradient(135deg,rgba(208,80,26,.06),rgba(0,0,0,.28));border-color:rgba(208,80,26,.2)}
+.rec.beast::before{background:linear-gradient(180deg,#ff9a6a,transparent)}
 @keyframes recIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.rec:hover{border-color:rgba(232,160,48,.4)}
+.rec:hover{border-color:rgba(232,160,48,.4);box-shadow:0 8px 24px -16px rgba(232,160,48,.5)}
+.rec:hover::before,.rec.open::before{opacity:1}
 .rec.beast:hover{border-color:rgba(208,80,26,.45)}
 /* header (always visible, click to collapse) */
 .rec-head{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;cursor:pointer;user-select:none}
@@ -129,6 +132,8 @@ body::before{
 .rec-btn{font-family:var(--F3);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .65rem;border-radius:6px;cursor:pointer;transition:all .15s}
 .rec-edit{background:rgba(232,160,48,.1);border:1px solid rgba(232,160,48,.3);color:var(--gold-hi)}
 .rec-edit:hover{background:rgba(232,160,48,.2)}
+.rec-move{background:rgba(90,216,255,.08);border:1px solid rgba(90,216,255,.28);color:var(--cyan)}
+.rec-move:hover{background:rgba(90,216,255,.18);color:#fff}
 .rec-del{background:rgba(255,40,60,.08);border:1px solid rgba(255,40,60,.25);color:#ff7080}
 .rec-del:hover{background:rgba(255,40,60,.2);color:#fff}
 
@@ -148,6 +153,111 @@ body::before{
   .beast-stats{grid-template-columns:repeat(2,1fr)}
   .mode-tab{font-size:.66rem;padding:.7rem}
 }
+/* ═══ FILE EXPLORER — Archive Magic holo-index ═══ */
+.explorer{display:grid;grid-template-columns:312px 1fr;gap:1.2rem;align-items:start}
+@media(max-width:860px){.explorer{grid-template-columns:1fr}}
+
+/* — Sidebar shell: a magic terminal panel — */
+.ex-side{position:sticky;top:1rem;display:flex;flex-direction:column;gap:.7rem;max-height:calc(100vh - 2rem);
+  background:linear-gradient(180deg,rgba(18,12,5,.92),rgba(8,5,2,.94));
+  border:1px solid var(--line);border-radius:16px;padding:.85rem .8rem;backdrop-filter:blur(14px);
+  box-shadow:0 18px 50px -22px #000, inset 0 1px 0 rgba(255,255,255,.04), inset 0 0 60px -40px var(--gold);
+  position:sticky;overflow:hidden}
+.ex-side::before{content:'';position:absolute;inset:0;pointer-events:none;border-radius:16px;
+  background:linear-gradient(115deg,transparent 40%,rgba(90,216,255,.05) 50%,transparent 60%);
+  background-size:300% 100%;animation:holoSweep 9s ease-in-out infinite}
+@keyframes holoSweep{0%,100%{background-position:120% 0}50%{background-position:-20% 0}}
+.ex-side-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.15rem .25rem .55rem;border-bottom:1px solid var(--line);position:relative}
+.ex-side-head::after{content:'';position:absolute;left:0;bottom:-1px;width:40%;height:1px;background:linear-gradient(90deg,var(--gold),transparent)}
+.ex-side-title{font-family:var(--F1);font-size:.6rem;font-weight:800;letter-spacing:.22em;color:var(--gold-hi);text-shadow:0 0 12px rgba(232,160,48,.4)}
+.ex-side-actions{display:flex;gap:.4rem}
+.ex-icon-btn{position:relative;width:32px;height:29px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,rgba(232,160,48,.12),rgba(232,160,48,.04));border:1px solid rgba(232,160,48,.3);color:var(--gold-hi);
+  transition:transform .14s,box-shadow .14s,border-color .14s}
+.ex-icon-btn:hover{transform:translateY(-1px);border-color:var(--gold-hi);box-shadow:0 4px 14px -6px rgba(232,160,48,.6),inset 0 0 12px -6px var(--gold-hi)}
+.ex-icon-btn:active{transform:translateY(0)}
+.ex-plus{position:absolute;top:0;right:1px;font-size:.52rem;color:#fff;font-weight:900;text-shadow:0 0 4px var(--gold)}
+
+.ex-search{width:100%;font-family:var(--F3);font-size:.76rem;letter-spacing:.02em;color:var(--text);
+  background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:9px;padding:.55rem .7rem;transition:border-color .15s,box-shadow .15s}
+.ex-search::placeholder{color:var(--muted)}
+.ex-search:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(90,216,255,.14),0 0 18px -8px var(--cyan)}
+.ex-side-tools{display:flex;gap:.45rem}
+.ex-filter{flex:1;font-family:var(--F3);font-size:.64rem;letter-spacing:.04em;color:var(--muted);background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:8px;padding:.42rem .55rem;cursor:pointer}
+.ex-filter:focus{outline:none;border-color:var(--gold)}
+.ex-collapse{width:34px;border-radius:8px;background:rgba(0,0,0,.45);border:1px solid var(--line);color:var(--muted);cursor:pointer;font-size:.8rem;transition:all .15s}
+.ex-collapse:hover{border-color:var(--gold);color:var(--gold-hi)}
+
+/* — The tree: holographic rune-index with indent guides — */
+.ex-tree{flex:1;overflow-y:auto;overflow-x:hidden;padding:.35rem .15rem;display:flex;flex-direction:column;gap:1px;min-height:140px;--ind:.92rem;--pad:.5rem}
+.ex-tree::-webkit-scrollbar{width:8px}
+.ex-tree::-webkit-scrollbar-track{background:transparent}
+.ex-tree::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(232,160,48,.3),rgba(232,160,48,.12));border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+.tn{position:relative;display:flex;align-items:center;gap:.42rem;height:30px;padding-right:.4rem;padding-left:calc(var(--pad) + var(--d,0) * var(--ind));
+  border-radius:7px;cursor:pointer;font-family:var(--F2);font-size:.84rem;color:var(--text);white-space:nowrap;
+  transition:background .13s,color .13s,box-shadow .13s}
+/* indent guide lines — one hairline per ancestor depth */
+.tn::before{content:'';position:absolute;left:var(--pad);top:0;bottom:0;width:calc(var(--d,0) * var(--ind));pointer-events:none;
+  background-image:repeating-linear-gradient(90deg,rgba(232,160,48,.16) 0,rgba(232,160,48,.16) 1px,transparent 1px,transparent var(--ind));
+  background-position:calc(var(--ind) * .5) 0}
+.tn:hover{background:linear-gradient(90deg,rgba(232,160,48,.12),rgba(232,160,48,.03))}
+.tn:hover::before{background-image:repeating-linear-gradient(90deg,rgba(232,160,48,.3) 0,rgba(232,160,48,.3) 1px,transparent 1px,transparent var(--ind))}
+.tn-twist{width:14px;flex-shrink:0;font-size:.62rem;color:var(--muted);text-align:center;transition:transform .16s,color .16s;cursor:pointer}
+.tn-twist.open{transform:rotate(90deg);color:var(--gold-hi)}
+.tn-twist.closed{color:var(--gold)}
+.tn-twist.leaf{opacity:.25;cursor:default}
+.tn-ico{flex-shrink:0;font-size:.84rem;color:var(--gold);filter:drop-shadow(0 0 4px rgba(232,160,48,.35))}
+.tn-ico.file{color:var(--muted);font-size:.78rem;filter:none}
+.tn-label{overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+.tn-root{height:34px;margin-bottom:.2rem;font-family:var(--F1);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-hi);font-weight:700}
+.tn-root .tn-ico{filter:drop-shadow(0 0 8px rgba(232,160,48,.6))}
+.tn-root .tn-twist{color:var(--gold)}
+/* active node: cyan holo-spine + glow */
+.tn-folder.active,.tn-root.active{background:linear-gradient(90deg,rgba(90,216,255,.18),rgba(90,216,255,.02) 70%);color:#fff;
+  box-shadow:inset 3px 0 0 var(--cyan),0 0 22px -11px var(--cyan)}
+.tn-folder.active::before{opacity:.4}
+.tn-folder.active .tn-ico{color:var(--cyan);filter:drop-shadow(0 0 6px var(--cyan))}
+.tn-folder.active .tn-twist{color:var(--cyan)}
+.tn-file:hover .tn-label{color:var(--gold-hi)}
+.tn-file:hover .tn-ico{color:var(--gold)}
+
+.ex-side-foot{display:flex;align-items:center;gap:.5rem;padding:.55rem .25rem .1rem;border-top:1px solid var(--line);
+  font-family:var(--F3);font-size:.54rem;letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+
+/* — Main panel — */
+.ex-main{min-width:0}
+.ex-breadcrumb{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-bottom:1.1rem;padding:.65rem .9rem;
+  background:linear-gradient(180deg,rgba(20,12,4,.6),rgba(8,5,2,.4));border:1px solid var(--line);border-radius:11px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.crumb{font-family:var(--F2);font-size:.84rem;font-weight:600;background:none;border:none;color:var(--gold-hi);cursor:pointer;padding:.22rem .4rem;border-radius:6px;transition:background .14s,color .14s}
+.crumb:hover{background:rgba(90,216,255,.1);color:#fff}
+.crumb:last-of-type{color:#fff}
+.crumb-sep{color:var(--muted);font-size:.7rem;opacity:.7}
+.crumb-actions{margin-left:auto;display:flex;gap:.45rem}
+.crumb-act{font-family:var(--F3);font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;background:rgba(232,160,48,.06);border:1px solid var(--line);color:var(--muted);padding:.32rem .6rem;border-radius:7px;cursor:pointer;transition:all .15s}
+.crumb-act:hover{border-color:var(--gold);color:var(--gold-hi);background:rgba(232,160,48,.12)}
+
+/* — Folder cards: holo data-tiles — */
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.7rem;margin-bottom:1.1rem}
+.folder-card{position:relative;display:flex;align-items:center;gap:.7rem;padding:.85rem .9rem;cursor:pointer;overflow:hidden;
+  background:linear-gradient(135deg,rgba(232,160,48,.08),rgba(0,0,0,.22));border:1px solid var(--line);border-radius:12px;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%);
+  transition:transform .15s,border-color .15s,box-shadow .15s}
+.folder-card::after{content:'';position:absolute;top:0;right:0;width:12px;height:12px;background:linear-gradient(135deg,var(--gold),transparent);opacity:.5;transition:opacity .15s}
+.folder-card:hover{transform:translateY(-3px);border-color:rgba(232,160,48,.55);box-shadow:0 12px 28px -14px rgba(232,160,48,.6),inset 0 0 30px -22px var(--gold-hi)}
+.folder-card:hover::after{opacity:1}
+.folder-card-icon{font-size:1.6rem;color:var(--gold);filter:drop-shadow(0 0 9px rgba(232,160,48,.5));flex-shrink:0;transition:transform .15s}
+.folder-card:hover .folder-card-icon{transform:scale(1.06)}
+.folder-card-main{display:flex;flex-direction:column;min-width:0;flex:1;gap:.15rem}
+.folder-card-name{font-family:var(--F2);font-weight:700;font-size:.95rem;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.01em}
+.folder-card-count{font-family:var(--F3);font-size:.55rem;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;opacity:.75}
+.folder-card-menu{position:absolute;top:.45rem;right:.5rem;width:23px;height:23px;border-radius:6px;background:rgba(0,0,0,.45);border:1px solid transparent;color:var(--muted);cursor:pointer;font-size:.85rem;line-height:1;opacity:0;transition:opacity .15s,color .15s,border-color .15s;z-index:2}
+.folder-card:hover .folder-card-menu{opacity:1}
+.folder-card-menu:hover{border-color:var(--gold);color:var(--gold-hi)}
+
+.rec-loc{font-family:var(--F3);font-size:.55rem;color:var(--cyan);letter-spacing:.06em;margin-left:.4rem;opacity:.75}
+.folder-empty .empty-glyph{color:rgba(232,160,48,.4)}
+
 </style>
 </head>
 <body>
@@ -170,7 +280,7 @@ body::before{
   <div class="char-picker">
     <label>Archive of</label>
     <select id="charSelect"></select>
-    <div class="char-status"><span class="dot"></span><span id="recCount">0 RECORDS</span></div>
+    <div class="char-status"><span class="dot"></span><span id="charStatusLabel">ONLINE</span></div>
   </div>
 
   <div class="mode-tabs">
@@ -178,14 +288,32 @@ body::before{
     <div class="mode-tab bestiary" data-mode="bestiary"><span class="mt-icon">⬣</span>Bestiary</div>
   </div>
 
-  <div class="toolbar">
-    <input id="search" class="search" type="text" placeholder="⌕ Search…">
-    <select id="filter" class="filter"></select>
-    <button id="collapseAll" class="collapse-all">⊟ Collapse All</button>
-  </div>
+  <div class="explorer">
+    <aside class="ex-side">
+      <div class="ex-side-head">
+        <span class="ex-side-title" id="treeTitle">VAULT</span>
+        <div class="ex-side-actions">
+          <button id="newFolderBtn" class="ex-icon-btn" title="New folder">▤<span class="ex-plus">+</span></button>
+          <button id="newFileBtn" class="ex-icon-btn" title="New record">▢<span class="ex-plus">+</span></button>
+        </div>
+      </div>
+      <div class="ex-search-wrap">
+        <input id="search" class="ex-search" type="text" placeholder="⌕ Search vault…">
+      </div>
+      <div class="ex-side-tools">
+        <select id="filter" class="ex-filter"></select>
+        <button id="collapseAll" class="ex-collapse" title="Collapse all">⊟</button>
+      </div>
+      <div id="tree" class="ex-tree"></div>
+      <div class="ex-side-foot"><span class="dot"></span><span id="recCount">0 RECORDS</span></div>
+    </aside>
 
-  <div id="addZone"></div>
-  <div id="recList" class="rec-list"></div>
+    <main class="ex-main">
+      <div id="ex-breadcrumb" class="ex-breadcrumb"></div>
+      <div id="addZone"></div>
+      <div id="recList" class="rec-list"></div>
+    </main>
+  </div>
 
 </div>
 
@@ -218,10 +346,37 @@ let filter = 'all';
 let _editId = null;
 let _isEditing = false;    // guard against snapshot clobber while typing
 let _lastRaw = null;
+let _cwd = null;           // current folder id (null = root)
+let _openFolders = new Set(); // expanded folder ids in the tree
+let _renamingFolder = null;
 // My presence id (set if this browser has claimed a character on the sheet)
 const MY_PID = localStorage.getItem('ft-pid');
 // Spectators can't write. Treat as read-only if not the owner of the selected char (and not DM).
 let dmUnlocked = sessionStorage.getItem('ft-dm') === '1';
+
+function recordsArr(c){ return mode==='archive' ? (c.archive||(c.archive=[])) : (c.bestiary||(c.bestiary=[])); }
+function foldersArr(c){
+  if(mode==='archive'){ if(!Array.isArray(c.archiveFolders)) c.archiveFolders=[]; return c.archiveFolders; }
+  if(!Array.isArray(c.bestiaryFolders)) c.bestiaryFolders=[]; return c.bestiaryFolders;
+}
+function folderById(c,id){ return foldersArr(c).find(f=>f.id===id)||null; }
+function childFolders(c,parent){ return foldersArr(c).filter(f=>(f.parent||null)===(parent||null)); }
+function childRecords(c,parent){ return recordsArr(c).filter(r=>(r.parent||null)===(parent||null)); }
+function folderPath(c,id){
+  const path=[]; let cur=folderById(c,id);
+  let guard=0;
+  while(cur && guard++<50){ path.unshift(cur); cur=cur.parent?folderById(c,cur.parent):null; }
+  return path;
+}
+function descendantFolderIds(c,id){
+  const out=[]; const stack=[id];
+  let guard=0;
+  while(stack.length && guard++<999){
+    const cur=stack.pop();
+    childFolders(c,cur).forEach(f=>{ out.push(f.id); stack.push(f.id); });
+  }
+  return out;
+}
 
 function hasArchiveMagic(c){ return /archive/i.test(c?.magicType||''); }
 function canEdit(){
@@ -273,40 +428,74 @@ let _firstLoad = true;
 function render(){
   if(!state) return;
   const c = state.characters?.[charIdx];
-  if(!c){ $('recList').innerHTML='<div class="empty"><div class="empty-glyph">◈</div>NO CHARACTER</div>'; return; }
+  if(!c){ $('recList').innerHTML='<div class="empty"><div class="empty-glyph">◈</div>NO CHARACTER</div>'; $('tree').innerHTML=''; return; }
   if(!Array.isArray(c.archive)) c.archive=[];
   if(!Array.isArray(c.bestiary)) c.bestiary=[];
 
-  const records = mode==='archive' ? c.archive : c.bestiary;
   const types = mode==='archive' ? ARCHIVE_TYPES : BEAST_TYPES;
   const icons = mode==='archive' ? ARCHIVE_ICONS : BEAST_ICONS;
+  const recs = recordsArr(c), folders = foldersArr(c);
 
-  // count + filter dropdown
-  $('recCount').textContent = `${records.length} ${mode==='archive'?(records.length===1?'RECORD':'RECORDS'):(records.length===1?'ENTRY':'ENTRIES')}`;
+  if(_cwd && !folderById(c,_cwd)) _cwd=null;
+
+  $('recCount').textContent = `${recs.length} ${mode==='archive'?(recs.length===1?'RECORD':'RECORDS'):(recs.length===1?'ENTRY':'ENTRIES')}`;
+  $('treeTitle').textContent = mode==='archive' ? 'ARCHIVE VAULT' : 'BESTIARY VAULT';
   const fil = $('filter');
-  fil.innerHTML = `<option value="all">All ${mode==='archive'?'Records':'Creatures'}</option>` + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+  fil.innerHTML = `<option value="all">All ${mode==='archive'?'Types':'Classes'}</option>` + types.map(t=>`<option value="${t}">${t}</option>`).join('');
   fil.value = filter;
 
+  renderTree(c, icons);
+  renderBreadcrumb(c);
   renderAddForm(types);
 
-  // filter + search
-  let display = records.map((r,i)=>({r,i}));
-  if(filter!=='all') display = display.filter(({r})=>r.type===filter);
-  if(search.trim()){ const q=search.toLowerCase(); display = display.filter(({r})=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q)); }
-  display.sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
-
+  // Search mode: flat results across the whole vault. Otherwise: current folder.
+  const editable = canEdit();
   const list = $('recList');
-  if(!records.length){
-    list.innerHTML = `<div class="empty"><div class="empty-glyph">${mode==='archive'?'◈':'⬣'}</div>${mode==='archive'?'THE ARCHIVE IS EMPTY':'NO CREATURES CATALOGUED'}<span>${mode==='archive'?'Commit your first memory above. Nothing seen is forgotten.':'Record the monsters you encounter — their strengths, weaknesses, and lore.'}</span></div>`;
+  const searching = !!search.trim() || filter!=='all';
+
+  let display;
+  if(searching){
+    display = recs.map((r,i)=>({r,i}));
+    if(filter!=='all') display = display.filter(({r})=>r.type===filter);
+    if(search.trim()){ const q=search.toLowerCase(); display = display.filter(({r})=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q)); }
+    display.sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+  } else {
+    display = childRecords(c,_cwd).map(r=>({r})).sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+  }
+
+  const subFolders = searching ? [] : childFolders(c,_cwd).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+  if(!recs.length && !folders.length){
+    list.innerHTML = `<div class="empty"><div class="empty-glyph">${mode==='archive'?'◈':'⬣'}</div>${mode==='archive'?'THE ARCHIVE IS EMPTY':'NO CREATURES CATALOGUED'}<span>${editable?'Create a folder or record to begin. Build your vault like a library.':'Nothing has been recorded yet.'}</span></div>`;
     return;
   }
-  if(!display.length){ list.innerHTML = `<div class="empty"><div class="empty-glyph">⌕</div>NO MATCHES<span>Adjust your search or filter.</span></div>`; return; }
+  if(searching && !display.length){ list.innerHTML = `<div class="empty"><div class="empty-glyph">⌕</div>NO MATCHES<span>Adjust your search or filter.</span></div>`; return; }
+  if(!searching && !subFolders.length && !display.length){
+    list.innerHTML = `<div class="empty folder-empty"><div class="empty-glyph">▤</div>EMPTY FOLDER<span>${editable?'Add a record or subfolder here, or move items in.':'Nothing filed here yet.'}</span></div>`;
+    return;
+  }
 
-  const editable = canEdit();
-  list.innerHTML = display.map(({r,i})=>{
+  let html = '';
+
+  if(subFolders.length){
+    html += `<div class="folder-grid">` + subFolders.map(f=>{
+      const childCount = childFolders(c,f.id).length + childRecords(c,f.id).length;
+      return `<div class="folder-card" data-folder="${f.id}">
+        <span class="folder-card-icon">▤</span>
+        <div class="folder-card-main">
+          <span class="folder-card-name">${esc(f.name||'Folder')}</span>
+          <span class="folder-card-count">${childCount} item${childCount===1?'':'s'}</span>
+        </div>
+        ${editable?`<button class="folder-card-menu" data-fmenu="${f.id}" title="Folder options">⋯</button>`:''}
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
+  html += display.map(({r})=>{
     const icon = icons[r.type]||'▪';
     const date = r.ts ? new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
     const open = _openIds.has(r.id);
+    const loc = searching && (r.parent) ? `<span class="rec-loc">in ${esc((folderById(c,r.parent)||{}).name||'?')}</span>` : '';
     let statLine = '';
     if(mode==='bestiary'){
       const stats=[];
@@ -316,14 +505,13 @@ function render(){
       if(r.weakness) stats.push(`<span class="beast-stat">WEAK<b>${esc(r.weakness)}</b></span>`);
       if(stats.length) statLine = `<div class="beast-statline">${stats.join('')}</div>`;
     }
-    if(_editId===r.id && editable){
-      return renderEditForm(r, types);
-    }
+    if(_editId===r.id && editable){ return renderEditForm(r, types, c); }
     return `
     <div class="rec ${mode==='bestiary'?'beast':''} ${open?'open':''}" data-id="${r.id}">
       <div class="rec-head" data-toggle="${r.id}">
         <span class="rec-icon">${icon}</span>
         <span class="rec-title">${esc(r.title||'Untitled')}</span>
+        ${loc}
         <span class="rec-type">${esc(r.type||'Other')}</span>
         <span class="rec-chev">▾</span>
       </div>
@@ -332,13 +520,19 @@ function render(){
         <div class="rec-text">${esc(r.body||'')}</div>
         <div class="rec-foot">
           <span class="rec-date">⌖ ${date}</span>
-          ${editable?`<div class="rec-actions"><button class="rec-btn rec-edit" data-edit="${r.id}">✎ Amend</button><button class="rec-btn rec-del" data-del="${r.id}">✕ Purge</button></div>`:''}
+          ${editable?`<div class="rec-actions"><button class="rec-btn rec-move" data-move="${r.id}">⇄ Move</button><button class="rec-btn rec-edit" data-edit="${r.id}">✎ Amend</button><button class="rec-btn rec-del" data-del="${r.id}">✕ Purge</button></div>`:''}
         </div>
       </div>
     </div>`;
   }).join('');
 
-  // toggles
+  list.innerHTML = html;
+
+  list.querySelectorAll('[data-folder]').forEach(card=>card.addEventListener('click',e=>{
+    if(e.target.closest('[data-fmenu]')) return;
+    _cwd = card.dataset.folder; _openFolders.add(_cwd); search=''; $('search').value=''; render();
+  }));
+  list.querySelectorAll('[data-fmenu]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); folderMenu(c, b.dataset.fmenu); }));
   list.querySelectorAll('[data-toggle]').forEach(h=>h.addEventListener('click',()=>{
     const id=h.dataset.toggle;
     if(_openIds.has(id)) _openIds.delete(id); else _openIds.add(id);
@@ -346,10 +540,9 @@ function render(){
   }));
   list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{
     e.stopPropagation();
-    const id=b.dataset.del;
     if(!confirm('Purge this entry?'))return;
-    const arr = mode==='archive'?c.archive:c.bestiary;
-    const idx = arr.findIndex(x=>x.id===id);
+    const arr = recordsArr(c);
+    const idx = arr.findIndex(x=>x.id===b.dataset.del);
     if(idx>=0) arr.splice(idx,1);
     pushState(); render();
   }));
@@ -358,7 +551,143 @@ function render(){
     _editId=b.dataset.edit; _openIds.add(_editId); render();
     setTimeout(()=>$('editBody')?.focus(),30);
   }));
+  list.querySelectorAll('[data-move]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); moveRecord(c, b.dataset.move); }));
   bindEditForm(c);
+}
+
+function renderTree(c, icons){
+  const host = $('tree'); if(!host) return;
+  const editable = canEdit();
+  function node(folder, depth){
+    const id = folder ? folder.id : null;
+    const isRoot = !folder;
+    const expanded = isRoot || _openFolders.has(id);
+    const subs = childFolders(c, id).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    const recs = childRecords(c, id).sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+    const hasKids = subs.length+recs.length>0;
+    let h = '';
+    if(!isRoot){
+      const active = _cwd===id ? ' active' : '';
+      h += `<div class="tn tn-folder${active}" data-tfolder="${id}" style="--d:${depth}">
+        <span class="tn-twist ${hasKids?(expanded?'open':'closed'):'leaf'}" data-ttoggle="${id}">${hasKids?'▸':'·'}</span>
+        <span class="tn-ico">▤</span>
+        <span class="tn-label">${esc(folder.name||'Folder')}</span>
+      </div>`;
+    }
+    if(expanded){
+      subs.forEach(f=> h += node(f, depth+(isRoot?0:1)) );
+      recs.forEach(r=>{
+        const active = (!_cwd && false);
+        h += `<div class="tn tn-file" data-tfile="${r.id}" data-tfileparent="${r.parent||''}" style="--d:${depth+(isRoot?0:1)}">
+          <span class="tn-twist leaf">·</span>
+          <span class="tn-ico file">${icons[r.type]||'▪'}</span>
+          <span class="tn-label">${esc(r.title||'Untitled')}</span>
+        </div>`;
+      });
+    }
+    return h;
+  }
+  const rootActive = _cwd===null ? ' active' : '';
+  host.innerHTML = `<div class="tn tn-root${rootActive}" data-troot="1"><span class="tn-twist open">▾</span><span class="tn-ico">◈</span><span class="tn-label">${mode==='archive'?'Archive':'Bestiary'}</span></div>` + node(null, 0);
+
+  host.querySelector('[data-troot]')?.addEventListener('click',()=>{ _cwd=null; search=''; $('search').value=''; render(); });
+  host.querySelectorAll('[data-ttoggle]').forEach(t=>t.addEventListener('click',e=>{
+    e.stopPropagation();
+    const id=t.dataset.ttoggle;
+    if(_openFolders.has(id)) _openFolders.delete(id); else _openFolders.add(id);
+    render();
+  }));
+  host.querySelectorAll('[data-tfolder]').forEach(n=>n.addEventListener('click',e=>{
+    if(e.target.closest('[data-ttoggle]')) return;
+    _cwd=n.dataset.tfolder; _openFolders.add(_cwd); search=''; $('search').value=''; render();
+  }));
+  host.querySelectorAll('[data-tfile]').forEach(n=>n.addEventListener('click',()=>{
+    const r = recordsArr(c).find(x=>x.id===n.dataset.tfile); if(!r) return;
+    _cwd = r.parent||null; search=''; $('search').value='';
+    _openIds.add(r.id); render();
+    setTimeout(()=>{ document.querySelector(`.rec[data-id="${r.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); },60);
+  }));
+}
+
+function renderBreadcrumb(c){
+  const host=$('ex-breadcrumb'); if(!host) return;
+  const path = _cwd ? folderPath(c,_cwd) : [];
+  let h = `<button class="crumb" data-croot="1">${mode==='archive'?'◈ Archive':'⬣ Bestiary'}</button>`;
+  path.forEach(f=>{ h += `<span class="crumb-sep">›</span><button class="crumb" data-cfolder="${f.id}">${esc(f.name||'Folder')}</button>`; });
+  if(canEdit() && _cwd){
+    h += `<div class="crumb-actions"><button class="crumb-act" id="crumbRename">✎ Rename</button><button class="crumb-act" id="crumbDelete">✕ Delete folder</button></div>`;
+  }
+  host.innerHTML = h;
+  host.querySelector('[data-croot]')?.addEventListener('click',()=>{ _cwd=null; render(); });
+  host.querySelectorAll('[data-cfolder]').forEach(b=>b.addEventListener('click',()=>{ _cwd=b.dataset.cfolder; render(); }));
+  $('crumbRename')?.addEventListener('click',()=>renameFolder(c,_cwd));
+  $('crumbDelete')?.addEventListener('click',()=>deleteFolder(c,_cwd));
+}
+
+function createFolder(c){
+  if(!canEdit()) return;
+  const name = prompt('New folder name:'); if(name===null) return;
+  const f = { id:'fld-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), name:name.trim()||'New Folder', parent:_cwd||null, ts:Date.now() };
+  foldersArr(c).push(f);
+  if(_cwd) _openFolders.add(_cwd);
+  pushState(); render();
+}
+function renameFolder(c,id){
+  if(!canEdit()) return;
+  const f=folderById(c,id); if(!f) return;
+  const name=prompt('Rename folder:', f.name||''); if(name===null) return;
+  f.name=name.trim()||f.name; pushState(); render();
+}
+function deleteFolder(c,id){
+  if(!canEdit()) return;
+  const f=folderById(c,id); if(!f) return;
+  const ids=[id,...descendantFolderIds(c,id)];
+  const recCount = recordsArr(c).filter(r=>ids.includes(r.parent)).length;
+  const folderCount = ids.length;
+  if(!confirm(`Delete "${f.name}"${folderCount>1?` and ${folderCount-1} subfolder(s)`:''}? ${recCount?`${recCount} record(s) inside will move to the parent.`:''}`)) return;
+  // move records up to the deleted folder's parent
+  const newParent = f.parent||null;
+  recordsArr(c).forEach(r=>{ if(ids.includes(r.parent)) r.parent=newParent; });
+  // remove the folders
+  const arr=foldersArr(c);
+  for(let i=arr.length-1;i>=0;i--){ if(ids.includes(arr[i].id)) arr.splice(i,1); }
+  ids.forEach(x=>_openFolders.delete(x));
+  _cwd = newParent;
+  pushState(); render();
+}
+function folderMenu(c,id){
+  if(!canEdit()) return;
+  const f=folderById(c,id); if(!f) return;
+  const act = prompt(`Folder "${f.name}":\nType  R  to rename,  D  to delete,  M  to move into another folder.`,'');
+  if(act===null) return;
+  const a=act.trim().toUpperCase();
+  if(a==='R') renameFolder(c,id);
+  else if(a==='D') deleteFolder(c,id);
+  else if(a==='M') moveFolder(c,id);
+}
+function pickFolderTarget(c, label, excludeIds){
+  const all = foldersArr(c).filter(f=>!excludeIds.includes(f.id));
+  const opts = all.map((f,i)=>`${i+1}. ${folderPath(c,f.id).map(p=>p.name).join(' / ')}`);
+  const choice = prompt(`${label}\n0. (Root)\n${opts.join('\n')}\n\nEnter a number:`,'0');
+  if(choice===null) return undefined;
+  const n=parseInt(choice);
+  if(isNaN(n)||n<0||n>all.length) return undefined;
+  return n===0 ? null : all[n-1].id;
+}
+function moveRecord(c,id){
+  if(!canEdit()) return;
+  const r=recordsArr(c).find(x=>x.id===id); if(!r) return;
+  const target=pickFolderTarget(c,`Move "${r.title}" to which folder?`,[]);
+  if(target===undefined) return;
+  r.parent=target; pushState(); render();
+}
+function moveFolder(c,id){
+  if(!canEdit()) return;
+  const f=folderById(c,id); if(!f) return;
+  const exclude=[id,...descendantFolderIds(c,id)];
+  const target=pickFolderTarget(c,`Move folder "${f.name}" into:`,exclude);
+  if(target===undefined) return;
+  f.parent=target; pushState(); render();
 }
 let _openIds = new Set();
 
@@ -408,7 +737,7 @@ function commit(){
   const type=$('newType').value;
   const body=$('newBody').value.trim();
   if(!title&&!body) return;
-  const rec={ id:(mode==='archive'?'arc':'beast')+'-'+Date.now(), title:title||'Untitled', type, body, ts:Date.now() };
+  const rec={ id:(mode==='archive'?'arc':'beast')+'-'+Date.now(), title:title||'Untitled', type, body, ts:Date.now(), parent:_cwd||null };
   if(mode==='bestiary'){
     rec.hp=$('newHp').value.trim(); rec.ac=$('newAc').value.trim();
     rec.threat=$('newThreat').value.trim(); rec.weakness=$('newWeak').value.trim();
@@ -470,21 +799,21 @@ function bindEditForm(c){
 }
 
 // ── UI events ──
-$('charSelect').addEventListener('change',e=>{ charIdx=Number(e.target.value); _editId=null; _openIds.clear(); render(); });
+$('charSelect').addEventListener('change',e=>{ charIdx=Number(e.target.value); _editId=null; _openIds.clear(); _cwd=null; _openFolders.clear(); render(); });
 document.querySelectorAll('.mode-tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.mode-tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
-  mode=t.dataset.mode; filter='all'; search=''; _editId=null; _openIds.clear();
+  mode=t.dataset.mode; filter='all'; search=''; _editId=null; _openIds.clear(); _cwd=null; _openFolders.clear();
   $('search').value=''; render();
 }));
 $('search').addEventListener('input',e=>{ search=e.target.value; render(); });
 $('filter').addEventListener('change',e=>{ filter=e.target.value; render(); });
-$('collapseAll').addEventListener('click',()=>{
+$('newFolderBtn')?.addEventListener('click',()=>{ const c=state?.characters?.[charIdx]; if(c) createFolder(c); });
+$('newFileBtn')?.addEventListener('click',()=>{ const f=$('newTitle'); if(f){ f.scrollIntoView({behavior:'smooth',block:'center'}); f.focus(); } });
+$('collapseAll')?.addEventListener('click',()=>{
   const c=state?.characters?.[charIdx]; if(!c)return;
-  const arr=mode==='archive'?(c.archive||[]):(c.bestiary||[]);
-  const anyOpen = arr.some(r=>_openIds.has(r.id));
-  if(anyOpen){ _openIds.clear(); $('collapseAll').textContent='⊞ Expand All'; }
-  else { arr.forEach(r=>_openIds.add(r.id)); $('collapseAll').textContent='⊟ Collapse All'; }
+  if(_openFolders.size){ _openFolders.clear(); }
+  else { foldersArr(c).forEach(f=>_openFolders.add(f.id)); }
   render();
 });
 

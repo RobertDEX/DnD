@@ -359,7 +359,7 @@ function normalize(raw){
     const b=blankChar(i);const mc={...b,...c};
     mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
     mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
-    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];
+    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];mc.archiveFolders=Array.isArray(c.archiveFolders)?c.archiveFolders:[];mc.bestiaryFolders=Array.isArray(c.bestiaryFolders)?c.bestiaryFolders:[];
     mc.money=Number(c.money)||0;
     const blankSk=makeBlankSkills();mc.skills={};
     Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});

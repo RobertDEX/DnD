@@ -430,10 +430,10 @@ const CAMPAIGN = doc(db, 'campaigns', 'ft-campaign');
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-const ARCHIVE_TYPES = ['Person','Place','Event','Item','Knowledge','Spell','Other'];
+const ARCHIVE_TYPES = ['Person','History','Potions','Team','Grimoire','Magic','Gods', 'Guilds', 'Day to Day','Other'];
 const ARCHIVE_ICONS = { Person:'◉', Place:'⬡', Event:'◈', Item:'◇', Knowledge:'❖', Spell:'✦', Other:'▪' };
-const BEAST_TYPES = ['Beast','Demon','Dragon','Undead','Construct','Humanoid','Spirit','Aberration','Other'];
-const BEAST_ICONS = { Beast:'🐾', Demon:'😈', Dragon:'🐉', Undead:'💀', Construct:'⚙', Humanoid:'🗡', Spirit:'👻', Aberration:'🌀', Other:'⬣' };
+const BEAST_TYPES = ['Herb','Humanoid','Beast','Monster','Other'];
+const BEAST_ICONS = { Herb:'🌿', Humanoid:'🗡', Beast:'𓄀', Monster:'☠', Other:'⬣' };
 
 let state = null;          // full campaign state
 let charIdx = 0;           // which character we're viewing
@@ -597,10 +597,10 @@ function render(){
     let statLine = '';
     if(mode==='bestiary'){
       const stats=[];
-      if(r.hp) stats.push(`<span class="beast-stat">HP<b>${esc(r.hp)}</b></span>`);
-      if(r.ac) stats.push(`<span class="beast-stat">AC<b>${esc(r.ac)}</b></span>`);
-      if(r.threat) stats.push(`<span class="beast-stat">THREAT<b>${esc(r.threat)}</b></span>`);
-      if(r.weakness) stats.push(`<span class="beast-stat">WEAK<b>${esc(r.weakness)}</b></span>`);
+      if(r.hp) stats.push(`<span class="beast-stat">Numbers Killed<b>${esc(r.hp)}</b></span>`);
+      if(r.ac) stats.push(`<span class="beast-stat">Amount Killed<b>${esc(r.ac)}</b></span>`);
+      if(r.threat) stats.push(`<span class="beast-stat">Defeated<b>${esc(r.threat)}</b></span>`);
+      if(r.weakness) stats.push(`<span class="beast-stat">Weakness<b>${esc(r.weakness)}</b></span>`);
       if(stats.length) statLine = `<div class="beast-statline">${stats.join('')}</div>`;
     }
     if(false){ return ''; }

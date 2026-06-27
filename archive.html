@@ -25,22 +25,19 @@ body{
     #04070e;
   overflow-x:hidden; min-height:100vh;
 }
-/* animated circuit backdrop */
+/* static grid backdrop */
 body::before{
   content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;
   background-image:linear-gradient(rgba(34,211,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,255,.04) 1px,transparent 1px);
   background-size:40px 40px;
   mask-image:radial-gradient(ellipse 100% 70% at 50% 10%,#000,transparent 85%);
-  animation:gridDrift 24s linear infinite;
 }
-@keyframes gridDrift{from{background-position:0 0}to{background-position:40px 40px}}
 .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:1.2rem 1.2rem 5rem}
 
 /* ── TOP BAR ── */
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;padding-bottom:1.2rem;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:1rem}
-.brand-glyph{font-size:2.4rem;color:var(--cy-hi);filter:drop-shadow(0 0 14px rgba(34,211,255,.7));animation:spin 8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.brand-glyph{font-size:2.4rem;color:var(--cy-hi);filter:drop-shadow(0 0 10px rgba(34,211,255,.5))}
 .brand-title{font-family:var(--F1);font-weight:900;font-size:1.7rem;letter-spacing:.28em;background:linear-gradient(180deg,#fff6dc,var(--cy) 55%,var(--cy-deep));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(34,211,255,.35))}
 .brand-sub{font-family:var(--F3);font-size:.56rem;letter-spacing:.24em;color:rgba(34,211,255,.6);text-transform:uppercase;margin-top:.2rem}
 .top-actions{display:flex;gap:.6rem;align-items:center}
@@ -53,8 +50,7 @@ body::before{
 .char-picker label{font-family:var(--F3);font-size:.6rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
 .char-picker select{font-family:var(--F2);font-weight:600;font-size:1rem;color:var(--cy-hi);background:rgba(0,0,0,.5);border:1px solid rgba(34,211,255,.3);border-radius:8px;padding:.5rem .8rem;cursor:pointer}
 .char-status{margin-left:auto;display:flex;align-items:center;gap:.5rem;font-family:var(--F3);font-size:.6rem;letter-spacing:.12em;color:var(--cy);text-transform:uppercase}
-.char-status .dot{width:7px;height:7px;border-radius:50%;background:var(--cy-hi);box-shadow:0 0 8px var(--cy-hi);animation:blink 1.6s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.char-status .dot{width:7px;height:7px;border-radius:50%;background:var(--cy-hi);box-shadow:0 0 6px var(--cy-hi)}
 
 /* ── MODE TABS (Archive / Bestiary) ── */
 .mode-tabs{display:flex;gap:.5rem;margin-bottom:1.3rem}
@@ -163,10 +159,6 @@ body::before{
   border:1px solid var(--line);border-radius:16px;padding:.85rem .8rem;backdrop-filter:blur(14px);
   box-shadow:0 18px 50px -22px #000, inset 0 1px 0 rgba(255,255,255,.04), inset 0 0 60px -40px var(--cy);
   position:sticky;overflow:hidden}
-.ex-side::before{content:'';position:absolute;inset:0;pointer-events:none;border-radius:16px;
-  background:linear-gradient(115deg,transparent 40%,rgba(157,140,255,.05) 50%,transparent 60%);
-  background-size:300% 100%;animation:holoSweep 9s ease-in-out infinite}
-@keyframes holoSweep{0%,100%{background-position:120% 0}50%{background-position:-20% 0}}
 .ex-side-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.15rem .25rem .55rem;border-bottom:1px solid var(--line);position:relative}
 .ex-side-head::after{content:'';position:absolute;left:0;bottom:-1px;width:40%;height:1px;background:linear-gradient(90deg,var(--cy),transparent)}
 .ex-side-title{font-family:var(--F1);font-size:.6rem;font-weight:800;letter-spacing:.22em;color:var(--cy-hi);text-shadow:0 0 12px rgba(34,211,255,.4)}
@@ -326,7 +318,180 @@ body::before{
   .composer-actions{width:100%}
   .composer-cancel,.composer-save{flex:1}
 }
+
+/* ═══════════ FILE EXPLORER v2 — sleek, computer-like ═══════════ */
+/* Toolbar */
+.fx-toolbar{display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;padding:.5rem .6rem;
+  background:linear-gradient(180deg,rgba(14,22,38,.6),rgba(8,13,24,.4));border:1px solid var(--line);border-radius:11px}
+.fx-tbtn{font-family:var(--F2);font-weight:600;font-size:.8rem;letter-spacing:.01em;color:var(--cy-hi);
+  background:rgba(34,211,255,.06);border:1px solid var(--line);border-radius:8px;padding:.4rem .7rem;cursor:pointer;
+  transition:background .13s,border-color .13s,color .13s,transform .1s;white-space:nowrap}
+.fx-tbtn:hover{background:rgba(34,211,255,.14);border-color:var(--cy)}
+.fx-tbtn:active{transform:translateY(1px)}
+.fx-tbtn:disabled{opacity:.3;cursor:default;pointer-events:none}
+.fx-nav{font-size:.95rem;line-height:1;padding:.4rem .6rem;color:var(--cy)}
+.fx-icononly{font-size:.95rem;padding:.4rem .55rem}
+.fx-tb-right{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+.fx-new{background:linear-gradient(180deg,var(--cy-hi),var(--cy));border-color:var(--cy-hi);color:#021018;font-weight:800}
+.fx-new:hover{background:linear-gradient(180deg,#c4f5ff,var(--cy-hi));border-color:var(--cy-hi)}
+.fx-menuwrap{position:relative}
+.fx-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:60;min-width:190px;padding:.35rem;
+  background:rgba(12,19,33,.98);border:1px solid rgba(34,211,255,.25);border-radius:11px;
+  box-shadow:0 20px 50px -16px #000,inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(14px);
+  opacity:0;transform:translateY(-6px) scale(.97);pointer-events:none;transition:opacity .15s,transform .15s}
+.fx-dropdown.open{opacity:1;transform:none;pointer-events:auto}
+.fx-dd-item{display:flex;align-items:center;gap:.6rem;width:100%;font-family:var(--F2);font-size:.84rem;font-weight:600;
+  color:var(--text);background:none;border:none;border-radius:7px;padding:.5rem .6rem;cursor:pointer;text-align:left;transition:background .12s,color .12s}
+.fx-dd-item:hover{background:rgba(34,211,255,.14);color:#fff}
+.fx-dd-ico{width:16px;text-align:center;color:var(--cy);font-size:.9rem}
+.fx-dd-key{margin-left:auto;font-family:var(--F3);font-size:.58rem;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:4px;padding:.05rem .3rem}
+
+/* List container */
+.fx-list{min-height:300px;background:linear-gradient(180deg,rgba(10,16,28,.5),rgba(7,11,20,.35));
+  border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.fx-details{display:flex;flex-direction:column}
+
+/* Column header */
+.fx-headrow{display:grid;grid-template-columns:1fr 130px 150px;gap:.5rem;padding:.55rem .9rem;
+  border-bottom:1px solid var(--line);background:rgba(12,20,34,.5);position:sticky;top:0;z-index:2}
+.fx-headrow span{font-family:var(--F3);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none;display:flex;align-items:center;gap:.3rem;transition:color .12s}
+.fx-headrow span:hover{color:var(--cy-hi)}
+.fx-caret{color:var(--cy);font-size:.5rem}
+.fx-col-type,.fx-col-mod{padding-left:.2rem}
+
+/* Rows */
+.fx-rows{display:flex;flex-direction:column}
+.fx-row{display:grid;grid-template-columns:1fr 130px 150px;gap:.5rem;align-items:center;padding:.5rem .9rem;cursor:default;
+  border-bottom:1px solid rgba(60,200,255,.05);transition:background .1s;user-select:none}
+.fx-row:last-child{border-bottom:none}
+.fx-row:hover{background:rgba(34,211,255,.06)}
+.fx-row.selected{background:linear-gradient(90deg,rgba(157,140,255,.2),rgba(157,140,255,.06));box-shadow:inset 2px 0 0 var(--cyan)}
+.fx-row.selected:hover{background:linear-gradient(90deg,rgba(157,140,255,.26),rgba(157,140,255,.08))}
+.fx-row.dragging{opacity:.4}
+.fx-row.drop-into{background:rgba(34,211,255,.18);box-shadow:inset 0 0 0 1px var(--cy)}
+.fx-cell{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-c-name{display:flex;align-items:center;gap:.6rem;font-family:var(--F2);font-size:.92rem;color:var(--text)}
+.fx-ico{flex-shrink:0;font-size:.95rem;width:18px;text-align:center}
+.fx-ico.folder{color:var(--cy);filter:drop-shadow(0 0 5px rgba(34,211,255,.4))}
+.fx-ico.record{color:var(--cy-hi);opacity:.85}
+.fx-name{overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.fx-row.folder .fx-name{font-weight:700;color:#fff}
+.fx-sub{font-family:var(--F3);font-size:.56rem;letter-spacing:.06em;color:var(--muted);margin-left:.2rem;flex-shrink:0}
+.fx-c-type{font-family:var(--F3);font-size:.66rem;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+.fx-c-mod{font-family:var(--F3);font-size:.66rem;color:var(--muted)}
+.fx-rename{font-family:var(--F2);font-size:.92rem;color:#fff;background:rgba(0,0,0,.5);border:1px solid var(--cy);border-radius:5px;padding:.1rem .35rem;outline:none;min-width:120px;width:60%;box-shadow:0 0 0 2px rgba(34,211,255,.15)}
+
+/* Grid view */
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.6rem;padding:.8rem;align-content:start}
+.fx-grid .fx-headrow{display:none}
+.fx-grid .fx-rows{display:contents}
+.fx-grid .fx-row{display:flex;flex-direction:column;align-items:center;gap:.5rem;text-align:center;padding:1rem .6rem;border:1px solid var(--line);border-radius:11px;background:rgba(12,20,34,.4);border-bottom:1px solid var(--line)}
+.fx-grid .fx-row:hover{border-color:rgba(34,211,255,.4);transform:translateY(-2px)}
+.fx-grid .fx-row.selected{box-shadow:inset 0 0 0 1px var(--cyan),0 0 18px -8px var(--cyan)}
+.fx-grid .fx-c-name{flex-direction:column;gap:.45rem;width:100%}
+.fx-grid .fx-ico{font-size:2rem;width:auto}
+.fx-grid .fx-name{white-space:normal;word-break:break-word;font-size:.82rem;line-height:1.25;max-height:2.5em}
+.fx-grid .fx-sub{margin:0}
+.fx-grid .fx-c-type,.fx-grid .fx-c-mod{display:none}
+
+/* Status bar */
+.fx-status{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.6rem;padding:.45rem .8rem;
+  font-family:var(--F3);font-size:.6rem;letter-spacing:.08em;color:var(--muted);
+  background:rgba(12,20,34,.45);border:1px solid var(--line);border-radius:9px}
+.fx-status-l{text-transform:uppercase}
+.fx-status-r{color:var(--cy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Breadcrumb in toolbar (override old) */
+.fx-toolbar .ex-breadcrumb{margin:0;padding:0;background:none;border:none;box-shadow:none;flex:1;min-width:0;overflow:hidden}
+.crumb-search{font-family:var(--F2);font-size:.86rem;font-weight:600;color:var(--cyan)}
+
+/* Context menus */
+.ctx-menu{position:fixed;z-index:2000;min-width:200px;padding:.35rem;
+  background:rgba(11,18,31,.98);border:1px solid rgba(34,211,255,.28);border-radius:12px;
+  box-shadow:0 24px 60px -18px #000,inset 0 1px 0 rgba(255,255,255,.05);backdrop-filter:blur(16px);
+  opacity:0;transform:scale(.96);pointer-events:none;transition:opacity .12s,transform .12s;transform-origin:top left}
+.ctx-menu.open{opacity:1;transform:none;pointer-events:auto}
+.ctx-item{display:flex;align-items:center;gap:.65rem;width:100%;font-family:var(--F2);font-size:.84rem;font-weight:500;
+  color:var(--text);background:none;border:none;border-radius:7px;padding:.5rem .6rem;cursor:pointer;text-align:left;transition:background .1s,color .1s}
+.ctx-item:hover{background:rgba(34,211,255,.14);color:#fff}
+.ctx-item.danger{color:#ff7a9c}
+.ctx-item.danger:hover{background:rgba(255,61,113,.16);color:#fff}
+.ctx-ico{width:16px;text-align:center;color:var(--cy);font-size:.86rem}
+.ctx-item.danger .ctx-ico{color:#ff7a9c}
+.ctx-key{margin-left:auto;font-family:var(--F3);font-size:.58rem;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:4px;padding:.05rem .3rem}
+.ctx-sep{height:1px;margin:.3rem .2rem;background:var(--line)}
+.ctx-head{font-family:var(--F3);font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:.4rem .6rem .3rem}
+.move-menu{max-height:60vh;overflow-y:auto}
+
+/* tree folder drop target */
+.tn.drop-into{background:rgba(34,211,255,.2)!important;box-shadow:inset 0 0 0 1px var(--cy)}
+
+/* ═══════════ WINDOWS-STYLE COMMAND + ADDRESS BARS (cyberpunk) ═══════════ */
+.ex-main{min-width:0;display:flex;flex-direction:column;gap:0}
+/* Command bar */
+.fx-cmdbar{display:flex;align-items:center;gap:.25rem;flex-wrap:wrap;padding:.45rem .55rem;
+  background:linear-gradient(180deg,rgba(16,24,40,.85),rgba(10,16,28,.7));
+  border:1px solid var(--line);border-bottom:none;border-radius:12px 12px 0 0;backdrop-filter:blur(10px)}
+.cmd-btn{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--F2);font-weight:600;font-size:.8rem;letter-spacing:.01em;
+  color:var(--text);background:transparent;border:1px solid transparent;border-radius:8px;padding:.4rem .6rem;cursor:pointer;
+  transition:background .12s,border-color .12s,color .12s,box-shadow .12s;white-space:nowrap}
+.cmd-btn:hover{background:rgba(34,211,255,.12);border-color:rgba(34,211,255,.3);color:#fff}
+.cmd-btn:active{transform:translateY(1px)}
+.cmd-btn:disabled{opacity:.32;cursor:default;pointer-events:none}
+.cmd-ico{font-size:.95rem;line-height:1;color:var(--cy);filter:drop-shadow(0 0 4px rgba(34,211,255,.4))}
+.cmd-icon{padding:.4rem .5rem}
+.cmd-caret{font-size:.5rem;color:var(--muted);margin-left:-.1rem}
+.cmd-new{background:linear-gradient(180deg,var(--cy-hi),var(--cy));border-color:var(--cy-hi);color:#021018;font-weight:800}
+.cmd-new .cmd-ico,.cmd-new .cmd-caret{color:#021018;filter:none}
+.cmd-new:hover{background:linear-gradient(180deg,#c4f5ff,var(--cy-hi));border-color:var(--cy-hi);color:#021018;box-shadow:0 4px 16px -6px var(--cy)}
+.cmd-danger:hover{background:rgba(255,61,113,.16);border-color:rgba(255,61,113,.4)}
+.cmd-danger .cmd-ico{color:#ff7a9c;filter:none}
+.cmd-sep{width:1px;height:20px;background:var(--line);margin:0 .3rem}
+
+/* Address bar */
+.fx-addrbar{display:flex;align-items:center;gap:.4rem;padding:.4rem .55rem;
+  background:rgba(8,13,24,.55);border:1px solid var(--line);border-bottom:none}
+.addr-nav{width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;color:var(--cy);background:rgba(34,211,255,.05);border:1px solid var(--line);border-radius:7px;cursor:pointer;transition:all .12s}
+.addr-nav:hover{background:rgba(34,211,255,.15);border-color:var(--cy)}
+.addr-nav:disabled{opacity:.3;cursor:default;pointer-events:none}
+.fx-addrbar .ex-breadcrumb{flex:1;min-width:0;margin:0;padding:.3rem .55rem;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:7px;box-shadow:none;overflow:hidden;display:flex;align-items:center}
+.addr-search{display:flex;align-items:center;gap:.4rem;width:230px;max-width:38%;padding:.35rem .6rem;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:7px;transition:border-color .14s,box-shadow .14s}
+.addr-search:focus-within{border-color:var(--cy);box-shadow:0 0 0 2px rgba(34,211,255,.12)}
+.addr-search-ico{color:var(--muted);font-size:.85rem}
+.addr-search input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--F3);font-size:.76rem}
+.addr-search input::placeholder{color:var(--muted)}
+@media(max-width:680px){.addr-search{width:auto;flex:1}.fx-addrbar .ex-breadcrumb{display:none}}
+
+/* List wraps flush under the bars */
+.fx-list{border-radius:0 0 12px 12px;min-height:340px}
+
+/* Two-line rows (Windows-like) */
+.fx-headrow{grid-template-columns:1fr 120px 170px}
+.fx-row{grid-template-columns:1fr 120px 170px;padding:.5rem .7rem .5rem .55rem;align-items:center}
+.fx-c-name{gap:.7rem;align-items:center}
+.fx-ico{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:1.05rem;border-radius:8px;
+  background:rgba(34,211,255,.06);border:1px solid var(--line);flex-shrink:0}
+.fx-ico.folder{color:var(--cy);background:rgba(34,211,255,.1);border-color:rgba(34,211,255,.25)}
+.fx-ico.record{color:var(--cy-hi);background:rgba(157,140,255,.07);border-color:rgba(157,140,255,.18)}
+.fx-namewrap{display:flex;flex-direction:column;gap:.05rem;min-width:0}
+.fx-name{font-family:var(--F2);font-size:.92rem;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+.fx-row.folder .fx-name{font-weight:700;color:#fff}
+.fx-sub{font-family:var(--F3);font-size:.62rem;letter-spacing:.01em;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+.fx-row.cut{opacity:.5}
+.fx-row.cut .fx-name{font-style:italic}
+.fx-rename{margin:0}
+
+/* Grid view: bigger tiles, two-line under icon */
+.fx-grid .fx-ico{width:54px;height:54px;font-size:1.8rem;border-radius:12px}
+.fx-grid .fx-namewrap{align-items:center;text-align:center}
+.fx-grid .fx-sub{display:none}
+
+/* status bar flush */
+.fx-status{margin-top:.5rem;border-radius:9px}
 </style>
+
+
 
 </head>
 <body>
@@ -362,27 +527,59 @@ body::before{
       <div class="ex-side-head">
         <span class="ex-side-title" id="treeTitle">VAULT</span>
         <div class="ex-side-actions">
+          <button id="collapseAll" class="ex-icon-btn" title="Collapse all">⊟</button>
           <button id="newFolderBtn" class="ex-icon-btn" title="New folder">▤<span class="ex-plus">+</span></button>
           <button id="newFileBtn" class="ex-icon-btn" title="New record">▢<span class="ex-plus">+</span></button>
         </div>
-      </div>
-      <div class="ex-search-wrap">
-        <input id="search" class="ex-search" type="text" placeholder="⌕ Search vault…">
-      </div>
-      <div class="ex-side-tools">
-        <select id="filter" class="ex-filter"></select>
-        <button id="collapseAll" class="ex-collapse" title="Collapse all">⊟</button>
       </div>
       <div id="tree" class="ex-tree"></div>
       <div class="ex-side-foot"><span class="dot"></span><span id="recCount">0 RECORDS</span></div>
     </aside>
 
     <main class="ex-main">
-      <div id="ex-breadcrumb" class="ex-breadcrumb"></div>
-      <div id="addZone"></div>
-      <div id="recList" class="rec-list"></div>
+      <div class="fx-cmdbar">
+        <div class="fx-menuwrap">
+          <button id="fxNewBtn" class="cmd-btn cmd-new"><span class="cmd-ico">＋</span>New<span class="cmd-caret">▾</span></button>
+          <div id="fxNewMenu" class="fx-dropdown">
+            <button data-new="record" class="fx-dd-item"><span class="fx-dd-ico">✦</span>New record<span class="fx-dd-key">N</span></button>
+            <button data-new="folder" class="fx-dd-item"><span class="fx-dd-ico">▤</span>New folder<span class="fx-dd-key">⇧N</span></button>
+          </div>
+        </div>
+        <span class="cmd-sep"></span>
+        <button id="fxCut" class="cmd-btn cmd-icon" title="Cut (Ctrl+X)" disabled><span class="cmd-ico">✄</span></button>
+        <button id="fxCopy" class="cmd-btn cmd-icon" title="Copy (Ctrl+C)" disabled><span class="cmd-ico">⧉</span></button>
+        <button id="fxPaste" class="cmd-btn cmd-icon" title="Paste (Ctrl+V)" disabled><span class="cmd-ico">⎘</span></button>
+        <button id="fxRename" class="cmd-btn cmd-icon" title="Rename (F2)" disabled><span class="cmd-ico">✎</span></button>
+        <button id="fxDelete" class="cmd-btn cmd-icon cmd-danger" title="Delete (Del)" disabled><span class="cmd-ico">🗑</span></button>
+        <span class="cmd-sep"></span>
+        <button id="fxSortBtn" class="cmd-btn"><span class="cmd-ico">⇅</span>Sort<span class="cmd-caret">▾</span></button>
+        <button id="fxViewBtn" class="cmd-btn"><span class="cmd-ico">▦</span>View</button>
+        <div class="fx-menuwrap">
+          <button id="fxFilterBtn" class="cmd-btn"><span class="cmd-ico">⌗</span>Filter<span class="cmd-caret">▾</span></button>
+          <div id="fxFilterMenu" class="fx-dropdown"></div>
+        </div>
+      </div>
+      <div class="fx-addrbar">
+        <button id="fxBack" class="addr-nav" title="Back" disabled>‹</button>
+        <button id="fxUp" class="addr-nav" title="Up one level">↑</button>
+        <div id="ex-breadcrumb" class="ex-breadcrumb"></div>
+        <div class="addr-search">
+          <span class="addr-search-ico">⌕</span>
+          <input id="search" type="text" placeholder="Search vault">
+        </div>
+      </div>
+      <div id="fxList" class="fx-list"></div>
+      <div class="fx-status">
+        <span id="fxStatus" class="fx-status-l"></span>
+        <span id="fxSelInfo" class="fx-status-r"></span>
+      </div>
     </main>
   </div>
+
+  <select id="filter" style="display:none"></select>
+
+  <div id="ctxMenu" class="ctx-menu"></div>
+  <div id="moveMenu" class="ctx-menu move-menu"></div>
 
   <div id="composer" class="composer-overlay">
     <div class="composer">
@@ -430,10 +627,10 @@ const CAMPAIGN = doc(db, 'campaigns', 'ft-campaign');
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-const ARCHIVE_TYPES = ['Person','History','Potions','Team','Grimoire','Magic','Gods', 'Guilds', 'Day to Day','Other'];
+const ARCHIVE_TYPES = ['Person','Place','Event','Item','Knowledge','Spell','Other'];
 const ARCHIVE_ICONS = { Person:'◉', Place:'⬡', Event:'◈', Item:'◇', Knowledge:'❖', Spell:'✦', Other:'▪' };
-const BEAST_TYPES = ['Herb','Humanoid','Beast','Monster','Other'];
-const BEAST_ICONS = { Herb:'🌿', Humanoid:'🗡', Beast:'𓄀', Monster:'☠', Other:'⬣' };
+const BEAST_TYPES = ['Beast','Demon','Dragon','Undead','Construct','Humanoid','Spirit','Aberration','Other'];
+const BEAST_ICONS = { Beast:'🐾', Demon:'😈', Dragon:'🐉', Undead:'💀', Construct:'⚙', Humanoid:'🗡', Spirit:'👻', Aberration:'🌀', Other:'⬣' };
 
 let state = null;          // full campaign state
 let charIdx = 0;           // which character we're viewing
@@ -447,6 +644,14 @@ let _lastRaw = null;
 let _cwd = null;           // current folder id (null = root)
 let _openFolders = new Set(); // expanded folder ids in the tree
 let _renamingFolder = null;
+let _sort = 'name';
+let _sortDir = 1;
+let _view = (localStorage.getItem('fx-view')==='grid') ? 'grid' : 'details';
+let _selId = null;
+let _renaming = null;
+let _dragKey = null;
+let _clip = null;
+let _navBack = [];
 // My presence id (set if this browser has claimed a character on the sheet)
 const MY_PID = localStorage.getItem('ft-pid');
 // Spectators can't write. Treat as read-only if not the owner of the selected char (and not DM).
@@ -526,130 +731,307 @@ let _firstLoad = true;
 function render(){
   if(!state) return;
   const c = state.characters?.[charIdx];
-  if(!c){ $('recList').innerHTML='<div class="empty"><div class="empty-glyph">◈</div>NO CHARACTER</div>'; $('tree').innerHTML=''; return; }
+  if(!c){ $('fxList').innerHTML='<div class="empty"><div class="empty-glyph">◈</div>NO CHARACTER</div>'; $('tree').innerHTML=''; return; }
   if(!Array.isArray(c.archive)) c.archive=[];
   if(!Array.isArray(c.bestiary)) c.bestiary=[];
+  if(_cwd && !folderById(c,_cwd)) _cwd=null;
 
   const types = mode==='archive' ? ARCHIVE_TYPES : BEAST_TYPES;
   const icons = mode==='archive' ? ARCHIVE_ICONS : BEAST_ICONS;
-  const recs = recordsArr(c), folders = foldersArr(c);
+  const recs = recordsArr(c);
 
-  if(_cwd && !folderById(c,_cwd)) _cwd=null;
-
-  $('recCount').textContent = `${recs.length} ${mode==='archive'?(recs.length===1?'RECORD':'RECORDS'):(recs.length===1?'ENTRY':'ENTRIES')}`;
-  $('treeTitle').textContent = mode==='archive' ? 'ARCHIVE VAULT' : 'BESTIARY VAULT';
+  $('treeTitle').textContent = mode==='archive' ? 'ARCHIVE' : 'BESTIARY';
   const fil = $('filter');
-  fil.innerHTML = `<option value="all">All ${mode==='archive'?'Types':'Classes'}</option>` + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+  fil.innerHTML = `<option value="all">All ${mode==='archive'?'types':'classes'}</option>` + types.map(t=>`<option value="${t}">${t}</option>`).join('');
   fil.value = filter;
 
   renderTree(c, icons);
   renderBreadcrumb(c);
-  renderAddForm(types);
+  renderExplorer(c, icons);
+}
 
-  // Search mode: flat results across the whole vault. Otherwise: current folder.
-  const editable = canEdit();
-  const list = $('recList');
+function entryKey(kind,id){ return (kind==='folder'?'f:':'r:')+id; }
+
+function fxRows(c, icons){
   const searching = !!search.trim() || filter!=='all';
-
-  let display;
+  let rows = [];
   if(searching){
-    display = recs.map((r,i)=>({r,i}));
-    if(filter!=='all') display = display.filter(({r})=>r.type===filter);
-    if(search.trim()){ const q=search.toLowerCase(); display = display.filter(({r})=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q)); }
-    display.sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+    let recs = recordsArr(c).slice();
+    if(filter!=='all') recs = recs.filter(r=>r.type===filter);
+    if(search.trim()){ const q=search.toLowerCase(); recs = recs.filter(r=>(r.title||'').toLowerCase().includes(q)||(r.body||'').toLowerCase().includes(q)||(r.type||'').toLowerCase().includes(q)); }
+    rows = recs.map(r=>({kind:'record', id:r.id, name:r.title||'Untitled', type:r.type||'Other', mod:r.edited||r.ts||0, rec:r, loc:r.parent?(folderById(c,r.parent)||{}).name:null}));
   } else {
-    display = childRecords(c,_cwd).map(r=>({r})).sort((a,b)=>(b.r.ts||0)-(a.r.ts||0));
+    const folders = childFolders(c,_cwd).map(f=>({kind:'folder', id:f.id, name:f.name||'Folder', type:'Folder', mod:f.ts||0, count:childFolders(c,f.id).length+childRecords(c,f.id).length}));
+    const records = childRecords(c,_cwd).map(r=>({kind:'record', id:r.id, name:r.title||'Untitled', type:r.type||'Other', mod:r.edited||r.ts||0, rec:r}));
+    rows = folders.concat(records);
+  }
+  const dir = _sortDir;
+  rows.sort((a,b)=>{
+    // folders always first in non-search
+    if(a.kind!==b.kind){ if(a.kind==='folder') return -1; if(b.kind==='folder') return 1; }
+    let v=0;
+    if(_sort==='name') v=(a.name||'').localeCompare(b.name||'');
+    else if(_sort==='type') v=(a.type||'').localeCompare(b.type||'')|| (a.name||'').localeCompare(b.name||'');
+    else if(_sort==='modified') v=(b.mod||0)-(a.mod||0);
+    return _sort==='modified' ? v*dir*-1*-1 : v*dir;
+  });
+  if(_sort==='modified' && dir<0) rows.reverse();
+  return rows;
+}
+
+function renderExplorer(c, icons){
+  const editable = canEdit();
+  const searching = !!search.trim() || filter!=='all';
+  const list = $('fxList');
+  list.className = 'fx-list ' + (_view==='grid'?'fx-grid':'fx-details');
+
+  // command bar state
+  $('fxUp').disabled = searching || !_cwd;
+  $('fxBack').disabled = !_navBack.length;
+  const hasSel = !!_selId;
+  ['fxCut','fxCopy','fxRename','fxDelete'].forEach(id=>{ const b=$(id); if(b) b.disabled = !hasSel || !editable; });
+  $('fxPaste').disabled = !_clip || !editable;
+  $('fxSortBtn').querySelector('.cmd-caret')?.remove();
+  $('fxSortBtn').innerHTML = `<span class="cmd-ico">⇅</span>Sort: ${_sort==='name'?'Name':_sort==='type'?'Type':'Modified'}<span class="cmd-caret">▾</span>`;
+  $('fxViewBtn').innerHTML = `<span class="cmd-ico">${_view==='grid'?'≣':'▦'}</span>${_view==='grid'?'List':'Grid'}`;
+  $('fxViewBtn').title = _view==='grid'?'Switch to list view':'Switch to grid view';
+  $('fxNewBtn').style.display = editable?'':'none';
+  // filter dropdown menu
+  const fm=$('fxFilterMenu');
+  if(fm){
+    const types = mode==='archive'?ARCHIVE_TYPES:BEAST_TYPES;
+    fm.innerHTML = [`<button data-filter="all" class="fx-dd-item${filter==='all'?' on':''}"><span class="fx-dd-ico">${filter==='all'?'●':'○'}</span>All ${mode==='archive'?'types':'classes'}</button>`]
+      .concat(types.map(t=>`<button data-filter="${t}" class="fx-dd-item${filter===t?' on':''}"><span class="fx-dd-ico">${filter===t?'●':'○'}</span>${t}</button>`)).join('');
+    fm.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{ filter=b.dataset.filter; fm.classList.remove('open'); render(); }));
   }
 
-  const subFolders = searching ? [] : childFolders(c,_cwd).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const rows = fxRows(c, icons);
+  const folders = rows.filter(r=>r.kind==='folder');
+  const records = rows.filter(r=>r.kind==='record');
 
-  if(!recs.length && !folders.length){
-    list.innerHTML = `<div class="empty"><div class="empty-glyph">${mode==='archive'?'◈':'⬣'}</div>${mode==='archive'?'THE ARCHIVE IS EMPTY':'NO CREATURES CATALOGUED'}<span>${editable?'Create a folder or record to begin. Build your vault like a library.':'Nothing has been recorded yet.'}</span></div>`;
-    return;
-  }
-  if(searching && !display.length){ list.innerHTML = `<div class="empty"><div class="empty-glyph">⌕</div>NO MATCHES<span>Adjust your search or filter.</span></div>`; return; }
-  if(!searching && !subFolders.length && !display.length){
-    list.innerHTML = `<div class="empty folder-empty"><div class="empty-glyph">▤</div>EMPTY FOLDER<span>${editable?'Add a record or subfolder here, or move items in.':'Nothing filed here yet.'}</span></div>`;
+  // status bar
+  $('fxStatus').textContent = searching
+    ? `${rows.length} result${rows.length===1?'':'s'}`
+    : `${folders.length} folder${folders.length===1?'':'s'}, ${records.length} record${records.length===1?'':'s'}`;
+  updateSelInfo(c);
+
+  if(!rows.length){
+    const totalEmpty = !recordsArr(c).length && !foldersArr(c).length;
+    if(searching){ list.innerHTML = `<div class="empty"><div class="empty-glyph">⌕</div>No matches<span>Nothing matches your search or filter.</span></div>`; }
+    else if(totalEmpty){ list.innerHTML = `<div class="empty"><div class="empty-glyph">${mode==='archive'?'◈':'⬣'}</div>${mode==='archive'?'Empty archive':'Empty bestiary'}<span>${editable?'Right-click here or use + New to create your first folder or record.':'Nothing recorded yet.'}</span></div>`; }
+    else { list.innerHTML = `<div class="empty"><div class="empty-glyph">▤</div>Empty folder<span>${editable?'Right-click or use + New to add something here.':'Nothing filed here.'}</span></div>`; }
+    bindEmptyArea(c);
     return;
   }
 
   let html = '';
-
-  if(subFolders.length){
-    html += `<div class="folder-grid">` + subFolders.map(f=>{
-      const childCount = childFolders(c,f.id).length + childRecords(c,f.id).length;
-      return `<div class="folder-card" data-folder="${f.id}">
-        <span class="folder-card-icon">▤</span>
-        <div class="folder-card-main">
-          <span class="folder-card-name">${esc(f.name||'Folder')}</span>
-          <span class="folder-card-count">${childCount} item${childCount===1?'':'s'}</span>
-        </div>
-        ${editable?`<button class="folder-card-menu" data-fmenu="${f.id}" title="Folder options">⋯</button>`:''}
-      </div>`;
-    }).join('') + `</div>`;
+  if(_view==='details'){
+    html += `<div class="fx-headrow">
+      <span class="fx-col-name" data-sort="name">Name${sortCaret('name')}</span>
+      <span class="fx-col-type" data-sort="type">Type${sortCaret('type')}</span>
+      <span class="fx-col-mod" data-sort="modified">Modified${sortCaret('modified')}</span>
+    </div>`;
   }
-
-  html += display.map(({r})=>{
-    const icon = icons[r.type]||'▪';
-    const date = r.ts ? new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '';
-    const open = _openIds.has(r.id);
-    const loc = searching && (r.parent) ? `<span class="rec-loc">in ${esc((folderById(c,r.parent)||{}).name||'?')}</span>` : '';
-    let statLine = '';
-    if(mode==='bestiary'){
-      const stats=[];
-      if(r.hp) stats.push(`<span class="beast-stat">Numbers Killed<b>${esc(r.hp)}</b></span>`);
-      if(r.ac) stats.push(`<span class="beast-stat">Amount Killed<b>${esc(r.ac)}</b></span>`);
-      if(r.threat) stats.push(`<span class="beast-stat">Defeated<b>${esc(r.threat)}</b></span>`);
-      if(r.weakness) stats.push(`<span class="beast-stat">Weakness<b>${esc(r.weakness)}</b></span>`);
-      if(stats.length) statLine = `<div class="beast-statline">${stats.join('')}</div>`;
-    }
-    if(false){ return ''; }
-    return `
-    <div class="rec ${mode==='bestiary'?'beast':''} ${open?'open':''}" data-id="${r.id}">
-      <div class="rec-head" data-toggle="${r.id}">
-        <span class="rec-icon">${icon}</span>
-        <span class="rec-title">${esc(r.title||'Untitled')}</span>
-        ${loc}
-        <span class="rec-type">${esc(r.type||'Other')}</span>
-        <span class="rec-chev">▾</span>
-      </div>
-      <div class="rec-body">
-        ${statLine}
-        <div class="rec-text">${esc(r.body||'')}</div>
-        <div class="rec-foot">
-          <span class="rec-date">⌖ ${date}</span>
-          ${editable?`<div class="rec-actions"><button class="rec-btn rec-move" data-move="${r.id}">⇄ Move</button><button class="rec-btn rec-edit" data-edit="${r.id}">✎ Amend</button><button class="rec-btn rec-del" data-del="${r.id}">✕ Purge</button></div>`:''}
-        </div>
-      </div>
+  html += `<div class="fx-rows">`;
+  html += rows.map(row=>{
+    const key = entryKey(row.kind,row.id);
+    const sel = _selId===key ? ' selected' : '';
+    const cut = (_clip && _clip.mode==='move' && _clip.key===key) ? ' cut' : '';
+    const ic = row.kind==='folder' ? '▤' : (icons[row.type]||'▪');
+    const modTxt = row.mod ? new Date(row.mod).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' · '+new Date(row.mod).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}) : '—';
+    const renaming = _renaming===key;
+    const nameCell = renaming
+      ? `<input class="fx-rename" value="${esc(row.name)}" spellcheck="false">`
+      : `<span class="fx-name">${esc(row.name)}</span>`;
+    let subText = '';
+    if(row.kind==='folder'){ subText = `${row.count} item${row.count===1?'':'s'}`; }
+    else if(searching && row.loc){ subText = `in ${row.loc}`; }
+    else if(row.rec && row.rec.body){ subText = row.rec.body.replace(/\s+/g,' ').trim().slice(0,90); }
+    const sub = subText ? `<span class="fx-sub">${esc(subText)}</span>` : '';
+    const dragAttr = editable && !renaming ? 'draggable="true"' : '';
+    return `<div class="fx-row${sel}${cut} ${row.kind}" data-key="${key}" data-kind="${row.kind}" data-id="${row.id}" ${dragAttr}>
+      <span class="fx-cell fx-c-name">
+        <span class="fx-ico ${row.kind}">${ic}</span>
+        <span class="fx-namewrap">${nameCell}${sub}</span>
+      </span>
+      <span class="fx-cell fx-c-type">${esc(row.type)}</span>
+      <span class="fx-cell fx-c-mod">${modTxt}</span>
     </div>`;
   }).join('');
-
+  html += `</div>`;
   list.innerHTML = html;
 
-  list.querySelectorAll('[data-folder]').forEach(card=>card.addEventListener('click',e=>{
-    if(e.target.closest('[data-fmenu]')) return;
-    _cwd = card.dataset.folder; _openFolders.add(_cwd); search=''; $('search').value=''; render();
+  // column sort
+  list.querySelectorAll('[data-sort]').forEach(h=>h.addEventListener('click',()=>{
+    const s=h.dataset.sort;
+    if(_sort===s) _sortDir*=-1; else { _sort=s; _sortDir=1; }
+    renderExplorer(c, icons);
   }));
-  list.querySelectorAll('[data-fmenu]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); folderMenu(c, b.dataset.fmenu); }));
-  list.querySelectorAll('[data-toggle]').forEach(h=>h.addEventListener('click',()=>{
-    const id=h.dataset.toggle;
-    if(_openIds.has(id)) _openIds.delete(id); else _openIds.add(id);
-    render();
+
+  // rows
+  list.querySelectorAll('.fx-row').forEach(rowEl=>{
+    const kind=rowEl.dataset.kind, id=rowEl.dataset.id, key=rowEl.dataset.key;
+    rowEl.addEventListener('click',e=>{ if(e.target.closest('.fx-rename'))return; selectEntry(key); });
+    rowEl.addEventListener('dblclick',e=>{ if(e.target.closest('.fx-rename'))return; openEntry(c,kind,id); });
+    rowEl.addEventListener('contextmenu',e=>{ e.preventDefault(); e.stopPropagation(); selectEntry(key); openEntryMenu(c,kind,id,e.clientX,e.clientY); });
+    if(editable){
+      rowEl.addEventListener('dragstart',e=>{ _dragKey=key; rowEl.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',key);}catch(_){} });
+      rowEl.addEventListener('dragend',()=>{ _dragKey=null; list.querySelectorAll('.drop-into').forEach(x=>x.classList.remove('drop-into')); rowEl.classList.remove('dragging'); });
+      if(kind==='folder'){
+        rowEl.addEventListener('dragover',e=>{ if(_dragKey&&_dragKey!==key){ e.preventDefault(); rowEl.classList.add('drop-into'); } });
+        rowEl.addEventListener('dragleave',()=>rowEl.classList.remove('drop-into'));
+        rowEl.addEventListener('drop',e=>{ e.preventDefault(); rowEl.classList.remove('drop-into'); if(_dragKey) dropOnto(c, _dragKey, id); });
+      }
+    }
+  });
+
+  // inline rename input
+  const ri = list.querySelector('.fx-rename');
+  if(ri){
+    ri.focus(); ri.select();
+    const finish=(save)=>{ const v=ri.value; const k=_renaming; _renaming=null; if(save) commitRename(c,k,v); else renderExplorer(c,icons); };
+    ri.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();finish(true);} else if(e.key==='Escape'){e.preventDefault();finish(false);} });
+    ri.addEventListener('blur',()=>finish(true));
+  }
+
+  bindEmptyArea(c);
+}
+
+function sortCaret(s){ return _sort===s ? `<span class="fx-caret">${_sortDir>0?'▲':'▼'}</span>` : ''; }
+
+function bindEmptyArea(c){
+  const list=$('fxList');
+  list.oncontextmenu=e=>{ if(e.target.closest('.fx-row'))return; e.preventDefault(); _selId=null; openEmptyMenu(c,e.clientX,e.clientY); };
+  list.onclick=e=>{ if(!e.target.closest('.fx-row')&&!e.target.closest('.fx-headrow')){ _selId=null; updateSelInfo(c); list.querySelectorAll('.fx-row.selected').forEach(r=>r.classList.remove('selected')); } };
+  if(canEdit()){
+    list.ondragover=e=>{ if(_dragKey){ e.preventDefault(); } };
+    list.ondrop=e=>{ if(_dragKey && !e.target.closest('.fx-row.folder')){ e.preventDefault(); dropOnto(c,_dragKey,_cwd); } };
+  }
+}
+
+function updateSelInfo(c){
+  const el=$('fxSelInfo'); if(!el)return;
+  if(!_selId){ el.textContent=''; return; }
+  const [p,id]=_selId.split(':');
+  if(p==='f'){ const f=folderById(c,id); el.textContent = f?`“${f.name}” selected`:''; }
+  else { const r=recordsArr(c).find(x=>x.id===id); el.textContent = r?`“${r.title||'Untitled'}” selected`:''; }
+}
+
+function selectEntry(key){
+  _selId=key;
+  const list=$('fxList');
+  list.querySelectorAll('.fx-row').forEach(r=>r.classList.toggle('selected', r.dataset.key===key));
+  const c=state.characters?.[charIdx]; if(c) updateSelInfo(c);
+}
+
+function openEntry(c,kind,id){
+  if(kind==='folder'){ _cwd=id; _openFolders.add(id); _selId=null; search=''; $('search').value=''; filter='all'; render(); }
+  else { const r=recordsArr(c).find(x=>x.id===id); if(r) openComposer(r); }
+}
+
+function startRename(c,key){
+  if(!canEdit())return; _renaming=key; renderExplorer(c, mode==='archive'?ARCHIVE_ICONS:BEAST_ICONS);
+}
+function commitRename(c,key,val){
+  const name=(val||'').trim();
+  const [p,id]=key.split(':');
+  if(p==='f'){ const f=folderById(c,id); if(f && name) f.name=name; }
+  else { const r=recordsArr(c).find(x=>x.id===id); if(r && name) r.title=name; r&&(r.edited=Date.now()); }
+  pushState(); render();
+}
+
+function dropOnto(c, key, targetFolderId){
+  const [p,id]=key.split(':');
+  if(p==='f'){
+    if(id===targetFolderId) return;
+    const bad=[id,...descendantFolderIds(c,id)];
+    if(targetFolderId && bad.includes(targetFolderId)) return; // no folder into itself/descendant
+    const f=folderById(c,id); if(f) f.parent=targetFolderId||null;
+  } else {
+    const r=recordsArr(c).find(x=>x.id===id); if(r) r.parent=targetFolderId||null;
+  }
+  if(targetFolderId) _openFolders.add(targetFolderId);
+  pushState(); render();
+}
+
+// ── Context menus ──
+function closeMenus(){ $('ctxMenu').classList.remove('open'); $('moveMenu').classList.remove('open'); }
+function showMenu(el,x,y,items){
+  el.innerHTML = items.map(it=> it.sep
+    ? `<div class="ctx-sep"></div>`
+    : `<button class="ctx-item${it.danger?' danger':''}" data-act="${it.act}"><span class="ctx-ico">${it.ico||''}</span>${it.label}${it.key?`<span class="ctx-key">${it.key}</span>`:''}</button>`
+  ).join('');
+  el.classList.add('open');
+  el.style.left='0px'; el.style.top='0px';
+  const w=el.offsetWidth, h=el.offsetHeight;
+  el.style.left=Math.min(x, innerWidth-w-8)+'px';
+  el.style.top=Math.min(y, innerHeight-h-8)+'px';
+  return el;
+}
+function openEntryMenu(c,kind,id,x,y){
+  closeMenus();
+  const items=[
+    {act:'open', ico:'⤢', label: kind==='folder'?'Open':'Open / edit', key:'↵'},
+    {act:'rename', ico:'✎', label:'Rename', key:'F2'},
+    {act:'move', ico:'⇄', label:'Move to…'},
+    {sep:true},
+    {act:'delete', ico:'✕', label:'Delete', key:'Del', danger:true},
+  ];
+  const m=showMenu($('ctxMenu'),x,y,items);
+  m.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{
+    const a=b.dataset.act; closeMenus();
+    if(a==='open') openEntry(c,kind,id);
+    else if(a==='rename') startRename(c, entryKey(kind,id));
+    else if(a==='delete') deleteEntry(c,kind,id);
+    else if(a==='move') openMoveMenu(c,kind,id,x,y);
   }));
-  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{
-    e.stopPropagation();
-    if(!confirm('Purge this entry?'))return;
-    const arr = recordsArr(c);
-    const idx = arr.findIndex(x=>x.id===b.dataset.del);
-    if(idx>=0) arr.splice(idx,1);
+}
+function openEmptyMenu(c,x,y){
+  if(!canEdit()) return;
+  const items=[
+    {act:'newrec', ico:'✦', label: mode==='archive'?'New record':'New creature', key:'N'},
+    {act:'newfolder', ico:'▤', label:'New folder', key:'⇧N'},
+    {sep:true},
+    {act:'paste', ico:'⎘', label:'Paste'+(_clip?` “${_clip.name}”`:''), disabled:!_clip},
+  ].filter(it=>!(it.act==='paste'&&!_clip));
+  const m=showMenu($('ctxMenu'),x,y,items);
+  m.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{
+    const a=b.dataset.act; closeMenus();
+    if(a==='newrec') openComposer(null);
+    else if(a==='newfolder') createFolder(c);
+    else if(a==='paste') pasteClip(c);
+  }));
+}
+function openMoveMenu(c,kind,id,x,y){
+  closeMenus();
+  const exclude = kind==='folder' ? [id,...descendantFolderIds(c,id)] : [];
+  const dests = [{id:null,name:mode==='archive'?'Archive (root)':'Bestiary (root)',depth:0}]
+    .concat(foldersArr(c).filter(f=>!exclude.includes(f.id)).map(f=>({id:f.id,name:f.name||'Folder',depth:folderPath(c,f.id).length})));
+  const m=$('moveMenu');
+  m.innerHTML = `<div class="ctx-head">Move to</div>` + dests.map(d=>
+    `<button class="ctx-item" data-dest="${d.id||''}"><span class="ctx-ico">${d.id?'▤':'◈'}</span><span style="padding-left:${(d.depth)*10}px">${esc(d.name)}</span></button>`
+  ).join('');
+  m.classList.add('open');
+  m.style.left='0px'; m.style.top='0px';
+  const w=m.offsetWidth,h=m.offsetHeight;
+  m.style.left=Math.min(x+10, innerWidth-w-8)+'px';
+  m.style.top=Math.min(y, innerHeight-h-8)+'px';
+  m.querySelectorAll('[data-dest]').forEach(b=>b.addEventListener('click',()=>{
+    const dest=b.dataset.dest||null; closeMenus();
+    dropOnto(c, entryKey(kind,id), dest);
+  }));
+}
+
+function deleteEntry(c,kind,id){
+  if(!canEdit())return;
+  if(kind==='folder'){ deleteFolder(c,id); }
+  else {
+    const r=recordsArr(c).find(x=>x.id===id);
+    if(!confirm(`Delete “${r?r.title:'this record'}”? This cannot be undone.`)) return;
+    const arr=recordsArr(c); const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1);
+    if(_selId===entryKey('record',id)) _selId=null;
     pushState(); render();
-  }));
-  list.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',e=>{
-    e.stopPropagation();
-    const r = recordsArr(c).find(x=>x.id===b.dataset.edit);
-    if(r) openComposer(r);
-  }));
-  list.querySelectorAll('[data-move]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); moveRecord(c, b.dataset.move); }));
+  }
 }
 
 function renderTree(c, icons){
@@ -665,7 +1047,8 @@ function renderTree(c, icons){
     let h = '';
     if(!isRoot){
       const active = _cwd===id ? ' active' : '';
-      h += `<div class="tn tn-folder${active}" data-tfolder="${id}" style="--d:${depth}">
+      const drop = editable ? `data-tdrop="${id}"` : '';
+      h += `<div class="tn tn-folder${active}" data-tfolder="${id}" ${drop} style="--d:${depth}">
         <span class="tn-twist ${hasKids?(expanded?'open':'closed'):'leaf'}" data-ttoggle="${id}">${hasKids?'▸':'·'}</span>
         <span class="tn-ico">▤</span>
         <span class="tn-label">${esc(folder.name||'Folder')}</span>
@@ -674,8 +1057,7 @@ function renderTree(c, icons){
     if(expanded){
       subs.forEach(f=> h += node(f, depth+(isRoot?0:1)) );
       recs.forEach(r=>{
-        const active = (!_cwd && false);
-        h += `<div class="tn tn-file" data-tfile="${r.id}" data-tfileparent="${r.parent||''}" style="--d:${depth+(isRoot?0:1)}">
+        h += `<div class="tn tn-file" data-tfile="${r.id}" style="--d:${depth+(isRoot?0:1)}">
           <span class="tn-twist leaf">·</span>
           <span class="tn-ico file">${icons[r.type]||'▪'}</span>
           <span class="tn-label">${esc(r.title||'Untitled')}</span>
@@ -685,9 +1067,10 @@ function renderTree(c, icons){
     return h;
   }
   const rootActive = _cwd===null ? ' active' : '';
-  host.innerHTML = `<div class="tn tn-root${rootActive}" data-troot="1"><span class="tn-twist open">▾</span><span class="tn-ico">◈</span><span class="tn-label">${mode==='archive'?'Archive':'Bestiary'}</span></div>` + node(null, 0);
+  const rootDrop = editable ? 'data-tdrop=""' : '';
+  host.innerHTML = `<div class="tn tn-root${rootActive}" data-troot="1" ${rootDrop}><span class="tn-twist open">▾</span><span class="tn-ico">◈</span><span class="tn-label">${mode==='archive'?'Archive':'Bestiary'}</span></div>` + node(null, 0);
 
-  host.querySelector('[data-troot]')?.addEventListener('click',()=>{ _cwd=null; search=''; $('search').value=''; render(); });
+  host.querySelector('[data-troot]')?.addEventListener('click',()=>{ _cwd=null; search=''; $('search').value=''; filter='all'; render(); });
   host.querySelectorAll('[data-ttoggle]').forEach(t=>t.addEventListener('click',e=>{
     e.stopPropagation();
     const id=t.dataset.ttoggle;
@@ -696,112 +1079,94 @@ function renderTree(c, icons){
   }));
   host.querySelectorAll('[data-tfolder]').forEach(n=>n.addEventListener('click',e=>{
     if(e.target.closest('[data-ttoggle]')) return;
-    _cwd=n.dataset.tfolder; _openFolders.add(_cwd); search=''; $('search').value=''; render();
+    _cwd=n.dataset.tfolder; _openFolders.add(_cwd); search=''; $('search').value=''; filter='all'; render();
   }));
+  host.querySelectorAll('[data-tfolder]').forEach(n=>n.addEventListener('contextmenu',e=>{ e.preventDefault(); openEntryMenu(c,'folder',n.dataset.tfolder,e.clientX,e.clientY); }));
   host.querySelectorAll('[data-tfile]').forEach(n=>n.addEventListener('click',()=>{
     const r = recordsArr(c).find(x=>x.id===n.dataset.tfile); if(!r) return;
-    _cwd = r.parent||null; search=''; $('search').value='';
-    _openIds.add(r.id); render();
-    setTimeout(()=>{ document.querySelector(`.rec[data-id="${r.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}); },60);
+    _cwd = r.parent||null; search=''; $('search').value=''; filter='all'; render();
+    setTimeout(()=>{ openComposer(r); },40);
   }));
+  // tree folders as drop targets
+  if(editable){
+    host.querySelectorAll('[data-tdrop]').forEach(n=>{
+      n.addEventListener('dragover',e=>{ if(_dragKey){ e.preventDefault(); n.classList.add('drop-into'); } });
+      n.addEventListener('dragleave',()=>n.classList.remove('drop-into'));
+      n.addEventListener('drop',e=>{ e.preventDefault(); n.classList.remove('drop-into'); if(_dragKey) dropOnto(c,_dragKey, n.dataset.tdrop||null); });
+    });
+  }
 }
 
 function renderBreadcrumb(c){
   const host=$('ex-breadcrumb'); if(!host) return;
+  const searching=!!search.trim()||filter!=='all';
+  if(searching){
+    host.innerHTML = `<span class="crumb-search">⌕ Search results</span>`;
+    return;
+  }
   const path = _cwd ? folderPath(c,_cwd) : [];
   let h = `<button class="crumb" data-croot="1">${mode==='archive'?'◈ Archive':'⬣ Bestiary'}</button>`;
   path.forEach(f=>{ h += `<span class="crumb-sep">›</span><button class="crumb" data-cfolder="${f.id}">${esc(f.name||'Folder')}</button>`; });
-  if(canEdit() && _cwd){
-    h += `<div class="crumb-actions"><button class="crumb-act" id="crumbRename">✎ Rename</button><button class="crumb-act" id="crumbDelete">✕ Delete folder</button></div>`;
-  }
   host.innerHTML = h;
   host.querySelector('[data-croot]')?.addEventListener('click',()=>{ _cwd=null; render(); });
   host.querySelectorAll('[data-cfolder]').forEach(b=>b.addEventListener('click',()=>{ _cwd=b.dataset.cfolder; render(); }));
-  $('crumbRename')?.addEventListener('click',()=>renameFolder(c,_cwd));
-  $('crumbDelete')?.addEventListener('click',()=>deleteFolder(c,_cwd));
 }
 
 function createFolder(c){
   if(!canEdit()) return;
-  const name = prompt('New folder name:'); if(name===null) return;
-  const f = { id:'fld-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), name:name.trim()||'New Folder', parent:_cwd||null, ts:Date.now() };
+  const f = { id:'fld-'+Date.now()+'-'+Math.random().toString(36).slice(2,6), name:'New folder', parent:_cwd||null, ts:Date.now() };
   foldersArr(c).push(f);
   if(_cwd) _openFolders.add(_cwd);
+  _selId=entryKey('folder',f.id);
   pushState(); render();
+  setTimeout(()=>startRename(c, entryKey('folder',f.id)),40);
 }
-function renameFolder(c,id){
-  if(!canEdit()) return;
-  const f=folderById(c,id); if(!f) return;
-  const name=prompt('Rename folder:', f.name||''); if(name===null) return;
-  f.name=name.trim()||f.name; pushState(); render();
-}
+function renameFolder(c,id){ startRename(c, entryKey('folder',id)); }
 function deleteFolder(c,id){
   if(!canEdit()) return;
   const f=folderById(c,id); if(!f) return;
   const ids=[id,...descendantFolderIds(c,id)];
   const recCount = recordsArr(c).filter(r=>ids.includes(r.parent)).length;
   const folderCount = ids.length;
-  if(!confirm(`Delete "${f.name}"${folderCount>1?` and ${folderCount-1} subfolder(s)`:''}? ${recCount?`${recCount} record(s) inside will move to the parent.`:''}`)) return;
-  // move records up to the deleted folder's parent
+  if(!confirm(`Delete “${f.name}”${folderCount>1?` and ${folderCount-1} subfolder(s)`:''}? ${recCount?`${recCount} record(s) inside will move to the parent.`:'It is empty.'}`)) return;
   const newParent = f.parent||null;
   recordsArr(c).forEach(r=>{ if(ids.includes(r.parent)) r.parent=newParent; });
-  // remove the folders
   const arr=foldersArr(c);
   for(let i=arr.length-1;i>=0;i--){ if(ids.includes(arr[i].id)) arr.splice(i,1); }
   ids.forEach(x=>_openFolders.delete(x));
-  _cwd = newParent;
+  if(_cwd && ids.includes(_cwd)) _cwd = newParent;
+  _selId=null;
   pushState(); render();
 }
-function folderMenu(c,id){
-  if(!canEdit()) return;
-  const f=folderById(c,id); if(!f) return;
-  const act = prompt(`Folder "${f.name}":\nType  R  to rename,  D  to delete,  M  to move into another folder.`,'');
-  if(act===null) return;
-  const a=act.trim().toUpperCase();
-  if(a==='R') renameFolder(c,id);
-  else if(a==='D') deleteFolder(c,id);
-  else if(a==='M') moveFolder(c,id);
-}
-function pickFolderTarget(c, label, excludeIds){
-  const all = foldersArr(c).filter(f=>!excludeIds.includes(f.id));
-  const opts = all.map((f,i)=>`${i+1}. ${folderPath(c,f.id).map(p=>p.name).join(' / ')}`);
-  const choice = prompt(`${label}\n0. (Root)\n${opts.join('\n')}\n\nEnter a number:`,'0');
-  if(choice===null) return undefined;
-  const n=parseInt(choice);
-  if(isNaN(n)||n<0||n>all.length) return undefined;
-  return n===0 ? null : all[n-1].id;
-}
-function moveRecord(c,id){
-  if(!canEdit()) return;
-  const r=recordsArr(c).find(x=>x.id===id); if(!r) return;
-  const target=pickFolderTarget(c,`Move "${r.title}" to which folder?`,[]);
-  if(target===undefined) return;
-  r.parent=target; pushState(); render();
-}
-function moveFolder(c,id){
-  if(!canEdit()) return;
-  const f=folderById(c,id); if(!f) return;
-  const exclude=[id,...descendantFolderIds(c,id)];
-  const target=pickFolderTarget(c,`Move folder "${f.name}" into:`,exclude);
-  if(target===undefined) return;
-  f.parent=target; pushState(); render();
-}
-let _openIds = new Set();
 
-function renderAddForm(types){
-  const zone = $('addZone');
-  if(!canEdit()){ zone.innerHTML = `<div class="readonly-note">👁 Read-only — only ${esc(state.characters?.[charIdx]?.name||'the owner')} (or the DM) can add entries.</div>`; return; }
-  const c = state.characters[charIdx];
-  const locName = _cwd ? (folderById(c,_cwd)?.name||'…') : (mode==='archive'?'Archive root':'Bestiary root');
-  zone.innerHTML = `
-    <div class="ex-toolbar">
-      <button id="tbNewRec" class="tb-btn tb-primary">＋ ${mode==='archive'?'New Record':'New Creature'}</button>
-      <button id="tbNewFolder" class="tb-btn">▤ New Folder</button>
-      <span class="tb-loc"><span class="tb-loc-label">Saving to</span> <b>${esc(locName)}</b></span>
-    </div>`;
-  $('tbNewRec')?.addEventListener('click',()=>openComposer(null));
-  $('tbNewFolder')?.addEventListener('click',()=>createFolder(c));
+function pasteClip(c){
+  if(!_clip) return;
+  if(_clip.mode==='copy'){
+    const [p,id]=_clip.key.split(':');
+    if(p==='r'){
+      const r=recordsArr(c).find(x=>x.id===id);
+      if(r){ const copy=JSON.parse(JSON.stringify(r)); copy.id=(mode==='archive'?'arc':'beast')+'-'+Date.now(); copy.title=(r.title||'Untitled')+' (copy)'; copy.parent=_cwd||null; copy.ts=Date.now(); copy.edited=Date.now(); recordsArr(c).unshift(copy); _selId=entryKey('record',copy.id); }
+    } else {
+      // duplicate folder shallow (name copy) — keep simple: copy folder + its direct records
+      const f=folderById(c,id);
+      if(f){ const nf={id:'fld-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),name:(f.name||'Folder')+' (copy)',parent:_cwd||null,ts:Date.now()}; foldersArr(c).push(nf); _selId=entryKey('folder',nf.id); }
+    }
+    pushState(); render();
+  } else {
+    dropOnto(c, _clip.key, _cwd);
+    _clip=null;
+  }
 }
+function setClip(c, mode){
+  if(!_selId) return;
+  const [p,id]=_selId.split(':');
+  const name = p==='f' ? folderById(c,id)?.name : recordsArr(c).find(x=>x.id===id)?.title;
+  _clip={key:_selId, name:name||'item', mode};
+  render();
+}
+
+let _openIds = new Set();
+function renderAddForm(){}
 
 function composerTypes(){ return mode==='archive' ? ARCHIVE_TYPES : BEAST_TYPES; }
 
@@ -865,31 +1230,75 @@ function saveComposer(){
 
 
 // ── UI events ──
-$('charSelect').addEventListener('change',e=>{ charIdx=Number(e.target.value); _editId=null; _openIds.clear(); _cwd=null; _openFolders.clear(); render(); });
+const curChar=()=>state?.characters?.[charIdx];
+$('charSelect').addEventListener('change',e=>{ charIdx=Number(e.target.value); _selId=null; _renaming=null; _openIds.clear(); _cwd=null; _openFolders.clear(); render(); });
 document.querySelectorAll('.mode-tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.mode-tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
-  mode=t.dataset.mode; filter='all'; search=''; _editId=null; _openIds.clear(); _cwd=null; _openFolders.clear();
+  mode=t.dataset.mode; filter='all'; search=''; _selId=null; _renaming=null; _openIds.clear(); _cwd=null; _openFolders.clear();
   $('search').value=''; render();
 }));
 $('search').addEventListener('input',e=>{ search=e.target.value; render(); });
 $('filter').addEventListener('change',e=>{ filter=e.target.value; render(); });
-$('newFolderBtn')?.addEventListener('click',()=>{ const c=state?.characters?.[charIdx]; if(c) createFolder(c); });
+$('newFolderBtn')?.addEventListener('click',()=>{ const c=curChar(); if(c) createFolder(c); });
 $('newFileBtn')?.addEventListener('click',()=>{ if(canEdit()) openComposer(null); });
 $('collapseAll')?.addEventListener('click',()=>{
-  const c=state?.characters?.[charIdx]; if(!c)return;
-  if(_openFolders.size){ _openFolders.clear(); }
-  else { foldersArr(c).forEach(f=>_openFolders.add(f.id)); }
+  const c=curChar(); if(!c)return;
+  if(_openFolders.size){ _openFolders.clear(); } else { foldersArr(c).forEach(f=>_openFolders.add(f.id)); }
   render();
 });
+
+// command bar
+function navTo(folderId){ const c=curChar(); if(!c)return; _navBack.push(_cwd); _cwd=folderId; _selId=null; render(); }
+$('fxBack')?.addEventListener('click',()=>{ if(!_navBack.length)return; _cwd=_navBack.pop(); _selId=null; render(); });
+$('fxUp')?.addEventListener('click',()=>{ const c=curChar(); if(!c||!_cwd)return; const f=folderById(c,_cwd); _navBack.push(_cwd); _cwd=f?f.parent||null:null; _selId=null; render(); });
+$('fxViewBtn')?.addEventListener('click',()=>{ _view=_view==='grid'?'details':'grid'; localStorage.setItem('fx-view',_view); render(); });
+$('fxSortBtn')?.addEventListener('click',()=>{ _sort = _sort==='name'?'type':_sort==='type'?'modified':'name'; _sortDir=1; render(); });
+$('fxCut')?.addEventListener('click',()=>{ const c=curChar(); if(c) setClip(c,'move'); });
+$('fxCopy')?.addEventListener('click',()=>{ const c=curChar(); if(c) setClip(c,'copy'); });
+$('fxPaste')?.addEventListener('click',()=>{ const c=curChar(); if(c) pasteClip(c); });
+$('fxRename')?.addEventListener('click',()=>{ const c=curChar(); if(c&&_selId) startRename(c,_selId); });
+$('fxDelete')?.addEventListener('click',()=>{ const c=curChar(); if(!c||!_selId)return; const [p,id]=_selId.split(':'); deleteEntry(c,p==='f'?'folder':'record',id); });
+const newMenu=$('fxNewMenu');
+$('fxNewBtn')?.addEventListener('click',e=>{ e.stopPropagation(); $('fxFilterMenu')?.classList.remove('open'); newMenu.classList.toggle('open'); });
+newMenu?.querySelectorAll('[data-new]').forEach(b=>b.addEventListener('click',()=>{
+  newMenu.classList.remove('open'); const c=curChar(); if(!c)return;
+  if(b.dataset.new==='folder') createFolder(c); else openComposer(null);
+}));
+$('fxFilterBtn')?.addEventListener('click',e=>{ e.stopPropagation(); newMenu?.classList.remove('open'); $('fxFilterMenu')?.classList.toggle('open'); });
+
+// composer
 $('cmpClose')?.addEventListener('click',closeComposer);
 $('cmpCancel')?.addEventListener('click',closeComposer);
 $('cmpSave')?.addEventListener('click',saveComposer);
 $('composer')?.addEventListener('mousedown',e=>{ if(e.target===$('composer')) closeComposer(); });
+
+// global: close menus / dropdown on outside click or scroll
+document.addEventListener('click',e=>{ if(!e.target.closest('.ctx-menu')) closeMenus(); if(!e.target.closest('.fx-menuwrap')){ newMenu?.classList.remove('open'); $('fxFilterMenu')?.classList.remove('open'); } });
+window.addEventListener('blur',closeMenus);
+$('fxList')?.addEventListener('scroll',closeMenus,true);
+
+// keyboard control
 document.addEventListener('keydown',e=>{
-  if(!$('composer')?.classList.contains('open')) return;
-  if(e.key==='Escape'){ e.preventDefault(); closeComposer(); }
-  else if((e.ctrlKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); saveComposer(); }
+  if($('composer')?.classList.contains('open')){
+    if(e.key==='Escape'){ e.preventDefault(); closeComposer(); }
+    else if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); saveComposer(); }
+    return;
+  }
+  if(_renaming) return;
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select') return;
+  const c=curChar(); if(!c) return;
+  if(e.key==='Escape'){ closeMenus(); }
+  if(!_selId) return;
+  const [p,id]=_selId.split(':');
+  const kind=p==='f'?'folder':'record';
+  if(e.key==='F2'){ e.preventDefault(); startRename(c,_selId); }
+  else if(e.key==='Delete'){ e.preventDefault(); deleteEntry(c,kind,id); }
+  else if(e.key==='Enter'){ e.preventDefault(); openEntry(c,kind,id); }
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='x'){ e.preventDefault(); setClip(c,'move'); }
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){ e.preventDefault(); setClip(c,'copy'); }
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){ e.preventDefault(); pasteClip(c); }
 });
 
 start();

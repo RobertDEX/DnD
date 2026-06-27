@@ -296,7 +296,7 @@ body::before{
 .cmp-stat span{font-family:var(--F3);font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .cmp-stat input{font-family:var(--F2);font-size:.92rem;color:#fff;background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;transition:border-color .15s}
 .cmp-stat input:focus{outline:none;border-color:var(--cy)}
-.composer-textarea{flex:1;min-height:42vh;resize:vertical;font-family:var(--F4);font-size:1.12rem;line-height:1.75;color:#ece0c6;
+.composer-textarea{flex:1;min-height:28vh;resize:vertical;font-family:var(--F4);font-size:1.12rem;line-height:1.75;color:#ece0c6;
   background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;transition:border-color .15s,box-shadow .15s}
 .composer-textarea::placeholder{color:var(--muted);font-style:italic}
 .composer-textarea:focus{outline:none;border-color:rgba(34,211,255,.5);box-shadow:inset 0 0 30px -22px var(--cy-hi),0 0 0 2px rgba(34,211,255,.08)}
@@ -489,7 +489,46 @@ body::before{
 
 /* status bar flush */
 .fx-status{margin-top:.5rem;border-radius:9px}
+
+/* ── Composer: new fields, images, links ── */
+.cmp-wide{grid-column:span 2}
+@media(max-width:560px){.cmp-wide{grid-column:span 2}}
+.cmp-field-label{font-family:var(--F3);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.4rem}
+.cmp-field-hint{color:var(--cy);opacity:.6;text-transform:none;letter-spacing:0;font-size:.9em}
+.cmp-images-wrap{display:flex;flex-direction:column}
+.cmp-images-input{font-family:var(--F3);font-size:.78rem;color:var(--text);background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:9px;padding:.6rem .7rem;min-height:64px;resize:vertical;transition:border-color .15s}
+.cmp-images-input:focus{outline:none;border-color:var(--cy)}
+.cmp-images-preview{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.6rem}
+.cmp-thumb{width:84px;height:84px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:rgba(0,0,0,.4);display:block;transition:border-color .15s,transform .15s}
+.cmp-thumb:hover{border-color:var(--cy);transform:translateY(-2px)}
+.cmp-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.cmp-thumb.broken{display:none}
+
+.cmp-links{margin-top:.4rem;padding-top:.9rem;border-top:1px solid var(--line)}
+.cmp-links-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.6rem}
+.cmp-links-head .cmp-field-label{margin:0}
+.cmp-addlink{font-family:var(--F2);font-weight:600;font-size:.74rem;color:var(--cy-hi);background:rgba(34,211,255,.08);border:1px solid rgba(34,211,255,.28);border-radius:8px;padding:.34rem .7rem;cursor:pointer;transition:all .14s}
+.cmp-addlink:hover{background:rgba(34,211,255,.18);border-color:var(--cy)}
+.cmp-link-picker{display:none;margin-bottom:.7rem;border:1px solid rgba(34,211,255,.3);border-radius:11px;overflow:hidden;background:rgba(8,13,24,.8)}
+.cmp-link-picker.open{display:block}
+.cmp-pick-search{width:100%;font-family:var(--F3);font-size:.8rem;color:var(--text);background:rgba(0,0,0,.4);border:none;border-bottom:1px solid var(--line);padding:.6rem .8rem;outline:none}
+.cmp-pick-list{max-height:200px;overflow-y:auto;padding:.3rem}
+.cmp-pick-item{display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;font-family:var(--F2);font-size:.86rem;color:var(--text);background:none;border:none;border-radius:7px;padding:.5rem .6rem;cursor:pointer;transition:background .12s}
+.cmp-pick-item:hover{background:rgba(34,211,255,.14);color:#fff}
+.cmp-pick-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp-pick-meta{margin-left:auto;font-family:var(--F3);font-size:.58rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+.cmp-pick-empty{padding:.8rem;font-family:var(--F3);font-size:.74rem;color:var(--muted);text-align:center}
+.cmp-links-list{display:flex;flex-wrap:wrap;gap:.5rem}
+.cmp-links-empty{font-family:var(--F3);font-size:.72rem;color:var(--muted);font-style:italic}
+.cmp-link-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.34rem .4rem .34rem .55rem;background:linear-gradient(135deg,rgba(157,140,255,.16),rgba(157,140,255,.05));border:1px solid rgba(157,140,255,.32);border-radius:999px;transition:border-color .14s,box-shadow .14s}
+.cmp-link-chip:hover{border-color:var(--cyan);box-shadow:0 0 14px -6px var(--cyan)}
+.cmp-link-ico{font-size:.85rem;color:var(--cy-hi)}
+.cmp-link-name{font-family:var(--F2);font-weight:600;font-size:.82rem;color:#fff;cursor:pointer;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp-link-name:hover{text-decoration:underline;text-decoration-color:var(--cyan)}
+.cmp-link-x{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.66rem;color:var(--muted);background:rgba(0,0,0,.3);border:none;cursor:pointer;transition:all .12s;flex-shrink:0}
+.cmp-link-x:hover{background:rgba(255,61,113,.3);color:#fff}
 </style>
+
 
 
 
@@ -597,7 +636,20 @@ body::before{
           <select id="cmpType" class="composer-type"></select>
         </div>
         <div id="cmpStats" class="composer-stats"></div>
+        <div id="cmpImagesWrap" class="cmp-images-wrap" style="display:none">
+          <label class="cmp-field-label">Images <span class="cmp-field-hint">one URL per line</span></label>
+          <textarea id="cmpImages" class="cmp-images-input" placeholder="https://…&#10;https://…"></textarea>
+          <div id="cmpImagesPreview" class="cmp-images-preview"></div>
+        </div>
         <textarea id="cmpBody" class="composer-textarea" placeholder="Write…"></textarea>
+        <div class="cmp-links">
+          <div class="cmp-links-head">
+            <label class="cmp-field-label">🔗 Linked files</label>
+            <button id="cmpAddLink" class="cmp-addlink" type="button">+ Add link</button>
+          </div>
+          <div id="cmpLinkPicker" class="cmp-link-picker"></div>
+          <div id="cmpLinksList" class="cmp-links-list"></div>
+        </div>
       </div>
       <div class="composer-foot">
         <span class="composer-hint"><kbd>Esc</kbd> cancel · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span>
@@ -627,10 +679,10 @@ const CAMPAIGN = doc(db, 'campaigns', 'ft-campaign');
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-const ARCHIVE_TYPES = ['Person','Place','Event','Item','Knowledge','Spell','Other'];
-const ARCHIVE_ICONS = { Person:'◉', Place:'⬡', Event:'◈', Item:'◇', Knowledge:'❖', Spell:'✦', Other:'▪' };
-const BEAST_TYPES = ['Beast','Demon','Dragon','Undead','Construct','Humanoid','Spirit','Aberration','Other'];
-const BEAST_ICONS = { Beast:'🐾', Demon:'😈', Dragon:'🐉', Undead:'💀', Construct:'⚙', Humanoid:'🗡', Spirit:'👻', Aberration:'🌀', Other:'⬣' };
+const ARCHIVE_TYPES = ['People','History','Magic','Grimoires','Alchemy','Guilds','Notebook','Day to day Archive'];
+const ARCHIVE_ICONS = { 'People':'◉', 'History':'◈', 'Magic':'✦', 'Grimoires':'❖', 'Alchemy':'⬢', 'Guilds':'⬡', 'Notebook':'▣', 'Day to day Archive':'◷' };
+const BEAST_TYPES = ['Humanoid','Monster','Beast','Herb'];
+const BEAST_ICONS = { 'Humanoid':'◉', 'Monster':'▲', 'Beast':'⬣', 'Herb':'❀' };
 
 let state = null;          // full campaign state
 let charIdx = 0;           // which character we're viewing
@@ -679,6 +731,37 @@ function descendantFolderIds(c,id){
     childFolders(c,cur).forEach(f=>{ out.push(f.id); stack.push(f.id); });
   }
   return out;
+}
+
+function allRecords(c){ return [].concat(Array.isArray(c.archive)?c.archive:[], Array.isArray(c.bestiary)?c.bestiary:[]); }
+function findRecordById(c,id){ return allRecords(c).find(r=>r.id===id)||null; }
+function recordModeOf(c,id){ if((c.archive||[]).some(r=>r.id===id)) return 'archive'; if((c.bestiary||[]).some(r=>r.id===id)) return 'bestiary'; return null; }
+function recordLinks(rec){ return Array.isArray(rec.links)?rec.links:[]; }
+function addLink(c,aId,bId){
+  if(aId===bId) return;
+  const a=findRecordById(c,aId), b=findRecordById(c,bId);
+  if(!a||!b) return;
+  if(!Array.isArray(a.links)) a.links=[];
+  if(!Array.isArray(b.links)) b.links=[];
+  if(!a.links.includes(bId)) a.links.push(bId);
+  if(!b.links.includes(aId)) b.links.push(aId);
+}
+function removeLink(c,aId,bId){
+  const a=findRecordById(c,aId), b=findRecordById(c,bId);
+  if(a&&Array.isArray(a.links)) a.links=a.links.filter(x=>x!==bId);
+  if(b&&Array.isArray(b.links)) b.links=b.links.filter(x=>x!==aId);
+}
+function revealRecord(c,id){
+  const r=findRecordById(c,id); if(!r) return;
+  const m=recordModeOf(c,id);
+  if(m && m!==mode){
+    mode=m;
+    document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active', t.dataset.mode===m));
+  }
+  filter='all'; search=''; if($('search')) $('search').value='';
+  _cwd = r.parent||null;
+  render();
+  setTimeout(()=>openComposer(r),30);
 }
 
 function hasArchiveMagic(c){ return /archive/i.test(c?.magicType||''); }
@@ -1028,6 +1111,7 @@ function deleteEntry(c,kind,id){
   else {
     const r=recordsArr(c).find(x=>x.id===id);
     if(!confirm(`Delete “${r?r.title:'this record'}”? This cannot be undone.`)) return;
+    recordLinks(r||{}).slice().forEach(other=>removeLink(c,id,other));
     const arr=recordsArr(c); const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1);
     if(_selId===entryKey('record',id)) _selId=null;
     pushState(); render();
@@ -1181,23 +1265,110 @@ function openComposer(rec){
   $('cmpLoc').innerHTML = `<span class="cmp-loc-ico">▤</span>${esc(locName)}`;
   $('cmpType').innerHTML = types.map(t=>`<option value="${t}" ${rec&&rec.type===t?'selected':''}>${t}</option>`).join('');
   $('cmpTitle').value = rec ? (rec.title||'') : '';
-  $('cmpTitle').placeholder = isBeast ? 'Creature name…' : 'Record title — name, place, thing…';
+  $('cmpTitle').placeholder = isBeast ? 'Name of the creature…' : 'Record title — name, place, thing…';
   $('cmpBody').value = rec ? (rec.body||'') : '';
-  $('cmpBody').placeholder = isBeast ? 'Description, abilities, lore, tactics…' : 'Everything recorded… what was seen, heard, learned.';
+  $('cmpBody').placeholder = isBeast ? 'Description, behaviour, lore, tactics…' : 'Everything recorded… what was seen, heard, learned.';
   const stats = $('cmpStats');
+  const imgWrap = $('cmpImagesWrap');
   if(isBeast){
     stats.style.display='grid';
     stats.innerHTML = `
-      <label class="cmp-stat"><span>HP</span><input id="cmpHp" value="${rec?esc(rec.hp||''):''}" placeholder="—"></label>
-      <label class="cmp-stat"><span>AC</span><input id="cmpAc" value="${rec?esc(rec.ac||''):''}" placeholder="—"></label>
-      <label class="cmp-stat"><span>Threat</span><input id="cmpThreat" value="${rec?esc(rec.threat||''):''}" placeholder="Low…"></label>
-      <label class="cmp-stat"><span>Weakness</span><input id="cmpWeak" value="${rec?esc(rec.weakness||''):''}" placeholder="Fire…"></label>`;
-  } else { stats.style.display='none'; stats.innerHTML=''; }
+      <label class="cmp-stat cmp-wide"><span>Classification</span><input id="cmpClass" value="${rec?esc(rec.classification||''):''}" placeholder="e.g. Lesser Fire Drake"></label>
+      <label class="cmp-stat"><span>Amount Killed</span><input id="cmpKilled" value="${rec?esc(rec.killed||''):''}" placeholder="0"></label>
+      <label class="cmp-stat"><span>Amount Defeated</span><input id="cmpDefeated" value="${rec?esc(rec.defeated||''):''}" placeholder="0"></label>
+      <label class="cmp-stat cmp-wide"><span>Magic Used</span><input id="cmpMagic" value="${rec?esc(rec.magicUsed||''):''}" placeholder="Fire Dragon Slayer Magic…"></label>`;
+    imgWrap.style.display='';
+    $('cmpImages').value = rec && Array.isArray(rec.images) ? rec.images.join('\n') : '';
+    renderImagePreview();
+  } else { stats.style.display='none'; stats.innerHTML=''; imgWrap.style.display='none'; }
   $('cmpSave').textContent = rec ? 'Save changes' : (isBeast?'Catalogue creature':'Commit to archive');
+  $('cmpLinkPicker').classList.remove('open'); $('cmpLinkPicker').innerHTML='';
+  renderComposerLinks();
   const ov = $('composer');
   ov.classList.add('open');
   document.body.style.overflow='hidden';
   setTimeout(()=>$('cmpTitle').focus(),60);
+}
+
+function renderImagePreview(){
+  const host=$('cmpImagesPreview'); if(!host) return;
+  const urls=($('cmpImages')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  host.innerHTML = urls.map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener" class="cmp-thumb"><img src="${esc(u)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('broken')"></a>`).join('');
+}
+
+function renderComposerLinks(){
+  const c=state.characters?.[charIdx]; if(!c) return;
+  const host=$('cmpLinksList'); if(!host) return;
+  if(!_composingId){ host.innerHTML=`<span class="cmp-links-empty">Save this record first, then link other files to it.</span>`; return; }
+  const rec=findRecordById(c,_composingId);
+  const links=rec?recordLinks(rec):[];
+  if(!links.length){ host.innerHTML=`<span class="cmp-links-empty">No links yet. Use “+ Add link” to connect this to another file.</span>`; return; }
+  host.innerHTML = links.map(id=>{
+    const t=findRecordById(c,id); if(!t) return '';
+    const m=recordModeOf(c,id);
+    const ico=(m==='bestiary'?BEAST_ICONS:ARCHIVE_ICONS)[t.type]||'▪';
+    return `<span class="cmp-link-chip" data-link="${id}"><span class="cmp-link-ico">${ico}</span><span class="cmp-link-name" data-goto="${id}">${esc(t.title||'Untitled')}</span><button class="cmp-link-x" data-unlink="${id}" title="Remove link">✕</button></span>`;
+  }).join('');
+  host.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>{
+    persistComposer(); const id=b.dataset.goto; revealRecord(state.characters[charIdx], id);
+  }));
+  host.querySelectorAll('[data-unlink]').forEach(b=>b.addEventListener('click',()=>{
+    const c2=state.characters[charIdx]; removeLink(c2,_composingId,b.dataset.unlink); pushState(); renderComposerLinks();
+  }));
+}
+
+function openLinkPicker(){
+  const c=state.characters?.[charIdx]; if(!c) return;
+  if(!_composingId){ persistComposer(); if(!_composingId) return; }
+  const picker=$('cmpLinkPicker');
+  const rec=findRecordById(c,_composingId);
+  const linked=new Set(recordLinks(rec));
+  const build=(q)=>{
+    const ql=(q||'').toLowerCase();
+    const opts=allRecords(c).filter(r=>r.id!==_composingId && !linked.has(r.id) && (!ql||(r.title||'').toLowerCase().includes(ql)));
+    return opts.slice(0,40).map(r=>{
+      const m=recordModeOf(c,r.id);
+      const ico=(m==='bestiary'?BEAST_ICONS:ARCHIVE_ICONS)[r.type]||'▪';
+      return `<button class="cmp-pick-item" data-pick="${r.id}"><span class="cmp-link-ico">${ico}</span><span class="cmp-pick-name">${esc(r.title||'Untitled')}</span><span class="cmp-pick-meta">${m==='bestiary'?'Bestiary':'Archive'} · ${esc(r.type||'')}</span></button>`;
+    }).join('') || `<div class="cmp-pick-empty">No matching files.</div>`;
+  };
+  picker.innerHTML = `<input id="cmpPickSearch" class="cmp-pick-search" placeholder="Search files to link…" spellcheck="false"><div id="cmpPickList" class="cmp-pick-list">${build('')}</div>`;
+  picker.classList.add('open');
+  const si=$('cmpPickSearch'); si.focus();
+  si.addEventListener('input',()=>{ $('cmpPickList').innerHTML=build(si.value); bindPick(); });
+  const bindPick=()=>{ $('cmpPickList').querySelectorAll('[data-pick]').forEach(b=>b.addEventListener('click',()=>{
+    const c2=state.characters[charIdx]; addLink(c2,_composingId,b.dataset.pick); pushState(); picker.classList.remove('open'); picker.innerHTML=''; renderComposerLinks();
+  })); };
+  bindPick();
+}
+
+function persistComposer(){
+  const c = state.characters?.[charIdx]; if(!c) return null;
+  const title=$('cmpTitle').value.trim();
+  const type=$('cmpType').value;
+  const body=$('cmpBody').value.trim();
+  const isBeast = mode==='bestiary';
+  if(!title&&!body && !_composingId) return null;
+  const arr = recordsArr(c);
+  let rec;
+  if(_composingId){
+    rec = findRecordById(c,_composingId);
+    if(rec){ rec.title=title||'Untitled'; rec.type=type; rec.body=body; rec.edited=Date.now(); }
+  } else {
+    rec={ id:(isBeast?'beast':'arc')+'-'+Date.now(), title:title||'Untitled', type, body, ts:Date.now(), parent:_cwd||null };
+    arr.unshift(rec);
+    _openIds.add(rec.id);
+    _composingId = rec.id;
+  }
+  if(rec && isBeast){
+    rec.classification=$('cmpClass')?.value.trim()||'';
+    rec.killed=$('cmpKilled')?.value.trim()||'';
+    rec.defeated=$('cmpDefeated')?.value.trim()||'';
+    rec.magicUsed=$('cmpMagic')?.value.trim()||'';
+    rec.images=($('cmpImages')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  }
+  pushState();
+  return rec;
 }
 function closeComposer(){
   $('composer').classList.remove('open');
@@ -1207,25 +1378,11 @@ function closeComposer(){
 function saveComposer(){
   const c = state.characters?.[charIdx]; if(!c) return;
   const title=$('cmpTitle').value.trim();
-  const type=$('cmpType').value;
   const body=$('cmpBody').value.trim();
-  if(!title&&!body){ $('cmpTitle').focus(); return; }
-  const isBeast = mode==='bestiary';
-  const arr = recordsArr(c);
-  if(_composingId){
-    const r = arr.find(x=>x.id===_composingId);
-    if(r){
-      r.title=title||'Untitled'; r.type=type; r.body=body; r.edited=Date.now();
-      if(isBeast){ r.hp=$('cmpHp')?.value.trim()||''; r.ac=$('cmpAc')?.value.trim()||''; r.threat=$('cmpThreat')?.value.trim()||''; r.weakness=$('cmpWeak')?.value.trim()||''; }
-    }
-  } else {
-    const rec={ id:(isBeast?'beast':'arc')+'-'+Date.now(), title:title||'Untitled', type, body, ts:Date.now(), parent:_cwd||null };
-    if(isBeast){ rec.hp=$('cmpHp')?.value.trim()||''; rec.ac=$('cmpAc')?.value.trim()||''; rec.threat=$('cmpThreat')?.value.trim()||''; rec.weakness=$('cmpWeak')?.value.trim()||''; }
-    arr.unshift(rec);
-    _openIds.add(rec.id);
-  }
+  if(!title&&!body&&!_composingId){ $('cmpTitle').focus(); return; }
+  persistComposer();
   closeComposer();
-  pushState(); render();
+  render();
 }
 
 
@@ -1271,6 +1428,8 @@ $('fxFilterBtn')?.addEventListener('click',e=>{ e.stopPropagation(); newMenu?.cl
 $('cmpClose')?.addEventListener('click',closeComposer);
 $('cmpCancel')?.addEventListener('click',closeComposer);
 $('cmpSave')?.addEventListener('click',saveComposer);
+$('cmpAddLink')?.addEventListener('click',()=>{ const p=$('cmpLinkPicker'); if(p.classList.contains('open')){ p.classList.remove('open'); p.innerHTML=''; } else openLinkPicker(); });
+$('cmpImages')?.addEventListener('input',renderImagePreview);
 $('composer')?.addEventListener('mousedown',e=>{ if(e.target===$('composer')) closeComposer(); });
 
 // global: close menus / dropdown on outside click or scroll

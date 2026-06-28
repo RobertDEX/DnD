@@ -149,45 +149,84 @@ body::after{
 /* ═══════ GRIMM STUDIES — bestiary threat-terminal (enhanced) ═══════ */
 .book.grimm{
   grid-column:1 / -1;            /* span the whole shelf width — it's the centerpiece */
-  height:360px;border-radius:4px;
+  height:380px;border-radius:4px;overflow:hidden;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,210,255,.14), transparent 65%),
-    radial-gradient(ellipse 60% 60% at 100% 100%, rgba(255,40,70,.1), transparent 60%),
-    linear-gradient(135deg, rgba(2,18,30,.97), rgba(1,6,12,.99)),
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,210,255,.04) 3px 4px);
-  border:1px solid rgba(0,210,255,.45);
-  box-shadow:0 20px 60px rgba(0,0,0,.6), 0 0 60px rgba(0,210,255,.18), inset 0 0 80px rgba(0,210,255,.05), inset 0 0 0 1px rgba(0,210,255,.08);
+    radial-gradient(ellipse 70% 50% at 50% -5%, rgba(0,210,255,.16), transparent 62%),
+    radial-gradient(ellipse 65% 65% at 100% 105%, rgba(255,40,70,.12), transparent 58%),
+    radial-gradient(ellipse 50% 60% at 0% 100%, rgba(0,210,255,.08), transparent 55%),
+    linear-gradient(135deg, rgba(2,18,30,.97), rgba(0,5,11,.99)),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,210,255,.045) 3px 4px);
+  border:1px solid rgba(0,210,255,.5);
+  box-shadow:0 24px 70px rgba(0,0,0,.65), 0 0 70px rgba(0,210,255,.2), inset 0 0 90px rgba(0,210,255,.05), inset 0 0 0 1px rgba(0,210,255,.1);
 }
+/* hex-grid threat texture */
+.grimm-hexbg{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.5;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(0,210,255,.05) 1px, transparent 1.5px),
+    repeating-linear-gradient(60deg, rgba(0,210,255,.035) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-60deg, rgba(0,210,255,.035) 0 1px, transparent 1px 26px);
+  background-size:30px 30px, auto, auto;
+  mask:radial-gradient(ellipse 90% 80% at 50% 50%, #000, transparent 85%);}
+/* sweeping vertical scan beam */
+.grimm-beam{position:absolute;top:0;bottom:0;width:140px;z-index:2;pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(0,210,255,.12), rgba(120,240,255,.18), rgba(0,210,255,.12), transparent);
+  filter:blur(2px);animation:grimmBeam 5.5s ease-in-out infinite}
+@keyframes grimmBeam{0%{left:-160px;opacity:0}12%{opacity:1}50%{left:calc(100% + 20px);opacity:1}60%{opacity:0}100%{left:calc(100% + 20px);opacity:0}}
+.grimm-vignette{position:absolute;inset:0;z-index:2;pointer-events:none;
+  box-shadow:inset 0 0 120px rgba(0,0,0,.55);
+  background:linear-gradient(180deg, rgba(0,0,0,.15), transparent 20%, transparent 80%, rgba(0,0,0,.25))}
 .book.grimm::before{
   content:'';position:absolute;inset:10px;pointer-events:none;z-index:3;
-  border:1px solid rgba(0,210,255,.2);border-radius:2px;
-  mask:linear-gradient(0deg,#000,#000) padding-box, linear-gradient(0deg,#000,#000);
+  border:1px solid rgba(0,210,255,.22);border-radius:2px;
 }
 .book.grimm::after{
-  content:'';position:absolute;inset:0;z-index:1;
-  background:linear-gradient(180deg, transparent, rgba(0,210,255,.07), transparent);
+  content:'';position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(0,210,255,.06), transparent);
   animation:holoScan 3.5s linear infinite;
 }
-.book.grimm .book-inner{justify-content:space-between;padding:2.4rem 2.6rem;align-items:stretch;text-align:left}
-.grimm-topbar{display:flex;align-items:center;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.22em;color:rgba(0,210,255,.65);text-transform:uppercase}
-.grimm-topbar .gt-id{color:rgba(255,70,100,.8)}
-.grimm-center{display:flex;flex-direction:column;align-items:center;gap:1.1rem;text-align:center}
-.grimm-sigil{font-size:3.6rem;line-height:1;color:var(--aura);filter:drop-shadow(0 0 22px rgba(0,210,255,.7));animation:grimmPulse 3.6s ease-in-out infinite}
-@keyframes grimmPulse{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
-.book.grimm .book-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.85rem;line-height:1.15;letter-spacing:.04em;
-  color:#eaf9ff;text-shadow:0 0 18px rgba(0,210,255,.55);max-width:24ch}
-.grimm-byline{font-family:'Share Tech Mono',monospace;font-size:.78rem;letter-spacing:.14em;color:rgba(0,210,255,.75);text-transform:uppercase}
+/* side data rails (tick marks) */
+.grimm-rail{position:absolute;top:46px;bottom:46px;width:3px;z-index:4;display:flex;flex-direction:column;justify-content:space-between}
+.grimm-rail.left{left:26px}.grimm-rail.right{right:26px}
+.grimm-rail span{display:block;width:100%;height:18px;background:linear-gradient(180deg,var(--aura),transparent);opacity:.4;border-radius:2px;animation:railPulse 2.6s ease-in-out infinite}
+.grimm-rail span:nth-child(2){animation-delay:.5s}.grimm-rail span:nth-child(3){animation-delay:1s}
+@keyframes railPulse{0%,100%{opacity:.25}50%{opacity:.7}}
+.book.grimm .book-inner{justify-content:space-between;padding:2.2rem 3.4rem;align-items:stretch;text-align:left;position:relative;z-index:5}
+.grimm-topbar{display:flex;align-items:center;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.24em;color:rgba(0,210,255,.7);text-transform:uppercase}
+.grimm-topbar .gt-c{color:rgba(120,180,210,.5);letter-spacing:.3em}
+.grimm-topbar .gt-id{color:rgba(255,70,100,.85);position:relative;padding-left:.9rem}
+.grimm-topbar .gt-id::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:#ff4060;box-shadow:0 0 8px #ff4060;animation:grimmPulse 1.4s ease-in-out infinite}
+.grimm-center{display:flex;flex-direction:column;align-items:center;gap:.85rem;text-align:center}
+.grimm-sigil-wrap{position:relative;width:84px;height:84px;display:flex;align-items:center;justify-content:center;margin-bottom:.1rem}
+.grimm-ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(0,210,255,.4);animation:grimmRing 3.4s linear infinite}
+.grimm-ring.r2{inset:-12px;border-style:dashed;border-color:rgba(0,210,255,.22);animation:grimmRing 8s linear infinite reverse}
+@keyframes grimmRing{to{transform:rotate(360deg)}}
+.grimm-sigil{font-size:3.4rem;line-height:1;color:var(--aura);filter:drop-shadow(0 0 24px rgba(0,210,255,.8));animation:grimmPulse 3.6s ease-in-out infinite}
+@keyframes grimmPulse{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+.book.grimm .book-title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:2.4rem;line-height:1.1;letter-spacing:.06em;
+  color:#eaf9ff;text-shadow:0 0 24px rgba(0,210,255,.6), 0 0 2px rgba(120,240,255,.8);max-width:30ch;
+  background:linear-gradient(180deg,#fff,#bfecff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.grimm-byline{font-family:'Share Tech Mono',monospace;font-size:.8rem;letter-spacing:.16em;color:rgba(0,210,255,.78);text-transform:uppercase}
 .grimm-byline strong{color:#ff5a78;font-weight:400}
+.grimm-tags{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center;margin-top:.3rem}
+.grimm-tags span{font-family:'Share Tech Mono',monospace;font-size:.56rem;letter-spacing:.12em;color:rgba(140,210,235,.75);
+  padding:.22rem .55rem;border:1px solid rgba(0,210,255,.28);border-radius:3px;background:rgba(0,210,255,.05);text-transform:uppercase}
+.grimm-tags span.more{color:#ff8aa0;border-color:rgba(255,90,120,.35);background:rgba(255,40,70,.06)}
 .grimm-botbar{display:flex;align-items:center;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.18em;color:rgba(120,180,210,.55);text-transform:uppercase}
-.grimm-status{display:flex;align-items:center;gap:.4rem;color:rgba(0,255,160,.8)}
+.grimm-status{display:flex;align-items:center;gap:.4rem;color:rgba(0,255,160,.85)}
 .grimm-status::before{content:'';width:7px;height:7px;border-radius:50%;background:#00ffa0;box-shadow:0 0 8px #00ffa0;animation:grimmPulse 1.8s ease-in-out infinite}
+.grimm-ticker{overflow:hidden;max-width:200px;white-space:nowrap;color:rgba(0,210,255,.55)}
+.grimm-ticker .gtk{display:inline-block;animation:grimmTicker 6s linear infinite}
+@keyframes grimmTicker{0%{opacity:.3}50%{opacity:.8}100%{opacity:.3}}
+.grimm-count{color:rgba(0,210,255,.85)}
 /* corner brackets */
-.book.grimm .gc{position:absolute;width:22px;height:22px;border:2px solid rgba(0,210,255,.6);z-index:4;pointer-events:none}
+.book.grimm .gc{position:absolute;width:26px;height:26px;border:2px solid rgba(0,210,255,.7);z-index:6;pointer-events:none;filter:drop-shadow(0 0 4px rgba(0,210,255,.4))}
 .book.grimm .gc.tl{top:16px;left:16px;border-right:0;border-bottom:0}
 .book.grimm .gc.tr{top:16px;right:16px;border-left:0;border-bottom:0}
 .book.grimm .gc.bl{bottom:16px;left:16px;border-right:0;border-top:0}
 .book.grimm .gc.br{bottom:16px;right:16px;border-left:0;border-top:0}
-.book.grimm:hover{transform:translateY(-6px);box-shadow:0 28px 70px rgba(0,0,0,.65), 0 0 80px rgba(0,210,255,.28), inset 0 0 80px rgba(0,210,255,.07)}
+.book.grimm:hover{transform:translateY(-7px);box-shadow:0 34px 84px rgba(0,0,0,.7), 0 0 100px rgba(0,210,255,.32), inset 0 0 90px rgba(0,210,255,.08)}
+.book.grimm:hover .grimm-sigil{filter:drop-shadow(0 0 34px rgba(0,210,255,1))}
+.book.grimm:hover .grimm-count{color:#aef0ff}
 
 .book-inner{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem 1.2rem;text-align:center;gap:.8rem}
 .book-deco{font-size:1.8rem;opacity:.7}
@@ -908,10 +947,13 @@ function canAccess(book) {
 // ════════════ SHELF ════════════
 function renderShelf() {
   const shelf = $('shelf'); shelf.innerHTML = '';
-  // Show the regular library books, then the viewer's private notes book (if any)
-  const allBooks = [...library.books];
-  if (_privateBook && !dmUnlocked) allBooks.push(_privateBook);
-  if (_privateBook && dmUnlocked) allBooks.push(_privateBook); // DM also sees only their own
+  // Order: regular library books, then the viewer's Personal Notes, then Grimm Studies last (full-width centerpiece).
+  const base = [...library.books];
+  const grimmIdx = base.findIndex(b => b.style === 'grimm');
+  const grimmBook = grimmIdx >= 0 ? base.splice(grimmIdx, 1)[0] : null;
+  const allBooks = base;
+  if (_privateBook) allBooks.push(_privateBook);   // Personal Notes sits above Grimm Studies
+  if (grimmBook) allBooks.push(grimmBook);          // Grimm Studies always last
   allBooks.forEach(book => {
     const access = canAccess(book);
     const restricted = book.access && !book.access.includes('all') && !book.private;
@@ -921,17 +963,32 @@ function renderShelf() {
       const parts = book.name.split('·');
       const mainTitle = (parts[0]||book.name).trim();
       const byline = (parts[1]||'').trim();
+      const entryCount = book.pages.length;
       el.innerHTML = `
         ${dmUnlocked ? `<div class="book-access-badge ${restricted?'restricted':'open'}">${restricted?'Restricted':'Open'}</div>` : ''}
+        <div class="grimm-hexbg"></div>
+        <div class="grimm-beam"></div>
+        <div class="grimm-vignette"></div>
         <span class="gc tl"></span><span class="gc tr"></span><span class="gc bl"></span><span class="gc br"></span>
+        <div class="grimm-rail left"><span></span><span></span><span></span></div>
+        <div class="grimm-rail right"><span></span><span></span><span></span></div>
         <div class="book-inner">
-          <div class="grimm-topbar"><span>◈ GRIMM DATABASE</span><span class="gt-id">CLASSIFIED // VYTAL</span></div>
-          <div class="grimm-center">
-            <div class="grimm-sigil">${book.deco}</div>
-            <div class="book-title">${esc(mainTitle)}</div>
-            ${byline ? `<div class="grimm-byline">${esc(byline.replace(/^By\s+/i,'Compiled by '))}</div>` : ''}
+          <div class="grimm-topbar">
+            <span class="gt-l">◈ GRIMM DATABASE</span>
+            <span class="gt-c">REMNANT BESTIARY ARCHIVE</span>
+            <span class="gt-id">CLASSIFIED // VYTAL</span>
           </div>
-          <div class="grimm-botbar"><span class="grimm-status">ARCHIVE LINKED</span><span>${book.pages.length} ENTR${book.pages.length===1?'Y':'IES'}</span></div>
+          <div class="grimm-center">
+            <div class="grimm-sigil-wrap"><span class="grimm-ring"></span><span class="grimm-ring r2"></span><div class="grimm-sigil">${book.deco}</div></div>
+            <div class="book-title" data-text="${esc(mainTitle)}">${esc(mainTitle)}</div>
+            ${byline ? `<div class="grimm-byline">${esc(byline.replace(/^By\s+/i,'Compiled by '))}</div>` : ''}
+            <div class="grimm-tags"><span>BEOWOLF</span><span>URSA</span><span>NEVERMORE</span><span>GOLIATH</span><span class="more">+${Math.max(0,entryCount)} FILES</span></div>
+          </div>
+          <div class="grimm-botbar">
+            <span class="grimm-status">ARCHIVE LINKED</span>
+            <span class="grimm-ticker"><span class="gtk">SCANNING REMNANT</span></span>
+            <span class="grimm-count">${entryCount} ENTR${entryCount===1?'Y':'IES'} · OPEN ▸</span>
+          </div>
         </div>
         ${access ? '' : `<div class="book-lock"><div class="book-lock-icon">🔒</div><div class="book-lock-text">Sealed</div></div>`}`;
     } else {

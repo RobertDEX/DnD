@@ -73,7 +73,7 @@ function fmtMod(m) { return m >= 0 ? `+${m}` : `${m}`; }
 
 // ── RACE SYSTEM ──────────────────────────────────────────────
 const FAUNUS_STAT_BONUS = 5;       // Faunus heritage: +5 to one DM-chosen ability score
-const FAUNUS_SHOP_DISCOUNT = 0.10; // Faunus get an extra 10% off everything (stacks with faction)
+// Shop pricing is location-based (see SHOP_LOCATIONS); Faunus do not always get a discount.
 // The character's effective ability score, including the Faunus heritage bonus.
 function effectiveStat(c, stat){
   let s = Number(c?.stats?.[stat]) || 0;
@@ -335,7 +335,7 @@ const DEF_STATE = {
   shop:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
-  shopFaction:'none',
+  shopLocation:'vale',
   cctOnline:true,
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
@@ -859,7 +859,7 @@ function startListener() {
       state.weather = remote.weather;
       state.sceneTime = remote.sceneTime;
       state.sessionLog = remote.sessionLog;
-      state.shopFaction = remote.shopFaction;
+      if(typeof remote.shopLocation==='string') state.shopLocation = remote.shopLocation;
       state.cctOnline = remote.cctOnline;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
@@ -923,7 +923,7 @@ function normalize(raw) {
   if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
-  if(typeof m.shopFaction!=='string') m.shopFaction='none';
+  if(typeof m.shopLocation!=='string' || !SHOP_LOCATIONS[m.shopLocation]) m.shopLocation='vale';
   if(typeof m.cctOnline!=='boolean') m.cctOnline=true;
   // Ensure all theme values are hex strings
   Object.keys(DEF_THEME).forEach(k => {
@@ -1286,7 +1286,7 @@ function renderRacePanel(){
     ? `<span class="faunus-eff">${bonusStat}: ${c.stats[bonusStat]||0} <b>+${FAUNUS_STAT_BONUS}</b> = <b>${effectiveStat(c,bonusStat)}</b> (${fmtMod(mod(effectiveStat(c,bonusStat)))})</span>`
     : `<span class="faunus-eff muted">No heritage bonus assigned yet — the DM picks the boosted ability.</span>`;
   host.innerHTML = `
-    <div class="faunus-head"><span class="faunus-glyph">⊚</span><span class="faunus-title">FAUNUS HERITAGE</span><span class="faunus-perk">Extra −${Math.round(FAUNUS_SHOP_DISCOUNT*100)}% shop discount</span></div>
+    <div class="faunus-head"><span class="faunus-glyph">⊚</span><span class="faunus-title">FAUNUS HERITAGE</span><span class="faunus-perk">Shop prices vary by location</span></div>
     <div class="faunus-grid">
       <div class="field"><label>Faunus Trait / Animal</label><input id="faunusAnimalInput" type="text" placeholder="e.g. Cat ears, Wolf tail, Scales…" value="${esc(c.faunusAnimal||'')}"></div>
       <div class="field">
@@ -3108,29 +3108,38 @@ const RARITY_META = {
   Rare:     { color:'#00d4ff', label:'Rare' },
   Legendary:{ color:'#c2a23a', label:'Legendary' }
 };
-const SHOP_FACTIONS = {
-  none:    { label:'No Affiliation', desc:'Standard market rates.', discounts:{} },
-  huntsman:{ label:'Huntsman Academy', desc:'Academy supply credit: cheaper weapons & gear.', discounts:{ 'Weapons — Melee':0.10, 'Weapons — Ranged':0.10, 'Weapons — Mecha-Shift':0.10, 'Armor':0.10 } },
-  atlas:   { label:'Atlas Military', desc:'Military access: cheaper tech, but Dust is rationed at full price.', discounts:{ 'Tools & Tech':0.15 } },
-  faunus:  { label:'Faunus Co-op', desc:'Boycotting the SDC: cheaper Dust from independent miners.', discounts:{ 'Dust — Crystals':0.18, 'Dust — Vials & Powder':0.18, 'Dust — Ammunition':0.15 } },
-  merc:    { label:'Mercenary Guild', desc:'Connections everywhere: a flat cut on consumables & services.', discounts:{ 'Consumables':0.12, 'Services':0.15 } }
+// ── LOCATION-BASED PRICING (replaces factions entirely) ──
+// Each location: base multiplier (everyone) × race multiplier. >1 = markup, <1 = discount.
+// humanBlocked: humans cannot purchase here at all.
+const SHOP_LOCATIONS = {
+  vale:      { label:'Vale',      base:1.0,  human:1.0,  faunus:1.0,  desc:'The neutral heart of Remnant. Fair market rates for everyone.' },
+  atlas:     { label:'Atlas',     base:1.25, human:1.0,  faunus:1.4,  desc:'Wealthy and expensive. Prices run high — and Faunus are charged steeper still.' },
+  vacuo:     { label:'Vacuo',     base:2.5,  human:1.0,  faunus:1.0,  desc:'A lawless desert economy. Everything is wildly overpriced — for everyone equally.' },
+  mistral:   { label:'Mistral',   base:1.0,  human:0.75, faunus:1.1,  desc:'Deeply pro-Human. Humans enjoy a generous discount; Faunus pay a premium.' },
+  menagerie: { label:'Menagerie', base:1.0,  human:1.0,  faunus:0.5,  humanBlocked:true, desc:'The Faunus homeland. Faunus get half off nearly everything. Humans cannot trade here.' },
 };
-function shopDiscountFor(category){
-  const f = SHOP_FACTIONS[state.shopFaction] || SHOP_FACTIONS.none;
-  return f.discounts[category] || 0;
+function currentLocation(){ return SHOP_LOCATIONS[state.shopLocation] || SHOP_LOCATIONS.vale; }
+function raceMultAt(loc, c){
+  return isFaunus(c) ? (Number(loc.faunus)||1) : (Number(loc.human)||1);
 }
-function discountedPrice(it){
+// Humans cannot buy in Menagerie.
+function humanBlockedHere(c){
+  const loc = currentLocation();
+  return !!loc.humanBlocked && !isFaunus(c);
+}
+// Final price for an item at the current location for the current character.
+function locationPrice(it){
   const base = Number(it.price)||0;
-  let disc = shopDiscountFor(it.category||'General');
-  if (isFaunus(getChar())) disc += FAUNUS_SHOP_DISCOUNT; // Faunus heritage: extra cut everywhere
-  disc = Math.min(disc, 0.9); // never below 10% of base
-  return Math.max(0, Math.round(base * (1 - disc)));
+  const loc = currentLocation();
+  const mult = (Number(loc.base)||1) * raceMultAt(loc, getChar());
+  return Math.max(0, Math.round(base * mult));
 }
-// Total effective discount for a category (faction + Faunus), for display.
-function totalDiscountFor(category){
-  let d = shopDiscountFor(category);
-  if (isFaunus(getChar())) d += FAUNUS_SHOP_DISCOUNT;
-  return Math.min(d, 0.9);
+// Back-compat alias used elsewhere in the file.
+function discountedPrice(it){ return locationPrice(it); }
+// Net multiplier for the current character at the current location (for display).
+function locationMultiplier(){
+  const loc = currentLocation();
+  return (Number(loc.base)||1) * raceMultAt(loc, getChar());
 }
 function renderShop() {
   const c = getChar();
@@ -3139,14 +3148,20 @@ function renderShop() {
 
   const fsel = el('shopFactionSelect');
   if (fsel) {
-    const opts = Object.entries(SHOP_FACTIONS).map(([k,v])=>`<option value="${k}" ${state.shopFaction===k?'selected':''}>${esc(v.label)}</option>`).join('');
+    const opts = Object.entries(SHOP_LOCATIONS).map(([k,v])=>`<option value="${k}" ${state.shopLocation===k?'selected':''}>${esc(v.label)}</option>`).join('');
     if (fsel.innerHTML !== opts) fsel.innerHTML = opts;
-    fsel.value = state.shopFaction || 'none';
+    fsel.value = state.shopLocation || 'vale';
   }
+  const loc = currentLocation();
+  const mult = locationMultiplier();
+  const blocked = humanBlockedHere(c);
   const fnote = el('shopFactionNote');
   if (fnote){
-    let note = (SHOP_FACTIONS[state.shopFaction]||SHOP_FACTIONS.none).desc;
-    if (isFaunus(c)) note += ` · Faunus heritage: extra −${Math.round(FAUNUS_SHOP_DISCOUNT*100)}% on everything.`;
+    let note = loc.desc;
+    if (blocked) note += '  ⛔ You are Human — you cannot trade in Menagerie.';
+    else if (mult > 1) note += `  ▲ Prices ×${mult.toFixed(2)} (${isFaunus(c)?'Faunus':'Human'} rate).`;
+    else if (mult < 1) note += `  ▼ Prices ×${mult.toFixed(2)} (${isFaunus(c)?'Faunus':'Human'} rate) — a discount.`;
+    else note += '  ◆ Standard prices (×1.00).';
     fnote.textContent = note;
   }
 
@@ -3154,19 +3169,33 @@ function renderShop() {
     host.innerHTML = `<div class="inv-empty">The shop is empty. The DM stocks it from the DM Panel.</div>`;
     return;
   }
+
+  // Humans cannot buy in Menagerie — show a clear block message instead of the catalogue's buy buttons.
+  if (blocked) {
+    host.innerHTML = `<div class="shop-blocked">
+      <div class="shop-blocked-icon">⛔</div>
+      <div class="shop-blocked-title">No Trade Permitted</div>
+      <div class="shop-blocked-text">Menagerie is Faunus territory. Human characters cannot purchase goods here. Travel to another location, or have a Faunus shop on your behalf.</div>
+    </div>`;
+    return;
+  }
+
   const cats = [];
   state.shop.forEach(it => { const cc = it.category||'General'; if (!cats.includes(cc)) cats.push(cc); });
+  // Category-level price tag (same multiplier applies to all, so show it once at the top via the note).
+  const pctLabel = mult===1 ? '' : (mult<1 ? `−${Math.round((1-mult)*100)}%` : `+${Math.round((mult-1)*100)}%`);
+  const pctClass = mult<1 ? 'discount' : (mult>1 ? 'markup' : '');
 
   host.innerHTML = cats.map(cat => {
     const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat);
-    const catDisc = totalDiscountFor(cat);
     return `
     <div class="shop-cat-group">
-      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span>${catDisc>0?`<span class="shop-cat-disc">−${Math.round(catDisc*100)}%</span>`:''}</div>
+      <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span>${pctLabel?`<span class="shop-cat-disc ${pctClass}">${pctLabel}</span>`:''}</div>
       ${rows.map(({it,i})=>{
         const base = Number(it.price)||0;
-        const price = discountedPrice(it);
-        const hasDisc = price < base;
+        const price = locationPrice(it);
+        const diff = price !== base;
+        const cheaper = price < base;
         const afford = (Number(c.money)||0) >= price;
         const out = it.stock!=null && it.stock<=0;
         const stock = it.stock==null?'∞':it.stock;
@@ -3179,7 +3208,7 @@ function renderShop() {
             ${it.desc?`<div class="shop-item-desc">${esc(it.desc)}</div>`:''}
           </div>
           <div class="shop-item-buy">
-            <div class="shop-price">${hasDisc?`<span class="shop-price-old">${fmtMoney(base)}</span>`:''}${fmtMoney(price)}<span>${CURRENCY.symbol}</span></div>
+            <div class="shop-price ${diff?(cheaper?'is-discount':'is-markup'):''}">${diff?`<span class="shop-price-old">${fmtMoney(base)}</span>`:''}${fmtMoney(price)}<span>${CURRENCY.symbol}</span></div>
             ${!spectator && !out ? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'BUY':'NOT ENOUGH'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
           </div>
         </div>`;
@@ -3200,7 +3229,8 @@ function buyItem(i) {
     if (!mine || mine !== c) { showToast('You can only buy for your own character', 'warn'); return; }
   }
   if (spectator) return;
-  const price = discountedPrice(item);
+  if (humanBlockedHere(c)) { showToast('Humans cannot trade in Menagerie', 'warn'); return; }
+  const price = locationPrice(item);
   if ((Number(c.money)||0) < price) { showToast('Not enough Lien', 'warn'); return; }
   if (item.stock!=null && item.stock<=0) { showToast('Sold out', 'warn'); return; }
   if (!confirm(`Buy ${item.name} for ${fmtMoney(price)} ${CURRENCY.short}?`)) return;
@@ -3281,7 +3311,7 @@ function bindInventory() {
   el('addInvBtn')?.addEventListener('click', add);
   el('invAddName')?.addEventListener('keydown', e => { if (e.key==='Enter') add(); });
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
-  el('shopFactionSelect')?.addEventListener('change', e=>{ state.shopFaction = e.target.value; pushState(true); renderShop(); });
+  el('shopFactionSelect')?.addEventListener('change', e=>{ state.shopLocation = e.target.value; pushState(true); renderShop(); });
   el('restockShopBtn')?.addEventListener('click', ()=>{
     if(!dmUnlocked) return;
     const has = Array.isArray(state.shop) && state.shop.length;

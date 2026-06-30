@@ -1974,7 +1974,7 @@ let _diceMode='normal';
 function rollSkill(skillName){
   const c=getChar();
   const def=SKILL_DEFS.find(d=>d.name===skillName);
-  const m = def ? skillBonus(c, skillName) : 0;
+  const m = def ? skillTotal(c, skillName) : 0;
   showDiceResult(`${c.name||'Hunter'} · ${skillName}`, rollD20(m, _diceMode));
 }
 function rollCustom(){
@@ -2023,11 +2023,11 @@ function showGroupRollPrompt(skill){
   p.id='groupRollPrompt'; p.className='group-roll-prompt';
   p.innerHTML=`<div class="grp-head">📢 Group Roll: <strong>${esc(skill)}</strong></div><button class="grp-roll-btn" id="grpRollGo">Roll ${esc(skill)}</button>`;
   document.body.appendChild(p);
-  el('grpRollGo').addEventListener('click', ()=>submitGroupRoll(skill));
+  el('grpRollGo')?.addEventListener('click', ()=>submitGroupRoll(skill));
 }
 async function submitGroupRoll(skill){
   const c=getChar();
-  const res=rollD20(skillBonus(c,skill),_diceMode);
+  const res=rollD20(skillTotal(c,skill),_diceMode);
   showDiceResult(`${c.name} · ${skill} (group)`, res);
   try{
     const ref=doc(db,'rwby-meta','grouproll');

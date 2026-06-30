@@ -2800,12 +2800,27 @@ function bindRelationships() {
 const DMG_TYPES = ['Slashing','Piercing','Bludgeoning','Fire','Ice','Lightning','Energy','Dust','Other'];
 const WEAPON_PROF = ['Untrained','Proficient','Expert'];
 
+function updateAmmoBar(i){
+  const c=getChar(); const w=c.weapons[i]; if(!w) return;
+  const f=w.forms[w.activeForm]; if(!f) return;
+  const card=document.querySelector(`.wpn-card[data-i="${i}"]`); if(!card) return;
+  const bar=card.querySelector('.wpn-ammo-bar span');
+  if(bar) bar.style.width=(f.ammoMax>0?Math.min(100,(f.ammo/f.ammoMax)*100):0)+'%';
+  const wrap=card.querySelector('.wpn-ammo');
+  if(wrap) wrap.classList.toggle('empty', f.ammo===0 && f.ammoMax>0);
+}
 function ensureWeaponForms(w){
   if(!Array.isArray(w.forms) || !w.forms.length){
     w.forms = [{ formName: w.formName||'Form 1', damage:w.damage||'', dmgType:w.dmgType||DMG_TYPES[0], range:w.range||'' }];
     w.activeForm = 0;
   }
   if(typeof w.activeForm!=='number' || w.activeForm<0 || w.activeForm>=w.forms.length) w.activeForm=0;
+  // Ammo: each form may be a gun with a bullet count
+  w.forms.forEach(f=>{
+    if(typeof f.isGun!=='boolean') f.isGun=false;
+    if(typeof f.ammoMax!=='number') f.ammoMax=Number(f.ammoMax)||0;
+    if(typeof f.ammo!=='number') f.ammo=Number(f.ammo)||0;
+  });
   return w;
 }
 function renderWeapons() {
@@ -2856,6 +2871,10 @@ function renderWeapons() {
           <label>Range</label>
           <input class="wpn-range" data-i="${i}" value="${esc(form.range||'')}" placeholder="Melee / 60ft">
         </div>
+        <div class="wpn-stat wpn-gun-toggle-wrap">
+          <label>Gun?</label>
+          <button type="button" class="wpn-gun-toggle${form.isGun?' on':''}" data-i="${i}" title="Mark this form as a firearm to track ammo">${form.isGun?'⊙ Firearm':'○ No'}</button>
+        </div>
         <div class="wpn-stat">
           <label>Training</label>
           <select class="wpn-profsel" data-i="${i}">
@@ -2863,6 +2882,22 @@ function renderWeapons() {
           </select>
         </div>
       </div>
+      ${form.isGun?`
+      <div class="wpn-ammo${form.ammo===0&&form.ammoMax>0?' empty':''}">
+        <span class="wpn-ammo-icon">▮</span>
+        <span class="wpn-ammo-label">AMMO</span>
+        <div class="wpn-ammo-counter">
+          <button class="wpn-ammo-btn fire" data-i="${i}" data-act="fire" title="Fire one round (−1)" ${form.ammo<=0?'disabled':''}>− Fire</button>
+          <div class="wpn-ammo-readout">
+            <input class="wpn-ammo-cur" data-i="${i}" type="number" value="${form.ammo}" min="0">
+            <span class="wpn-ammo-sep">/</span>
+            <input class="wpn-ammo-max" data-i="${i}" type="number" value="${form.ammoMax}" min="0" title="Magazine capacity">
+          </div>
+          <button class="wpn-ammo-btn plus" data-i="${i}" data-act="plus" title="Add one round (+1)">+ 1</button>
+          <button class="wpn-ammo-btn reload" data-i="${i}" data-act="reload" title="Reload to full" ${form.ammoMax<=0?'disabled':''}>⟳ Reload</button>
+        </div>
+        <div class="wpn-ammo-bar"><span style="width:${form.ammoMax>0?Math.min(100,(form.ammo/form.ammoMax)*100):0}%"></span></div>
+      </div>`:''}
       <input class="wpn-notes" data-i="${i}" value="${esc(w.notes||'')}" placeholder="When to use it, special properties, dust effects…">
     </div>`;
   }).join('');
@@ -2893,6 +2928,32 @@ function renderWeapons() {
   updWpn('.wpn-name','name'); updWpn('.wpn-notes','notes');
   updForm('.wpn-formname','formName'); updForm('.wpn-dmg','damage'); updForm('.wpn-range','range'); updForm('.wpn-dmgtype','dmgType');
   updWpn('.wpn-profsel','prof', true);
+
+  // gun toggle — mark the active form as a firearm
+  cont.querySelectorAll('.wpn-gun-toggle').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i); const w=c.weapons[i]; ensureWeaponForms(w);
+    const f=w.forms[w.activeForm]; f.isGun=!f.isGun;
+    if(f.isGun && !f.ammoMax){ f.ammoMax=6; f.ammo=6; } // sensible default magazine
+    pushState(true); renderWeapons();
+  }));
+  // ammo current/max direct edits
+  cont.querySelectorAll('.wpn-ammo-cur').forEach(inp=>inp.addEventListener('input',()=>{
+    const i=parseInt(inp.dataset.i); const w=c.weapons[i]; const f=w.forms[w.activeForm];
+    f.ammo=Math.max(0,Number(inp.value)||0); scheduleWpnPush(); updateAmmoBar(i);
+  }));
+  cont.querySelectorAll('.wpn-ammo-max').forEach(inp=>inp.addEventListener('input',()=>{
+    const i=parseInt(inp.dataset.i); const w=c.weapons[i]; const f=w.forms[w.activeForm];
+    f.ammoMax=Math.max(0,Number(inp.value)||0); if(f.ammo>f.ammoMax) f.ammo=f.ammoMax; scheduleWpnPush(); updateAmmoBar(i);
+  }));
+  // ammo action buttons (fire / +1 / reload)
+  cont.querySelectorAll('.wpn-ammo-btn').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i); const w=c.weapons[i]; const f=w.forms[w.activeForm];
+    const act=b.dataset.act;
+    if(act==='fire')      f.ammo=Math.max(0,(Number(f.ammo)||0)-1);
+    else if(act==='plus') f.ammo=(f.ammoMax>0)?Math.min(f.ammoMax,(Number(f.ammo)||0)+1):(Number(f.ammo)||0)+1;
+    else if(act==='reload') f.ammo=Number(f.ammoMax)||0;
+    pushState(true); renderWeapons();
+  }));
 
   cont.querySelectorAll('.wpn-form-tab').forEach(b=>b.addEventListener('click',()=>{
     const i=parseInt(b.dataset.i); c.weapons[i].activeForm=parseInt(b.dataset.form);

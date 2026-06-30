@@ -2565,6 +2565,11 @@ button:disabled { opacity: .35; cursor: not-allowed; filter: grayscale(.5); }
   background: rgba(0,210,255,.12); border: 1px solid rgba(0,210,255,.3); color: var(--aura);
 }
 .spectator-banner button:hover { background: rgba(0,210,255,.25); color: #fff; }
+#spectatorDmBtn {
+  background: linear-gradient(180deg, rgba(255,180,80,.2), rgba(255,150,40,.1));
+  border-color: rgba(240,184,96,.5); color: #ffd98a; font-weight: 700;
+}
+#spectatorDmBtn:hover { background: linear-gradient(180deg, rgba(255,180,80,.35), rgba(255,150,40,.2)); color: #fff; }
 .spectator-disabled { opacity: .6; cursor: not-allowed !important; pointer-events: none !important; user-select: none; }
 .spectator-mode .quick-adj, .spectator-mode .use-btn,
 .spectator-mode .portrait-slot, .spectator-mode .hero-name-input,

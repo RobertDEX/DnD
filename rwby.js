@@ -1014,12 +1014,16 @@ function applySpectatorMode() {
     const b = document.createElement('div');
     b.id = 'spectatorBanner';
     b.className = 'spectator-banner';
-    b.innerHTML = `<span>👁 Spectating — read only</span><button id="spectatorExit" title="Leave spectator mode">Join instead</button>`;
+    b.innerHTML = `<span>👁 Spectating — read only</span><button id="spectatorDmBtn" title="Log in as the DM">⚔ Join as DM</button><button id="spectatorExit" title="Pick a character to play">Join as player</button>`;
     document.body.appendChild(b);
+    document.getElementById('spectatorDmBtn')?.addEventListener('click', () => {
+      openDmOverlay(); // DM password prompt; unlockDm() will clear spectator on success
+    });
     document.getElementById('spectatorExit')?.addEventListener('click', () => {
       spectator = false;
       sessionStorage.removeItem('rwby-spectator');
       document.body.classList.remove('spectator-mode');
+      reenableAllInputs();
       b.remove();
       checkWelcome();
     });
@@ -1040,6 +1044,7 @@ function disableAllInputs() {
         elx.classList.contains('sidebar-toggle') ||
         elx.id === 'sidebarToggle' ||
         elx.closest('.spectator-banner') ||
+        elx.closest('#dmOverlay') ||           // DM login prompt must stay usable so a spectator can become DM
         elx.closest('.tab-bar')) {        // content tab nav (Skills/Loadout/etc.) still browsable
       return;
     }
@@ -1057,6 +1062,16 @@ function disableAllInputs() {
     if (l.closest('#characterTabs')) return;
     l.classList.add('spectator-disabled');
     l.style.pointerEvents = 'none';
+  });
+}
+// Reverse disableAllInputs — restore the sheet to fully interactive (used when a spectator becomes DM).
+function reenableAllInputs() {
+  document.querySelectorAll('.spectator-disabled').forEach(elx => {
+    elx.removeAttribute('disabled');
+    elx.removeAttribute('readonly');
+    if (elx.getAttribute('contenteditable') === 'false') elx.removeAttribute('contenteditable');
+    elx.style.pointerEvents = '';
+    elx.classList.remove('spectator-disabled');
   });
 }
 function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
@@ -2251,6 +2266,14 @@ function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
   dmUnlocked=true;
   sessionStorage.setItem('rwby-dm','1');
+  // Becoming DM overrides spectator mode entirely — clear it and re-enable the sheet.
+  if (spectator) {
+    spectator = false;
+    sessionStorage.removeItem('rwby-spectator');
+    document.body.classList.remove('spectator-mode');
+    document.getElementById('spectatorBanner')?.remove();
+    try { reenableAllInputs(); } catch(e) {}
+  }
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
   // Activate players tab by default
@@ -2259,6 +2282,7 @@ function unlockDm() {
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
+  render();
 }
 
 // ================================================================

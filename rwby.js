@@ -71,6 +71,23 @@ const DEF_THEME  = {bg:'#020106',panel:'#080510',accent:'#c0000a',accentTwo:'#3a
 function mod(score) { return Math.floor((Number(score) - 10) / 2); }
 function fmtMod(m) { return m >= 0 ? `+${m}` : `${m}`; }
 
+// ── RACE SYSTEM ──────────────────────────────────────────────
+const FAUNUS_STAT_BONUS = 5;       // Faunus heritage: +5 to one DM-chosen ability score
+const FAUNUS_SHOP_DISCOUNT = 0.10; // Faunus get an extra 10% off everything (stacks with faction)
+// The character's effective ability score, including the Faunus heritage bonus.
+function effectiveStat(c, stat){
+  let s = Number(c?.stats?.[stat]) || 0;
+  if (c && c.race==='faunus' && c.faunusBonusStat===stat) s += FAUNUS_STAT_BONUS;
+  return s;
+}
+function isFaunus(c){ return c && c.race==='faunus'; }
+function raceLabel(c){
+  if(!c||!c.race) return '';
+  if(c.race==='human') return 'Human';
+  if(c.race==='faunus') return c.faunusAnimal ? `Faunus (${c.faunusAnimal})` : 'Faunus';
+  return c.race;
+}
+
 // Proficiency bonus from level (standard D&D scale)
 function profBonus(level) {
   const l = Number(level) || 1;
@@ -162,7 +179,7 @@ function renderHuntsmanLicense(){
 function skillTotal(c, skillName) {
   const def  = SKILL_DEFS.find(s => s.name === skillName);
   if (!def) return 0;
-  const statM = mod(c.stats[def.stat] || 10);
+  const statM = mod(effectiveStat(c, def.stat));
   const sk    = c.skills[skillName] || {prof:false, expertise:false, bonus:0};
   const pb    = profBonus(c.level);
   let total   = statM + Number(sk.bonus || 0);
@@ -174,19 +191,19 @@ function skillTotal(c, skillName) {
 // Passive Perception = 10 + Perception total
 function passivePerception(c) {
   const pb     = getEffectivePB(c);
-  const wisMod = mod(c.stats.WIS);
+  const wisMod = mod(effectiveStat(c,'WIS'));
   const sk     = c.skills['Perception'] || {bonus:0};
   return 10 + pb + wisMod + (Number(sk.bonus)||0);
 }
 
 // Initiative = DEX mod + any manual bonus stored in c.initiativeBonus
-function calcInitiative(c) { return mod(c.stats.DEX) + Number(c.initiativeBonus || 0); }
+function calcInitiative(c) { return mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus || 0); }
 
 // Attack bonus = chosen stat mod + proficiency
-function attackBonus(c) { return mod(c.stats[c.attackStat || 'STR']) + profBonus(c.level); }
+function attackBonus(c) { return mod(effectiveStat(c, c.attackStat || 'STR')) + profBonus(c.level); }
 
 // Spell DC = 8 + proficiency + INT mod (Aura Mastery → INT)
-function spellDC(c) { return 8 + profBonus(c.level) + mod(c.stats.INT); }
+function spellDC(c) { return 8 + profBonus(c.level) + mod(effectiveStat(c,'INT')); }
 
 // ================================================================
 // UNCANNY DODGE
@@ -282,7 +299,7 @@ function blankChar(i) {
   DUST_TYPES.forEach(t => dust[t] = 0);
   return {
     id: `char-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
-    name:'', race:'', className:'', age:'', level:1, background:'',
+    name:'', race:'', faunusAnimal:'', faunusBonusStat:'', className:'', age:'', level:1, background:'',
     semblanceName:'', weaponName:'',
     portrait: '',
     accentColor: '',   // #21/#23 — per-character color
@@ -868,6 +885,7 @@ function startListener() {
       try { renderMainFields();    } catch(e) {}
       try { renderCalcPanel();     } catch(e) {}
       try { renderStats();         } catch(e) {}
+      try { renderRacePanel();     } catch(e) {}
       try { renderSkillsMatrix();  } catch(e) {}
       try { renderSemblance();     } catch(e) {}
       try { renderTechniques();    } catch(e) {}
@@ -930,6 +948,15 @@ function normalize(raw) {
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
     mc.inventory     = Array.isArray(c.inventory)   ? c.inventory   : [];
     mc.money         = Number(c.money) || 0;
+    // Race system: 'human' | 'faunus' | '' (unset). Migrate legacy free-text race strings.
+    {
+      const r = (c.race||'').toString().trim().toLowerCase();
+      if (r==='human' || r==='faunus') mc.race = r;
+      else if (r==='') mc.race = '';
+      else { mc.race = 'faunus'; if(!c.faunusAnimal) mc.faunusAnimal = c.race; } // legacy text like "Cat Faunus" -> faunus + animal
+      mc.faunusAnimal = (typeof c.faunusAnimal==='string') ? c.faunusAnimal : (mc.faunusAnimal||'');
+      mc.faunusBonusStat = STATS.includes(c.faunusBonusStat) ? c.faunusBonusStat : '';
+    }
     mc.relationships = Array.isArray(c.relationships)? c.relationships : [];
     // Merge skills carefully — keep any existing prof/expertise/bonus, fill gaps with blanks
     const blankSk = makeBlankSkills();
@@ -1096,7 +1123,7 @@ function renderCalcPanel() {
   const atk = attackBonus(c);
   const dc  = spellDC(c);
   const pp  = passivePerception(c);
-  const con = mod(c.stats.CON);
+  const con = mod(effectiveStat(c,'CON'));
 
   const panel = el('calcPanel'); if (!panel) return;
   panel.innerHTML = `
@@ -1180,7 +1207,7 @@ function renderCharacterTabs() {
         <strong>${esc(c.name||`Player ${i+1}`)}</strong>
         ${isOwn ? '<span class="tab-badge you">YOU</span>' : takenByOther ? '<span class="tab-badge taken">●</span>' : ''}
       </div>
-      <span>${esc(c.className||'—')} · Lv${c.level}${c.race?' · '+esc(c.race):''}</span>
+      <span>${esc(c.className||'—')} · Lv${c.level}${c.race?' · '+raceLabel(c):''}</span>
       ${conditionBadges(c)}
       <div class="tab-hp-bar"><div class="tab-hp-fill" style="width:${pct}%;background:${hpColor};box-shadow:0 0 6px ${hpColor}60"></div></div>`;
     // The DM and spectators can switch which character is displayed.
@@ -1246,16 +1273,54 @@ function renderMainFields() {
 }
 
 // ================================================================
+// RENDER — RACE / FAUNUS PANEL
+// ================================================================
+function renderRacePanel(){
+  const c = getChar(); const host = el('faunusPanel'); if(!host) return;
+  if (c.race !== 'faunus'){ host.style.display='none'; host.innerHTML=''; return; }
+  host.style.display='block';
+  const bonusStat = c.faunusBonusStat || '';
+  const statOpts = ['<option value="">— DM assigns —</option>']
+    .concat(STATS.map(s=>`<option value="${s}" ${bonusStat===s?'selected':''}>${s} (+${FAUNUS_STAT_BONUS})</option>`)).join('');
+  const effLine = bonusStat
+    ? `<span class="faunus-eff">${bonusStat}: ${c.stats[bonusStat]||0} <b>+${FAUNUS_STAT_BONUS}</b> = <b>${effectiveStat(c,bonusStat)}</b> (${fmtMod(mod(effectiveStat(c,bonusStat)))})</span>`
+    : `<span class="faunus-eff muted">No heritage bonus assigned yet — the DM picks the boosted ability.</span>`;
+  host.innerHTML = `
+    <div class="faunus-head"><span class="faunus-glyph">⊚</span><span class="faunus-title">FAUNUS HERITAGE</span><span class="faunus-perk">Extra −${Math.round(FAUNUS_SHOP_DISCOUNT*100)}% shop discount</span></div>
+    <div class="faunus-grid">
+      <div class="field"><label>Faunus Trait / Animal</label><input id="faunusAnimalInput" type="text" placeholder="e.g. Cat ears, Wolf tail, Scales…" value="${esc(c.faunusAnimal||'')}"></div>
+      <div class="field">
+        <label>Heritage Bonus Ability ${dmUnlocked?'':'<span class="dm-lock">DM</span>'}</label>
+        <select id="faunusBonusSelect" ${dmUnlocked?'':'disabled'}>${statOpts}</select>
+      </div>
+    </div>
+    <div class="faunus-summary">${effLine}</div>`;
+  el('faunusAnimalInput')?.addEventListener('input', e=>{ c.faunusAnimal=e.target.value; pushState(); });
+  const bsel = el('faunusBonusSelect');
+  if (bsel && dmUnlocked){
+    bsel.addEventListener('change', e=>{
+      c.faunusBonusStat = e.target.value || '';
+      pushState(true);
+      renderRacePanel(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHpAura?.();
+    });
+  }
+}
+
+// ================================================================
 // RENDER — ABILITY SCORES
 // ================================================================
 function renderStats() {
   const c = getChar(); const g = el('statsGrid'); if(!g) return; g.innerHTML='';
   STATS.forEach(stat => {
-    const score = c.stats[stat]; const m = mod(score);
-    const card = document.createElement('div'); card.className='stat-card';
+    const score = c.stats[stat];
+    const boosted = c.race==='faunus' && c.faunusBonusStat===stat;
+    const eff = effectiveStat(c, stat);
+    const m = mod(eff);
+    const card = document.createElement('div'); card.className='stat-card'+(boosted?' faunus-boosted':'');
     card.innerHTML = `
-      <div class="stat-key">${stat}</div>
+      <div class="stat-key">${stat}${boosted?`<span class="stat-faunus-badge" title="Faunus heritage: +${FAUNUS_STAT_BONUS}">+${FAUNUS_STAT_BONUS}</span>`:''}</div>
       <input class="stat-score-input" data-stat="${stat}" type="number" value="${score}">
+      ${boosted?`<div class="stat-eff" title="Base ${score} + Faunus ${FAUNUS_STAT_BONUS} = ${eff}">▸ ${eff}</div>`:''}
       <div class="stat-mod">${fmtMod(m)}</div>
       <div class="stat-controls">
         <button type="button" data-stat="${stat}" data-action="minus">−</button>
@@ -1287,7 +1352,7 @@ function renderSkillsMatrix() {
   });
 
   Object.entries(groups).forEach(([stat, defs]) => {
-    const statM = mod(c.stats[stat]);
+    const statM = mod(effectiveStat(c, stat));
     const grp   = document.createElement('div'); grp.className = 'skill-group';
     grp.innerHTML = `
       <div class="skill-group-header">
@@ -1818,22 +1883,29 @@ function levelUpSound(){
 function rollDie(sides){ return Math.floor(Math.random()*sides)+1; }
 function parseDiceExpr(expr){
   const cleaned = String(expr).replace(/\s+/g,'').toLowerCase();
+  if(!cleaned) return null;
+  // Reject stray decimals / unsupported chars early (e.g. "2.5d6")
+  if(/[^\d+\-d]/.test(cleaned)) return null;
   const re = /([+-]?)(\d*)d(\d+)|([+-]?\d+)/g;
-  let m, parts=[], total=0, valid=false;
+  let m, parts=[], total=0, valid=false, consumed=0;
   while((m=re.exec(cleaned))){
-    if(m[3]){
+    consumed += m[0].length;
+    if(m[3]!==undefined){
+      const sides = Math.min(1000, Number(m[3]));
+      if(sides<2){ return null; } // a die needs at least 2 sides
       valid=true;
       const sign = m[1]==='-'?-1:1;
       const count = Math.min(50, Math.max(1, Number(m[2]||1)));
-      const sides = Math.min(1000, Number(m[3]));
       const rolls=[]; for(let i=0;i<count;i++){ const r=rollDie(sides); rolls.push(r); total+=sign*r; }
       parts.push({ type:'dice', sign, count, sides, rolls });
-    } else if(m[4]){
+    } else if(m[4]!==undefined){
       valid=true;
       const n = Number(m[4]); total+=n;
       parts.push({ type:'mod', value:n });
     }
   }
+  // If the regex couldn't account for the whole string, the input was malformed (e.g. "1d", "d", "2d6x")
+  if(consumed !== cleaned.length) return null;
   return valid ? { total, parts } : null;
 }
 function rollD20(modifier, mode){
@@ -2030,6 +2102,7 @@ function render() {
   try { checkLowHp(c); }           catch(e) {}
   try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
   try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
+  try { renderRacePanel(); }       catch(e) { console.error('renderRacePanel:', e); }
   try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
   if (dmUnlocked) {
     try { renderDmCommendations(); } catch(e) {}
@@ -2073,7 +2146,7 @@ function useDustSpell(id) {
   c.dustInventory[sp.type]--; pushState(); renderDust();
 }
 function rollHp() {
-  const c = getChar(); const conM = mod(c.stats.CON); const roll = rollD10();
+  const c = getChar(); const conM = mod(effectiveStat(c,'CON')); const roll = rollD10();
   const total = Math.max(1, roll + conM); c.hp.max += total; c.hp.current = c.hp.max;
   pushState(true); render();
   alert(`HP Roll: d10(${roll}) + CON(${conM}) = +${total}\nNew Max: ${c.hp.max}`);
@@ -2218,7 +2291,14 @@ function bindAll() {
   });
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushPendingPush(); });
   const ii = (id,field) => { const e=el(id); if(e) e.addEventListener('input', ev=>updateField(field,ev.target.value)); };
-  ii('charName','name'); ii('charLevel','level'); ii('charRace','race'); ii('charClass','className');
+  ii('charName','name'); ii('charLevel','level'); ii('charClass','className');
+  // Race is a <select> now — wire it to refresh the Faunus panel + recalc stats
+  el('charRace')?.addEventListener('change', e=>{
+    const c=getChar(); c.race=e.target.value||'';
+    if(c.race!=='faunus'){ /* keep stored animal/bonus but they won't apply */ }
+    pushState(true);
+    renderRacePanel(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHeader?.();
+  });
   ii('charAge','age'); ii('charBackground','background'); ii('charSemblanceName','semblanceName');
   ii('charWeaponName','weaponName');
   ii('currentHp','currentHp'); ii('maxHp','maxHp'); ii('currentAura','currentAura'); ii('maxAura','maxAura');
@@ -2980,8 +3060,16 @@ function shopDiscountFor(category){
 }
 function discountedPrice(it){
   const base = Number(it.price)||0;
-  const disc = shopDiscountFor(it.category||'General');
+  let disc = shopDiscountFor(it.category||'General');
+  if (isFaunus(getChar())) disc += FAUNUS_SHOP_DISCOUNT; // Faunus heritage: extra cut everywhere
+  disc = Math.min(disc, 0.9); // never below 10% of base
   return Math.max(0, Math.round(base * (1 - disc)));
+}
+// Total effective discount for a category (faction + Faunus), for display.
+function totalDiscountFor(category){
+  let d = shopDiscountFor(category);
+  if (isFaunus(getChar())) d += FAUNUS_SHOP_DISCOUNT;
+  return Math.min(d, 0.9);
 }
 function renderShop() {
   const c = getChar();
@@ -2995,7 +3083,11 @@ function renderShop() {
     fsel.value = state.shopFaction || 'none';
   }
   const fnote = el('shopFactionNote');
-  if (fnote) fnote.textContent = (SHOP_FACTIONS[state.shopFaction]||SHOP_FACTIONS.none).desc;
+  if (fnote){
+    let note = (SHOP_FACTIONS[state.shopFaction]||SHOP_FACTIONS.none).desc;
+    if (isFaunus(c)) note += ` · Faunus heritage: extra −${Math.round(FAUNUS_SHOP_DISCOUNT*100)}% on everything.`;
+    fnote.textContent = note;
+  }
 
   if (!Array.isArray(state.shop) || !state.shop.length) {
     host.innerHTML = `<div class="inv-empty">The shop is empty. The DM stocks it from the DM Panel.</div>`;
@@ -3006,7 +3098,7 @@ function renderShop() {
 
   host.innerHTML = cats.map(cat => {
     const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat);
-    const catDisc = shopDiscountFor(cat);
+    const catDisc = totalDiscountFor(cat);
     return `
     <div class="shop-cat-group">
       <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span>${catDisc>0?`<span class="shop-cat-disc">−${Math.round(catDisc*100)}%</span>`:''}</div>

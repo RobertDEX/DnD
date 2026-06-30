@@ -3054,3 +3054,31 @@ body.threat-incursion::before{content:'';position:fixed;inset:0;z-index:54;point
 .dm-feat-desc{font-family:var(--F3);font-size:.76rem;font-style:italic;color:var(--muted);line-height:1.4}
 .dm-feat-del{background:none;border:1px solid var(--line);color:var(--muted);width:24px;height:24px;border-radius:5px;cursor:pointer;flex-shrink:0}
 .dm-feat-del:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ═══════════ RACE / FAUNUS SYSTEM ═══════════ */
+.race-select{width:100%}
+.faunus-panel{margin-top:.85rem;padding:1rem 1.1rem;border-radius:12px;
+  background:linear-gradient(135deg, rgba(180,120,40,.12), rgba(60,30,10,.18)), rgba(20,16,10,.5);
+  border:1px solid rgba(210,150,60,.35);
+  box-shadow:inset 0 0 40px -28px rgba(255,180,80,.6), 0 0 24px -16px rgba(210,150,60,.4)}
+.faunus-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.85rem}
+.faunus-glyph{font-size:1.2rem;color:#f0b860;filter:drop-shadow(0 0 8px rgba(240,184,96,.6))}
+.faunus-title{font-family:'Orbitron',sans-serif;font-weight:800;font-size:.82rem;letter-spacing:.16em;color:#f5cd82}
+.faunus-perk{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.06em;
+  color:#7cf0b8;background:rgba(0,255,160,.08);border:1px solid rgba(0,255,160,.25);border-radius:999px;padding:.2rem .6rem;text-transform:uppercase}
+.faunus-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.faunus-grid label{display:flex;align-items:center;gap:.4rem}
+.dm-lock{font-family:'Share Tech Mono',monospace;font-size:.52rem;letter-spacing:.1em;color:#ff8aa0;
+  background:rgba(255,60,90,.12);border:1px solid rgba(255,90,120,.3);border-radius:4px;padding:.05rem .3rem}
+.faunus-summary{margin-top:.85rem;padding-top:.7rem;border-top:1px dashed rgba(210,150,60,.3);
+  font-family:'Share Tech Mono',monospace;font-size:.82rem;color:#e8c890}
+.faunus-eff b{color:#ffd98a}
+.faunus-eff.muted{color:rgba(210,180,140,.55);font-style:italic}
+
+/* Faunus-boosted ability score card */
+.stat-card.faunus-boosted{border-color:rgba(240,184,96,.6);box-shadow:0 0 0 1px rgba(240,184,96,.3), 0 0 22px -10px rgba(240,184,96,.7);
+  background:linear-gradient(180deg, rgba(180,120,40,.1), transparent)}
+.stat-faunus-badge{display:inline-block;margin-left:.35rem;font-family:'Share Tech Mono',monospace;font-size:.58rem;font-weight:700;
+  color:#1a1206;background:linear-gradient(180deg,#ffd98a,#f0b860);border-radius:4px;padding:.05rem .3rem;vertical-align:middle;
+  box-shadow:0 0 8px rgba(240,184,96,.6)}
+.stat-eff{font-family:'Share Tech Mono',monospace;font-size:.66rem;color:#f0b860;letter-spacing:.04em;margin-top:-.2rem}

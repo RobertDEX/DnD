@@ -129,13 +129,21 @@
         </div>
         <!-- 3-col identity grid for more space -->
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
-          <div class="field"><label>Race</label><input id="charRace" type="text"></div>
+          <div class="field">
+            <label>Race</label>
+            <select id="charRace" class="race-select">
+              <option value="">— Unset —</option>
+              <option value="human">Human</option>
+              <option value="faunus">Faunus</option>
+            </select>
+          </div>
           <div class="field"><label>Class</label><input id="charClass" type="text"></div>
           <div class="field"><label>Age</label><input id="charAge" type="text"></div>
           <div class="field"><label>Background</label><input id="charBackground" type="text"></div>
           <div class="field"><label>Semblance Name</label><input id="charSemblanceName" type="text"></div>
           <div class="field"><label>Weapon / Form</label><input id="charWeaponName" type="text"></div>
         </div>
+        <div id="faunusPanel" class="faunus-panel" style="display:none"></div>
       </section>
 
       <!-- HP & AURA side-by-side -->

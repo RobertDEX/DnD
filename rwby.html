@@ -370,10 +370,21 @@
 
       <div class="tab-content panel tab-panel" data-tab="notes">
         <div class="section-title">Session Notes</div>
-        <textarea id="notesText" placeholder="Notes from this session…"></textarea>
-        <div style="display:flex;gap:.6rem;margin-top:.7rem;align-items:center;flex-wrap:wrap">
-          <button id="pushNotesToLibraryBtn" class="neo-btn library-link" style="margin:0">📖 Save Notes to My Library Book</button>
-          <span class="small-note" id="notesLibStatus" style="opacity:.6">Private — only you can read it in the Library.</span>
+        <div class="notes-journal">
+          <div class="notes-journal-head">
+            <span class="njh-icon">✎</span>
+            <span class="njh-title">FIELD JOURNAL</span>
+            <span class="njh-line"></span>
+            <span class="njh-count" id="notesCount">0 words</span>
+            <span class="njh-saved" id="notesSaved">●&nbsp;synced</span>
+          </div>
+          <div class="notes-journal-body">
+            <textarea id="notesText" class="notes-textarea" placeholder="Record what happened this session — leads, loot, NPCs, scars, suspicions…"></textarea>
+          </div>
+          <div class="notes-journal-foot">
+            <button id="pushNotesToLibraryBtn" class="neo-btn library-link njf-btn" style="margin:0">📖 Save to my Library Book</button>
+            <span class="small-note njf-note" id="notesLibStatus">Private — only you can read it in the Library.</span>
+          </div>
         </div>
         <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(0,210,255,.08)">
           <div class="section-title" style="font-size:.65rem">Character Accent Color</div>

@@ -3149,3 +3149,43 @@ body.threat-incursion::before{content:'';position:fixed;inset:0;z-index:54;point
 .shop-blocked-icon{font-size:3rem;filter:drop-shadow(0 0 14px rgba(255,80,80,.5))}
 .shop-blocked-title{font-family:var(--F1,'Orbitron'),sans-serif;font-weight:800;font-size:1.1rem;letter-spacing:.1em;color:#ff8a9a}
 .shop-blocked-text{font-family:var(--F3);font-size:.92rem;line-height:1.6;color:rgba(220,180,185,.85);max-width:440px}
+
+/* ═══════════ NOTES — FIELD JOURNAL ═══════════ */
+.notes-journal{
+  border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg, rgba(8,16,28,.7), rgba(4,8,16,.5));
+  border:1px solid rgba(0,210,255,.22);
+  box-shadow:0 0 40px -28px rgba(0,210,255,.6), inset 0 0 60px -40px rgba(0,210,255,.25);
+}
+.notes-journal-head{
+  display:flex;align-items:center;gap:.7rem;padding:.7rem 1rem;
+  background:linear-gradient(90deg, rgba(0,210,255,.1), rgba(0,210,255,.02) 60%, transparent);
+  border-bottom:1px solid rgba(0,210,255,.18);
+}
+.njh-icon{font-size:1rem;color:var(--aura);filter:drop-shadow(0 0 8px rgba(0,210,255,.6))}
+.njh-title{font-family:var(--F1,'Orbitron'),sans-serif;font-weight:800;font-size:.66rem;letter-spacing:.2em;color:var(--aura)}
+.njh-line{flex:1;height:1px;background:linear-gradient(90deg, rgba(0,210,255,.3), transparent)}
+.njh-count{font-family:var(--F3),monospace;font-size:.62rem;letter-spacing:.04em;color:rgba(150,200,220,.65);white-space:nowrap}
+.njh-saved{font-family:var(--F3),monospace;font-size:.6rem;letter-spacing:.08em;color:#5ed492;white-space:nowrap;transition:color .2s}
+.njh-saved.saving{color:#f0b860}
+.notes-journal-body{position:relative}
+/* ruled-paper guide lines behind the text */
+.notes-journal-body::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:repeating-linear-gradient(transparent 0, transparent 31px, rgba(0,210,255,.05) 31px, rgba(0,210,255,.05) 32px);
+  background-position:0 14px;
+  mask:linear-gradient(180deg, transparent, #000 8%, #000 92%, transparent);
+}
+.notes-textarea{
+  position:relative;z-index:1;min-height:300px;border:none;border-radius:0;background:transparent;
+  font-family:var(--F3),'Share Tech Mono',monospace;font-size:.95rem;line-height:32px;
+  padding:.85rem 1.1rem;color:#d6ecf6;letter-spacing:.005em;
+}
+.notes-textarea:focus{box-shadow:none;border:none}
+.notes-textarea::placeholder{color:rgba(140,180,200,.4);font-style:italic;line-height:32px}
+.notes-journal-foot{
+  display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;padding:.7rem 1rem;
+  background:rgba(0,210,255,.03);border-top:1px solid rgba(0,210,255,.12);
+}
+.njf-note{opacity:.55;font-size:.66rem}
+.njf-btn{flex-shrink:0}

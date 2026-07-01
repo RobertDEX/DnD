@@ -345,6 +345,30 @@ let _unsub = null;
 let _welcomeShown = false; // shows once per page load after data arrives
 let dmUnlocked = sessionStorage.getItem('rwby-dm') === '1';
 let spectator = sessionStorage.getItem('rwby-spectator') === '1';
+// Per-viewer character selection. This is LOCAL to this browser and never shared —
+// so a Watcher or DM browsing characters (and players selecting their own) never
+// forces anyone else's view to change. Falls back to the shared value only as a seed.
+let _viewIdx = (() => {
+  const v = parseInt(localStorage.getItem('rwby-view-idx'));
+  return Number.isFinite(v) && v >= 0 ? v : 0;
+})();
+function getViewIdx() {
+  const n = (state.characters || []).length;
+  if (n === 0) return 0;
+  // Players are always pinned to their own claimed character.
+  if (!dmUnlocked && !spectator) {
+    const mineIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
+    if (mineIdx >= 0) return mineIdx;
+  }
+  if (_viewIdx >= n) _viewIdx = n - 1;
+  if (_viewIdx < 0) _viewIdx = 0;
+  return _viewIdx;
+}
+function setViewIdx(i) {
+  const n = (state.characters || []).length;
+  _viewIdx = Math.max(0, Math.min(i, Math.max(0, n - 1)));
+  localStorage.setItem('rwby-view-idx', _viewIdx);
+}
 let _lastAppliedRaw = null; // flicker guard: last raw payload we rendered
 
 
@@ -361,7 +385,7 @@ async function pushPresence() {
     const color = mine?.accentColor || MY_COLOR;
     await setDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID), {
       id: MY_PRESENCE_ID, name, color,
-      tab: state.selectedCharacter, ts: Date.now()
+      tab: getViewIdx(), ts: Date.now()
     });
   } catch(e) {}
 }
@@ -846,7 +870,7 @@ function startListener() {
       const myIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
 
       remote.characters.forEach((rc, i) => {
-        if (isTyping && i === (myIdx >= 0 ? myIdx : state.selectedCharacter)) return;
+        if (isTyping && i === (myIdx >= 0 ? myIdx : getViewIdx())) return;
         state.characters[i] = rc;
       });
       while (state.characters.length < remote.characters.length)
@@ -991,13 +1015,13 @@ function normalize(raw) {
 // ================================================================
 // Who you are VIEWING
 function getChar() {
-  // DM and spectators can view whoever is selected
-  if (dmUnlocked || spectator) return state.characters[state.selectedCharacter] || state.characters[0];
+  // DM and spectators can view whoever THEY have selected (local, not shared)
+  if (dmUnlocked || spectator) return state.characters[getViewIdx()] || state.characters[0];
   // Players are locked to their OWN claimed character — can't edit anyone else
   const mine = state.characters.find(c => c.claimedBy === MY_PRESENCE_ID);
   if (mine) return mine;
-  // Not claimed yet (observer/pre-welcome) — show selected but it'll be read-only
-  return state.characters[state.selectedCharacter] || state.characters[0];
+  // Not claimed yet (observer/pre-welcome) — show local selection but it'll be read-only
+  return state.characters[getViewIdx()] || state.characters[0];
 }
 function isViewingOwnCharacter() {
   if (dmUnlocked) return true;
@@ -1210,7 +1234,7 @@ function renderCharacterTabs() {
     if (c.state==='reserve' && !state.showReserve) return;
     const pct    = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
     const isOwn  = c.claimedBy === MY_PRESENCE_ID;
-    const isSel  = i === state.selectedCharacter;
+    const isSel  = i === getViewIdx();
     const takenByOther = isTakenByLiveOther(c);
     const hpColor= pct > 50 ? 'var(--safe)' : pct > 25 ? 'var(--warn)' : 'var(--danger)';
     const color  = c.accentColor || (isOwn ? 'var(--aura)' : 'rgba(255,255,255,.15)');
@@ -1228,7 +1252,7 @@ function renderCharacterTabs() {
     // The DM and spectators can switch which character is displayed.
     // Players are locked to their own claimed character.
     if (dmUnlocked || spectator) {
-      btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
+      btn.addEventListener('click', ()=>{ setViewIdx(i); render(); });
     } else {
       btn.style.cursor = 'default';
       if (!isOwn) btn.classList.add('locked-tab');
@@ -1272,6 +1296,7 @@ function renderMainFields() {
   sv('currentAura',c.aura.current);sv('maxAura',c.aura.max);
   sv('armor',c.armor);sv('speed',c.speed);sv('tempHp',c.tempHp||0);
   sv('abilitiesText',c.abilitiesText);sv('notesText',c.notesText);
+  { const ta=el('notesText'), cn=el('notesCount'); if(ta&&cn){ const t=(ta.value||'').trim(); const w=t?t.split(/\s+/).length:0; cn.textContent=`${w} word${w===1?'':'s'} · ${(ta.value||'').length} chars`; } }
   try { renderWeapons(); }   catch(e) {}
   try { renderInventory(); } catch(e) {}
   const moneyDisp = el('moneyDisplay'); if (moneyDisp) moneyDisp.textContent = `${fmtMoney(c.money)} ${CURRENCY.short}`;
@@ -2329,6 +2354,24 @@ function bindAll() {
   ii('armor','armor'); ii('speed','speed'); ii('tempHp','tempHp');
   ii('abilitiesText','abilitiesText'); ii('notesText','notesText');
 
+  // Notes journal: live word count + saved indicator
+  (function(){
+    const ta = el('notesText'); if(!ta) return;
+    const updateCount = ()=>{
+      const t = (ta.value||'').trim();
+      const words = t ? t.split(/\s+/).length : 0;
+      const cn = el('notesCount'); if(cn) cn.textContent = `${words} word${words===1?'':'s'} · ${(ta.value||'').length} chars`;
+    };
+    const flashSaved = ()=>{
+      const s = el('notesSaved'); if(!s) return;
+      s.textContent='○ saving…'; s.classList.add('saving');
+      clearTimeout(ta._saveTimer);
+      ta._saveTimer = setTimeout(()=>{ s.textContent='● synced'; s.classList.remove('saving'); }, 700);
+    };
+    ta.addEventListener('input', ()=>{ updateCount(); flashSaved(); });
+    updateCount();
+  })();
+
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.addEventListener('click',()=>{
     state.activeTab=b.dataset.tab; pushState(); renderTabs();
   }));
@@ -2357,7 +2400,7 @@ function bindAll() {
     state.characters.push(nc);
     const newIdx = state.characters.length-1;
 
-    state.selectedCharacter=newIdx; state.showReserve=true;
+    setViewIdx(newIdx); state.showReserve=true;
     pushState(true); render();
   });
   el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(true); render(); });
@@ -2370,8 +2413,8 @@ function bindAll() {
   el('deleteCharacterBtn')?.addEventListener('click',()=>{
     if (state.characters.length<=1) { alert('Keep at least one character.'); return; }
     if (!confirm(`Delete ${getChar().name||'this character'}?`)) return;
-    state.characters.splice(state.selectedCharacter,1);
-    if (state.selectedCharacter>=state.characters.length) state.selectedCharacter=state.characters.length-1;
+    state.characters.splice(getViewIdx(),1);
+    if (getViewIdx()>=state.characters.length) setViewIdx(state.characters.length-1);
     pushState(true); render();
   });
 
@@ -3932,7 +3975,7 @@ function claimCharacter(realIdx) {
   // Release any previous claim by this browser
   state.characters.forEach(ch => { if (ch.claimedBy === MY_PRESENCE_ID) ch.claimedBy = ''; });
   c.claimedBy = MY_PRESENCE_ID;
-  state.selectedCharacter = realIdx;
+  setViewIdx(realIdx);
   _relCollapsed.clear(); _relAllCollapsed = false;
   const rcab = el('relCollapseAllBtn'); if(rcab) rcab.textContent='⊟ Collapse All';
   localStorage.setItem('rwby-my-idx', realIdx); // shared with the Library for access gating
@@ -4011,11 +4054,11 @@ function checkWelcome() {
 }
 
 function recheckWelcomeIfNeeded() {
-  // Re-point selectedCharacter to our claimed char if it drifted
+  // Re-point our LOCAL view to our claimed char if it drifted
   const mine = getMyCharacter();
   if (mine) {
     const idx = state.characters.indexOf(mine);
-    if (idx >= 0 && state.selectedCharacter !== idx) state.selectedCharacter = idx;
+    if (idx >= 0 && getViewIdx() !== idx) setViewIdx(idx);
   }
 }
 

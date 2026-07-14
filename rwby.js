@@ -16,9 +16,8 @@ const fbApp = initializeApp(FB_CONFIG, 'rwby');
 const db    = getFirestore(fbApp);
 const DOC   = 'rwby-campaign';
 
-// ================================================================
 // CONSTANTS
-// ================================================================
+
 const DM_PASS   = '123456789';
 const LOC_KEY   = 'rwby-v4-local';
 
@@ -65,9 +64,7 @@ const SEM_KEYS   = ['base','first','second','third','ascended'];
 const SEM_LABELS = {base:'Base',first:'1st Evolution',second:'2nd Evolution',third:'3rd Evolution',ascended:'Ascended'};
 const DEF_THEME  = {bg:'#020106',panel:'#080510',accent:'#c0000a',accentTwo:'#3a0008',aura:'#00d4ff',text:'#c4d8f4'};
 
-// ================================================================
 // CALCULATION ENGINE
-// ================================================================
 function mod(score) { return Math.floor((Number(score) - 10) / 2); }
 function fmtMod(m) { return m >= 0 ? `+${m}` : `${m}`; }
 

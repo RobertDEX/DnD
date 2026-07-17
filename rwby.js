@@ -2360,7 +2360,7 @@ function renderDmDashboard(){
         <button class="dmd-qbtn dmg" data-dmd-act="dmg" data-i="${i}" title="Deal 5 damage">−5 HP</button>
         <button class="dmd-qbtn heal" data-dmd-act="heal" data-i="${i}" title="Heal 5">+5 HP</button>
         <button class="dmd-qbtn aura" data-dmd-act="aura" data-i="${i}" title="Restore aura to full">⟳ Aura</button>
-        <button class="dmd-qbtn view" data-dmd-act="view" data-i="${i}" title="Open this character's sheet">👁</button>
+        <button class="dmd-qbtn view" data-dmd-act="view" data-i="${i}" title="Open ${esc(c.name||'this character')}'s full sheet">👁 Sheet</button>
       </div>
     </div>`;
   }).join('');
@@ -2380,7 +2380,15 @@ function renderDmDashboard(){
     e.stopPropagation();
     const i = Number(b.dataset.i), act = b.dataset.dmdAct;
     const c = state.characters[i]; if(!c) return;
-    if(act==='view'){ setViewIdx(i); render(); return; }
+    // 'view' jumps to that character's actual sheet. It MUST leave the DM
+    // page — otherwise dm-page-active keeps the sheet hidden behind it and
+    // you just get a blank screen.
+    if(act==='view'){
+      setViewIdx(i);
+      setDmTarget(i);      // keep the DM's target in step with what they opened
+      hideDmPage();        // exits the page, keeps DM rights, re-renders
+      return;
+    }
     pushUndo(`${act==='dmg'?'Damaged':act==='heal'?'Healed':'Restored aura for'} ${c.name||'player'}`);
     if(act==='dmg')  c.hp.current = Math.max(0, (Number(c.hp.current)||0) - 5);
     if(act==='heal') c.hp.current = Math.min(effectiveHpMax(c), (Number(c.hp.current)||0) + 5);
@@ -3416,7 +3424,7 @@ function bindAll() {
     state.characters.push(nc);
     const newIdx = state.characters.length-1;
 
-    setViewIdx(newIdx); state.showReserve=true;
+    setViewIdx(newIdx); setDmTarget(newIdx); state.showReserve=true;
     pushState(true); render();
   });
   el('toggleReserveBtn')?.addEventListener('click',()=>{ state.showReserve=!state.showReserve; pushState(true); render(); });

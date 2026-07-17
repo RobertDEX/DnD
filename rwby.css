@@ -3309,8 +3309,8 @@ input:focus, textarea:focus, select:focus{
 .dmd-qbtn.heal:hover{background:rgba(94,212,146,.2);transform:translateY(-1px)}
 .dmd-qbtn.aura{color:#5edcff;background:rgba(0,168,212,.08);border:1px solid rgba(0,168,212,.25)}
 .dmd-qbtn.aura:hover{background:rgba(0,168,212,.2);transform:translateY(-1px)}
-.dmd-qbtn.view{flex:0 0 26px;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1)}
-.dmd-qbtn.view:hover{color:var(--aura);border-color:rgba(0,210,255,.35)}
+.dmd-qbtn.view{flex:0 0 auto;padding-left:.45rem;padding-right:.45rem;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1)}
+.dmd-qbtn.view:hover{color:var(--aura);border-color:rgba(0,210,255,.35);background:rgba(0,210,255,.08)}
 
 /* ═══════════ DM UNDO BAR ═══════════ */
 .dm-undo-bar{display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;padding:.5rem .8rem;

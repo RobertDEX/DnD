@@ -3623,3 +3623,20 @@ input:focus, textarea:focus, select:focus{
   border-color:var(--char-color, var(--aura));
   box-shadow:inset 3px 0 0 var(--char-color, var(--aura)), 0 0 30px -16px var(--char-color, var(--aura));
 }
+
+/* ═══════════ BACKUPS / SNAPSHOTS ═══════════ */
+.snapshot-list{display:flex;flex-direction:column;gap:.4rem;max-height:260px;overflow-y:auto}
+.snap-loading,.snap-empty{padding:1rem;text-align:center;font-family:var(--F3);font-size:.76rem;
+  font-style:italic;color:var(--muted);border:1px dashed rgba(0,210,255,.15);border-radius:8px}
+.snap-row{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;border-radius:7px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);transition:all .14s}
+.snap-row:hover{background:rgba(94,212,146,.05);border-color:rgba(94,212,146,.25)}
+.snap-info{flex:1;min-width:0}
+.snap-reason{font-family:var(--F2);font-size:.68rem;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.snap-meta{font-family:var(--F2);font-size:.54rem;color:var(--muted);margin-top:.1rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.snap-restore{font-family:var(--F2);font-size:.58rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:.32rem .7rem;border-radius:6px;cursor:pointer;flex-shrink:0;
+  color:#7de8a8;background:rgba(94,212,146,.1);border:1px solid rgba(94,212,146,.3);transition:all .13s}
+.snap-restore:hover{background:rgba(94,212,146,.24);transform:translateY(-1px)}

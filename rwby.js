@@ -2586,6 +2586,101 @@ function showFeatGrantFx(feat, target){
   setTimeout(()=>{ fx.classList.remove('show'); setTimeout(()=>fx.remove(), 400); }, 2200);
 }
 
+// ================================================================
+// SNAPSHOTS — durable safety net for destructive actions
+// ================================================================
+// pushState() overwrites ONE Firestore doc with no version history, so a
+// delete is permanent the moment it syncs. Before anything destructive we
+// write a timestamped copy to rwby-backups/* that outlives the session.
+const SNAPSHOT_MAX = 10;
+
+async function saveSnapshot(reason){
+  try{
+    const id = 'snap-' + Date.now();
+    await setDoc(doc(db, 'rwby-backups', id), {
+      ts: Date.now(),
+      reason: String(reason||'manual'),
+      by: MY_PRESENCE_ID,
+      data: JSON.stringify(state)
+    });
+    // prune old snapshots so this never grows without bound
+    const all = await getDocs(collection(db, 'rwby-backups'));
+    const rows = [];
+    all.forEach(d => rows.push({ id: d.id, ts: d.data().ts || 0 }));
+    rows.sort((a,b) => b.ts - a.ts);
+    for (const old of rows.slice(SNAPSHOT_MAX)) {
+      await deleteDoc(doc(db, 'rwby-backups', old.id)).catch(()=>{});
+    }
+    return id;
+  }catch(e){
+    console.error('[rwby] snapshot failed:', e);
+    return null;
+  }
+}
+
+async function listSnapshots(){
+  try{
+    const all = await getDocs(collection(db, 'rwby-backups'));
+    const rows = [];
+    all.forEach(d => {
+      const v = d.data();
+      let chars = [];
+      try { chars = (JSON.parse(v.data)?.characters || []).map(c => c.name || '?'); } catch(e){}
+      rows.push({ id: d.id, ts: v.ts || 0, reason: v.reason || '', chars });
+    });
+    rows.sort((a,b) => b.ts - a.ts);
+    return rows;
+  }catch(e){ return []; }
+}
+
+async function restoreSnapshot(id){
+  if(!dmUnlocked) return;
+  try{
+    const snap = await getDoc(doc(db, 'rwby-backups', id));
+    if(!snap.exists()){ showToast('Snapshot not found', 'warn'); return; }
+    const parsed = JSON.parse(snap.data().data);
+    if(!parsed || !Array.isArray(parsed.characters)) { showToast('Snapshot is unreadable', 'warn'); return; }
+    // Save where we are now, so restoring is itself undoable.
+    await saveSnapshot('before restore');
+    state = normalize(parsed);
+    await pushState(true);
+    render();
+    showToast('Snapshot restored', 'success', 5000);
+    renderSnapshotList();
+  }catch(e){ showToast('Restore failed', 'warn'); }
+}
+
+function snapAgo(ts){
+  const s = Math.max(0, Math.floor((Date.now()-ts)/1000));
+  if(s<60) return s+'s ago';
+  const m=Math.floor(s/60); if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); if(h<24) return h+'h ago';
+  return Math.floor(h/24)+'d ago';
+}
+
+async function renderSnapshotList(){
+  const host = el('snapshotList'); if(!host || !dmUnlocked) return;
+  host.innerHTML = `<div class="snap-loading">Loading backups…</div>`;
+  const rows = await listSnapshots();
+  if(!rows.length){
+    host.innerHTML = `<div class="snap-empty">No backups yet. One is saved automatically before any character is deleted.</div>`;
+    return;
+  }
+  host.innerHTML = rows.map(r=>`
+    <div class="snap-row">
+      <div class="snap-info">
+        <div class="snap-reason">${esc(r.reason)}</div>
+        <div class="snap-meta">${snapAgo(r.ts)} · ${r.chars.length} character${r.chars.length===1?'':'s'} · ${esc(r.chars.slice(0,4).join(', '))}${r.chars.length>4?'…':''}</div>
+      </div>
+      <button class="snap-restore" data-snap="${esc(r.id)}">Restore</button>
+    </div>`).join('');
+  host.querySelectorAll('.snap-restore').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.snap;
+    if(!confirm('Restore this backup? Your current state will be backed up first, so this is reversible.')) return;
+    restoreSnapshot(id);
+  }));
+}
+
 function showDiceResult(label, res){
   if(!res) return;
   broadcastRoll(label, res);       // share with the table (fire-and-forget)
@@ -2943,6 +3038,7 @@ function unlockDm() {
   }
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
+  try { renderSnapshotList(); } catch(e) {}
   // Activate players tab by default
   document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
@@ -3052,12 +3148,59 @@ function bindAll() {
   el('createTechniqueBtn')?.addEventListener('click', createTechnique);
   el('saveSemblanceBtn')?.addEventListener('click',   saveSemblance);
   el('saveCharacterStateBtn')?.addEventListener('click', saveCharState);
-  el('deleteCharacterBtn')?.addEventListener('click',()=>{
+
+  el('saveSnapshotBtn')?.addEventListener('click', async ()=>{
+    if(!dmUnlocked) return;
+    showToast('Saving backup…', 'info', 1500);
+    const id = await saveSnapshot('manual backup');
+    showToast(id ? 'Backup saved' : 'Backup failed', id ? 'success' : 'warn');
+    renderSnapshotList();
+  });
+  el('refreshSnapshotsBtn')?.addEventListener('click', renderSnapshotList);
+  el('deleteCharacterBtn')?.addEventListener('click', async ()=>{
+    if (!dmUnlocked) { alert('Only the DM can delete characters.'); return; }
     if (state.characters.length<=1) { alert('Keep at least one character.'); return; }
-    if (!confirm(`Delete ${getChar().name||'this character'}?`)) return;
-    state.characters.splice(getViewIdx(),1);
-    if (getViewIdx()>=state.characters.length) setViewIdx(state.characters.length-1);
-    pushState(true); render();
+
+    // Delete the DM's TARGET (the sidebar selection), not getViewIdx().
+    // getViewIdx() re-derives and self-clamps on every call, so reading it
+    // around a splice gives inconsistent answers.
+    const idx = Math.max(0, Math.min(_dmTarget, state.characters.length - 1));
+    const victim = state.characters[idx];
+    const name = victim?.name || `Player ${idx+1}`;
+
+    // Typed confirmation — this is the most destructive action in the app.
+    const typed = prompt(
+      `Delete "${name}" permanently?\n\n` +
+      `This removes their sheet, inventory, techniques, feats and notes for EVERYONE.\n` +
+      `A backup is saved automatically and can be restored from the DM panel.\n\n` +
+      `Type the character's name to confirm:`
+    );
+    if (typed === null) return;                    // cancelled
+    if (typed.trim() !== name.trim()) {
+      alert(`Name didn't match — "${name}" was NOT deleted.`);
+      return;
+    }
+
+    // Durable backup FIRST — survives closing the tab, unlike the undo stack.
+    showToast('Saving backup…', 'info', 2000);
+    await saveSnapshot(`before deleting ${name}`);
+
+    // Session undo as well, for a quick one-click revert.
+    pushUndo(`Deleted ${name}`);
+
+    state.characters.splice(idx, 1);
+
+    // Re-point the DM's target and local view to something valid.
+    const last = state.characters.length - 1;
+    _dmTarget = Math.max(0, Math.min(idx, last));
+    setViewIdx(Math.max(0, Math.min(idx, last)));
+    _dmSelected.delete(idx);
+    _dmSelected = new Set([..._dmSelected].map(i => i > idx ? i - 1 : i));
+
+    await pushState(true);
+    render();
+    renderSnapshotList();
+    showToast(`Deleted ${name} — restore from DM ▸ Players ▸ Backups`, 'warn', 7000);
   });
 
   el('openDmOverlayBtn')?.addEventListener('click', openDmOverlay);

@@ -2924,6 +2924,38 @@ function renderBestiary(){
   }));
 }
 
+// ================================================================
+// DM PAGE MODE — the DM view is a full-viewport page, not a panel
+// ================================================================
+// The DM panel lives inside .main (which sits in .app's 230px grid and is
+// capped at 1700px). That chrome is for the player sheet and just squeezes
+// the DM view. When the panel is visible we flag the body, and CSS lifts it
+// out to fill the whole viewport. Derived from the panel's real state so it
+// can't drift out of sync with the five places that show/hide it.
+function syncDmPageMode(){
+  const panel = el('dmFullscreenPanel');
+  const on = !!panel && !panel.classList.contains('hidden');
+  document.body.classList.toggle('dm-page-active', on);
+  // Show the re-entry button only when we're a DM who has stepped away
+  const back = el('dmReturnFab');
+  if(back) back.style.display = (dmUnlocked && !on) ? '' : 'none';
+}
+
+// Leave the DM page but STAY the DM — distinct from Lock, which drops rights.
+function hideDmPage(){
+  el('dmFullscreenPanel')?.classList.add('hidden');
+  syncDmPageMode();
+  render();
+}
+function showDmPage(){
+  if(!dmUnlocked) return;
+  el('dmLoginPanel')?.classList.add('hidden');
+  el('dmFullscreenPanel')?.classList.remove('hidden');
+  syncDmPageMode();
+  try { renderSnapshotList(); } catch(e) {}
+  render();
+}
+
 function showDiceResult(label, res){
   if(!res) return;
   broadcastRoll(label, res);       // share with the table (fire-and-forget)
@@ -3253,10 +3285,10 @@ function addDustSpell() {
 function openDmOverlay() {
   el('dmOverlay')?.classList.remove('hidden');
   if (!dmUnlocked) {
-    el('dmLoginPanel')?.classList.remove('hidden'); el('dmFullscreenPanel')?.classList.add('hidden');
+    el('dmLoginPanel')?.classList.remove('hidden'); el('dmFullscreenPanel')?.classList.add('hidden'); syncDmPageMode();
     const p=el('dmPasswordInput'); if(p){p.value='';p.focus();}
   } else {
-    el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden');
+    el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden'); syncDmPageMode();
     renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
   }
 }
@@ -3264,7 +3296,7 @@ function closeDmOverlay() { el('dmOverlay')?.classList.add('hidden'); }
 function lockDm()   {
   dmUnlocked=false;
   sessionStorage.removeItem('rwby-dm');
-  el('dmFullscreenPanel')?.classList.add('hidden'); el('dmLoginPanel')?.classList.remove('hidden');
+  el('dmFullscreenPanel')?.classList.add('hidden'); el('dmLoginPanel')?.classList.remove('hidden'); syncDmPageMode();
 }
 function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
@@ -3283,6 +3315,7 @@ function unlockDm() {
   }
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
+  syncDmPageMode();
   try { renderSnapshotList(); } catch(e) {}
   // Activate players tab by default
   document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -3451,7 +3484,8 @@ function bindAll() {
   el('openDmOverlayBtn')?.addEventListener('click', openDmOverlay);
   el('dmLoginBtn')?.addEventListener('click',       unlockDm);
   el('dmCloseBtn')?.addEventListener('click',       closeDmOverlay);
-  el('dmCloseFullBtn')?.addEventListener('click',   closeDmOverlay);
+  el('dmBackToSheetBtn')?.addEventListener('click', hideDmPage);
+  el('dmReturnFab')?.addEventListener('click',      showDmPage);
   el('dmLogoutBtn')?.addEventListener('click',      lockDm);
   el('dmPasswordInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') unlockDm(); });
 
@@ -5309,6 +5343,7 @@ window.addEventListener('beforeunload', () => {
 if (dmUnlocked) {
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
+  syncDmPageMode();
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();

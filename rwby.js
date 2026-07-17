@@ -336,7 +336,7 @@ function blankChar(i) {
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     commendations: [],   // earned commendation ids (DM-granted, cosmetic)
     feats: [],           // mechanical feat ids (DM-granted, change real numbers)
-    feats: [],           // custom DM-created feats [{id, name, desc, ts}]
+    feat: [],           // custom DM-created feats [{id, name, desc, ts}]
     dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -2449,8 +2449,8 @@ function renderStatLockBar(){
 //   hpMax:+5  auraMax:+10  hpPerLevel:+1
 //   speed:+10
 const FEATS = [
-  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },
-  { id:'quickstep',    icon:'💨', name:'Quickstep',        desc:'You move before others think. +2 DEX, +2 initiative.',          effects:{ stat:{DEX:2}, initiative:2 } },
+  { id:'giant',    icon:'🛡', name:'Giant',        desc:'You are big, even by normal peoples standards.',            effects:{ speed:20 }},
+  { id:'keen_senses',    icon:'💨', name:'Keen Senses',        desc:'Your Senses are better than average humans. +5 to Perception',          effects:{skill:{'Perception':5} }},
   { id:'aura_well',    icon:'✶', name:'Deep Aura Well',    desc:'Your Aura runs deeper than most. +15 max Aura.',                effects:{ auraMax:15 } },
   { id:'duelist',      icon:'⚔', name:'Duelist',           desc:'Relentless in close quarters. +1 to all attack rolls.',         effects:{ attack:1 } },
   { id:'shadow',       icon:'🌑', name:'Shadow',           desc:'Unseen and unheard. +3 Stealth, +2 Sleight of Hand.',           effects:{ skill:{ 'Stealth':3, 'Sleight of Hand':2 } } },
@@ -2461,7 +2461,6 @@ const FEATS = [
   { id:'brawler',      icon:'👊', name:'Brawler',          desc:'Raw physical power. +2 STR, +1 Athletics.',                     effects:{ stat:{STR:2}, skill:{'Athletics':1} } },
   { id:'warded',       icon:'🔰', name:'Warded',           desc:'Hard to pin down. +1 Armor.',                                   effects:{ ac:1 } },
   { id:'survivor',     icon:'❤', name:'Survivor',          desc:'You refuse to fall. +1 max HP per level.',                      effects:{ hpPerLevel:1 } },
-  { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
   { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
 ];
 function featById(id){ return FEATS.find(f=>f.id===id) || null; }

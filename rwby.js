@@ -16,9 +16,10 @@ const fbApp = initializeApp(FB_CONFIG, 'rwby');
 const db    = getFirestore(fbApp);
 const DOC   = 'rwby-campaign';
 
+// ================================================================
 // CONSTANTS
-
-const DM_PASS   = '123456789';
+// ================================================================
+const DM_PASS   = '1122334455';
 const LOC_KEY   = 'rwby-v4-local';
 
 const STATS = ['STR','DEX','CON','INT','WIS','CHA'];
@@ -64,7 +65,9 @@ const SEM_KEYS   = ['base','first','second','third','ascended'];
 const SEM_LABELS = {base:'Base',first:'1st Evolution',second:'2nd Evolution',third:'3rd Evolution',ascended:'Ascended'};
 const DEF_THEME  = {bg:'#020106',panel:'#080510',accent:'#c0000a',accentTwo:'#3a0008',aura:'#00d4ff',text:'#c4d8f4'};
 
+// ================================================================
 // CALCULATION ENGINE
+// ================================================================
 function mod(score) { return Math.floor((Number(score) - 10) / 2); }
 function fmtMod(m) { return m >= 0 ? `+${m}` : `${m}`; }
 
@@ -75,6 +78,7 @@ const FAUNUS_STAT_BONUS = 5;       // Faunus heritage: +5 to one DM-chosen abili
 function effectiveStat(c, stat){
   let s = Number(c?.stats?.[stat]) || 0;
   if (c && c.race==='faunus' && c.faunusBonusStat===stat) s += FAUNUS_STAT_BONUS;
+  try { s += featStatBonus(c, stat); } catch(e) {}   // feats grant flat ability bonuses
   return s;
 }
 function isFaunus(c){ return c && c.race==='faunus'; }
@@ -172,7 +176,7 @@ function renderHuntsmanLicense(){
   }
 }
 
-// Skill total = stat mod + (proficiency if proficient) + extra bonus
+// Skill total = stat mod + (proficiency if proficient) + extra bonus + feat bonuses
 function skillTotal(c, skillName) {
   const def  = SKILL_DEFS.find(s => s.name === skillName);
   if (!def) return 0;
@@ -182,25 +186,40 @@ function skillTotal(c, skillName) {
   let total   = statM + Number(sk.bonus || 0);
   if (sk.expertise) total += pb * 2;
   else if (sk.prof)  total += pb;
+  try { total += featSkillBonus(c, skillName); } catch(e) {}
   return total;
 }
 
-// Passive Perception = 10 + Perception total
+// Passive Perception = 10 + Perception total (+ feat passive bonuses)
 function passivePerception(c) {
   const pb     = getEffectivePB(c);
   const wisMod = mod(effectiveStat(c,'WIS'));
   const sk     = c.skills['Perception'] || {bonus:0};
-  return 10 + pb + wisMod + (Number(sk.bonus)||0);
+  let total = 10 + pb + wisMod + (Number(sk.bonus)||0);
+  try { total += featBonus(c,'passive') + featSkillBonus(c,'Perception'); } catch(e) {}
+  return total;
 }
 
-// Initiative = DEX mod + any manual bonus stored in c.initiativeBonus
-function calcInitiative(c) { return mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus || 0); }
+// Initiative = DEX mod + manual bonus + feat bonuses
+function calcInitiative(c) {
+  let t = mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus || 0);
+  try { t += featBonus(c,'initiative'); } catch(e) {}
+  return t;
+}
 
-// Attack bonus = chosen stat mod + proficiency
-function attackBonus(c) { return mod(effectiveStat(c, c.attackStat || 'STR')) + profBonus(c.level); }
+// Attack bonus = chosen stat mod + proficiency + feat bonuses
+function attackBonus(c) {
+  let t = mod(effectiveStat(c, c.attackStat || 'STR')) + profBonus(c.level);
+  try { t += featBonus(c,'attack'); } catch(e) {}
+  return t;
+}
 
-// Spell DC = 8 + proficiency + INT mod (Aura Mastery → INT)
-function spellDC(c) { return 8 + profBonus(c.level) + mod(effectiveStat(c,'INT')); }
+// Spell DC = 8 + proficiency + INT mod + feat bonuses
+function spellDC(c) {
+  let t = 8 + profBonus(c.level) + mod(effectiveStat(c,'INT'));
+  try { t += featBonus(c,'spellDC'); } catch(e) {}
+  return t;
+}
 
 // ================================================================
 // UNCANNY DODGE
@@ -315,7 +334,8 @@ function blankChar(i) {
     inventory: [],       // [{name, qty, notes}]
     relationships: [],   // #21 — [{name, type, notes}]
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
-    commendations: [],   // earned commendation ids (DM-granted)
+    commendations: [],   // earned commendation ids (DM-granted, cosmetic)
+    feats: [],           // mechanical feat ids (DM-granted, change real numbers)
     feats: [],           // custom DM-created feats [{id, name, desc, ts}]
     dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
@@ -349,6 +369,11 @@ let _viewIdx = (() => {
   const v = parseInt(localStorage.getItem('rwby-view-idx'));
   return Number.isFinite(v) && v >= 0 ? v : 0;
 })();
+// Fingerprint of everything the current browser can actually SEE.
+// Used to skip repaints when a remote change is irrelevant to this player.
+let _lastVisibleFp = '';
+// Ensures the stale-claim cleanup for watcher/DM runs once per session.
+let _claimReconciled = false;
 function getViewIdx() {
   const n = (state.characters || []).length;
   if (n === 0) return 0;
@@ -862,6 +887,20 @@ function startListener() {
       const remote = normalize(JSON.parse(raw));
       checkStateChanges(remote);  // #31 toasts
 
+      // ── Stale-claim reconciliation ────────────────────────
+      // A watcher or DM must never hold a character. Because MY_PRESENCE_ID
+      // lives in localStorage and claimedBy lives in Firebase, a claim from an
+      // EARLIER session survives a reload and would silently pin them to that
+      // sheet. Drop it as soon as we see real data.
+      if ((spectator || dmUnlocked) && !_claimReconciled) {
+        _claimReconciled = true;
+        const held = state.characters.some(c => c.claimedBy === MY_PRESENCE_ID);
+        if (held) {
+          releaseMyClaim(true);
+          console.log('[rwby] released a stale character claim (watcher/DM mode)');
+        }
+      }
+
       const ae = document.activeElement;
       const isTyping = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
       const myIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
@@ -898,6 +937,29 @@ function startListener() {
           _welcomeShown = true; checkWelcome();
         }
         return;
+      }
+
+      // ── Quiet background sync ──────────────────────────────
+      // A player who only sees their own sheet shouldn't get a visible
+      // re-render every time someone ELSE changes something. Fingerprint
+      // just the slice this browser can actually see; if it's unchanged,
+      // update silently and skip the repaint entirely.
+      const myIdx2 = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
+      const soloView2 = !dmUnlocked && !spectator && myIdx2 >= 0;
+      if (soloView2) {
+        let fp = '';
+        try { fp = JSON.stringify(state.characters[myIdx2]) + '|' + JSON.stringify(state.theme)
+                 + '|' + state.weather + '|' + state.sceneTime + '|' + JSON.stringify(state.shop)
+                 + '|' + state.shopLocation + '|' + state.cctOnline; } catch(e) {}
+        if (fp && fp === _lastVisibleFp) {
+          // nothing visible to this player changed — stay silent
+          recheckWelcomeIfNeeded();
+          if (!document.getElementById('welcomeOverlay') && !_welcomeShown) {
+            _welcomeShown = true; checkWelcome();
+          }
+          return;
+        }
+        _lastVisibleFp = fp;
       }
 
       try { renderCharacterTabs(); } catch(e) {}
@@ -963,7 +1025,7 @@ function normalize(raw) {
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
-    mc.feats         = Array.isArray(c.feats)? c.feats : [];
+    mc.feats         = Array.isArray(c.feats) ? c.feats.filter(id=>FEATS.some(f=>f.id===id)) : [];
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
@@ -1099,11 +1161,24 @@ function clamp(v,a,b)  { return Math.max(a, Math.min(b, v)); }
 function rollD10()     { return Math.floor(Math.random() * 10) + 1; }
 function esc(s)        { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Effective maximums — base value plus any feat bonuses.
+// The BASE stays untouched in c.hp.max so removing a feat cleanly reverts it.
+function effectiveHpMax(c){
+  let m = Math.max(0, Number(c?.hp?.max)||0);
+  try { m += featHpMaxBonus(c); } catch(e) {}
+  return Math.max(0, m);
+}
+function effectiveAuraMax(c){
+  let m = Math.max(0, Number(c?.aura?.max)||0);
+  try { m += featAuraMaxBonus(c); } catch(e) {}
+  return Math.max(0, m);
+}
 function ensureClamp(c) {
   c.hp.max    = Math.max(0, Number(c.hp.max)    || 0);
   c.aura.max  = Math.max(0, Number(c.aura.max)  || 0);
-  c.hp.current   = clamp(Number(c.hp.current)   || 0, 0, c.hp.max);
-  c.aura.current = clamp(Number(c.aura.current) || 0, 0, c.aura.max);
+  // clamp current against the EFFECTIVE max so feat-granted headroom is usable
+  c.hp.current   = clamp(Number(c.hp.current)   || 0, 0, effectiveHpMax(c));
+  c.aura.current = clamp(Number(c.aura.current) || 0, 0, effectiveAuraMax(c));
 }
 
 function hexRgba(hex, a=1) {
@@ -1226,7 +1301,13 @@ function renderCalcPanel() {
 // ================================================================
 function renderCharacterTabs() {
   const tabs = el('characterTabs'); if (!tabs) return; tabs.innerHTML = '';
+  // A player who has claimed a character sees ONLY their own tab.
+  // DMs and watchers browse the whole party freely.
+  const myIdx = state.characters.findIndex(c => c.claimedBy === MY_PRESENCE_ID);
+  const soloView = !dmUnlocked && !spectator && myIdx >= 0;
+  tabs.classList.toggle('solo', soloView);
   state.characters.forEach((c,i) => {
+    if (soloView && i !== myIdx) return;          // hide everyone else's sheet
     if (c.state==='dead'    && !state.showDead)    return;
     if (c.state==='reserve' && !state.showReserve) return;
     const pct    = c.hp.max > 0 ? Math.round((c.hp.current/c.hp.max)*100) : 0;
@@ -1348,23 +1429,25 @@ function renderRacePanel(){
 // ================================================================
 function renderStats() {
   const c = getChar(); const g = el('statsGrid'); if(!g) return; g.innerHTML='';
+  const locked = !canEditStats();
   STATS.forEach(stat => {
     const score = c.stats[stat];
     const boosted = c.race==='faunus' && c.faunusBonusStat===stat;
     const eff = effectiveStat(c, stat);
     const m = mod(eff);
-    const card = document.createElement('div'); card.className='stat-card'+(boosted?' faunus-boosted':'');
+    const card = document.createElement('div'); card.className='stat-card'+(boosted?' faunus-boosted':'')+(locked?' stat-locked':'');
     card.innerHTML = `
       <div class="stat-key">${stat}${boosted?`<span class="stat-faunus-badge" title="Faunus heritage: +${FAUNUS_STAT_BONUS}">+${FAUNUS_STAT_BONUS}</span>`:''}</div>
-      <input class="stat-score-input" data-stat="${stat}" type="number" value="${score}">
+      <input class="stat-score-input" data-stat="${stat}" type="number" value="${score}" ${locked?'readonly tabindex="-1"':''}>
       ${boosted?`<div class="stat-eff" title="Base ${score} + Faunus ${FAUNUS_STAT_BONUS} = ${eff}">▸ ${eff}</div>`:''}
       <div class="stat-mod">${fmtMod(m)}</div>
-      <div class="stat-controls">
+      ${locked?'':`<div class="stat-controls">
         <button type="button" data-stat="${stat}" data-action="minus">−</button>
         <button type="button" data-stat="${stat}" data-action="plus">+</button>
-      </div>`;
+      </div>`}`;
     g.appendChild(card);
   });
+  if(locked) return;   // no write handlers when locked
   g.querySelectorAll('.stat-score-input').forEach(inp => {
     inp.addEventListener('input', e => {
       c.stats[e.target.dataset.stat] = Number(e.target.value) || 0;
@@ -1586,7 +1669,7 @@ function renderDustSpells() {
 // RENDER — DM SEMBLANCE
 // ================================================================
 function renderDmSemblance() {
-  const c = getChar(); const g = el('semblanceDmGrid'); if(!g) return; g.innerHTML='';
+  const c = dmTargetChar() || getChar(); const g = el('semblanceDmGrid'); if(!g) return; g.innerHTML='';
   SEM_KEYS.forEach(key => {
     const s   = c.semblance[key]; const col = document.createElement('div'); col.className='semblance-dm-col';
     col.innerHTML = `
@@ -1953,7 +2036,559 @@ function rollD20(modifier, mode){
   else nat = a;
   return { nat, both:[a,b], mode, total: nat + modifier, modifier };
 }
+// ================================================================
+// LIVE ROLL FEED — every roll broadcasts to the whole table
+// ================================================================
+const ROLL_FEED_MAX = 40;          // keep the last N rolls in the shared doc
+let _rollFeedUnsub = null;
+let _rollFeed = [];                // local mirror of the shared feed
+let _lastFeedTs = 0;               // so we don't re-announce our own rolls
+
+// Push a roll to the shared feed. Fire-and-forget; never blocks the local roll.
+async function broadcastRoll(label, res){
+  if (spectator) return;           // watchers observe, they don't roll
+  try{
+    const c = getChar();
+    const entry = {
+      id: MY_PRESENCE_ID + '-' + Date.now(),
+      who: c?.name || 'Hunter',
+      color: c?.accentColor || '#00d4ff',
+      label: String(label||'').slice(0,60),
+      total: res?.total ?? 0,
+      nat: res?.nat,
+      mode: res?.mode || 'normal',
+      detail: rollDetailText(res),
+      ts: Date.now()
+    };
+    const ref = doc(db,'rwby-meta','rollfeed');
+    const snap = await getDoc(ref);
+    const d = snap.exists() ? snap.data() : { rolls: [] };
+    const rolls = Array.isArray(d.rolls) ? d.rolls : [];
+    rolls.unshift(entry);
+    await setDoc(ref, { rolls: rolls.slice(0, ROLL_FEED_MAX) });
+  }catch(e){ /* offline / permission — local roll still worked */ }
+}
+// Compact human-readable breakdown for the feed
+function rollDetailText(res){
+  if(!res) return '';
+  if(res.nat!==undefined){
+    const base = (res.mode==='adv'||res.mode==='dis')
+      ? `[${res.both?.[0]},${res.both?.[1]}]${res.mode==='adv'?'adv':'dis'}→${res.nat}`
+      : `d20→${res.nat}`;
+    return `${base} ${res.modifier>=0?'+':''}${res.modifier}`;
+  }
+  if(Array.isArray(res.parts)){
+    return res.parts.map(p=> p.type==='dice'
+      ? `${p.sign<0?'−':''}${p.count}d${p.sides}[${p.rolls.join(',')}]`
+      : `${p.value>=0?'+':''}${p.value}`).join(' ');
+  }
+  return '';
+}
+function startRollFeed(){
+  if(_rollFeedUnsub) return;
+  _rollFeedUnsub = onSnapshot(doc(db,'rwby-meta','rollfeed'), snap=>{
+    if(!snap.exists()) return;
+    const d = snap.data();
+    _rollFeed = Array.isArray(d.rolls) ? d.rolls : [];
+    renderRollFeed();
+    // announce the newest roll if it isn't ours and is fresh
+    const top = _rollFeed[0];
+    if(top && top.ts > _lastFeedTs){
+      _lastFeedTs = top.ts;
+      if(!String(top.id||'').startsWith(MY_PRESENCE_ID) && Date.now()-top.ts < 8000){
+        if(top.nat===20) diceSound('crit'); else if(top.nat===1) diceSound('fumble');
+      }
+    }
+  }, ()=>{});
+}
+function renderRollFeed(){
+  const host = el('rollFeedList'); if(!host) return;
+  if(!_rollFeed.length){
+    host.innerHTML = `<div class="rf-empty">No rolls yet. Every roll at the table shows up here.</div>`;
+    return;
+  }
+  host.innerHTML = _rollFeed.map(r=>{
+    const crit = r.nat===20 ? ' crit' : (r.nat===1 ? ' fumble' : '');
+    const mine = String(r.id||'').startsWith(MY_PRESENCE_ID) ? ' mine' : '';
+    return `<div class="rf-row${crit}${mine}">
+      <span class="rf-dot" style="background:${esc(r.color||'#00d4ff')}"></span>
+      <span class="rf-body">
+        <span class="rf-top"><span class="rf-who">${esc(r.who||'?')}</span><span class="rf-label">${esc(r.label||'')}</span></span>
+        <span class="rf-detail">${esc(r.detail||'')}</span>
+      </span>
+      <span class="rf-total">${r.total}</span>
+      ${crit?`<span class="rf-flag${crit}">${r.nat===20?'CRIT':'FUMBLE'}</span>`:''}
+      <span class="rf-time">${rollAgo(r.ts)}</span>
+    </div>`;
+  }).join('');
+}
+function rollAgo(ts){
+  const s = Math.max(0, Math.floor((Date.now()-ts)/1000));
+  if(s<10) return 'now';
+  if(s<60) return s+'s';
+  const m=Math.floor(s/60); if(m<60) return m+'m';
+  return Math.floor(m/60)+'h';
+}
+async function clearRollFeed(){
+  if(!dmUnlocked) return;
+  if(!confirm('Clear the roll feed for everyone?')) return;
+  try{ await setDoc(doc(db,'rwby-meta','rollfeed'), { rolls: [] }); }catch(e){}
+}
+
+// ================================================================
+// DM UNDO — snapshot stack for reversible DM actions
+// ================================================================
+const UNDO_MAX = 15;
+let _undoStack = [];   // [{label, snapshot, ts}]
+
+// Call BEFORE mutating state in a DM action.
+function pushUndo(label){
+  if(!dmUnlocked) return;
+  try{
+    _undoStack.push({
+      label: String(label||'DM action'),
+      snapshot: JSON.stringify(state.characters),
+      ts: Date.now()
+    });
+    if(_undoStack.length > UNDO_MAX) _undoStack.shift();
+    renderUndoBar();
+  }catch(e){}
+}
+function undoLast(){
+  if(!dmUnlocked || !_undoStack.length) return;
+  const last = _undoStack.pop();
+  try{
+    const restored = JSON.parse(last.snapshot);
+    if(Array.isArray(restored)){
+      state.characters = restored;
+      pushState(true);
+      render();
+      showToast(`Undid: ${last.label}`, 'info');
+    }
+  }catch(e){ showToast('Undo failed', 'warn'); }
+  renderUndoBar();
+}
+function renderUndoBar(){
+  const bar = el('dmUndoBar'); if(!bar) return;
+  if(!dmUnlocked || !_undoStack.length){ bar.style.display='none'; return; }
+  const last = _undoStack[_undoStack.length-1];
+  bar.style.display='';
+  bar.innerHTML = `<span class="undo-icon">↶</span>
+    <span class="undo-label">Last: ${esc(last.label)}</span>
+    <button class="undo-btn" id="dmUndoBtn">Undo</button>
+    <span class="undo-count">${_undoStack.length}</span>`;
+  el('dmUndoBtn')?.addEventListener('click', undoLast);
+}
+
+// ================================================================
+// DM DASHBOARD — live party vitals at a glance
+// ================================================================
+// ================================================================
+// DM DASHBOARD — live party vitals, multi-select + bulk actions
+// ================================================================
+let _dmSelected = new Set();   // indices selected for bulk actions
+
+function toggleDmSelect(i){
+  if(_dmSelected.has(i)) _dmSelected.delete(i); else _dmSelected.add(i);
+  renderDmDashboard();
+}
+function dmSelectAll(){
+  const n = (state.characters||[]).length;
+  if(_dmSelected.size === n) _dmSelected.clear();
+  else for(let i=0;i<n;i++) _dmSelected.add(i);
+  renderDmDashboard();
+}
+// Apply an action to every selected character (or the target if none selected)
+function dmBulkApply(kind, amount){
+  const idxs = _dmSelected.size ? [..._dmSelected] : [_dmTarget];
+  const names = idxs.map(i=>state.characters[i]?.name||'?').join(', ');
+  pushUndo(`${kind} ${amount?amount+' ':''}→ ${names}`);
+  idxs.forEach(i=>{
+    const c = state.characters[i]; if(!c) return;
+    if(kind==='damage'){
+      c.hp.current = Math.max(0, (Number(c.hp.current)||0) - amount);
+      flashCard(i,'dmg');
+    }
+    if(kind==='heal'){
+      c.hp.current = Math.min(effectiveHpMax(c), (Number(c.hp.current)||0) + amount);
+      flashCard(i,'heal');
+    }
+    if(kind==='aura'){ c.aura.current = effectiveAuraMax(c); flashCard(i,'aura'); }
+    if(kind==='fullrest'){
+      c.hp.current = effectiveHpMax(c);
+      c.aura.current = effectiveAuraMax(c);
+      if(c.deathSaves) c.deathSaves = {successes:0,failures:0,stable:false};
+      flashCard(i,'heal');
+    }
+    ensureClamp(c);
+  });
+  pushState(true);
+  setTimeout(()=>render(), 260);   // let the flash animation play first
+  showToast(`${kind==='fullrest'?'Full rest':kind} applied to ${idxs.length} character${idxs.length===1?'':'s'}`, 'info');
+}
+// One-shot flash on a dashboard card
+function flashCard(i, kind){
+  const card = document.querySelector(`.dmd-card[data-dmd="${i}"]`);
+  if(!card) return;
+  card.classList.remove('flash-dmg','flash-heal','flash-aura');
+  void card.offsetWidth;                   // restart the animation
+  card.classList.add('flash-'+kind);
+  setTimeout(()=>card.classList.remove('flash-'+kind), 700);
+}
+function renderBulkBar(){
+  const bar = el('dmBulkBar'); if(!bar) return;
+  if(!dmUnlocked){ bar.style.display='none'; return; }
+  const n = _dmSelected.size;
+  bar.style.display='';
+  bar.className = 'dm-bulk-bar' + (n ? ' active' : '');
+  const label = n ? `${n} selected` : 'None selected — actions hit the sidebar target';
+  bar.innerHTML = `
+    <button class="dbb-all" id="dmSelectAll">${n===(state.characters||[]).length && n>0 ? '☑' : '☐'} All</button>
+    <span class="dbb-label">${label}</span>
+    <span class="dbb-actions">
+      <input type="number" id="dmBulkAmt" class="dbb-amt" value="10" min="1" title="Amount">
+      <button class="dbb-btn dmg"  id="dmBulkDmg">− Damage</button>
+      <button class="dbb-btn heal" id="dmBulkHeal">+ Heal</button>
+      <button class="dbb-btn aura" id="dmBulkAura">⟳ Aura</button>
+      <button class="dbb-btn rest" id="dmBulkRest">☾ Full Rest</button>
+    </span>`;
+  el('dmSelectAll')?.addEventListener('click', dmSelectAll);
+  const amt = ()=> Math.max(1, Number(el('dmBulkAmt')?.value)||10);
+  el('dmBulkDmg')?.addEventListener('click', ()=>dmBulkApply('damage', amt()));
+  el('dmBulkHeal')?.addEventListener('click', ()=>dmBulkApply('heal', amt()));
+  el('dmBulkAura')?.addEventListener('click', ()=>dmBulkApply('aura'));
+  el('dmBulkRest')?.addEventListener('click', ()=>dmBulkApply('fullrest'));
+}
+
+function renderDmDashboard(){
+  const host = el('dmDashboard'); if(!host || !dmUnlocked) return;
+  const chars = (state.characters||[]);
+  if(!chars.length){ host.innerHTML = '<div class="dm-empty">No characters.</div>'; return; }
+  // who's online right now — a character is "live" if its claimer has a fresh heartbeat
+  const isLive = (c)=> !!c.claimedBy && _livePresenceIds.has(c.claimedBy);
+
+  host.innerHTML = chars.map((c,i)=>{
+    const hpMax = Math.max(1, effectiveHpMax(c));
+    const hpCur = Math.max(0, Number(c.hp?.current)||0);
+    const auMax = Math.max(1, effectiveAuraMax(c));
+    const auCur = Math.max(0, Number(c.aura?.current)||0);
+    const hpPct = Math.min(100, (hpCur/hpMax)*100);
+    const auPct = Math.min(100, (auCur/auMax)*100);
+    const hpState = hpPct<=25 ? 'critical' : hpPct<=50 ? 'hurt' : 'ok';
+    const dead = c.state==='dead';
+    const reserve = c.state==='reserve';
+    const col = c.accentColor || '#00d4ff';
+    const isOnline = isLive(c);
+    const claimed = !!c.claimedBy;
+    const armor = (Number(c.armor)||0) + featBonus(c,'ac');
+    const spd = (Number(c.speed)||0) + featBonus(c,'speed');
+    const pp = (()=>{ try{ return passivePerception(c); }catch(e){ return '—'; } })();
+    const semUnlocked = ['first','second','third','ascended'].filter(k=>c.semblance?.unlocked?.[k]).length;
+    const techCount = (c.techniques||[]).length;
+    const curseCount = (c.curses||[]).length;
+    const featCount = (c.feats||[]).length;
+    const isTarget = i===_dmTarget;
+    const sel = _dmSelected.has(i);
+    // Death saves surface only when it matters — at 0 HP
+    const ds = c.deathSaves || {successes:0,failures:0,stable:false};
+    const dying = hpCur<=0 && !dead;
+    const dsBlock = dying ? `<div class="dmd-death ${ds.stable?'stable':''}">
+        <span class="dmd-death-label">${ds.stable?'STABLE':'DYING'}</span>
+        <span class="dmd-pips succ" title="Successes">${[0,1,2].map(n=>`<i class="${n<ds.successes?'on':''}"></i>`).join('')}</span>
+        <span class="dmd-pips fail" title="Failures">${[0,1,2].map(n=>`<i class="${n<ds.failures?'on':''}"></i>`).join('')}</span>
+      </div>` : '';
+    return `<div class="dmd-card ${dead?'dead':''} ${reserve?'reserve':''} ${isTarget?'targeted':''} ${sel?'selected':''} ${dying?'dying':''}" data-dmd="${i}" style="--dmd-col:${esc(col)}">
+      <div class="dmd-head">
+        <button class="dmd-check ${sel?'on':''}" data-dmd-sel="${i}" title="Select for bulk actions">${sel?'☑':'☐'}</button>
+        <span class="dmd-dot ${isOnline?'online':''}" title="${isOnline?'Online now':claimed?'Claimed, offline':'Unclaimed'}"></span>
+        <span class="dmd-name">${esc(c.name||'Player '+(i+1))}</span>
+        ${dead?'<span class="dmd-tag dead">DEAD</span>':reserve?'<span class="dmd-tag reserve">RESERVE</span>':''}
+        ${isTarget?'<span class="dmd-tag target">TARGET</span>':''}
+        <span class="dmd-lvl">Lv${c.level||1}</span>
+      </div>
+      <div class="dmd-sub">${esc(c.className||'—')}${c.race?' · '+esc(raceLabel(c)):''}</div>
+      ${dsBlock}
+      <div class="dmd-bars">
+        <div class="dmd-bar-row">
+          <span class="dmd-bar-label">HP</span>
+          <div class="dmd-bar"><span class="dmd-fill hp ${hpState}" style="width:${hpPct}%"></span></div>
+          <span class="dmd-val ${hpState}">${hpCur}/${hpMax}</span>
+        </div>
+        <div class="dmd-bar-row">
+          <span class="dmd-bar-label">AU</span>
+          <div class="dmd-bar"><span class="dmd-fill aura" style="width:${auPct}%"></span></div>
+          <span class="dmd-val">${auCur}/${auMax}</span>
+        </div>
+      </div>
+      <div class="dmd-stats">
+        <span title="Armor">🛡 ${armor||'—'}</span>
+        <span title="Speed">👟 ${spd||'—'}</span>
+        <span title="Passive Perception">👁 ${pp}</span>
+        <span title="Semblance stages unlocked">✦ ${semUnlocked}/4</span>
+        <span title="Techniques">⚡ ${techCount}</span>
+        ${featCount?`<span class="dmd-feats" title="Mechanical feats">★ ${featCount}</span>`:''}
+        ${curseCount?`<span class="dmd-cursed" title="Active curses">☠ ${curseCount}</span>`:''}
+      </div>
+      <div class="dmd-quick">
+        <button class="dmd-qbtn dmg" data-dmd-act="dmg" data-i="${i}" title="Deal 5 damage">−5 HP</button>
+        <button class="dmd-qbtn heal" data-dmd-act="heal" data-i="${i}" title="Heal 5">+5 HP</button>
+        <button class="dmd-qbtn aura" data-dmd-act="aura" data-i="${i}" title="Restore aura to full">⟳ Aura</button>
+        <button class="dmd-qbtn view" data-dmd-act="view" data-i="${i}" title="Open this character's sheet">👁</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // selection checkboxes
+  host.querySelectorAll('.dmd-check').forEach(b=> b.addEventListener('click', e=>{
+    e.stopPropagation();
+    toggleDmSelect(Number(b.dataset.dmdSel));
+  }));
+
+  // clicking a card targets that character for all DM tools
+  host.querySelectorAll('.dmd-card').forEach(card=> card.addEventListener('click', ()=>{
+    setDmTarget(Number(card.dataset.dmd));
+  }));
+
+  host.querySelectorAll('.dmd-qbtn').forEach(b=> b.addEventListener('click', e=>{
+    e.stopPropagation();
+    const i = Number(b.dataset.i), act = b.dataset.dmdAct;
+    const c = state.characters[i]; if(!c) return;
+    if(act==='view'){ setViewIdx(i); render(); return; }
+    pushUndo(`${act==='dmg'?'Damaged':act==='heal'?'Healed':'Restored aura for'} ${c.name||'player'}`);
+    if(act==='dmg')  c.hp.current = Math.max(0, (Number(c.hp.current)||0) - 5);
+    if(act==='heal') c.hp.current = Math.min(effectiveHpMax(c), (Number(c.hp.current)||0) + 5);
+    if(act==='aura') c.aura.current = effectiveAuraMax(c);
+    ensureClamp(c); pushState(true); render();
+  }));
+}
+
+// ================================================================
+// DM TARGET — one character picker drives every DM tab
+// ================================================================
+let _dmTarget = 0;   // index into state.characters
+
+function dmTargetChar(){
+  const n = (state.characters||[]).length;
+  if(!n) return null;
+  if(_dmTarget >= n) _dmTarget = n-1;
+  if(_dmTarget < 0) _dmTarget = 0;
+  return state.characters[_dmTarget];
+}
+function setDmTarget(i){
+  const n = (state.characters||[]).length;
+  _dmTarget = Math.max(0, Math.min(i, Math.max(0,n-1)));
+  renderDmTargetPicker();
+  // refresh every tab that depends on the target
+  try{ renderDmSemblance(); }catch(e){}
+  try{ renderDmTechniques(); }catch(e){}
+  try{ renderCommendPanel(); }catch(e){}
+  try{ renderDmFeatGrid(); }catch(e){}
+  try{ renderDmDashboard(); }catch(e){}
+  const nameEl = el('dmSelectedCharacterName');
+  if(nameEl) nameEl.textContent = dmTargetChar()?.name || '—';
+}
+// The sidebar picker itself
+function renderDmTargetPicker(){
+  const host = el('dmTargetPicker'); if(!host || !dmUnlocked) return;
+  const chars = state.characters||[];
+  host.innerHTML = chars.map((c,i)=>{
+    const sel = i===_dmTarget;
+    const col = c.accentColor || '#00d4ff';
+    const hpMax = Math.max(1, Number(c.hp?.max)||1);
+    const hpPct = Math.min(100, ((Number(c.hp?.current)||0)/hpMax)*100);
+    const dead = c.state==='dead';
+    return `<button class="dmt-pick${sel?' active':''}${dead?' dead':''}" data-dmt="${i}" style="--dmt-col:${esc(col)}" title="${esc(c.name||'Player '+(i+1))}">
+      <span class="dmt-swatch"></span>
+      <span class="dmt-name">${esc(c.name||'Player '+(i+1))}</span>
+      <span class="dmt-hp"><span style="width:${hpPct}%"></span></span>
+    </button>`;
+  }).join('');
+  host.querySelectorAll('.dmt-pick').forEach(b=>
+    b.addEventListener('click', ()=> setDmTarget(Number(b.dataset.dmt))));
+}
+
+// ================================================================
+// DM STAT LOCK — the DM views stats read-only unless they unlock
+// ================================================================
+let _dmStatsUnlocked = false;   // per-session, never persisted
+
+// True when the person can actually type into this character's core stats.
+function canEditStats(){
+  if (spectator) return false;
+  if (dmUnlocked) return _dmStatsUnlocked;   // DM must explicitly unlock
+  return isViewingOwnCharacter();            // players edit their own sheet
+}
+function toggleDmStatLock(){
+  _dmStatsUnlocked = !_dmStatsUnlocked;
+  showToast(_dmStatsUnlocked ? 'Stat editing UNLOCKED — be careful' : 'Stats locked (read-only)',
+            _dmStatsUnlocked ? 'warn' : 'info');
+  render();
+}
+function renderStatLockBar(){
+  const bar = el('dmStatLock'); if(!bar) return;
+  if(!dmUnlocked){ bar.style.display='none'; return; }
+  bar.style.display='';
+  bar.className = 'dm-stat-lock' + (_dmStatsUnlocked ? ' unlocked' : '');
+  bar.innerHTML = `<span class="dsl-icon">${_dmStatsUnlocked?'🔓':'🔒'}</span>
+    <span class="dsl-text">${_dmStatsUnlocked
+      ? 'Stat editing is <strong>unlocked</strong> — you can overwrite player numbers.'
+      : 'Player stats are <strong>read-only</strong>. Grant items/XP instead of editing directly.'}</span>
+    <button class="dsl-btn" id="dmStatLockBtn">${_dmStatsUnlocked?'Lock stats':'Unlock to edit'}</button>`;
+  el('dmStatLockBtn')?.addEventListener('click', toggleDmStatLock);
+}
+
+// ================================================================
+// FEATS — mechanical perks granted by the DM that really change numbers
+// ================================================================
+// Each feat declares its effects declaratively so every calculation
+// (stats, skills, attack, init, HP/Aura) reads from one place.
+//   stat:{STR:+2}        flat ability-score bonus
+//   skill:{Stealth:+3}   flat skill bonus
+//   allSkillsOfStat:{DEX:+1}
+//   attack:+1  initiative:+2  ac:+1  spellDC:+1  passive:+5
+//   hpMax:+5  auraMax:+10  hpPerLevel:+1
+//   speed:+10
+const FEATS = [
+  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },
+  { id:'quickstep',    icon:'💨', name:'Quickstep',        desc:'You move before others think. +2 DEX, +2 initiative.',          effects:{ stat:{DEX:2}, initiative:2 } },
+  { id:'aura_well',    icon:'✶', name:'Deep Aura Well',    desc:'Your Aura runs deeper than most. +15 max Aura.',                effects:{ auraMax:15 } },
+  { id:'duelist',      icon:'⚔', name:'Duelist',           desc:'Relentless in close quarters. +1 to all attack rolls.',         effects:{ attack:1 } },
+  { id:'shadow',       icon:'🌑', name:'Shadow',           desc:'Unseen and unheard. +3 Stealth, +2 Sleight of Hand.',           effects:{ skill:{ 'Stealth':3, 'Sleight of Hand':2 } } },
+  { id:'silver_tongue',icon:'💬', name:'Silver Tongue',    desc:'You talk your way out of anything. +1 to all CHA skills.',      effects:{ allSkillsOfStat:{CHA:1} } },
+  { id:'scholar',      icon:'📖', name:'Scholar of Remnant',desc:'Deep study of Dust and Grimm. +2 INT, +1 spell DC.',           effects:{ stat:{INT:2}, spellDC:1 } },
+  { id:'sentinel',     icon:'👁', name:'Sentinel',          desc:'Nothing slips past you. +5 passive Perception, +2 Perception.',effects:{ passive:5, skill:{'Perception':2} } },
+  { id:'fleetfoot',    icon:'👟', name:'Fleet-Footed',     desc:'Faster than you look. +10 speed, +1 Acrobatics.',               effects:{ speed:10, skill:{'Acrobatics':1} } },
+  { id:'brawler',      icon:'👊', name:'Brawler',          desc:'Raw physical power. +2 STR, +1 Athletics.',                     effects:{ stat:{STR:2}, skill:{'Athletics':1} } },
+  { id:'warded',       icon:'🔰', name:'Warded',           desc:'Hard to pin down. +1 Armor.',                                   effects:{ ac:1 } },
+  { id:'survivor',     icon:'❤', name:'Survivor',          desc:'You refuse to fall. +1 max HP per level.',                      effects:{ hpPerLevel:1 } },
+  { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
+  { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
+];
+function featById(id){ return FEATS.find(f=>f.id===id) || null; }
+function charFeats(c){
+  if(!c || !Array.isArray(c.feats)) return [];
+  return c.feats.map(featById).filter(Boolean);
+}
+// Sum one numeric effect key across all of a character's feats.
+function featBonus(c, key){
+  return charFeats(c).reduce((sum,f)=> sum + (Number(f.effects?.[key])||0), 0);
+}
+// Sum a nested map effect (stat / skill / allSkillsOfStat)
+function featMapBonus(c, mapKey, subKey){
+  return charFeats(c).reduce((sum,f)=> sum + (Number(f.effects?.[mapKey]?.[subKey])||0), 0);
+}
+// Total flat ability-score bonus from feats
+function featStatBonus(c, stat){ return featMapBonus(c,'stat',stat); }
+// Total skill bonus from feats: direct skill bonus + any allSkillsOfStat matching
+function featSkillBonus(c, skillName){
+  let total = featMapBonus(c,'skill',skillName);
+  const def = SKILL_DEFS.find(s=>s.name===skillName);
+  if(def) total += featMapBonus(c,'allSkillsOfStat',def.stat);
+  return total;
+}
+// Human-readable list of what a feat does, for the UI
+function featEffectSummary(f){
+  const e = f.effects||{}; const out=[];
+  if(e.stat) Object.entries(e.stat).forEach(([k,v])=>out.push(`${v>=0?'+':''}${v} ${k}`));
+  if(e.skill) Object.entries(e.skill).forEach(([k,v])=>out.push(`${v>=0?'+':''}${v} ${k}`));
+  if(e.allSkillsOfStat) Object.entries(e.allSkillsOfStat).forEach(([k,v])=>out.push(`${v>=0?'+':''}${v} all ${k} skills`));
+  if(e.attack)     out.push(`${e.attack>=0?'+':''}${e.attack} attack`);
+  if(e.initiative) out.push(`${e.initiative>=0?'+':''}${e.initiative} initiative`);
+  if(e.ac)         out.push(`${e.ac>=0?'+':''}${e.ac} armor`);
+  if(e.spellDC)    out.push(`${e.spellDC>=0?'+':''}${e.spellDC} spell DC`);
+  if(e.passive)    out.push(`${e.passive>=0?'+':''}${e.passive} passive perception`);
+  if(e.hpMax)      out.push(`${e.hpMax>=0?'+':''}${e.hpMax} max HP`);
+  if(e.hpPerLevel) out.push(`${e.hpPerLevel>=0?'+':''}${e.hpPerLevel} HP/level`);
+  if(e.auraMax)    out.push(`${e.auraMax>=0?'+':''}${e.auraMax} max Aura`);
+  if(e.speed)      out.push(`${e.speed>=0?'+':''}${e.speed} speed`);
+  return out;
+}
+// Bonus max HP/Aura contributed by feats (used by the sheet + dashboard)
+function featHpMaxBonus(c){ return featBonus(c,'hpMax') + featBonus(c,'hpPerLevel')*(Number(c?.level)||1); }
+function featAuraMaxBonus(c){ return featBonus(c,'auraMax'); }
+
+// ================================================================
+// RENDER — PLAYER FEATS (with live effect readout)
+// ================================================================
+function renderFeatsList(){
+  const c = getChar(); const host = el('featsList'); if(!host) return;
+  const mine = charFeats(c);
+  if(!mine.length){
+    host.innerHTML = `<div class="feats-empty">No feats yet. Your DM grants these — each one changes your actual numbers.</div>`;
+    return;
+  }
+  host.innerHTML = mine.map(f=>`
+    <div class="feat-card" data-feat="${f.id}">
+      <div class="feat-icon">${f.icon}</div>
+      <div class="feat-body">
+        <div class="feat-name">${esc(f.name)}</div>
+        <div class="feat-desc">${esc(f.desc)}</div>
+        <div class="feat-effects">${featEffectSummary(f).map(e=>`<span class="feat-eff">${esc(e)}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ================================================================
+// DM — GRANT MECHANICAL FEATS
+// ================================================================
+function renderDmFeatGrid(){
+  const host = el('dmFeatGrid'); if(!host || !dmUnlocked) return;
+  const c = dmTargetChar();
+  if(!c){ host.innerHTML = '<div class="dm-empty">No character selected.</div>'; return; }
+  if(!Array.isArray(c.feats)) c.feats = [];
+  host.innerHTML = FEATS.map(f=>{
+    const has = c.feats.includes(f.id);
+    return `<button class="dmf-card${has?' granted':''}" data-featid="${f.id}" title="${esc(f.desc)}">
+      <span class="dmf-icon">${f.icon}</span>
+      <span class="dmf-body">
+        <span class="dmf-name">${esc(f.name)}</span>
+        <span class="dmf-effects">${featEffectSummary(f).join(' · ')}</span>
+      </span>
+      <span class="dmf-check">${has?'✓':'+'}</span>
+    </button>`;
+  }).join('');
+
+  host.querySelectorAll('.dmf-card').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.featid;
+    const target = dmTargetChar(); if(!target) return;
+    if(!Array.isArray(target.feats)) target.feats = [];
+    const has = target.feats.includes(id);
+    pushUndo(`${has?'Revoked':'Granted'} feat "${featById(id)?.name||id}" ${has?'from':'to'} ${target.name||'player'}`);
+    if(has){
+      target.feats = target.feats.filter(x=>x!==id);
+    } else {
+      target.feats.push(id);
+      b.classList.add('just-granted');
+      setTimeout(()=>b.classList.remove('just-granted'), 900);
+      showFeatGrantFx(featById(id), target);
+    }
+    ensureClamp(target);
+    pushState(true); render();
+  }));
+}
+
+// Celebratory one-shot animation when a feat lands
+function showFeatGrantFx(feat, target){
+  if(!feat) return;
+  const fx = document.createElement('div');
+  fx.className = 'feat-grant-fx';
+  fx.innerHTML = `<div class="fgf-burst"></div>
+    <div class="fgf-card">
+      <div class="fgf-icon">${feat.icon}</div>
+      <div class="fgf-text">
+        <div class="fgf-label">FEAT GRANTED</div>
+        <div class="fgf-name">${esc(feat.name)}</div>
+        <div class="fgf-to">→ ${esc(target?.name||'player')}</div>
+      </div>
+    </div>`;
+  document.body.appendChild(fx);
+  setTimeout(()=>fx.classList.add('show'), 20);
+  setTimeout(()=>{ fx.classList.remove('show'); setTimeout(()=>fx.remove(), 400); }, 2200);
+}
+
 function showDiceResult(label, res){
+  if(!res) return;
+  broadcastRoll(label, res);       // share with the table (fire-and-forget)
   const panel = el('diceResultArea'); if(!panel) return;
   if(res.nat!==undefined){
     const crit = res.nat===20 ? ' crit' : (res.nat===1 ? ' fumble' : '');
@@ -2084,7 +2719,7 @@ function populateRollSelects(){
 let _whisperUnsub=null, _whisperLoadTs=Date.now();
 async function sendWhisper(){
   if(!dmUnlocked) return;
-  const idx=parseInt(el('whisperTarget')?.value??'0');
+  const idx=_dmTarget;
   const target=state.characters[idx];
   const msg=el('whisperInput')?.value.trim();
   if(!target||!msg){ showToast('Pick a recipient and write a message','warn'); return; }
@@ -2140,6 +2775,13 @@ function render() {
   try { renderCalcPanel(); }       catch(e) { console.error('renderCalcPanel:', e); }
   try { renderStats(); }           catch(e) { console.error('renderStats:', e); }
   try { renderRacePanel(); }       catch(e) { console.error('renderRacePanel:', e); }
+  try { renderDmDashboard(); }     catch(e) { console.error('renderDmDashboard:', e); }
+  try { renderUndoBar(); }         catch(e) { console.error('renderUndoBar:', e); }
+  try { renderStatLockBar(); }     catch(e) { console.error('renderStatLockBar:', e); }
+  try { renderDmTargetPicker(); }  catch(e) { console.error('renderDmTargetPicker:', e); }
+  try { renderBulkBar(); }         catch(e) { console.error('renderBulkBar:', e); }
+  try { renderDmFeatGrid(); }      catch(e) { console.error('renderDmFeatGrid:', e); }
+  try { renderFeatsList(); }       catch(e) { console.error('renderFeatsList:', e); }
   try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
   if (dmUnlocked) {
     try { renderDmCommendations(); } catch(e) {}
@@ -2288,6 +2930,9 @@ function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
   dmUnlocked=true;
   sessionStorage.setItem('rwby-dm','1');
+  // The DM never holds a character. Drop any claim left over from a
+  // previous session in this browser, or it will pin the DM to that sheet.
+  try { releaseMyClaim(); } catch(e) {}
   // Becoming DM overrides spectator mode entirely — clear it and re-enable the sheet.
   if (spectator) {
     spectator = false;
@@ -2438,13 +3083,14 @@ function bindAll() {
     });
   });
 
-  // Curse wheel send button
+  // Curse wheel send button — uses the unified DM target
   el('sendCurseBtn')?.addEventListener('click', () => {
-    const targetId = el('curseTarget')?.value;
-    if (!targetId) { alert('No player selected. Players must claim a character first.'); return; }
-    const targetChar = state.characters.find(c => c.claimedBy === targetId);
+    const targetChar = dmTargetChar();
+    if (!targetChar) { alert('No character selected.'); return; }
+    const targetId = targetChar.claimedBy;
+    if (!targetId) { alert(`${targetChar.name||'That character'} hasn't been claimed by a player yet — the wheel needs a player's browser to appear on.`); return; }
     sendCurseWheel(targetId);
-    showToast(`Curse wheel sent to ${targetChar?.name || 'player'}`, 'warn', 4000);
+    showToast(`Curse wheel sent to ${targetChar.name || 'player'}`, 'warn', 4000);
   });
 
   const themeInps = ['themeBgColor','themePanelColor','themeAccentColor','themeAccentTwoColor','themeAuraColor','themeTextColor'];
@@ -2580,10 +3226,11 @@ function bindBroadcast() {
 // ── GRANT XP / ITEMS ──
 function bindGrant() {
   document.getElementById('grantBtn')?.addEventListener('click', ()=>{
-    const targetIdx = parseInt(document.getElementById('grantTarget')?.value ?? '0');
+    const targetIdx = _dmTarget;
     const xp   = parseInt(document.getElementById('grantXp')?.value) || 0;
     const item = document.getElementById('grantItem')?.value.trim() || '';
     if (!xp && !item) return;
+    pushUndo(`Grant to ${state.characters[targetIdx]?.name||'player'}`);
     const c = state.characters[targetIdx]; if (!c) return;
     if (!c.notesText) c.notesText = '';
     const grant = [];
@@ -3062,6 +3709,9 @@ function bindWeapons() {
 // ================================================================
 // INVENTORY
 // ================================================================
+let _invFilter = '';
+let _shopFilter = '';
+
 function renderInventory() {
   const c = getChar();
   const cont = el('inventoryList'); if (!cont) return;
@@ -3069,10 +3719,24 @@ function renderInventory() {
 
   if (!inv.length) {
     cont.innerHTML = `<div class="inv-empty">Your pack is empty.</div>`;
+    const cnt = el('invSearchCount'); if(cnt) cnt.textContent = '';
     return;
   }
 
-  cont.innerHTML = inv.map((it, i) => `
+  // Filter but KEEP the original index — handlers below rely on data-i matching c.inventory
+  const q = _invFilter.trim().toLowerCase();
+  const rows = inv.map((it,i)=>({it,i})).filter(({it}) =>
+    !q || (it.name||'').toLowerCase().includes(q) || (it.notes||'').toLowerCase().includes(q)
+  );
+  const cnt = el('invSearchCount');
+  if(cnt) cnt.textContent = q ? `${rows.length}/${inv.length}` : '';
+
+  if (!rows.length) {
+    cont.innerHTML = `<div class="inv-empty">No items match "${esc(_invFilter)}".</div>`;
+    return;
+  }
+
+  cont.innerHTML = rows.map(({it, i}) => `
     <div class="inv-item" data-i="${i}">
       <div class="inv-qty-ctrl">
         <button class="inv-qminus" data-i="${i}">−</button>
@@ -3244,6 +3908,21 @@ function renderShop() {
     return;
   }
 
+  const q = _shopFilter.trim().toLowerCase();
+  const matches = (it)=> !q
+    || (it.name||'').toLowerCase().includes(q)
+    || (it.desc||'').toLowerCase().includes(q)
+    || (it.category||'').toLowerCase().includes(q)
+    || (it.rarity||'').toLowerCase().includes(q);
+  const totalMatching = state.shop.filter(matches).length;
+  const scnt = el('shopSearchCount');
+  if(scnt) scnt.textContent = q ? `${totalMatching}/${state.shop.length}` : '';
+
+  if(q && !totalMatching){
+    host.innerHTML = `<div class="inv-empty">Nothing in stock matches "${esc(_shopFilter)}".</div>`;
+    return;
+  }
+
   const cats = [];
   state.shop.forEach(it => { const cc = it.category||'General'; if (!cats.includes(cc)) cats.push(cc); });
   // Category-level price tag (same multiplier applies to all, so show it once at the top via the note).
@@ -3251,7 +3930,8 @@ function renderShop() {
   const pctClass = mult<1 ? 'discount' : (mult>1 ? 'markup' : '');
 
   host.innerHTML = cats.map(cat => {
-    const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat);
+    const rows = state.shop.map((it,i)=>({it,i})).filter(({it})=>(it.category||'General')===cat && matches(it));
+    if(!rows.length) return '';   // hide categories with no matches
     return `
     <div class="shop-cat-group">
       <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span>${pctLabel?`<span class="shop-cat-disc ${pctClass}">${pctLabel}</span>`:''}</div>
@@ -3746,7 +4426,7 @@ function renderDmCommendations() {
 
 function renderDmCustomFeats(){
   const host = el('dmFeatGranted'); if(!host) return;
-  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const idx = _dmTarget;
   const c = state.characters[idx];
   if(!c){ host.innerHTML = ''; return; }
   if(!Array.isArray(c.feats)) c.feats = [];
@@ -3765,7 +4445,7 @@ function renderDmCustomFeats(){
 
 function createCustomFeat(){
   if(!dmUnlocked) return;
-  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const idx = _dmTarget;
   const c = state.characters[idx]; if(!c) return;
   const name = el('featNameInput')?.value.trim();
   const desc = el('featDescInput')?.value.trim();
@@ -3791,7 +4471,7 @@ function revokeFeat(idx, fid){
 
 function grantCommendation(id){
   if(!dmUnlocked) return;
-  const idx = parseInt(el('commendTarget')?.value ?? '0');
+  const idx = _dmTarget;
   const c = state.characters[idx]; if(!c) return;
   if(!Array.isArray(c.commendations)) c.commendations = [];
   const m = COMMENDATION_BY_ID[id];
@@ -3966,6 +4646,19 @@ function isCharacterTaken(c) {
   return c.claimedBy !== MY_PRESENCE_ID;
 }
 
+// Release any character this browser currently holds.
+// Watchers and DMs must NOT hold a claim — a stale claim from an earlier
+// session is what used to drag them back onto a character.
+function releaseMyClaim(push = true) {
+  let changed = false;
+  state.characters.forEach(ch => {
+    if (ch.claimedBy === MY_PRESENCE_ID) { ch.claimedBy = ''; changed = true; }
+  });
+  try { localStorage.removeItem('rwby-my-idx'); } catch(e) {}
+  if (changed && push) { try { pushState(true); } catch(e) {} }
+  return changed;
+}
+
 function claimCharacter(realIdx) {
   const c = state.characters[realIdx];
   if (!c) return;
@@ -4039,6 +4732,7 @@ function checkWelcome() {
   document.getElementById('welcomeSkipBtn')?.addEventListener('click', () => {
     spectator = true;
     sessionStorage.setItem('rwby-spectator', '1');
+    releaseMyClaim();          // a watcher holds no character
     closeWelcome();
     applySpectatorMode();
     render();
@@ -4085,6 +4779,25 @@ el('diceCustomRoll')?.addEventListener('click', rollCustom);
 el('diceCustomInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') rollCustom(); });
 document.querySelectorAll('.dice-mode-btn').forEach(b=> b.addEventListener('click', ()=>setDiceMode(b.dataset.mode)));
 document.querySelectorAll('.dice-quick-d').forEach(b=> b.addEventListener('click', ()=>{ showDiceResult('d'+b.dataset.d, parseDiceExpr('1d'+b.dataset.d)); }));
+
+// roll feed: tab switching
+document.querySelectorAll('.drt-btn').forEach(b=> b.addEventListener('click', ()=>{
+  document.querySelectorAll('.drt-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const showFeed = b.dataset.drt === 'table';
+  const mine = el('diceResultArea'), feed = el('rollFeedList');
+  if(mine) mine.style.display = showFeed ? 'none' : '';
+  if(feed) feed.style.display = showFeed ? '' : 'none';
+  if(showFeed) renderRollFeed();
+}));
+el('rollFeedClear')?.addEventListener('click', clearRollFeed);
+
+// inventory + shop live filters
+el('invSearch')?.addEventListener('input', e=>{ _invFilter = e.target.value||''; renderInventory(); });
+el('shopSearch')?.addEventListener('input', e=>{ _shopFilter = e.target.value||''; renderShop(); });
+startRollFeed();
+// keep relative timestamps fresh while the feed is visible
+setInterval(()=>{ if(el('rollFeedList')?.style.display !== 'none') renderRollFeed(); }, 30000);
 (function(){ const b=document.getElementById('audioToggle'); if(b&&!_rwSfxOn){ b.classList.add('off'); b.textContent='♪ Audio Off'; } })();
 document.addEventListener('click', ()=>{ if(_rwSfxOn) startAmbient(); }, { once:true });
 initPortrait();

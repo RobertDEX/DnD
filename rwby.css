@@ -3640,3 +3640,99 @@ input:focus, textarea:focus, select:focus{
   text-transform:uppercase;padding:.32rem .7rem;border-radius:6px;cursor:pointer;flex-shrink:0;
   color:#7de8a8;background:rgba(94,212,146,.1);border:1px solid rgba(94,212,146,.3);transition:all .13s}
 .snap-restore:hover{background:rgba(94,212,146,.24);transform:translateY(-1px)}
+
+/* ═══════════ COMPASS — Holy Armaments & Cursed Tools ═══════════ */
+.compass-list{display:flex;flex-direction:column;gap:.8rem}
+.compass-empty,.beast-empty{padding:1.6rem 1rem;text-align:center;font-family:var(--F3);font-size:.82rem;
+  font-style:italic;color:var(--muted);border:1px dashed rgba(0,210,255,.15);border-radius:10px}
+.compass-card{border-radius:12px;padding:.9rem 1rem;position:relative;overflow:hidden;transition:border-color .18s,box-shadow .18s}
+/* holy: gold, radiant */
+.compass-card.holy{
+  background:linear-gradient(150deg, rgba(240,200,110,.09), rgba(255,255,255,.015));
+  border:1px solid rgba(240,200,110,.3);
+}
+.compass-card.holy:hover{border-color:rgba(240,200,110,.5);box-shadow:0 0 34px -18px rgba(240,200,110,.9)}
+/* cursed: crimson, wrong */
+.compass-card.cursed{
+  background:linear-gradient(150deg, rgba(180,30,50,.11), rgba(255,255,255,.012));
+  border:1px solid rgba(200,50,70,.35);
+}
+.compass-card.cursed:hover{border-color:rgba(220,60,80,.55);box-shadow:0 0 34px -18px rgba(220,50,70,.9)}
+.compass-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+}
+.compass-card.holy::before{background:linear-gradient(180deg,#ffd98a,#d4a548);box-shadow:0 0 12px rgba(240,200,110,.6)}
+.compass-card.cursed::before{background:linear-gradient(180deg,#ff5a72,#8a1024);box-shadow:0 0 12px rgba(220,50,70,.6)}
+.cc-head{display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem}
+.cc-sigil{font-size:1.2rem;flex-shrink:0}
+.compass-card.holy .cc-sigil{color:#ffd98a;text-shadow:0 0 12px rgba(240,200,110,.7)}
+.compass-card.cursed .cc-sigil{color:#ff7a8c;text-shadow:0 0 12px rgba(220,50,70,.7)}
+.cc-name{flex:1;min-width:0;background:none;border:none;border-bottom:1px solid transparent;
+  font-family:var(--F1);font-size:.95rem;font-weight:800;color:var(--text);padding:.2rem 0;outline:none;transition:border-color .15s}
+.cc-name:not([readonly]):hover,.cc-name:focus{border-bottom-color:rgba(0,210,255,.4)}
+.cc-name[readonly]{cursor:default}
+.compass-card.holy .cc-name{color:#ffe6b0}
+.compass-card.cursed .cc-name{color:#ffb0bc}
+.cc-type-badge{font-family:var(--F2);font-size:.5rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:.18rem .5rem;border-radius:999px;flex-shrink:0}
+.cc-type-badge.holy{color:#3a2a08;background:linear-gradient(180deg,#ffd98a,#e0b055)}
+.cc-type-badge.cursed{color:#2a0510;background:linear-gradient(180deg,#ff8090,#c03048)}
+.cc-del{font-size:.75rem;line-height:1;padding:.25rem .4rem;border-radius:5px;cursor:pointer;flex-shrink:0;
+  color:rgba(255,120,140,.65);background:rgba(255,60,80,.07);border:1px solid rgba(255,80,100,.2);transition:all .13s}
+.cc-del:hover{color:#ff8a9a;background:rgba(255,60,80,.2);border-color:rgba(255,80,100,.45)}
+.cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.cc-field{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+.cc-field.cc-wide{grid-column:1/-1}
+.cc-field>span{font-family:var(--F2);font-size:.55rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.cc-input{width:100%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:7px;
+  color:var(--text);font-family:var(--F3);font-size:.82rem;padding:.42rem .6rem;transition:border-color .15s}
+.cc-input:not([readonly]):not([disabled]):focus{border-color:rgba(0,210,255,.45);outline:none}
+.cc-input[readonly],.cc-input[disabled]{cursor:default;opacity:.9;background:rgba(0,0,0,.22)}
+.cc-effect{min-height:56px;resize:vertical;line-height:1.5}
+@media(max-width:640px){ .cc-grid{grid-template-columns:1fr} }
+
+/* ═══════════ BESTIARY ═══════════ */
+.bestiary-list{display:flex;flex-direction:column;gap:.8rem}
+.beast-card{display:flex;gap:.9rem;padding:.9rem;border-radius:12px;
+  background:linear-gradient(150deg, rgba(0,210,255,.04), rgba(255,255,255,.012));
+  border:1px solid rgba(0,210,255,.15);transition:border-color .18s,box-shadow .18s}
+.beast-card:hover{border-color:rgba(0,210,255,.32);box-shadow:0 0 32px -18px var(--aura)}
+.beast-portrait{width:104px;height:104px;flex-shrink:0;border-radius:10px;overflow:hidden;position:relative;
+  background:radial-gradient(circle at 40% 35%, rgba(0,210,255,.14), rgba(0,0,0,.5));
+  border:1px solid rgba(0,210,255,.2);display:flex;align-items:center;justify-content:center}
+.beast-portrait img{width:100%;height:100%;object-fit:cover;position:relative;z-index:2}
+.beast-portrait-fallback{position:absolute;z-index:1;font-family:var(--F1);font-size:2.4rem;font-weight:800;
+  color:rgba(0,210,255,.28)}
+.beast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:.5rem}
+.beast-head{display:flex;align-items:center;gap:.5rem}
+.beast-name{flex:1;min-width:0;background:none;border:none;border-bottom:1px solid transparent;
+  font-family:var(--F1);font-size:.92rem;font-weight:800;color:var(--text);padding:.2rem 0;outline:none;transition:border-color .15s}
+.beast-name:not([readonly]):hover,.beast-name:focus{border-bottom-color:rgba(0,210,255,.4)}
+.beast-name[readonly]{cursor:default}
+.beast-del{font-size:.75rem;line-height:1;padding:.25rem .4rem;border-radius:5px;cursor:pointer;flex-shrink:0;
+  color:rgba(255,120,140,.65);background:rgba(255,60,80,.07);border:1px solid rgba(255,80,100,.2);transition:all .13s}
+.beast-del:hover{color:#ff8a9a;background:rgba(255,60,80,.2);border-color:rgba(255,80,100,.45)}
+.beast-field{display:flex;flex-direction:column;gap:.25rem}
+.beast-field>span{font-family:var(--F2);font-size:.55rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.beast-input{width:100%;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:7px;
+  color:var(--text);font-family:var(--F3);font-size:.82rem;padding:.42rem .6rem;transition:border-color .15s}
+.beast-input:not([readonly]):focus{border-color:rgba(0,210,255,.45);outline:none}
+.beast-input[readonly]{cursor:default;opacity:.9;background:rgba(0,0,0,.22)}
+.beast-special{min-height:52px;resize:vertical;line-height:1.5}
+.beast-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:.35rem}
+.beast-stat{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.35rem .2rem;
+  border-radius:7px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.05)}
+.bs-key{font-family:var(--F2);font-size:.5rem;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.bs-val{width:100%;background:none;border:none;text-align:center;outline:none;
+  font-family:var(--F1);font-size:.82rem;font-weight:800;color:var(--text);padding:0;
+  -moz-appearance:textfield}
+.bs-val::-webkit-outer-spin-button,.bs-val::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.bs-val[readonly]{cursor:default}
+.bs-mod{font-family:var(--F2);font-size:.56rem;font-weight:700;color:var(--aura)}
+@media(max-width:640px){
+  .beast-card{flex-direction:column}
+  .beast-portrait{width:100%;height:120px}
+  .beast-stats{grid-template-columns:repeat(3,1fr)}
+}

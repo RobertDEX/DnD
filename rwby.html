@@ -257,6 +257,8 @@
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
+        <button class="tab-btn" data-tab="compass">🧭 Compass</button>
+        <button class="tab-btn" data-tab="bestiary">🐾 Bestiary</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn" data-tab="log">Log</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
@@ -375,6 +377,25 @@
         </div>
         <div id="relSummary" class="rel-summary"></div>
         <div id="relationshipsContainer" class="relationships-list"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="compass">
+        <div class="section-title">🧭 The Compass <span class="section-hint">— Holy Armaments &amp; Cursed Tools</span></div>
+        <p class="small-note" style="margin-bottom:.9rem">Artifacts bound to this Hunter. Each is tied to an entity, and entities want things.</p>
+        <div id="compassLockBar" class="dm-stat-lock" style="display:none"></div>
+        <div id="compassList" class="compass-list"></div>
+        <button id="addCompassBtn" class="neo-btn small" style="margin-top:.9rem;display:none">＋ Add Armament / Tool</button>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="bestiary">
+        <div class="section-title">🐾 Bestiary <span class="section-hint">— shared field index</span></div>
+        <p class="small-note" style="margin-bottom:.9rem">Creatures the party has catalogued. Visible to everyone; the DM maintains it.</p>
+        <div class="list-search-row">
+          <input id="bestiarySearch" class="list-search" type="text" placeholder="🔍 Search creatures…" autocomplete="off">
+          <span id="bestiaryCount" class="list-search-count"></span>
+        </div>
+        <div id="bestiaryList" class="bestiary-list"></div>
+        <button id="addBeastBtn" class="neo-btn small" style="margin-top:.9rem;display:none">＋ Add Creature</button>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="notes">

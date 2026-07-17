@@ -335,8 +335,9 @@ function blankChar(i) {
     relationships: [],   // #21 — [{name, type, notes}]
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     commendations: [],   // earned commendation ids (DM-granted, cosmetic)
+    compass: [],         // Holy Armaments / Cursed Tools bound to this character (DM-managed)
     feats: [],           // mechanical feat ids (DM-granted, change real numbers)
-    feat: [],           // custom DM-created feats [{id, name, desc, ts}]
+    feats: [],           // custom DM-created feats [{id, name, desc, ts}]
     dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -350,6 +351,7 @@ const DEF_STATE = {
   showReserve:false, showDead:false,
   theme:{...DEF_THEME},
   shop:[],
+  bestiary:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
   shopLocation:'vale',
@@ -921,6 +923,7 @@ function startListener() {
       state.sessionLog = remote.sessionLog;
       if(typeof remote.shopLocation==='string') state.shopLocation = remote.shopLocation;
       state.cctOnline = remote.cctOnline;
+      if (Array.isArray(remote.bestiary)) state.bestiary = remote.bestiary;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -950,7 +953,8 @@ function startListener() {
         let fp = '';
         try { fp = JSON.stringify(state.characters[myIdx2]) + '|' + JSON.stringify(state.theme)
                  + '|' + state.weather + '|' + state.sceneTime + '|' + JSON.stringify(state.shop)
-                 + '|' + state.shopLocation + '|' + state.cctOnline; } catch(e) {}
+                 + '|' + state.shopLocation + '|' + state.cctOnline
+                 + '|' + JSON.stringify(state.bestiary); } catch(e) {}
         if (fp && fp === _lastVisibleFp) {
           // nothing visible to this player changed — stay silent
           recheckWelcomeIfNeeded();
@@ -1025,6 +1029,16 @@ function normalize(raw) {
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
+    mc.compass = Array.isArray(c.compass) ? c.compass.map(a => ({
+      name:          String(a?.name ?? ''),
+      type:          (a?.type === 'cursed' ? 'cursed' : 'holy'),
+      effect:        String(a?.effect ?? ''),
+      originalOwner: String(a?.originalOwner ?? ''),
+      currentOwner:  String(a?.currentOwner ?? ''),
+      entityKind:    (a?.entityKind === 'angel' ? 'angel' : 'demon'),
+      entityName:    String(a?.entityName ?? ''),
+      entityTitle:   String(a?.entityTitle ?? '')
+    })) : [];
     mc.feats         = Array.isArray(c.feats) ? c.feats.filter(id=>FEATS.some(f=>f.id===id)) : [];
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
@@ -1060,6 +1074,19 @@ function normalize(raw) {
   });
   if (m.selectedCharacter >= m.characters.length) m.selectedCharacter = Math.max(0, m.characters.length - 1);
   if (!Array.isArray(m.shop)) m.shop = [];
+  if (!Array.isArray(m.bestiary)) m.bestiary = [];
+  m.bestiary = m.bestiary.map(b => {
+    const stats = {};
+    STATS.forEach(s => { stats[s] = Number(b?.stats?.[s]) || 10; });
+    return {
+      id:        String(b?.id ?? ('beast-' + Math.random().toString(36).slice(2))),
+      name:      String(b?.name ?? ''),
+      image:     String(b?.image ?? ''),
+      stats,
+      special:   String(b?.special ?? ''),
+      notes:     String(b?.notes ?? '')
+    };
+  });
   m.shop = m.shop.map(it => ({
     name: it.name||'', category: it.category||'General',
     price: Number(it.price)||0,
@@ -2449,8 +2476,8 @@ function renderStatLockBar(){
 //   hpMax:+5  auraMax:+10  hpPerLevel:+1
 //   speed:+10
 const FEATS = [
-  { id:'giant',    icon:'🛡', name:'Giant',        desc:'You are big, even by normal peoples standards.',            effects:{ speed:20 }},
-  { id:'keen_senses',    icon:'💨', name:'Keen Senses',        desc:'Your Senses are better than average humans. +5 to Perception',          effects:{skill:{'Perception':5} }},
+  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },
+  { id:'quickstep',    icon:'💨', name:'Quickstep',        desc:'You move before others think. +2 DEX, +2 initiative.',          effects:{ stat:{DEX:2}, initiative:2 } },
   { id:'aura_well',    icon:'✶', name:'Deep Aura Well',    desc:'Your Aura runs deeper than most. +15 max Aura.',                effects:{ auraMax:15 } },
   { id:'duelist',      icon:'⚔', name:'Duelist',           desc:'Relentless in close quarters. +1 to all attack rolls.',         effects:{ attack:1 } },
   { id:'shadow',       icon:'🌑', name:'Shadow',           desc:'Unseen and unheard. +3 Stealth, +2 Sleight of Hand.',           effects:{ skill:{ 'Stealth':3, 'Sleight of Hand':2 } } },
@@ -2461,6 +2488,7 @@ const FEATS = [
   { id:'brawler',      icon:'👊', name:'Brawler',          desc:'Raw physical power. +2 STR, +1 Athletics.',                     effects:{ stat:{STR:2}, skill:{'Athletics':1} } },
   { id:'warded',       icon:'🔰', name:'Warded',           desc:'Hard to pin down. +1 Armor.',                                   effects:{ ac:1 } },
   { id:'survivor',     icon:'❤', name:'Survivor',          desc:'You refuse to fall. +1 max HP per level.',                      effects:{ hpPerLevel:1 } },
+  { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
   { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
 ];
 function featById(id){ return FEATS.find(f=>f.id===id) || null; }
@@ -2680,6 +2708,222 @@ async function renderSnapshotList(){
   }));
 }
 
+// ================================================================
+// COMPASS — Holy Armaments & Cursed Tools (per character, DM-managed)
+// ================================================================
+const COMPASS_BLANK = () => ({
+  name:'', type:'holy', effect:'',
+  originalOwner:'', currentOwner:'',
+  entityKind:'demon', entityName:'', entityTitle:''
+});
+
+// Players read their own artifacts; only the DM writes them.
+function canEditCompass(){
+  if (spectator) return false;
+  return dmUnlocked;
+}
+
+function renderCompass(){
+  const c = getChar(); const host = el('compassList'); if(!host) return;
+  if(!Array.isArray(c.compass)) c.compass = [];
+  const editable = canEditCompass();
+
+  // lock notice + add button visibility
+  const bar = el('compassLockBar');
+  if(bar){
+    if(editable){ bar.style.display='none'; }
+    else {
+      bar.style.display='';
+      bar.className = 'dm-stat-lock';
+      bar.innerHTML = `<span class="dsl-icon">🔒</span>
+        <span class="dsl-text">These artifacts are bound by your DM. You can read them, not rewrite them.</span>`;
+    }
+  }
+  const addBtn = el('addCompassBtn');
+  if(addBtn) addBtn.style.display = editable ? '' : 'none';
+
+  if(!c.compass.length){
+    host.innerHTML = `<div class="compass-empty">No armaments or tools bound to ${esc(c.name||'this Hunter')}.</div>`;
+    return;
+  }
+
+  host.innerHTML = c.compass.map((a,i)=>{
+    const cursed = a.type === 'cursed';
+    const angel  = a.entityKind === 'angel';
+    const ro = editable ? '' : 'readonly tabindex="-1"';
+    const dis = editable ? '' : 'disabled';
+    return `<div class="compass-card ${cursed?'cursed':'holy'}" data-ci="${i}">
+      <div class="cc-head">
+        <span class="cc-sigil">${cursed?'⛧':'✟'}</span>
+        <input class="cc-name" data-ci="${i}" data-cf="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro}>
+        <span class="cc-type-badge ${cursed?'cursed':'holy'}">${cursed?'Cursed Tool':'Holy Armament'}</span>
+        ${editable?`<button class="cc-del" data-ci="${i}" title="Remove">✕</button>`:''}
+      </div>
+      <div class="cc-grid">
+        <label class="cc-field">
+          <span>Type</span>
+          <select class="cc-input" data-ci="${i}" data-cf="type" ${dis}>
+            <option value="holy" ${!cursed?'selected':''}>Holy Armament</option>
+            <option value="cursed" ${cursed?'selected':''}>Cursed Tool</option>
+          </select>
+        </label>
+        <label class="cc-field">
+          <span>Connected Entity</span>
+          <select class="cc-input" data-ci="${i}" data-cf="entityKind" ${dis}>
+            <option value="demon" ${!angel?'selected':''}>Demon</option>
+            <option value="angel" ${angel?'selected':''}>Angel</option>
+          </select>
+        </label>
+        <label class="cc-field cc-wide">
+          <span>Effect</span>
+          <textarea class="cc-input cc-effect" data-ci="${i}" data-cf="effect" placeholder="What does it do? What does it cost?" ${ro}>${esc(a.effect)}</textarea>
+        </label>
+        <label class="cc-field">
+          <span>Original Owner</span>
+          <input class="cc-input" data-ci="${i}" data-cf="originalOwner" value="${esc(a.originalOwner)}" placeholder="Who forged or first bore it?" ${ro}>
+        </label>
+        <label class="cc-field">
+          <span>Current Owner</span>
+          <input class="cc-input" data-ci="${i}" data-cf="currentOwner" value="${esc(a.currentOwner)}" placeholder="Who carries it now?" ${ro}>
+        </label>
+        <label class="cc-field">
+          <span>Entity Name</span>
+          <input class="cc-input" data-ci="${i}" data-cf="entityName" value="${esc(a.entityName)}" placeholder="${angel?'e.g. Raziel':'e.g. Vassago'}" ${ro}>
+        </label>
+        <label class="cc-field">
+          <span>Entity Title</span>
+          <input class="cc-input" data-ci="${i}" data-cf="entityTitle" value="${esc(a.entityTitle)}" placeholder="${angel?'e.g. Keeper of Secrets':'e.g. The Hollow Choir'}" ${ro}>
+        </label>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(!editable) return;   // no write handlers when locked
+
+  host.querySelectorAll('.cc-input, .cc-name').forEach(inp=>{
+    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+    inp.addEventListener(ev, e=>{
+      const i = Number(e.target.dataset.ci), f = e.target.dataset.cf;
+      const ch = getChar(); if(!ch.compass?.[i]) return;
+      ch.compass[i][f] = e.target.value;
+      pushState();
+      // type/entity changes restyle the card, so repaint those
+      if(f==='type' || f==='entityKind') renderCompass();
+    });
+  });
+  host.querySelectorAll('.cc-del').forEach(b=> b.addEventListener('click', ()=>{
+    const i = Number(b.dataset.ci);
+    const ch = getChar();
+    const nm = ch.compass?.[i]?.name || 'this artifact';
+    if(!confirm(`Remove ${nm} from ${ch.name||'this Hunter'}?`)) return;
+    pushUndo(`Removed artifact "${nm}"`);
+    ch.compass.splice(i,1);
+    pushState(true); renderCompass();
+  }));
+}
+
+// ================================================================
+// BESTIARY — shared field index (campaign-wide, DM-managed)
+// ================================================================
+let _bestiaryFilter = '';
+
+function canEditBestiary(){
+  if (spectator) return false;
+  return dmUnlocked;
+}
+
+function renderBestiary(){
+  const host = el('bestiaryList'); if(!host) return;
+  if(!Array.isArray(state.bestiary)) state.bestiary = [];
+  const editable = canEditBestiary();
+
+  const addBtn = el('addBeastBtn');
+  if(addBtn) addBtn.style.display = editable ? '' : 'none';
+
+  const q = _bestiaryFilter.trim().toLowerCase();
+  const rows = state.bestiary
+    .map((b,i)=>({b,i}))
+    .filter(({b}) => !q
+      || (b.name||'').toLowerCase().includes(q)
+      || (b.special||'').toLowerCase().includes(q)
+      || (b.notes||'').toLowerCase().includes(q));
+
+  const cnt = el('bestiaryCount');
+  if(cnt) cnt.textContent = q ? `${rows.length}/${state.bestiary.length}` : (state.bestiary.length ? String(state.bestiary.length) : '');
+
+  if(!state.bestiary.length){
+    host.innerHTML = `<div class="beast-empty">The bestiary is empty. ${editable ? 'Add the first creature below.' : 'Your DM has not catalogued anything yet.'}</div>`;
+    return;
+  }
+  if(!rows.length){
+    host.innerHTML = `<div class="beast-empty">Nothing matches "${esc(_bestiaryFilter)}".</div>`;
+    return;
+  }
+
+  const ro = editable ? '' : 'readonly tabindex="-1"';
+  host.innerHTML = rows.map(({b,i})=>`
+    <div class="beast-card" data-bi="${i}">
+      <div class="beast-portrait">
+        ${b.image
+          ? `<img src="${esc(b.image)}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('no-img')">`
+          : ''}
+        <span class="beast-portrait-fallback">${esc((b.name||'?').charAt(0).toUpperCase())}</span>
+      </div>
+      <div class="beast-body">
+        <div class="beast-head">
+          <input class="beast-name" data-bi="${i}" data-bf="name" value="${esc(b.name)}" placeholder="Unnamed creature" ${ro}>
+          ${editable?`<button class="beast-del" data-bi="${i}" title="Remove">✕</button>`:''}
+        </div>
+        ${editable?`<label class="beast-field"><span>Image URL</span>
+          <input class="beast-input" data-bi="${i}" data-bf="image" value="${esc(b.image)}" placeholder="https://…" ${ro}></label>`:''}
+        <div class="beast-stats">
+          ${STATS.map(s=>`
+            <div class="beast-stat">
+              <span class="bs-key">${s}</span>
+              <input class="bs-val" type="number" data-bi="${i}" data-bs="${s}" value="${Number(b.stats?.[s])||10}" ${ro}>
+              <span class="bs-mod">${fmtMod(mod(Number(b.stats?.[s])||10))}</span>
+            </div>`).join('')}
+        </div>
+        <label class="beast-field">
+          <span>Special Ability</span>
+          <textarea class="beast-input beast-special" data-bi="${i}" data-bf="special" placeholder="What makes it dangerous?" ${ro}>${esc(b.special)}</textarea>
+        </label>
+      </div>
+    </div>`).join('');
+
+  if(!editable) return;
+
+  host.querySelectorAll('.beast-input, .beast-name').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = Number(e.target.dataset.bi), f = e.target.dataset.bf;
+      if(!state.bestiary[i]) return;
+      state.bestiary[i][f] = e.target.value;
+      pushState();
+    });
+  });
+  host.querySelectorAll('.bs-val').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = Number(e.target.dataset.bi), s = e.target.dataset.bs;
+      if(!state.bestiary[i]) return;
+      if(!state.bestiary[i].stats) state.bestiary[i].stats = {};
+      state.bestiary[i].stats[s] = Number(e.target.value) || 0;
+      pushState();
+      // refresh just this modifier readout
+      const card = e.target.closest('.beast-stat');
+      const out = card?.querySelector('.bs-mod');
+      if(out) out.textContent = fmtMod(mod(Number(e.target.value)||0));
+    });
+  });
+  host.querySelectorAll('.beast-del').forEach(b=> b.addEventListener('click', ()=>{
+    const i = Number(b.dataset.bi);
+    const nm = state.bestiary[i]?.name || 'this creature';
+    if(!confirm(`Remove ${nm} from the bestiary?`)) return;
+    pushUndo(`Removed ${nm} from bestiary`);
+    state.bestiary.splice(i,1);
+    pushState(true); renderBestiary();
+  }));
+}
+
 function showDiceResult(label, res){
   if(!res) return;
   broadcastRoll(label, res);       // share with the table (fire-and-forget)
@@ -2876,6 +3120,8 @@ function render() {
   try { renderBulkBar(); }         catch(e) { console.error('renderBulkBar:', e); }
   try { renderDmFeatGrid(); }      catch(e) { console.error('renderDmFeatGrid:', e); }
   try { renderFeatsList(); }       catch(e) { console.error('renderFeatsList:', e); }
+  try { renderCompass(); }         catch(e) { console.error('renderCompass:', e); }
+  try { renderBestiary(); }        catch(e) { console.error('renderBestiary:', e); }
   try { const f=el('sessionLogDmForm'); if(f) f.style.display = dmUnlocked ? 'block' : 'none'; } catch(e){}
   if (dmUnlocked) {
     try { renderDmCommendations(); } catch(e) {}
@@ -4933,6 +5179,32 @@ document.querySelectorAll('.drt-btn').forEach(b=> b.addEventListener('click', ()
   if(showFeed) renderRollFeed();
 }));
 el('rollFeedClear')?.addEventListener('click', clearRollFeed);
+
+// compass: add artifact (DM only)
+el('addCompassBtn')?.addEventListener('click', ()=>{
+  if(!canEditCompass()) return;
+  const c = getChar();
+  if(!Array.isArray(c.compass)) c.compass = [];
+  pushUndo(`Added artifact to ${c.name||'player'}`);
+  c.compass.push(COMPASS_BLANK());
+  pushState(true); renderCompass();
+});
+
+// bestiary: add creature (DM only) + live filter
+el('addBeastBtn')?.addEventListener('click', ()=>{
+  if(!canEditBestiary()) return;
+  if(!Array.isArray(state.bestiary)) state.bestiary = [];
+  pushUndo('Added bestiary entry');
+  const stats = {}; STATS.forEach(s=> stats[s] = 10);
+  state.bestiary.push({
+    id: 'beast-' + Date.now(),
+    name:'', image:'', stats, special:'', notes:''
+  });
+  _bestiaryFilter = '';
+  const sb = el('bestiarySearch'); if(sb) sb.value = '';
+  pushState(true); renderBestiary();
+});
+el('bestiarySearch')?.addEventListener('input', e=>{ _bestiaryFilter = e.target.value||''; renderBestiary(); });
 
 // inventory + shop live filters
 el('invSearch')?.addEventListener('input', e=>{ _invFilter = e.target.value||''; renderInventory(); });

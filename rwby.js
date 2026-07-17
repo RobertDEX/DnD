@@ -2940,13 +2940,57 @@ function renderBestiary(){
 // the DM view. When the panel is visible we flag the body, and CSS lifts it
 // out to fill the whole viewport. Derived from the panel's real state so it
 // can't drift out of sync with the five places that show/hide it.
+// Makes it unmistakable that a DM is editing someone else's sheet, and gives
+// a one-click route back to the DM page.
+function renderDmSheetBar(){
+  const bar = el('dmSheetBar'); if(!bar) return;
+  const onPage = document.body.classList.contains('dm-page-active');
+  if(!dmUnlocked || onPage){ bar.style.display='none'; return; }
+  const c = getChar();
+  const col = c?.accentColor || '#00d4ff';
+  bar.style.display='';
+  bar.style.setProperty('--dsb-col', col);
+  bar.innerHTML = `
+    <span class="dsb-dot"></span>
+    <span class="dsb-text">DM view — editing <strong>${esc(c?.name || 'this character')}</strong>${
+      _dmStatsUnlocked ? ' · <em class="dsb-warn">stats unlocked</em>' : ''
+    }</span>
+    <span class="dsb-hint">Use the tabs on the left to switch character</span>
+    <button class="dsb-btn" id="dmSheetBarBack">⚔ DM Page</button>`;
+  el('dmSheetBarBack')?.addEventListener('click', showDmPage);
+}
+
 function syncDmPageMode(){
   const panel = el('dmFullscreenPanel');
+  // Single source of truth: is the DM page ACTUALLY on screen right now?
   const on = !!panel && !panel.classList.contains('hidden');
   document.body.classList.toggle('dm-page-active', on);
+  // Mirrored onto an attribute so the CSS has a second, independent guard.
+  if (on) document.body.setAttribute('data-dm-page','on');
+  else    document.body.removeAttribute('data-dm-page');
   // Show the re-entry button only when we're a DM who has stepped away
   const back = el('dmReturnFab');
   if(back) back.style.display = (dmUnlocked && !on) ? '' : 'none';
+  try { renderDmSheetBar(); } catch(e) {}
+  return on;
+}
+
+// Last line of defence. If the sheet is hidden but no DM page is showing,
+// nothing is visible — recover instead of leaving a black screen. Cheap to
+// run and it can only ever fire in a state that shouldn't exist.
+function assertNotBlank(){
+  const panel = el('dmFullscreenPanel');
+  const panelUp = !!panel && !panel.classList.contains('hidden');
+  const flagged = document.body.classList.contains('dm-page-active');
+  if (flagged && !panelUp) {
+    console.warn('[rwby] recovered from a blank-screen state (page flag set with no panel)');
+    document.body.classList.remove('dm-page-active');
+    document.body.removeAttribute('data-dm-page');
+    const back = el('dmReturnFab');
+    if(back) back.style.display = dmUnlocked ? '' : 'none';
+    return true;
+  }
+  return false;
 }
 
 // Leave the DM page but STAY the DM — distinct from Lock, which drops rights.
@@ -3133,6 +3177,8 @@ function showWhisper(msg){
 // ================================================================
 function render() {
   try { applyTheme(); } catch(e) { console.error('applyTheme:', e); }
+  try { assertNotBlank(); } catch(e) {}   // never leave the viewer with nothing
+  try { renderDmSheetBar(); } catch(e) {}
   const c = getChar(); ensureClamp(c);
   try { renderCharacterTabs(); }   catch(e) { console.error('renderCharacterTabs:', e); }
   try { renderHeader(); }          catch(e) { console.error('renderHeader:', e); }

@@ -3755,8 +3755,19 @@ body.dm-page-active .dm-fullscreen{
   box-shadow:none;
 }
 /* hide the player chrome behind it — no bleed-through, no scroll fighting */
-body.dm-page-active .sidebar,
-body.dm-page-active .main > *:not(#dmFullscreenPanel){
+/* The sheet is ONLY hidden when the DM panel is genuinely visible to replace
+   it. Previously this keyed off the body flag alone, so if the flag was ever
+   on while the panel was hidden — from any code path — you got a black screen.
+   The :has() guard makes that state unreachable: no visible panel, no hiding.
+   Belt and braces: the flag AND the panel must both agree. */
+body.dm-page-active:has(#dmFullscreenPanel:not(.hidden)) .sidebar,
+body.dm-page-active:has(#dmFullscreenPanel:not(.hidden)) .main > *:not(#dmFullscreenPanel){
+  display:none !important;
+}
+/* Fallback for engines without :has() — still guarded by an attribute that
+   only exists while the panel is up (set in the same breath as the class). */
+body.dm-page-active[data-dm-page="on"] .sidebar,
+body.dm-page-active[data-dm-page="on"] .main > *:not(#dmFullscreenPanel){
   display:none !important;
 }
 body.dm-page-active .main{
@@ -3814,3 +3825,28 @@ body.dm-page-active .dm-header{
 }
 .dm-return-fab:hover{transform:translateY(-2px);box-shadow:0 12px 30px -8px rgba(0,210,255,.9), 0 0 0 1px rgba(0,210,255,.5)}
 @media(max-width:768px){ .dm-return-fab{left:.7rem;bottom:.7rem;font-size:.58rem;padding:.5rem .8rem} }
+
+/* ═══════════ DM SHEET BAR — "you are editing someone else's sheet" ═══════════ */
+.dm-sheet-bar{
+  display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;
+  padding:.55rem .9rem;border-radius:10px;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--dsb-col,#00d4ff) 14%, transparent), rgba(0,0,0,.3));
+  border:1px solid color-mix(in srgb, var(--dsb-col,#00d4ff) 45%, transparent);
+  box-shadow:0 0 26px -14px var(--dsb-col,#00d4ff);
+}
+.dsb-dot{width:8px;height:8px;border-radius:50%;background:var(--dsb-col,#00d4ff);flex-shrink:0;
+  box-shadow:0 0 10px var(--dsb-col,#00d4ff);animation:dsbPulse 2.2s ease-in-out infinite}
+@keyframes dsbPulse{0%,100%{opacity:1}50%{opacity:.45}}
+.dsb-text{font-family:var(--F2);font-size:.68rem;color:var(--text);white-space:nowrap}
+.dsb-text strong{color:var(--dsb-col,#00d4ff);font-weight:800}
+.dsb-warn{color:#ffd98a;font-style:normal;font-weight:700}
+.dsb-hint{flex:1;font-family:var(--F3);font-size:.66rem;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsb-btn{font-family:var(--F2);font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:.36rem .8rem;border-radius:7px;cursor:pointer;flex-shrink:0;transition:all .14s;
+  color:#021018;background:linear-gradient(180deg,var(--aura),#0099cc);border:none}
+.dsb-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px -6px var(--aura)}
+@media(max-width:768px){
+  .dsb-hint{display:none}
+  .dsb-text{white-space:normal}
+}

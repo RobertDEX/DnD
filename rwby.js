@@ -1241,6 +1241,9 @@ function effectiveAuraMax(c){
   return Math.max(0, m);
 }
 function ensureClamp(c) {
+  if (!c) return;                              // nothing to clamp — never throw
+  if (!c.hp   || typeof c.hp   !== 'object') c.hp   = { current: 0, max: 0 };
+  if (!c.aura || typeof c.aura !== 'object') c.aura = { current: 0, max: 0 };
   c.hp.max    = Math.max(0, Number(c.hp.max)    || 0);
   c.aura.max  = Math.max(0, Number(c.aura.max)  || 0);
   // clamp current against the EFFECTIVE max so feat-granted headroom is usable
@@ -1409,11 +1412,11 @@ function renderHeader() {
   const s = (id,v) => { const e=el(id); if(e)e.textContent=v; };
   s('topCharacterName', name);
   s('selectedNameSmall', name);
-  s('selectedState', c.state.charAt(0).toUpperCase()+c.state.slice(1));
-  s('selectedAscendedStatus', c.semblance.unlocked.ascended ? 'Unlocked' : 'Locked');
-  s('selectedTechniqueCount', c.techniques.length);
-  s('topHpMini',   `${c.hp.current} / ${c.hp.max}`);
-  s('topAuraMini', `${c.aura.current} / ${c.aura.max}`);
+  s('selectedState', (c.state||'active').charAt(0).toUpperCase()+(c.state||'active').slice(1));
+  s('selectedAscendedStatus', c.semblance?.unlocked?.ascended ? 'Unlocked' : 'Locked');
+  s('selectedTechniqueCount', (c.techniques||[]).length);
+  s('topHpMini',   `${c.hp?.current ?? 0} / ${c.hp?.max ?? 0}`);
+  s('topAuraMini', `${c.aura?.current ?? 0} / ${c.aura?.max ?? 0}`);
   s('topArmorMini', c.armor);
   s('dmSelectedCharacterName', name);
   const hpPct  = c.hp.max   > 0 ? (c.hp.current/c.hp.max)*100     : 0;
@@ -3323,7 +3326,9 @@ function render() {
   try { applyTheme(); } catch(e) { console.error('applyTheme:', e); }
   try { assertNotBlank(); } catch(e) {}   // never leave the viewer with nothing
   try { renderDmSheetBar(); } catch(e) {}
-  const c = getChar(); ensureClamp(c);
+  let c;
+  try { c = getChar(); ensureClamp(c); } catch(e){ console.error('render getChar/clamp:', e); }
+  if (!c) c = state.characters?.[0];        // never let the sheet paint against undefined
   try { renderCharacterTabs(); }   catch(e) { console.error('renderCharacterTabs:', e); }
   try { renderHeader(); }          catch(e) { console.error('renderHeader:', e); }
   try { renderMainFields(); }      catch(e) { console.error('renderMainFields:', e); }

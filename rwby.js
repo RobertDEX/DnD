@@ -352,6 +352,7 @@ const DEF_STATE = {
   theme:{...DEF_THEME},
   shop:[],
   bestiary:[],
+  customFeats:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
   shopLocation:'vale',
@@ -924,6 +925,7 @@ function startListener() {
       if(typeof remote.shopLocation==='string') state.shopLocation = remote.shopLocation;
       state.cctOnline = remote.cctOnline;
       if (Array.isArray(remote.bestiary)) state.bestiary = remote.bestiary;
+      if (Array.isArray(remote.customFeats)) state.customFeats = remote.customFeats;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -954,7 +956,8 @@ function startListener() {
         try { fp = JSON.stringify(state.characters[myIdx2]) + '|' + JSON.stringify(state.theme)
                  + '|' + state.weather + '|' + state.sceneTime + '|' + JSON.stringify(state.shop)
                  + '|' + state.shopLocation + '|' + state.cctOnline
-                 + '|' + JSON.stringify(state.bestiary); } catch(e) {}
+                 + '|' + JSON.stringify(state.bestiary)
+                 + '|' + JSON.stringify(state.customFeats); } catch(e) {}
         if (fp && fp === _lastVisibleFp) {
           // nothing visible to this player changed — stay silent
           recheckWelcomeIfNeeded();
@@ -1018,6 +1021,37 @@ function normalize(raw) {
       m.theme[k] = DEF_THEME[k];
     }
   });
+  // Normalize custom feats BEFORE characters, so the feat filter below can
+  // validate character feat ids against them. Kept self-contained (reads m,
+  // not the global state) so a fresh normalize doesn't depend on load order.
+  m.customFeats = Array.isArray(m.customFeats) ? m.customFeats.map(f => {
+    const effects = {};
+    if (f && typeof f.effects === 'object' && f.effects) {
+      if (f.effects.stat && typeof f.effects.stat === 'object') {
+        const st = {};
+        STATS.forEach(s => { if (Number.isFinite(Number(f.effects.stat[s])) && Number(f.effects.stat[s]) !== 0) st[s] = Number(f.effects.stat[s]); });
+        if (Object.keys(st).length) effects.stat = st;
+      }
+      ['attack','initiative','ac','spellDC','passive','hpMax','hpPerLevel','auraMax','speed'].forEach(k => {
+        if (Number.isFinite(Number(f.effects[k])) && Number(f.effects[k]) !== 0) effects[k] = Number(f.effects[k]);
+      });
+      if (f.effects.skill && typeof f.effects.skill === 'object') {
+        const sk = {};
+        Object.entries(f.effects.skill).forEach(([k,v]) => { if (Number(v)) sk[k] = Number(v); });
+        if (Object.keys(sk).length) effects.skill = sk;
+      }
+    }
+    return {
+      id:     String(f?.id || ('custom-' + Math.random().toString(36).slice(2))),
+      icon:   String(f?.icon || '✦').slice(0, 3),
+      name:   String(f?.name || 'Custom Feat'),
+      desc:   String(f?.desc || ''),
+      custom: true,
+      effects
+    };
+  }) : [];
+  const _validFeatIds = new Set([...FEATS.map(f=>f.id), ...m.customFeats.map(f=>f.id)]);
+
   m.characters = (raw?.characters?.length ? raw.characters : DEF_STATE.characters).map((c,i) => {
     const b = blankChar(i);
     const mc = {...b, ...c};
@@ -1039,7 +1073,7 @@ function normalize(raw) {
       entityName:    String(a?.entityName ?? ''),
       entityTitle:   String(a?.entityTitle ?? '')
     })) : [];
-    mc.feats         = Array.isArray(c.feats) ? c.feats.filter(id=>FEATS.some(f=>f.id===id)) : [];
+    mc.feats         = Array.isArray(c.feats) ? c.feats.filter(id=>_validFeatIds.has(id)) : [];
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
@@ -1077,13 +1111,19 @@ function normalize(raw) {
   if (!Array.isArray(m.bestiary)) m.bestiary = [];
   m.bestiary = m.bestiary.map(b => {
     const stats = {};
-    STATS.forEach(s => { stats[s] = Number(b?.stats?.[s]) || 10; });
+    const bonuses = {};
+    STATS.forEach(s => {
+      stats[s]   = Number(b?.stats?.[s]) || 10;
+      bonuses[s] = Number(b?.bonuses?.[s]) || 0;
+    });
     return {
       id:        String(b?.id ?? ('beast-' + Math.random().toString(36).slice(2))),
       name:      String(b?.name ?? ''),
       image:     String(b?.image ?? ''),
       stats,
+      bonuses,
       special:   String(b?.special ?? ''),
+      tamer:     String(b?.tamer ?? ''),   // character id/name this creature is assigned to
       notes:     String(b?.notes ?? '')
     };
   });
@@ -1280,11 +1320,6 @@ function renderCalcPanel() {
         <div class="calc-label">Attack Bonus</div>
         <div class="calc-value">${fmtMod(atk)}</div>
         <div class="calc-sub">${c.attackStat||'STR'} + Prof</div>
-      </div>
-      <div class="calc-item">
-        <div class="calc-label">Aura DC</div>
-        <div class="calc-value aura">${dc}</div>
-        <div class="calc-sub">8+Prof+INT</div>
       </div>
       <div class="calc-item">
         <div class="calc-label">Passive Perc.</div>
@@ -2450,7 +2485,7 @@ let _dmStatsUnlocked = false;   // per-session, never persisted
 // True when the person can actually type into this character's core stats.
 function canEditStats(){
   if (spectator) return false;
-  if (dmUnlocked) return _dmStatsUnlocked;   // DM must explicitly unlock
+  if (dmUnlocked) return true;               // the DM edits any sheet at will
   return isViewingOwnCharacter();            // players edit their own sheet
 }
 function toggleDmStatLock(){
@@ -2461,15 +2496,7 @@ function toggleDmStatLock(){
 }
 function renderStatLockBar(){
   const bar = el('dmStatLock'); if(!bar) return;
-  if(!dmUnlocked){ bar.style.display='none'; return; }
-  bar.style.display='';
-  bar.className = 'dm-stat-lock' + (_dmStatsUnlocked ? ' unlocked' : '');
-  bar.innerHTML = `<span class="dsl-icon">${_dmStatsUnlocked?'🔓':'🔒'}</span>
-    <span class="dsl-text">${_dmStatsUnlocked
-      ? 'Stat editing is <strong>unlocked</strong> — you can overwrite player numbers.'
-      : 'Player stats are <strong>read-only</strong>. Grant items/XP instead of editing directly.'}</span>
-    <button class="dsl-btn" id="dmStatLockBtn">${_dmStatsUnlocked?'Lock stats':'Unlock to edit'}</button>`;
-  el('dmStatLockBtn')?.addEventListener('click', toggleDmStatLock);
+  bar.style.display = 'none';   // stat locking retired — the DM edits freely
 }
 
 // ================================================================
@@ -2499,7 +2526,18 @@ const FEATS = [
   { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
   { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
 ];
-function featById(id){ return FEATS.find(f=>f.id===id) || null; }
+function featById(id){
+  const built = FEATS.find(f=>f.id===id);
+  if (built) return built;
+  // custom feats live campaign-wide so any character can be granted them
+  const custom = Array.isArray(state?.customFeats) ? state.customFeats.find(f=>f.id===id) : null;
+  return custom || null;
+}
+// Every feat the DM can grant: built-ins plus custom ones
+function allFeats(){
+  const custom = Array.isArray(state?.customFeats) ? state.customFeats : [];
+  return FEATS.concat(custom);
+}
 function charFeats(c){
   if(!c || !Array.isArray(c.feats)) return [];
   return c.feats.map(featById).filter(Boolean);
@@ -2566,22 +2604,81 @@ function renderFeatsList(){
 // ================================================================
 // DM — GRANT MECHANICAL FEATS
 // ================================================================
+// Author form for custom feats — renders the six stat inputs and wires Create.
+function renderCustomFeatAuthor(){
+  const host = el('cfStats'); if(!host) return;
+  if(!host.dataset.built){
+    host.innerHTML = STATS.map(s=>`
+      <label class="cfa-num"><span>${s}</span><input id="cf_${s}" type="number" value="0"></label>`).join('');
+    host.dataset.built = '1';
+  }
+  const btn = el('cfCreate');
+  if(btn && !btn.dataset.bound){
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', ()=>{
+      if(!dmUnlocked) return;
+      const name = (el('cfName')?.value||'').trim();
+      if(!name){ showToast('Give the feat a name', 'warn'); return; }
+      const effects = {};
+      const stat = {};
+      STATS.forEach(s=>{ const v = Number(el('cf_'+s)?.value)||0; if(v) stat[s]=v; });
+      if(Object.keys(stat).length) effects.stat = stat;
+      const extra = {attack:'cfAttack',initiative:'cfInit',ac:'cfAc',passive:'cfPassive',hpMax:'cfHp',auraMax:'cfAura',speed:'cfSpeed'};
+      Object.entries(extra).forEach(([k,id])=>{ const v = Number(el(id)?.value)||0; if(v) effects[k]=v; });
+
+      const feat = {
+        id: 'custom-' + Date.now(),
+        icon: (el('cfIcon')?.value||'✦').slice(0,3) || '✦',
+        name,
+        desc: (el('cfDesc')?.value||'').trim(),
+        custom: true,
+        effects
+      };
+      if(!Array.isArray(state.customFeats)) state.customFeats = [];
+      pushUndo(`Created custom feat "${name}"`);
+      state.customFeats.push(feat);
+
+      // reset the form
+      el('cfName').value=''; el('cfDesc').value=''; el('cfIcon').value='✦';
+      STATS.forEach(s=> el('cf_'+s).value='0');
+      Object.values(extra).forEach(id=> { const e=el(id); if(e) e.value='0'; });
+
+      pushState(true); render();
+      showToast(`Custom feat "${name}" created`, 'success');
+    });
+  }
+}
+
 function renderDmFeatGrid(){
   const host = el('dmFeatGrid'); if(!host || !dmUnlocked) return;
   const c = dmTargetChar();
   if(!c){ host.innerHTML = '<div class="dm-empty">No character selected.</div>'; return; }
   if(!Array.isArray(c.feats)) c.feats = [];
-  host.innerHTML = FEATS.map(f=>{
+  const feats = allFeats();
+  host.innerHTML = feats.map(f=>{
     const has = c.feats.includes(f.id);
-    return `<button class="dmf-card${has?' granted':''}" data-featid="${f.id}" title="${esc(f.desc)}">
-      <span class="dmf-icon">${f.icon}</span>
+    return `<button class="dmf-card${has?' granted':''}${f.custom?' custom':''}" data-featid="${f.id}" title="${esc(f.desc)}">
+      <span class="dmf-icon">${esc(f.icon)}</span>
       <span class="dmf-body">
-        <span class="dmf-name">${esc(f.name)}</span>
-        <span class="dmf-effects">${featEffectSummary(f).join(' · ')}</span>
+        <span class="dmf-name">${esc(f.name)}${f.custom?' <em class="dmf-tag">custom</em>':''}</span>
+        <span class="dmf-effects">${featEffectSummary(f).join(' · ')||'no effects'}</span>
       </span>
+      ${f.custom?`<span class="dmf-trash" data-delfeat="${f.id}" title="Delete this custom feat">🗑</span>`:''}
       <span class="dmf-check">${has?'✓':'+'}</span>
     </button>`;
   }).join('');
+
+  // delete a custom feat entirely (also strips it from everyone who had it)
+  host.querySelectorAll('.dmf-trash').forEach(t=> t.addEventListener('click', e=>{
+    e.stopPropagation();
+    const id = t.dataset.delfeat;
+    const f = featById(id);
+    if(!confirm(`Delete the custom feat "${f?.name||id}"? It will be removed from every character who has it.`)) return;
+    pushUndo(`Deleted custom feat "${f?.name||id}"`);
+    state.customFeats = (state.customFeats||[]).filter(x=>x.id!==id);
+    state.characters.forEach(ch=>{ if(Array.isArray(ch.feats)) ch.feats = ch.feats.filter(x=>x!==id); });
+    pushState(true); render();
+  }));
 
   host.querySelectorAll('.dmf-card').forEach(b=> b.addEventListener('click', ()=>{
     const id = b.dataset.featid;
@@ -2762,7 +2859,6 @@ function renderCompass(){
     const dis = editable ? '' : 'disabled';
     return `<div class="compass-card ${cursed?'cursed':'holy'}" data-ci="${i}">
       <div class="cc-head">
-        <span class="cc-sigil">${cursed?'⛧':'✟'}</span>
         <input class="cc-name" data-ci="${i}" data-cf="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro}>
         <span class="cc-type-badge ${cursed?'cursed':'holy'}">${cursed?'Cursed Tool':'Holy Armament'}</span>
         ${editable?`<button class="cc-del" data-ci="${i}" title="Remove">✕</button>`:''}
@@ -2869,28 +2965,46 @@ function renderBestiary(){
   }
 
   const ro = editable ? '' : 'readonly tabindex="-1"';
+  const dis = editable ? '' : 'disabled';
+  const tamerOptions = (sel) => `<option value="">Unassigned</option>` +
+    state.characters.map(ch => {
+      const nm = ch.name || 'Unnamed';
+      return `<option value="${esc(nm)}" ${sel===nm?'selected':''}>${esc(nm)}</option>`;
+    }).join('');
   host.innerHTML = rows.map(({b,i})=>`
     <div class="beast-card" data-bi="${i}">
-      <div class="beast-portrait">
+      <div class="beast-portrait${b.image?'':' no-img'}">
         ${b.image
           ? `<img src="${esc(b.image)}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('no-img')">`
           : ''}
-        <span class="beast-portrait-fallback">${esc((b.name||'?').charAt(0).toUpperCase())}</span>
       </div>
       <div class="beast-body">
         <div class="beast-head">
           <input class="beast-name" data-bi="${i}" data-bf="name" value="${esc(b.name)}" placeholder="Unnamed creature" ${ro}>
+          ${b.tamer?`<span class="beast-tamer-badge">🖐 ${esc(b.tamer)}</span>`:''}
           ${editable?`<button class="beast-del" data-bi="${i}" title="Remove">✕</button>`:''}
         </div>
-        ${editable?`<label class="beast-field"><span>Image URL</span>
-          <input class="beast-input" data-bi="${i}" data-bf="image" value="${esc(b.image)}" placeholder="https://…" ${ro}></label>`:''}
+        <div class="beast-meta-row">
+          <label class="beast-field beast-assign">
+            <span>Tamer</span>
+            <select class="beast-input beast-tamer" data-bi="${i}" ${dis}>${tamerOptions(b.tamer)}</select>
+          </label>
+          ${editable?`<label class="beast-field beast-imgfield"><span>Image URL</span>
+            <input class="beast-input" data-bi="${i}" data-bf="image" value="${esc(b.image)}" placeholder="https://…" ${ro}></label>`:''}
+        </div>
         <div class="beast-stats">
-          ${STATS.map(s=>`
-            <div class="beast-stat">
+          <div class="beast-stat-head"><span></span><span>Score</span><span>Bonus</span><span>Total</span></div>
+          ${STATS.map(s=>{
+            const base = Number(b.stats?.[s])||10;
+            const bon  = Number(b.bonuses?.[s])||0;
+            const tot  = base + bon;
+            return `<div class="beast-stat">
               <span class="bs-key">${s}</span>
-              <input class="bs-val" type="number" data-bi="${i}" data-bs="${s}" value="${Number(b.stats?.[s])||10}" ${ro}>
-              <span class="bs-mod">${fmtMod(mod(Number(b.stats?.[s])||10))}</span>
-            </div>`).join('')}
+              <input class="bs-val" type="number" data-bi="${i}" data-bs="${s}" value="${base}" ${ro}>
+              <input class="bs-bon" type="number" data-bi="${i}" data-bb="${s}" value="${bon}" ${ro}>
+              <span class="bs-total" data-bt="${s}">${tot} <em>(${fmtMod(mod(tot))})</em></span>
+            </div>`;
+          }).join('')}
         </div>
         <label class="beast-field">
           <span>Special Ability</span>
@@ -2901,25 +3015,44 @@ function renderBestiary(){
 
   if(!editable) return;
 
-  host.querySelectorAll('.beast-input, .beast-name').forEach(inp=>{
+  host.querySelectorAll('.beast-input:not(.beast-tamer), .beast-name').forEach(inp=>{
     inp.addEventListener('input', e=>{
       const i = Number(e.target.dataset.bi), f = e.target.dataset.bf;
-      if(!state.bestiary[i]) return;
+      if(!state.bestiary[i] || !f) return;
       state.bestiary[i][f] = e.target.value;
       pushState();
     });
   });
+  host.querySelectorAll('.beast-tamer').forEach(sel=>{
+    sel.addEventListener('change', e=>{
+      const i = Number(e.target.dataset.bi);
+      if(!state.bestiary[i]) return;
+      state.bestiary[i].tamer = e.target.value;
+      pushState(true); renderBestiary();
+    });
+  });
+  const recalcTotal = (i, s) => {
+    const b = state.bestiary[i]; if(!b) return;
+    const tot = (Number(b.stats?.[s])||0) + (Number(b.bonuses?.[s])||0);
+    const out = host.querySelector(`.beast-card[data-bi="${i}"] [data-bt="${s}"]`);
+    if(out) out.innerHTML = `${tot} <em>(${fmtMod(mod(tot))})</em>`;
+  };
   host.querySelectorAll('.bs-val').forEach(inp=>{
     inp.addEventListener('input', e=>{
       const i = Number(e.target.dataset.bi), s = e.target.dataset.bs;
       if(!state.bestiary[i]) return;
       if(!state.bestiary[i].stats) state.bestiary[i].stats = {};
       state.bestiary[i].stats[s] = Number(e.target.value) || 0;
-      pushState();
-      // refresh just this modifier readout
-      const card = e.target.closest('.beast-stat');
-      const out = card?.querySelector('.bs-mod');
-      if(out) out.textContent = fmtMod(mod(Number(e.target.value)||0));
+      recalcTotal(i, s); pushState();
+    });
+  });
+  host.querySelectorAll('.bs-bon').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = Number(e.target.dataset.bi), s = e.target.dataset.bb;
+      if(!state.bestiary[i]) return;
+      if(!state.bestiary[i].bonuses) state.bestiary[i].bonuses = {};
+      state.bestiary[i].bonuses[s] = Number(e.target.value) || 0;
+      recalcTotal(i, s); pushState();
     });
   });
   host.querySelectorAll('.beast-del').forEach(b=> b.addEventListener('click', ()=>{
@@ -2952,9 +3085,7 @@ function renderDmSheetBar(){
   bar.style.setProperty('--dsb-col', col);
   bar.innerHTML = `
     <span class="dsb-dot"></span>
-    <span class="dsb-text">DM view — editing <strong>${esc(c?.name || 'this character')}</strong>${
-      _dmStatsUnlocked ? ' · <em class="dsb-warn">stats unlocked</em>' : ''
-    }</span>
+    <span class="dsb-text">DM view — editing <strong>${esc(c?.name || 'this character')}</strong></span>
     <span class="dsb-hint">Use the tabs on the left to switch character</span>
     <button class="dsb-btn" id="dmSheetBarBack">⚔ DM Page</button>`;
   el('dmSheetBarBack')?.addEventListener('click', showDmPage);
@@ -3205,6 +3336,7 @@ function render() {
   try { renderDmTargetPicker(); }  catch(e) { console.error('renderDmTargetPicker:', e); }
   try { renderBulkBar(); }         catch(e) { console.error('renderBulkBar:', e); }
   try { renderDmFeatGrid(); }      catch(e) { console.error('renderDmFeatGrid:', e); }
+  try { renderCustomFeatAuthor(); }catch(e) { console.error('renderCustomFeatAuthor:', e); }
   try { renderFeatsList(); }       catch(e) { console.error('renderFeatsList:', e); }
   try { renderCompass(); }         catch(e) { console.error('renderCompass:', e); }
   try { renderBestiary(); }        catch(e) { console.error('renderBestiary:', e); }
@@ -5283,10 +5415,10 @@ el('addBeastBtn')?.addEventListener('click', ()=>{
   if(!canEditBestiary()) return;
   if(!Array.isArray(state.bestiary)) state.bestiary = [];
   pushUndo('Added bestiary entry');
-  const stats = {}; STATS.forEach(s=> stats[s] = 10);
+  const stats = {}; const bonuses = {}; STATS.forEach(s=> { stats[s] = 10; bonuses[s] = 0; });
   state.bestiary.push({
     id: 'beast-' + Date.now(),
-    name:'', image:'', stats, special:'', notes:''
+    name:'', image:'', stats, bonuses, special:'', tamer:'', notes:''
   });
   _bestiaryFilter = '';
   const sb = el('bestiarySearch'); if(sb) sb.value = '';

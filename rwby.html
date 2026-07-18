@@ -813,6 +813,34 @@
             <div class="dm-card-body">
               <p class="dm-hint" style="margin-top:0">Click to grant or revoke. Effects apply instantly to their sheet.</p>
               <div id="dmFeatGrid" class="dm-feat-grid"></div>
+
+              <details class="dm-feat-author">
+                <summary>✎ Create a custom feat</summary>
+                <div class="cfa-body">
+                  <div class="cfa-row">
+                    <label class="cfa-field cfa-icon"><span>Icon</span>
+                      <input id="cfIcon" type="text" maxlength="3" value="✦"></label>
+                    <label class="cfa-field cfa-grow"><span>Name</span>
+                      <input id="cfName" type="text" placeholder="e.g. Eagle Eye"></label>
+                  </div>
+                  <label class="cfa-field"><span>Description</span>
+                    <input id="cfDesc" type="text" placeholder="What is it, in-world?"></label>
+                  <div class="cfa-section">Ability score bonuses</div>
+                  <div id="cfStats" class="cfa-stats"></div>
+                  <div class="cfa-section">Other bonuses</div>
+                  <div class="cfa-extras">
+                    <label class="cfa-num"><span>Attack</span><input id="cfAttack" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Initiative</span><input id="cfInit" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Armor</span><input id="cfAc" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Passive Perc.</span><input id="cfPassive" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Max HP</span><input id="cfHp" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Max Aura</span><input id="cfAura" type="number" value="0"></label>
+                    <label class="cfa-num"><span>Speed</span><input id="cfSpeed" type="number" value="0"></label>
+                  </div>
+                  <p class="dm-hint cfa-note">A WIS bonus raises Passive Perception automatically (it's 10 + your Perception modifier).</p>
+                  <button id="cfCreate" class="neo-btn small">＋ Create feat</button>
+                </div>
+              </details>
             </div>
           </div>
 

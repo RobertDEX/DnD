@@ -3093,13 +3093,19 @@ function renderDmSheetBar(){
 
 function syncDmPageMode(){
   const panel = el('dmFullscreenPanel');
-  // Single source of truth: is the DM page ACTUALLY on screen right now?
-  const on = !!panel && !panel.classList.contains('hidden');
+  const overlay = el('dmOverlay');
+  const panelUp = !!panel && !panel.classList.contains('hidden');
+  // The black coating (#dmOverlay) is what actually covers the sheet. It must
+  // NEVER be visible without the panel inside it — that combination IS the
+  // "black coating you can't edit through". Force them to agree here.
+  if (overlay){
+    if (panelUp) overlay.classList.remove('hidden');
+    else         overlay.classList.add('hidden');   // no panel → no coating
+  }
+  const on = panelUp;
   document.body.classList.toggle('dm-page-active', on);
-  // Mirrored onto an attribute so the CSS has a second, independent guard.
   if (on) document.body.setAttribute('data-dm-page','on');
   else    document.body.removeAttribute('data-dm-page');
-  // Show the re-entry button only when we're a DM who has stepped away
   const back = el('dmReturnFab');
   if(back) back.style.display = (dmUnlocked && !on) ? '' : 'none';
   try { renderDmSheetBar(); } catch(e) {}
@@ -3111,12 +3117,17 @@ function syncDmPageMode(){
 // run and it can only ever fire in a state that shouldn't exist.
 function assertNotBlank(){
   const panel = el('dmFullscreenPanel');
+  const overlay = el('dmOverlay');
   const panelUp = !!panel && !panel.classList.contains('hidden');
+  const overlayUp = !!overlay && !overlay.classList.contains('hidden');
   const flagged = document.body.classList.contains('dm-page-active');
-  if (flagged && !panelUp) {
-    console.warn('[rwby] recovered from a blank-screen state (page flag set with no panel)');
+  // Two ways to end up blank: the flag is set with no panel, OR the black
+  // overlay is up with no panel inside it. Recover from either.
+  if ((flagged || overlayUp) && !panelUp) {
+    console.warn('[rwby] recovered from a blank-screen state (coating with no panel)');
     document.body.classList.remove('dm-page-active');
     document.body.removeAttribute('data-dm-page');
+    overlay?.classList.add('hidden');
     const back = el('dmReturnFab');
     if(back) back.style.display = dmUnlocked ? '' : 'none';
     return true;
@@ -3127,11 +3138,13 @@ function assertNotBlank(){
 // Leave the DM page but STAY the DM — distinct from Lock, which drops rights.
 function hideDmPage(){
   el('dmFullscreenPanel')?.classList.add('hidden');
+  el('dmOverlay')?.classList.add('hidden');   // ← the black coating; must come down too
   syncDmPageMode();
   render();
 }
 function showDmPage(){
   if(!dmUnlocked) return;
+  el('dmOverlay')?.classList.remove('hidden');   // bring the container back up
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullscreenPanel')?.classList.remove('hidden');
   syncDmPageMode();

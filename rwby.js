@@ -3094,69 +3094,85 @@ function renderDmSheetBar(){
   el('dmSheetBarBack')?.addEventListener('click', showDmPage);
 }
 
-function syncDmPageMode(){
-  const panel = el('dmFullscreenPanel');
-  const login = el('dmLoginPanel');
+// ================================================================
+// DM VIEW STATE MACHINE  — the ONE place any DM view visibility changes
+// ================================================================
+// There are exactly three view states:
+//   'closed' — no overlay, player sheet fully visible & interactive
+//   'login'  — overlay up, password prompt showing (DM page hidden)
+//   'page'   — overlay up, full DM page showing (takes over the viewport)
+// Every button, boot path, and recovery routes through applyDmView(state).
+// Nothing else may touch #dmOverlay / #dmLoginPanel / #dmFullscreenPanel or
+// the body flags. This is what makes the states impossible to contradict.
+let _dmView = 'closed';
+
+function applyDmView(next){
   const overlay = el('dmOverlay');
-  const panelUp = !!panel && !panel.classList.contains('hidden');
-  const loginUp = !!login && !login.classList.contains('hidden');
-  // The overlay hosts BOTH the login prompt and the full DM page. It must stay
-  // up if EITHER is showing. It only becomes a "black coating" bug when it's up
-  // with neither child visible — that's the only case we force it down.
-  if (overlay){
-    if (panelUp || loginUp) overlay.classList.remove('hidden');
-    else                    overlay.classList.add('hidden');
-  }
-  // "DM page mode" (full-viewport takeover) is ONLY the fullscreen panel.
-  const on = panelUp;
-  document.body.classList.toggle('dm-page-active', on);
-  if (on) document.body.setAttribute('data-dm-page','on');
-  else    document.body.removeAttribute('data-dm-page');
-  const back = el('dmReturnFab');
-  if(back) back.style.display = (dmUnlocked && !on) ? '' : 'none';
+  const login   = el('dmLoginPanel');
+  const panel   = el('dmFullscreenPanel');
+  const fab     = el('dmReturnFab');
+
+  // A non-DM can never reach 'page'; fall back to the login prompt.
+  if (next === 'page' && !dmUnlocked) next = 'login';
+  _dmView = next;
+
+  const showOverlay = (next === 'login' || next === 'page');
+  const showLogin   = (next === 'login');
+  const showPanel   = (next === 'page');
+
+  // Toggle the three elements from the single target state.
+  overlay?.classList.toggle('hidden', !showOverlay);
+  login  ?.classList.toggle('hidden', !showLogin);
+  panel  ?.classList.toggle('hidden', !showPanel);
+
+  // Body flags drive the CSS that hides the player sheet behind the page.
+  document.body.classList.toggle('dm-page-active', showPanel);
+  if (showPanel) document.body.setAttribute('data-dm-page','on');
+  else           document.body.removeAttribute('data-dm-page');
+
+  // The "return to DM page" FAB shows only for a DM who has stepped away.
+  if (fab) fab.style.display = (dmUnlocked && next !== 'page') ? '' : 'none';
+
   try { renderDmSheetBar(); } catch(e) {}
-  return on;
 }
 
-// Last line of defence. If the sheet is hidden but no DM page is showing,
-// nothing is visible — recover instead of leaving a black screen. Cheap to
-// run and it can only ever fire in a state that shouldn't exist.
+// Back-compat shim: old code calls syncDmPageMode(); now it just re-asserts
+// the current state (never invents a new one) and returns whether the page is up.
+function syncDmPageMode(){
+  applyDmView(_dmView);
+  return _dmView === 'page';
+}
+
+// Safety net: if the DOM ever drifts out of the state machine (e.g. a stray
+// class from old cached JS), snap it back to a coherent state on next render.
 function assertNotBlank(){
-  const panel = el('dmFullscreenPanel');
-  const login = el('dmLoginPanel');
   const overlay = el('dmOverlay');
-  const panelUp = !!panel && !panel.classList.contains('hidden');
-  const loginUp = !!login && !login.classList.contains('hidden');
+  const panel   = el('dmFullscreenPanel');
+  const login   = el('dmLoginPanel');
   const overlayUp = !!overlay && !overlay.classList.contains('hidden');
-  const flagged = document.body.classList.contains('dm-page-active');
-  // Blank ONLY when the overlay is up with NEITHER child showing, or the page
-  // flag is set with no fullscreen panel. The login prompt is a valid reason
-  // for the overlay to be up, so it must not trigger recovery.
-  if ((flagged && !panelUp) || (overlayUp && !panelUp && !loginUp)) {
-    console.warn('[rwby] recovered from a blank-screen state (coating with no panel)');
-    document.body.classList.remove('dm-page-active');
-    document.body.removeAttribute('data-dm-page');
-    if (!loginUp) overlay?.classList.add('hidden');
-    const back = el('dmReturnFab');
-    if(back) back.style.display = dmUnlocked ? '' : 'none';
+  const panelUp   = !!panel && !panel.classList.contains('hidden');
+  const loginUp   = !!login && !login.classList.contains('hidden');
+  // Blank screen = overlay covering everything with neither child visible.
+  if (overlayUp && !panelUp && !loginUp){
+    console.warn('[rwby] recovered from an inconsistent DM view state');
+    applyDmView('closed');
+    return true;
+  }
+  // Body flag set but no panel = sheet hidden behind nothing.
+  if (document.body.classList.contains('dm-page-active') && !panelUp){
+    console.warn('[rwby] recovered from a stuck page flag');
+    applyDmView(dmUnlocked && loginUp ? 'login' : 'closed');
     return true;
   }
   return false;
 }
 
-// Leave the DM page but STAY the DM — distinct from Lock, which drops rights.
-function hideDmPage(){
-  el('dmFullscreenPanel')?.classList.add('hidden');
-  el('dmOverlay')?.classList.add('hidden');   // ← the black coating; must come down too
-  syncDmPageMode();
-  render();
-}
+// Leave the DM page but STAY the DM (distinct from Lock, which drops rights).
+function hideDmPage(){ applyDmView('closed'); render(); }
+
 function showDmPage(){
   if(!dmUnlocked) return;
-  el('dmOverlay')?.classList.remove('hidden');   // bring the container back up
-  el('dmLoginPanel')?.classList.add('hidden');
-  el('dmFullscreenPanel')?.classList.remove('hidden');
-  syncDmPageMode();
+  applyDmView('page');
   try { renderSnapshotList(); } catch(e) {}
   render();
 }
@@ -3493,21 +3509,25 @@ function addDustSpell() {
   pushState(); renderDust();
 }
 function openDmOverlay() {
-  el('dmOverlay')?.classList.remove('hidden');
-  if (!dmUnlocked) {
-    el('dmLoginPanel')?.classList.remove('hidden'); el('dmFullscreenPanel')?.classList.add('hidden'); syncDmPageMode();
-    const p=el('dmPasswordInput'); if(p){p.value='';p.focus();}
-  } else {
-    el('dmLoginPanel')?.classList.add('hidden'); el('dmFullscreenPanel')?.classList.remove('hidden'); syncDmPageMode();
+  if (dmUnlocked) {
+    applyDmView('page');
+    try { renderSnapshotList(); } catch(e) {}
     renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
+    render();
+  } else {
+    applyDmView('login');
+    const p=el('dmPasswordInput'); if(p){p.value='';p.focus();}
   }
 }
-function closeDmOverlay() { el('dmOverlay')?.classList.add('hidden'); }
-function lockDm()   {
+function closeDmOverlay() { applyDmView('closed'); }
+
+function lockDm() {
   dmUnlocked=false;
   sessionStorage.removeItem('rwby-dm');
-  el('dmFullscreenPanel')?.classList.add('hidden'); el('dmLoginPanel')?.classList.remove('hidden'); syncDmPageMode();
+  applyDmView('closed');
+  render();
 }
+
 function unlockDm() {
   if (el('dmPasswordInput')?.value !== DM_PASS) { alert('Wrong password.'); return; }
   dmUnlocked=true;
@@ -3523,9 +3543,7 @@ function unlockDm() {
     document.getElementById('spectatorBanner')?.remove();
     try { reenableAllInputs(); } catch(e) {}
   }
-  el('dmLoginPanel')?.classList.add('hidden');
-  el('dmFullscreenPanel')?.classList.remove('hidden');
-  syncDmPageMode();
+  applyDmView('page');
   try { renderSnapshotList(); } catch(e) {}
   // Activate players tab by default
   document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -5551,11 +5569,11 @@ window.addEventListener('beforeunload', () => {
   deleteDoc(doc(db, 'rwby-presence', MY_PRESENCE_ID)).catch(()=>{});
 });
 if (dmUnlocked) {
-  el('dmLoginPanel')?.classList.add('hidden');
-  el('dmFullscreenPanel')?.classList.remove('hidden');
-  syncDmPageMode();
+  // Restore DM rights on reload, but land on the SHEET (closed view), not the
+  // full page. The ⚔ return button is available to open the page when wanted.
   document.querySelector('.dm-nav-btn[data-dm-tab="players"]')?.classList.add('active');
   document.querySelector('.dm-tab[data-dm-tab="players"]')?.classList.add('active');
+  applyDmView('closed');
   renderDmSemblance(); renderDmTechniques(); renderDmTargetSelect(); renderCurseTargetSelect(); renderThemeFields();
 }
 // Welcome is triggered by the snapshot handler once real data loads

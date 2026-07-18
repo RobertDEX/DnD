@@ -3096,15 +3096,18 @@ function renderDmSheetBar(){
 
 function syncDmPageMode(){
   const panel = el('dmFullscreenPanel');
+  const login = el('dmLoginPanel');
   const overlay = el('dmOverlay');
   const panelUp = !!panel && !panel.classList.contains('hidden');
-  // The black coating (#dmOverlay) is what actually covers the sheet. It must
-  // NEVER be visible without the panel inside it — that combination IS the
-  // "black coating you can't edit through". Force them to agree here.
+  const loginUp = !!login && !login.classList.contains('hidden');
+  // The overlay hosts BOTH the login prompt and the full DM page. It must stay
+  // up if EITHER is showing. It only becomes a "black coating" bug when it's up
+  // with neither child visible — that's the only case we force it down.
   if (overlay){
-    if (panelUp) overlay.classList.remove('hidden');
-    else         overlay.classList.add('hidden');   // no panel → no coating
+    if (panelUp || loginUp) overlay.classList.remove('hidden');
+    else                    overlay.classList.add('hidden');
   }
+  // "DM page mode" (full-viewport takeover) is ONLY the fullscreen panel.
   const on = panelUp;
   document.body.classList.toggle('dm-page-active', on);
   if (on) document.body.setAttribute('data-dm-page','on');
@@ -3120,17 +3123,20 @@ function syncDmPageMode(){
 // run and it can only ever fire in a state that shouldn't exist.
 function assertNotBlank(){
   const panel = el('dmFullscreenPanel');
+  const login = el('dmLoginPanel');
   const overlay = el('dmOverlay');
   const panelUp = !!panel && !panel.classList.contains('hidden');
+  const loginUp = !!login && !login.classList.contains('hidden');
   const overlayUp = !!overlay && !overlay.classList.contains('hidden');
   const flagged = document.body.classList.contains('dm-page-active');
-  // Two ways to end up blank: the flag is set with no panel, OR the black
-  // overlay is up with no panel inside it. Recover from either.
-  if ((flagged || overlayUp) && !panelUp) {
+  // Blank ONLY when the overlay is up with NEITHER child showing, or the page
+  // flag is set with no fullscreen panel. The login prompt is a valid reason
+  // for the overlay to be up, so it must not trigger recovery.
+  if ((flagged && !panelUp) || (overlayUp && !panelUp && !loginUp)) {
     console.warn('[rwby] recovered from a blank-screen state (coating with no panel)');
     document.body.classList.remove('dm-page-active');
     document.body.removeAttribute('data-dm-page');
-    overlay?.classList.add('hidden');
+    if (!loginUp) overlay?.classList.add('hidden');
     const back = el('dmReturnFab');
     if(back) back.style.display = dmUnlocked ? '' : 'none';
     return true;

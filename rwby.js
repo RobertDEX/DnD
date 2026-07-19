@@ -1067,7 +1067,8 @@ function normalize(raw) {
     mc.techniques    = Array.isArray(c.techniques)  ? c.techniques  : [];
     mc.curses        = Array.isArray(c.curses)      ? c.curses      : [];
     mc.commendations = Array.isArray(c.commendations)? c.commendations : [];
-    mc.compass = Array.isArray(c.compass) ? c.compass.map(a => ({
+    mc.compass = Array.isArray(c.compass) ? c.compass.map((a,ix) => ({
+      id:            String(a?.id ?? ('art-' + Date.now() + '-' + ix + '-' + Math.random().toString(16).slice(2,6))),
       name:          String(a?.name ?? ''),
       type:          (a?.type === 'cursed' ? 'cursed' : 'holy'),
       effect:        String(a?.effect ?? ''),
@@ -2904,6 +2905,7 @@ async function renderSnapshotList(){
 // COMPASS — Holy Armaments & Cursed Tools (per character, DM-managed)
 // ================================================================
 const COMPASS_BLANK = () => ({
+  id: 'art-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
   name:'', type:'holy', effect:'',
   originalOwner:'', currentOwner:'',
   entityKind:'demon', entityName:'', entityTitle:''
@@ -2914,6 +2916,10 @@ function canEditCompass(){
   if (spectator) return false;
   return dmUnlocked;
 }
+
+// Which artifacts are currently expanded. Keyed by artifact.id so it
+// survives reordering/deletion; local to this browser, never synced.
+const _compassExpanded = new Set();
 
 function renderCompass(){
   const c = getChar(); const host = el('compassList'); if(!host) return;
@@ -2942,52 +2948,78 @@ function renderCompass(){
   host.innerHTML = c.compass.map((a,i)=>{
     const cursed = a.type === 'cursed';
     const angel  = a.entityKind === 'angel';
-    const ro = editable ? '' : 'readonly tabindex="-1"';
-    const dis = editable ? '' : 'disabled';
-    return `<div class="compass-card ${cursed?'cursed':'holy'}" data-ci="${i}">
-      <div class="cc-head">
-        <input class="cc-name" data-ci="${i}" data-cf="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro}>
-        <span class="cc-type-badge ${cursed?'cursed':'holy'}">${cursed?'Cursed Tool':'Holy Armament'}</span>
-        ${editable?`<button class="cc-del" data-ci="${i}" title="Remove">✕</button>`:''}
-      </div>
-      <div class="cc-grid">
-        <label class="cc-field">
-          <span>Type</span>
-          <select class="cc-input" data-ci="${i}" data-cf="type" ${dis}>
-            <option value="holy" ${!cursed?'selected':''}>Holy Armament</option>
-            <option value="cursed" ${cursed?'selected':''}>Cursed Tool</option>
-          </select>
-        </label>
-        <label class="cc-field">
-          <span>Connected Entity</span>
-          <select class="cc-input" data-ci="${i}" data-cf="entityKind" ${dis}>
-            <option value="demon" ${!angel?'selected':''}>Demon</option>
-            <option value="angel" ${angel?'selected':''}>Angel</option>
-          </select>
-        </label>
-        <label class="cc-field cc-wide">
-          <span>Effect</span>
-          <textarea class="cc-input cc-effect" data-ci="${i}" data-cf="effect" placeholder="What does it do? What does it cost?" ${ro}>${esc(a.effect)}</textarea>
-        </label>
-        <label class="cc-field">
-          <span>Original Owner</span>
-          <input class="cc-input" data-ci="${i}" data-cf="originalOwner" value="${esc(a.originalOwner)}" placeholder="Who forged or first bore it?" ${ro}>
-        </label>
-        <label class="cc-field">
-          <span>Current Owner</span>
-          <input class="cc-input" data-ci="${i}" data-cf="currentOwner" value="${esc(a.currentOwner)}" placeholder="Who carries it now?" ${ro}>
-        </label>
-        <label class="cc-field">
-          <span>Entity Name</span>
-          <input class="cc-input" data-ci="${i}" data-cf="entityName" value="${esc(a.entityName)}" placeholder="${angel?'e.g. Raziel':'e.g. Vassago'}" ${ro}>
-        </label>
-        <label class="cc-field">
-          <span>Entity Title</span>
-          <input class="cc-input" data-ci="${i}" data-cf="entityTitle" value="${esc(a.entityTitle)}" placeholder="${angel?'e.g. Keeper of Secrets':'e.g. The Hollow Choir'}" ${ro}>
-        </label>
+    const open   = _compassExpanded.has(a.id);
+    const ro     = editable ? '' : 'readonly tabindex="-1"';
+    const dis    = editable ? '' : 'disabled';
+    // A tight summary line for the collapsed state so a glance tells you what it is
+    const summaryBits = [];
+    if(a.entityName) summaryBits.push(`${angel?'✟':'⛧'} ${esc(a.entityName)}`);
+    if(a.currentOwner) summaryBits.push(`held by ${esc(a.currentOwner)}`);
+    const summary = summaryBits.join(' · ');
+    return `<div class="compass-card ${cursed?'cursed':'holy'}${open?' expanded':''}" data-ci="${i}" data-cid="${esc(a.id)}">
+      <button type="button" class="cc-toggle" data-cid="${esc(a.id)}" aria-expanded="${open?'true':'false'}">
+        <span class="cc-chevron" aria-hidden="true">▸</span>
+        <div class="cc-head">
+          <input class="cc-name" data-ci="${i}" data-cf="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro} onclick="event.stopPropagation()">
+          <span class="cc-type-badge ${cursed?'cursed':'holy'}">${cursed?'Cursed Tool':'Holy Armament'}</span>
+          ${editable?`<button class="cc-del" data-ci="${i}" title="Remove" onclick="event.stopPropagation()">✕</button>`:''}
+        </div>
+        ${summary?`<div class="cc-summary">${summary}</div>`:''}
+      </button>
+      <div class="cc-body">
+        <div class="cc-grid">
+          <label class="cc-field">
+            <span>Type</span>
+            <select class="cc-input" data-ci="${i}" data-cf="type" ${dis}>
+              <option value="holy" ${!cursed?'selected':''}>Holy Armament</option>
+              <option value="cursed" ${cursed?'selected':''}>Cursed Tool</option>
+            </select>
+          </label>
+          <label class="cc-field">
+            <span>Connected Entity</span>
+            <select class="cc-input" data-ci="${i}" data-cf="entityKind" ${dis}>
+              <option value="demon" ${!angel?'selected':''}>Demon</option>
+              <option value="angel" ${angel?'selected':''}>Angel</option>
+            </select>
+          </label>
+          <label class="cc-field cc-wide">
+            <span>Effect</span>
+            <textarea class="cc-input cc-effect" data-ci="${i}" data-cf="effect" placeholder="What does it do? What does it cost?" ${ro}>${esc(a.effect)}</textarea>
+          </label>
+          <label class="cc-field">
+            <span>Original Owner</span>
+            <input class="cc-input" data-ci="${i}" data-cf="originalOwner" value="${esc(a.originalOwner)}" placeholder="Who forged or first bore it?" ${ro}>
+          </label>
+          <label class="cc-field">
+            <span>Current Owner</span>
+            <input class="cc-input" data-ci="${i}" data-cf="currentOwner" value="${esc(a.currentOwner)}" placeholder="Who carries it now?" ${ro}>
+          </label>
+          <label class="cc-field">
+            <span>Entity Name</span>
+            <input class="cc-input" data-ci="${i}" data-cf="entityName" value="${esc(a.entityName)}" placeholder="${angel?'e.g. Raziel':'e.g. Vassago'}" ${ro}>
+          </label>
+          <label class="cc-field">
+            <span>Entity Title</span>
+            <input class="cc-input" data-ci="${i}" data-cf="entityTitle" value="${esc(a.entityTitle)}" placeholder="${angel?'e.g. Keeper of Secrets':'e.g. The Hollow Choir'}" ${ro}>
+          </label>
+        </div>
       </div>
     </div>`;
   }).join('');
+
+  // Toggle handler works for everyone (players read; DM edits) — collapsing
+  // is a viewer-side affordance, not a permission-gated action.
+  host.querySelectorAll('.cc-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
+      // clicks on the inline name input / delete button already stop propagation
+      const cid = btn.dataset.cid;
+      if(_compassExpanded.has(cid)) _compassExpanded.delete(cid);
+      else _compassExpanded.add(cid);
+      const card = btn.closest('.compass-card');
+      card?.classList.toggle('expanded');
+      btn.setAttribute('aria-expanded', card?.classList.contains('expanded') ? 'true' : 'false');
+    });
+  });
 
   if(!editable) return;   // no write handlers when locked
 
@@ -2998,8 +3030,8 @@ function renderCompass(){
       const ch = getChar(); if(!ch.compass?.[i]) return;
       ch.compass[i][f] = e.target.value;
       pushState();
-      // type/entity changes restyle the card, so repaint those
-      if(f==='type' || f==='entityKind') renderCompass();
+      // type/entity changes restyle the card; refresh summary line too
+      if(f==='type' || f==='entityKind' || f==='entityName' || f==='currentOwner') renderCompass();
     });
   });
   host.querySelectorAll('.cc-del').forEach(b=> b.addEventListener('click', ()=>{
@@ -3120,114 +3152,203 @@ function renderBestiary(){
     return;
   }
 
+  // COMPACT CARD GRID — each creature is a tile that opens a full stat
+  // sheet on click. All heavy editing now lives in the overlay so the
+  // list stays scannable even with 30+ entries.
+  host.innerHTML = rows.map(({b,i})=>{
+    const totals = STATS.map(s => (Number(b.stats?.[s])||0) + (Number(b.bonuses?.[s])||0));
+    const topStat = STATS.reduce((best,s,ix) => totals[ix] > totals[best.ix] ? {s, ix} : best, {s:STATS[0], ix:0});
+    const topLabel = `${topStat.s} ${fmtMod(mod(totals[topStat.ix]))}`;
+    const preview = (b.special||'').trim().split('\n')[0].slice(0,80);
+    return `<button type="button" class="beast-tile${b.image?'':' no-img'}" data-bi="${i}" data-bxid="${esc(bx.id)}">
+      <div class="beast-tile-portrait">
+        ${b.image
+          ? `<img src="${esc(b.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
+          : `<span class="beast-tile-glyph">◈</span>`}
+        ${b.tamer?`<span class="beast-tile-tamer">🖐 ${esc(b.tamer)}</span>`:''}
+      </div>
+      <div class="beast-tile-body">
+        <div class="beast-tile-name">${esc(b.name || 'Unnamed')}</div>
+        <div class="beast-tile-meta">
+          <span class="beast-tile-top">${topLabel}</span>
+          ${preview ? `<span class="beast-tile-note">${esc(preview)}${(b.special||'').length>80?'…':''}</span>` : ''}
+        </div>
+      </div>
+      <span class="beast-tile-open">↗</span>
+    </button>`;
+  }).join('');
+
+  // Clicking a tile opens the stat sheet overlay for that creature.
+  host.querySelectorAll('.beast-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const i = Number(tile.dataset.bi);
+      openBeastSheet(tile.dataset.bxid, i);
+    });
+  });
+}
+
+// ================================================================
+// BEAST STAT SHEET — click-to-open overlay
+// One authoritative editor per creature. Opened from a tile in the
+// bestiary list. All fields live here; the tile is just a summary.
+// ================================================================
+let _openBeastKey = null;  // "<bxid>:<index>" while the sheet is open
+
+function openBeastSheet(bxid, index){
+  const bx = state.bestiaries.find(b => b.id === bxid);
+  if(!bx || !bx.entries[index]) return;
+  _openBeastKey = `${bxid}:${index}`;
+  renderBeastSheet();
+  const overlay = el('beastSheetOverlay');
+  if(overlay){
+    overlay.classList.add('open');
+    // focus the name field so the DM can just start typing on a fresh entry
+    setTimeout(() => overlay.querySelector('.bsh-name')?.focus(), 40);
+  }
+}
+function closeBeastSheet(){
+  _openBeastKey = null;
+  const overlay = el('beastSheetOverlay');
+  if(overlay) overlay.classList.remove('open');
+}
+function renderBeastSheet(){
+  if(!_openBeastKey) return;
+  const [bxid, idxStr] = _openBeastKey.split(':');
+  const i = Number(idxStr);
+  const bx = state.bestiaries.find(b => b.id === bxid);
+  if(!bx || !bx.entries[i]){ closeBeastSheet(); return; }
+  const b = bx.entries[i];
+  const editable = canEditBestiary();
   const ro = editable ? '' : 'readonly tabindex="-1"';
   const dis = editable ? '' : 'disabled';
+  const body = el('beastSheetBody'); if(!body) return;
+
   const tamerOptions = (sel) => `<option value="">Unassigned</option>` +
     state.characters.map(ch => {
       const nm = ch.name || 'Unnamed';
       return `<option value="${esc(nm)}" ${sel===nm?'selected':''}>${esc(nm)}</option>`;
     }).join('');
-  host.innerHTML = rows.map(({b,i})=>`
-    <div class="beast-card" data-bi="${i}">
-      <div class="beast-portrait${b.image?'':' no-img'}">
-        ${b.image
-          ? `<img src="${esc(b.image)}" alt="" onerror="this.style.display='none';this.parentElement.classList.add('no-img')">`
-          : ''}
-      </div>
-      <div class="beast-body">
-        <div class="beast-head">
-          <input class="beast-name" data-bi="${i}" data-bf="name" value="${esc(b.name)}" placeholder="Unnamed creature" ${ro}>
-          ${b.tamer?`<span class="beast-tamer-badge">🖐 ${esc(b.tamer)}</span>`:''}
-          ${editable?`<button class="beast-del" data-bi="${i}" title="Remove">✕</button>`:''}
-        </div>
-        <div class="beast-meta-row">
-          <label class="beast-field beast-assign">
-            <span>Tamer</span>
-            <select class="beast-input beast-tamer" data-bi="${i}" ${dis}>${tamerOptions(b.tamer)}</select>
-          </label>
-          ${editable?`<label class="beast-field beast-imgfield"><span>Image URL</span>
-            <input class="beast-input" data-bi="${i}" data-bf="image" value="${esc(b.image)}" placeholder="https://…" ${ro}></label>`:''}
-        </div>
-        <div class="beast-stats">
-          <div class="beast-stat-head"><span></span><span>Score</span><span>Bonus</span><span>Total</span></div>
-          ${STATS.map(s=>{
-            const base = Number(b.stats?.[s])||10;
-            const bon  = Number(b.bonuses?.[s])||0;
-            const tot  = base + bon;
-            return `<div class="beast-stat">
-              <span class="bs-key">${s}</span>
-              <input class="bs-val" type="number" data-bi="${i}" data-bs="${s}" value="${base}" ${ro}>
-              <input class="bs-bon" type="number" data-bi="${i}" data-bb="${s}" value="${bon}" ${ro}>
-              <span class="bs-total" data-bt="${s}">${tot} <em>(${fmtMod(mod(tot))})</em></span>
-            </div>`;
-          }).join('')}
-        </div>
-        <label class="beast-field">
-          <span>Special Ability</span>
-          <textarea class="beast-input beast-special" data-bi="${i}" data-bf="special" placeholder="What makes it dangerous?" ${ro}>${esc(b.special)}</textarea>
-        </label>
-      </div>
-    </div>`).join('');
 
+  body.innerHTML = `
+    <div class="bsh-head" style="--bx-col:${esc(bx.color||'#00d4ff')}">
+      <div class="bsh-portrait${b.image?'':' no-img'}">
+        ${b.image
+          ? `<img src="${esc(b.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
+          : `<span class="bsh-glyph">◈</span>`}
+      </div>
+      <div class="bsh-title-wrap">
+        <div class="bsh-codex">${esc(bx.name)}</div>
+        <input class="bsh-name" data-bf="name" value="${esc(b.name)}" placeholder="Unnamed creature" ${ro}>
+        ${b.tamer?`<span class="bsh-tamer">🖐 Tamed by ${esc(b.tamer)}</span>`:''}
+      </div>
+      <div class="bsh-actions">
+        ${editable?`<button class="bsh-del" title="Delete creature">🗑</button>`:''}
+        <button class="bsh-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="bsh-body">
+      ${editable ? `
+        <div class="bsh-row">
+          <label class="bsh-field">
+            <span>Tamer</span>
+            <select class="bsh-input bsh-tamer-select" data-bf="tamer" ${dis}>${tamerOptions(b.tamer)}</select>
+          </label>
+          <label class="bsh-field bsh-wide">
+            <span>Image URL</span>
+            <input class="bsh-input" data-bf="image" value="${esc(b.image)}" placeholder="https://…" ${ro}>
+          </label>
+        </div>
+      ` : ''}
+      <div class="bsh-stats">
+        <div class="bsh-stats-head">
+          <span></span><span>Score</span><span>Bonus</span><span>Total</span>
+        </div>
+        ${STATS.map(s => {
+          const base = Number(b.stats?.[s])||10;
+          const bon  = Number(b.bonuses?.[s])||0;
+          const tot  = base + bon;
+          return `<div class="bsh-stat">
+            <span class="bsh-stat-key">${s}</span>
+            <input class="bsh-val" type="number" data-bs="${s}" value="${base}" ${ro}>
+            <input class="bsh-bon" type="number" data-bb="${s}" value="${bon}" ${ro}>
+            <span class="bsh-total" data-bt="${s}">${tot} <em>(${fmtMod(mod(tot))})</em></span>
+          </div>`;
+        }).join('')}
+      </div>
+      <label class="bsh-field">
+        <span>Special Ability</span>
+        <textarea class="bsh-input bsh-special" data-bf="special" placeholder="What makes it dangerous?" ${ro}>${esc(b.special)}</textarea>
+      </label>
+      <label class="bsh-field">
+        <span>Notes</span>
+        <textarea class="bsh-input bsh-notes" data-bf="notes" placeholder="Field notes, lore, behavior…" ${ro}>${esc(b.notes||'')}</textarea>
+      </label>
+    </div>`;
+
+  // — wire —
+  body.querySelector('.bsh-close')?.addEventListener('click', closeBeastSheet);
+  body.querySelector('.bsh-del')?.addEventListener('click', () => {
+    const nm = b.name || 'this creature';
+    if(!confirm(`Remove ${nm} from ${bx.name}?`)) return;
+    pushUndo(`Removed ${nm} from ${bx.name}`);
+    bx.entries.splice(i, 1);
+    closeBeastSheet();
+    pushState(true); renderBestiary();
+  });
   if(!editable) return;
 
-  const bxRef = () => activeBestiary(); // resolve fresh each event (collection could switch)
-
-  host.querySelectorAll('.beast-input:not(.beast-tamer), .beast-name').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      const bx = bxRef(); if(!bx) return;
-      const i = Number(e.target.dataset.bi), f = e.target.dataset.bf;
-      if(!bx.entries[i] || !f) return;
-      bx.entries[i][f] = e.target.value;
+  // resolve current beast fresh each event — collection could reorder
+  const target = () => {
+    const cbx = state.bestiaries.find(x => x.id === bxid);
+    return cbx?.entries[i];
+  };
+  body.querySelectorAll('.bsh-input:not(.bsh-tamer-select), .bsh-name').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const t = target(); if(!t) return;
+      t[e.target.dataset.bf] = e.target.value;
       pushState();
     });
   });
-  host.querySelectorAll('.beast-tamer').forEach(sel=>{
-    sel.addEventListener('change', e=>{
-      const bx = bxRef(); if(!bx) return;
-      const i = Number(e.target.dataset.bi);
-      if(!bx.entries[i]) return;
-      bx.entries[i].tamer = e.target.value;
-      pushState(true); renderBestiary();
-    });
+  body.querySelector('.bsh-tamer-select')?.addEventListener('change', e => {
+    const t = target(); if(!t) return;
+    t.tamer = e.target.value;
+    pushState(true);
+    // refresh the sheet + list so the badge appears/updates
+    renderBeastSheet();
+    renderBestiary();
   });
-  const recalcTotal = (i, s) => {
-    const bx = bxRef(); if(!bx) return;
-    const b = bx.entries[i]; if(!b) return;
-    const tot = (Number(b.stats?.[s])||0) + (Number(b.bonuses?.[s])||0);
-    const out = host.querySelector(`.beast-card[data-bi="${i}"] [data-bt="${s}"]`);
+  const recalc = (s) => {
+    const t = target(); if(!t) return;
+    const tot = (Number(t.stats?.[s])||0) + (Number(t.bonuses?.[s])||0);
+    const out = body.querySelector(`[data-bt="${s}"]`);
     if(out) out.innerHTML = `${tot} <em>(${fmtMod(mod(tot))})</em>`;
   };
-  host.querySelectorAll('.bs-val').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      const bx = bxRef(); if(!bx) return;
-      const i = Number(e.target.dataset.bi), s = e.target.dataset.bs;
-      if(!bx.entries[i]) return;
-      if(!bx.entries[i].stats) bx.entries[i].stats = {};
-      bx.entries[i].stats[s] = Number(e.target.value) || 0;
-      recalcTotal(i, s); pushState();
+  body.querySelectorAll('.bsh-val').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const t = target(); if(!t) return;
+      if(!t.stats) t.stats = {};
+      const s = e.target.dataset.bs;
+      t.stats[s] = Number(e.target.value) || 0;
+      recalc(s); pushState();
     });
   });
-  host.querySelectorAll('.bs-bon').forEach(inp=>{
-    inp.addEventListener('input', e=>{
-      const bx = bxRef(); if(!bx) return;
-      const i = Number(e.target.dataset.bi), s = e.target.dataset.bb;
-      if(!bx.entries[i]) return;
-      if(!bx.entries[i].bonuses) bx.entries[i].bonuses = {};
-      bx.entries[i].bonuses[s] = Number(e.target.value) || 0;
-      recalcTotal(i, s); pushState();
+  body.querySelectorAll('.bsh-bon').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const t = target(); if(!t) return;
+      if(!t.bonuses) t.bonuses = {};
+      const s = e.target.dataset.bb;
+      t.bonuses[s] = Number(e.target.value) || 0;
+      recalc(s); pushState();
     });
   });
-  host.querySelectorAll('.beast-del').forEach(b=> b.addEventListener('click', ()=>{
-    const bx = bxRef(); if(!bx) return;
-    const i = Number(b.dataset.bi);
-    const nm = bx.entries[i]?.name || 'this creature';
-    if(!confirm(`Remove ${nm} from ${bx.name}?`)) return;
-    pushUndo(`Removed ${nm} from ${bx.name}`);
-    bx.entries.splice(i,1);
-    pushState(true); renderBestiary();
-  }));
 }
+// Backdrop-click and Escape close the sheet
+document.addEventListener('click', e => {
+  if(e.target?.id === 'beastSheetOverlay') closeBeastSheet();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && _openBeastKey) closeBeastSheet();
+});
 
 // ================================================================
 // DM — BESTIARY MANAGER
@@ -3695,6 +3816,8 @@ function render() {
     try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
     try { renderDmBestiaries(); }    catch(e) { console.error('renderDmBestiaries:', e); }
   }
+  // Beast stat-sheet overlay stays in sync with remote edits
+  if (_openBeastKey) { try { renderBeastSheet(); } catch(e) { console.error('renderBeastSheet:', e); } }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
   try { pushPresence(); }          catch(e) {}
   try { if (spectator) disableAllInputs(); } catch(e) {}
@@ -5753,7 +5876,9 @@ el('addCompassBtn')?.addEventListener('click', ()=>{
   const c = getChar();
   if(!Array.isArray(c.compass)) c.compass = [];
   pushUndo(`Added artifact to ${c.name||'player'}`);
-  c.compass.push(COMPASS_BLANK());
+  const a = COMPASS_BLANK();
+  c.compass.push(a);
+  _compassExpanded.add(a.id);  // freshly added → open so the DM can fill it in
   pushState(true); renderCompass();
 });
 
@@ -5772,6 +5897,8 @@ el('addBeastBtn')?.addEventListener('click', ()=>{
   _bestiaryFilter = '';
   const sb = el('bestiarySearch'); if(sb) sb.value = '';
   pushState(true); renderBestiary();
+  // Open the sheet on the new entry so the DM starts editing immediately
+  openBeastSheet(bx.id, bx.entries.length - 1);
 });
 el('bestiarySearch')?.addEventListener('input', e=>{ _bestiaryFilter = e.target.value||''; renderBestiary(); });
 

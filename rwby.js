@@ -330,6 +330,12 @@ function blankChar(i) {
     hp:{current:0,max:0}, aura:{current:0,max:0},
     armor:0, speed:'30 ft', tempHp:0,
     deathSaves: {successes:0, failures:0, stable:false},
+    concentration: {active:false, source:''},
+    inspiration: 0,
+    dmNotes: '',
+    resistances:   [],   // damage type strings — half damage from these
+    vulnerabilities:[],  // double damage
+    immunities:    [],   // zero damage
     weaponsText:'', abilitiesText:'', inventoryText:'', notesText:'',
     weapons: [],         // [{name, damage, dmgType, range, prof, notes}]
     inventory: [],       // [{name, qty, notes}]
@@ -357,6 +363,8 @@ const DEF_STATE = {
   customFeats:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
+  rollLog:[],           // last N rolls: [{id, ts, who, formula, result, crit, kind}]
+  initiative:{active:false, round:1, turnIdx:0, entries:[]}, // combat tracker
   shopLocation:'vale',
   cctOnline:true,
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
@@ -929,6 +937,8 @@ function startListener() {
       if (Array.isArray(remote.bestiary)) state.bestiary = remote.bestiary;
       if (Array.isArray(remote.bestiaries)) state.bestiaries = remote.bestiaries;
       if (Array.isArray(remote.customFeats)) state.customFeats = remote.customFeats;
+      if (Array.isArray(remote.rollLog))    state.rollLog    = remote.rollLog;
+      if (remote.initiative && typeof remote.initiative==='object') state.initiative = remote.initiative;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -1017,6 +1027,26 @@ function normalize(raw) {
   if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
+  if(!Array.isArray(m.rollLog))    m.rollLog=[];
+  if(!m.initiative || typeof m.initiative!=='object'){ m.initiative = {active:false, round:1, turnIdx:0, entries:[]}; }
+  else {
+    m.initiative.active  = !!m.initiative.active;
+    m.initiative.round   = Math.max(1, Number(m.initiative.round)||1);
+    m.initiative.turnIdx = Math.max(0, Number(m.initiative.turnIdx)||0);
+    m.initiative.entries = Array.isArray(m.initiative.entries)
+      ? m.initiative.entries.map((e,ix)=>({
+          id:    String(e?.id ?? ('init-' + Date.now() + '-' + ix)),
+          name:  String(e?.name ?? ''),
+          init:  Number(e?.init) || 0,
+          hp:    Number(e?.hp)   || 0,
+          maxHp: Number(e?.maxHp)|| 0,
+          ac:    Number(e?.ac)   || 0,
+          kind:  (e?.kind === 'enemy' || e?.kind === 'ally' || e?.kind === 'player') ? e.kind : 'enemy',
+          charId: String(e?.charId || ''),   // links to characters[] if kind==='player'
+          note:  String(e?.note || '')
+        }))
+      : [];
+  }
   if(typeof m.shopLocation!=='string' || !SHOP_LOCATIONS[m.shopLocation]) m.shopLocation='vale';
   if(typeof m.cctOnline!=='boolean') m.cctOnline=true;
   // Ensure all theme values are hex strings
@@ -1071,6 +1101,7 @@ function normalize(raw) {
       id:            String(a?.id ?? ('art-' + Date.now() + '-' + ix + '-' + Math.random().toString(16).slice(2,6))),
       name:          String(a?.name ?? ''),
       type:          (a?.type === 'cursed' ? 'cursed' : 'holy'),
+      image:         String(a?.image ?? ''),
       effect:        String(a?.effect ?? ''),
       originalOwner: String(a?.originalOwner ?? ''),
       currentOwner:  String(a?.currentOwner ?? ''),
@@ -1082,6 +1113,15 @@ function normalize(raw) {
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
     mc.weapons       = Array.isArray(c.weapons)     ? c.weapons     : [];
     mc.conditions    = Array.isArray(c.conditions)  ? c.conditions  : [];
+    // New combat/session fields — added July 2026
+    mc.concentration = (c.concentration && typeof c.concentration==='object')
+      ? { active: !!c.concentration.active, source: String(c.concentration.source||'') }
+      : { active:false, source:'' };
+    mc.inspiration   = Math.max(0, Number(c.inspiration) || 0);
+    mc.dmNotes       = String(c.dmNotes || '');
+    mc.resistances     = Array.isArray(c.resistances)     ? c.resistances.map(String)     : [];
+    mc.vulnerabilities = Array.isArray(c.vulnerabilities) ? c.vulnerabilities.map(String) : [];
+    mc.immunities      = Array.isArray(c.immunities)      ? c.immunities.map(String)      : [];
     mc.inventory     = Array.isArray(c.inventory)   ? c.inventory   : [];
     mc.money         = Number(c.money) || 0;
     // Race system: 'human' | 'faunus' | '' (unset). Migrate legacy free-text race strings.
@@ -2906,7 +2946,7 @@ async function renderSnapshotList(){
 // ================================================================
 const COMPASS_BLANK = () => ({
   id: 'art-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
-  name:'', type:'holy', effect:'',
+  name:'', type:'holy', image:'', effect:'',
   originalOwner:'', currentOwner:'',
   entityKind:'demon', entityName:'', entityTitle:''
 });
@@ -2917,16 +2957,11 @@ function canEditCompass(){
   return dmUnlocked;
 }
 
-// Which artifacts are currently expanded. Keyed by artifact.id so it
-// survives reordering/deletion; local to this browser, never synced.
-const _compassExpanded = new Set();
-
 function renderCompass(){
   const c = getChar(); const host = el('compassList'); if(!host) return;
   if(!Array.isArray(c.compass)) c.compass = [];
   const editable = canEditCompass();
 
-  // lock notice + add button visibility
   const bar = el('compassLockBar');
   if(bar){
     if(editable){ bar.style.display='none'; }
@@ -2945,105 +2980,177 @@ function renderCompass(){
     return;
   }
 
+  // Compact tile grid — click a tile to open the full sheet overlay.
+  // Mirrors the .beast-tile pattern so both damage collections read
+  // consistently. Portrait / glyph, name, type badge, entity badge.
   host.innerHTML = c.compass.map((a,i)=>{
     const cursed = a.type === 'cursed';
     const angel  = a.entityKind === 'angel';
-    const open   = _compassExpanded.has(a.id);
-    const ro     = editable ? '' : 'readonly tabindex="-1"';
-    const dis    = editable ? '' : 'disabled';
-    // A tight summary line for the collapsed state so a glance tells you what it is
-    const summaryBits = [];
-    if(a.entityName) summaryBits.push(`${angel?'✟':'⛧'} ${esc(a.entityName)}`);
-    if(a.currentOwner) summaryBits.push(`held by ${esc(a.currentOwner)}`);
-    const summary = summaryBits.join(' · ');
-    return `<div class="compass-card ${cursed?'cursed':'holy'}${open?' expanded':''}" data-ci="${i}" data-cid="${esc(a.id)}">
-      <button type="button" class="cc-toggle" data-cid="${esc(a.id)}" aria-expanded="${open?'true':'false'}">
-        <span class="cc-chevron" aria-hidden="true">▸</span>
-        <div class="cc-head">
-          <input class="cc-name" data-ci="${i}" data-cf="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro} onclick="event.stopPropagation()">
-          <span class="cc-type-badge ${cursed?'cursed':'holy'}">${cursed?'Cursed Tool':'Holy Armament'}</span>
-          ${editable?`<button class="cc-del" data-ci="${i}" title="Remove" onclick="event.stopPropagation()">✕</button>`:''}
+    const entityChip = a.entityName
+      ? `<span class="art-tile-entity ${angel?'angel':'demon'}"><span class="art-tile-entity-glyph">${angel?'✟':'⛧'}</span>${esc(a.entityName)}</span>`
+      : '';
+    const holdBy = a.currentOwner ? `<span class="art-tile-note">Held by ${esc(a.currentOwner)}</span>` : '';
+    return `<button type="button" class="art-tile ${cursed?'cursed':'holy'}${a.image?'':' no-img'}" data-artid="${esc(a.id)}" data-ci="${i}">
+      <div class="art-tile-portrait">
+        ${a.image
+          ? `<img src="${esc(a.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
+          : `<span class="art-tile-glyph">${cursed?'⛧':'✟'}</span>`}
+        <span class="art-tile-typebadge">${cursed?'CURSED':'HOLY'}</span>
+      </div>
+      <div class="art-tile-body">
+        <div class="art-tile-name">${esc(a.name || 'Unnamed artifact')}</div>
+        <div class="art-tile-meta">
+          ${entityChip}
+          ${holdBy}
         </div>
-        ${summary?`<div class="cc-summary">${summary}</div>`:''}
-      </button>
-      <div class="cc-body">
-        <div class="cc-grid">
-          <label class="cc-field">
+      </div>
+      <span class="art-tile-open">↗</span>
+    </button>`;
+  }).join('');
+
+  host.querySelectorAll('.art-tile').forEach(t => {
+    t.addEventListener('click', () => openArtifactSheet(t.dataset.artid));
+  });
+}
+
+// ================================================================
+// ARTIFACT (COMPASS) STAT SHEET — click-to-open overlay
+// One authoritative editor per artifact. Same pattern as beasts:
+// the tile is a summary; all editing happens here.
+// ================================================================
+let _openArtifactId = null;
+
+function openArtifactSheet(artId){
+  const c = getChar(); if(!c) return;
+  const a = (c.compass||[]).find(x => x.id === artId); if(!a) return;
+  _openArtifactId = artId;
+  renderArtifactSheet();
+  const overlay = el('artifactSheetOverlay');
+  if(overlay){
+    overlay.classList.add('open');
+    setTimeout(() => overlay.querySelector('.ash-name')?.focus(), 40);
+  }
+}
+function closeArtifactSheet(){
+  _openArtifactId = null;
+  const overlay = el('artifactSheetOverlay');
+  if(overlay) overlay.classList.remove('open');
+}
+function renderArtifactSheet(){
+  if(!_openArtifactId) return;
+  const c = getChar(); if(!c) { closeArtifactSheet(); return; }
+  const idx = (c.compass||[]).findIndex(x => x.id === _openArtifactId);
+  if(idx < 0){ closeArtifactSheet(); return; }
+  const a = c.compass[idx];
+  const editable = canEditCompass();
+  const ro  = editable ? '' : 'readonly tabindex="-1"';
+  const dis = editable ? '' : 'disabled';
+  const cursed = a.type === 'cursed';
+  const angel  = a.entityKind === 'angel';
+  const body = el('artifactSheetBody'); if(!body) return;
+
+  body.innerHTML = `
+    <div class="ash-head ${cursed?'cursed':'holy'}">
+      <div class="ash-portrait${a.image?'':' no-img'}">
+        ${a.image
+          ? `<img src="${esc(a.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
+          : `<span class="ash-glyph">${cursed?'⛧':'✟'}</span>`}
+      </div>
+      <div class="ash-title-wrap">
+        <div class="ash-kind">${cursed?'Cursed Tool':'Holy Armament'}</div>
+        <input class="ash-name" data-af="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro}>
+        ${a.entityName ? `<div class="ash-entity ${angel?'angel':'demon'}"><span>${angel?'✟':'⛧'}</span> ${esc(a.entityName)}${a.entityTitle?` · <em>${esc(a.entityTitle)}</em>`:''}</div>` : ''}
+      </div>
+      <div class="ash-actions">
+        ${editable?`<button class="ash-del" title="Delete artifact">🗑</button>`:''}
+        <button class="ash-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="ash-body">
+      ${editable ? `
+        <div class="ash-row-two">
+          <label class="ash-field">
             <span>Type</span>
-            <select class="cc-input" data-ci="${i}" data-cf="type" ${dis}>
+            <select class="ash-input" data-af="type" ${dis}>
               <option value="holy" ${!cursed?'selected':''}>Holy Armament</option>
               <option value="cursed" ${cursed?'selected':''}>Cursed Tool</option>
             </select>
           </label>
-          <label class="cc-field">
+          <label class="ash-field">
             <span>Connected Entity</span>
-            <select class="cc-input" data-ci="${i}" data-cf="entityKind" ${dis}>
+            <select class="ash-input" data-af="entityKind" ${dis}>
               <option value="demon" ${!angel?'selected':''}>Demon</option>
               <option value="angel" ${angel?'selected':''}>Angel</option>
             </select>
           </label>
-          <label class="cc-field cc-wide">
-            <span>Effect</span>
-            <textarea class="cc-input cc-effect" data-ci="${i}" data-cf="effect" placeholder="What does it do? What does it cost?" ${ro}>${esc(a.effect)}</textarea>
-          </label>
-          <label class="cc-field">
-            <span>Original Owner</span>
-            <input class="cc-input" data-ci="${i}" data-cf="originalOwner" value="${esc(a.originalOwner)}" placeholder="Who forged or first bore it?" ${ro}>
-          </label>
-          <label class="cc-field">
-            <span>Current Owner</span>
-            <input class="cc-input" data-ci="${i}" data-cf="currentOwner" value="${esc(a.currentOwner)}" placeholder="Who carries it now?" ${ro}>
-          </label>
-          <label class="cc-field">
-            <span>Entity Name</span>
-            <input class="cc-input" data-ci="${i}" data-cf="entityName" value="${esc(a.entityName)}" placeholder="${angel?'e.g. Raziel':'e.g. Vassago'}" ${ro}>
-          </label>
-          <label class="cc-field">
-            <span>Entity Title</span>
-            <input class="cc-input" data-ci="${i}" data-cf="entityTitle" value="${esc(a.entityTitle)}" placeholder="${angel?'e.g. Keeper of Secrets':'e.g. The Hollow Choir'}" ${ro}>
-          </label>
         </div>
+        <label class="ash-field">
+          <span>Image URL</span>
+          <input class="ash-input" data-af="image" value="${esc(a.image)}" placeholder="https://…" ${ro}>
+        </label>
+      ` : ''}
+      <label class="ash-field">
+        <span>Effect</span>
+        <textarea class="ash-input ash-effect" data-af="effect" placeholder="What does it do? What does it cost?" ${ro}>${esc(a.effect)}</textarea>
+      </label>
+      <div class="ash-row-two">
+        <label class="ash-field">
+          <span>Original Owner</span>
+          <input class="ash-input" data-af="originalOwner" value="${esc(a.originalOwner)}" placeholder="Who forged or first bore it?" ${ro}>
+        </label>
+        <label class="ash-field">
+          <span>Current Owner</span>
+          <input class="ash-input" data-af="currentOwner" value="${esc(a.currentOwner)}" placeholder="Who carries it now?" ${ro}>
+        </label>
+      </div>
+      <div class="ash-row-two">
+        <label class="ash-field">
+          <span>Entity Name</span>
+          <input class="ash-input" data-af="entityName" value="${esc(a.entityName)}" placeholder="${angel?'e.g. Raziel':'e.g. Vassago'}" ${ro}>
+        </label>
+        <label class="ash-field">
+          <span>Entity Title</span>
+          <input class="ash-input" data-af="entityTitle" value="${esc(a.entityTitle)}" placeholder="${angel?'e.g. Keeper of Secrets':'e.g. The Hollow Choir'}" ${ro}>
+        </label>
       </div>
     </div>`;
-  }).join('');
 
-  // Toggle handler works for everyone (players read; DM edits) — collapsing
-  // is a viewer-side affordance, not a permission-gated action.
-  host.querySelectorAll('.cc-toggle').forEach(btn => {
-    btn.addEventListener('click', e => {
-      // clicks on the inline name input / delete button already stop propagation
-      const cid = btn.dataset.cid;
-      if(_compassExpanded.has(cid)) _compassExpanded.delete(cid);
-      else _compassExpanded.add(cid);
-      const card = btn.closest('.compass-card');
-      card?.classList.toggle('expanded');
-      btn.setAttribute('aria-expanded', card?.classList.contains('expanded') ? 'true' : 'false');
-    });
-  });
-
-  if(!editable) return;   // no write handlers when locked
-
-  host.querySelectorAll('.cc-input, .cc-name').forEach(inp=>{
-    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
-    inp.addEventListener(ev, e=>{
-      const i = Number(e.target.dataset.ci), f = e.target.dataset.cf;
-      const ch = getChar(); if(!ch.compass?.[i]) return;
-      ch.compass[i][f] = e.target.value;
-      pushState();
-      // type/entity changes restyle the card; refresh summary line too
-      if(f==='type' || f==='entityKind' || f==='entityName' || f==='currentOwner') renderCompass();
-    });
-  });
-  host.querySelectorAll('.cc-del').forEach(b=> b.addEventListener('click', ()=>{
-    const i = Number(b.dataset.ci);
-    const ch = getChar();
-    const nm = ch.compass?.[i]?.name || 'this artifact';
-    if(!confirm(`Remove ${nm} from ${ch.name||'this Hunter'}?`)) return;
+  body.querySelector('.ash-close')?.addEventListener('click', closeArtifactSheet);
+  body.querySelector('.ash-del')?.addEventListener('click', () => {
+    const nm = a.name || 'this artifact';
+    if(!confirm(`Remove ${nm} from ${c.name||'this Hunter'}?`)) return;
     pushUndo(`Removed artifact "${nm}"`);
-    ch.compass.splice(i,1);
+    c.compass.splice(idx, 1);
+    closeArtifactSheet();
     pushState(true); renderCompass();
-  }));
+  });
+
+  if(!editable) return;
+
+  const target = () => {
+    const cc = getChar(); if(!cc) return null;
+    return (cc.compass||[]).find(x => x.id === _openArtifactId);
+  };
+  body.querySelectorAll('.ash-input, .ash-name').forEach(inp => {
+    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+    inp.addEventListener(ev, e => {
+      const t = target(); if(!t) return;
+      t[e.target.dataset.af] = e.target.value;
+      pushState();
+      // fields that change chrome need a re-render
+      if(['type','entityKind','entityName','entityTitle','name','image','currentOwner'].includes(e.target.dataset.af)){
+        renderArtifactSheet(); renderCompass();
+      }
+    });
+  });
 }
+// Backdrop / Escape close
+document.addEventListener('click', e => {
+  if(e.target?.id === 'artifactSheetOverlay') closeArtifactSheet();
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && _openArtifactId) closeArtifactSheet();
+});
 
 // ================================================================
 // BESTIARY — shared field index (campaign-wide, DM-managed)
@@ -3604,6 +3711,24 @@ function showDmPage(){
 function showDiceResult(label, res){
   if(!res) return;
   broadcastRoll(label, res);       // share with the table (fire-and-forget)
+  // Feed the DM's roll log — one entry per resolved roll
+  try {
+    if (res.nat !== undefined) {
+      const rollDetail = (res.mode==='adv'||res.mode==='dis')
+        ? `d20 ${res.mode}[${res.both[0]},${res.both[1]}]→${res.nat}${res.modifier>=0?' +':' '}${res.modifier}`
+        : `d20→${res.nat}${res.modifier>=0?' +':' '}${res.modifier}`;
+      addRollLog({
+        who: label.split(' · ')[0] || label,
+        formula: label.includes(' · ') ? label.split(' · ').slice(1).join(' · ') + ' · ' + rollDetail : rollDetail,
+        result: res.total,
+        crit: res.nat === 20,
+        kind: /Save/i.test(label) ? 'save' : /Attack|Damage/i.test(label) ? 'roll' : 'skill'
+      });
+    } else if (Array.isArray(res.parts)) {
+      const bd = res.parts.map(p => p.type==='dice' ? `${p.sign<0?'−':''}${p.count}d${p.sides}[${p.rolls.join(',')}]` : `${p.value>=0?'+':''}${p.value}`).join(' ');
+      addRollLog({ who: 'Dice', formula: `${label} · ${bd}`, result: res.total, kind:'roll' });
+    }
+  } catch(e) {}
   const panel = el('diceResultArea'); if(!panel) return;
   if(res.nat!==undefined){
     const crit = res.nat===20 ? ' crit' : (res.nat===1 ? ' fumble' : '');
@@ -3816,8 +3941,10 @@ function render() {
     try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
     try { renderDmBestiaries(); }    catch(e) { console.error('renderDmBestiaries:', e); }
   }
-  // Beast stat-sheet overlay stays in sync with remote edits
-  if (_openBeastKey) { try { renderBeastSheet(); } catch(e) { console.error('renderBeastSheet:', e); } }
+  try { renderCombatSuite(); } catch(e) { console.error('renderCombatSuite:', e); }
+  // Overlays stay in sync with remote edits
+  if (_openBeastKey)   { try { renderBeastSheet(); }    catch(e) { console.error('renderBeastSheet:', e); } }
+  if (_openArtifactId) { try { renderArtifactSheet(); } catch(e) { console.error('renderArtifactSheet:', e); } }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
   try { pushPresence(); }          catch(e) {}
   try { if (spectator) disableAllInputs(); } catch(e) {}
@@ -4158,6 +4285,10 @@ function bindAll() {
       if (tab === 'commend')    { renderDmCommendations(); }
       if (tab === 'curse')      { renderCurseTargetSelect(); }
       if (tab === 'bestiaries') { renderDmBestiaries(); }
+      if (tab === 'initiative') { renderInitiativeTracker(); }
+      if (tab === 'damagebus')  { renderDamageBus(); }
+      if (tab === 'rolllog')    { renderRollLog(); }
+      if (tab === 'players')    { renderDmPerCharPanels(); }
     });
   });
 
@@ -4905,6 +5036,597 @@ function addSessionEntry(){
   pushState(true); renderSessionLog(); renderHeader();
   showToast(lien>0?`Session logged · +${fmtMoney(lien)} Lien to the party`:'Session logged','success');
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// COMBAT & SESSION SUITE (July 2026)
+// Initiative tracker · Damage bus · Roll log · Rest system ·
+// Concentration · Inspiration · DM notes · Damage-type resistances
+// ═══════════════════════════════════════════════════════════════════
+
+// The catalog every damage-typed system reads from. Grouped so the
+// resistances editor can render as three tidy rows.
+const DAMAGE_TYPES = [
+  {id:'slashing',    label:'Slashing',    group:'physical', icon:'⚔'},
+  {id:'piercing',    label:'Piercing',    group:'physical', icon:'🗡'},
+  {id:'bludgeoning', label:'Bludgeoning', group:'physical', icon:'🔨'},
+  {id:'fire',        label:'Fire',        group:'element',  icon:'🔥'},
+  {id:'cold',        label:'Cold',        group:'element',  icon:'❄'},
+  {id:'lightning',   label:'Lightning',   group:'element',  icon:'⚡'},
+  {id:'thunder',     label:'Thunder',     group:'element',  icon:'💥'},
+  {id:'acid',        label:'Acid',        group:'element',  icon:'🧪'},
+  {id:'poison',      label:'Poison',      group:'element',  icon:'☠'},
+  {id:'force',       label:'Force',       group:'special',  icon:'💫'},
+  {id:'necrotic',    label:'Necrotic',    group:'special',  icon:'💀'},
+  {id:'radiant',     label:'Radiant',     group:'special',  icon:'✨'},
+  {id:'psychic',     label:'Psychic',     group:'special',  icon:'🧠'},
+  {id:'aura',        label:'Aura Drain',  group:'special',  icon:'🛡'}
+];
+const DAMAGE_TYPE_BY_ID = Object.fromEntries(DAMAGE_TYPES.map(d=>[d.id,d]));
+
+// ── CORE: damage application with resistance resolution ────────────
+// Returns the actual damage dealt after resistances/vulns/immunities.
+// Applies to temp HP first, then HP. Aura damage bypasses temp HP.
+// Triggers concentration prompt and death-save state as needed.
+function applyDamageToChar(charId, rawAmount, dmgType, opts){
+  const c = state.characters.find(x => x.id === charId); if(!c) return 0;
+  const dmg = Math.max(0, Math.floor(Number(rawAmount) || 0));
+  if (!dmg) return 0;
+  opts = opts || {};
+
+  // Resistance resolution — immune first (0), then vuln×2, then resist÷2
+  let final = dmg;
+  const resList = Array.isArray(c.resistances)     ? c.resistances     : [];
+  const vulList = Array.isArray(c.vulnerabilities) ? c.vulnerabilities : [];
+  const immList = Array.isArray(c.immunities)      ? c.immunities      : [];
+  let flag = '';
+  if (dmgType && immList.includes(dmgType)) { final = 0;         flag = 'IMMUNE'; }
+  else if (dmgType && vulList.includes(dmgType)) { final = dmg * 2; flag = 'VULNERABLE ×2'; }
+  else if (dmgType && resList.includes(dmgType)) { final = Math.floor(dmg / 2); flag = 'RESISTED ÷2'; }
+
+  // Aura damage bypasses temp HP and hits aura directly
+  if (dmgType === 'aura') {
+    c.aura.current = Math.max(0, (c.aura.current || 0) - final);
+  } else {
+    const tmp = Number(c.tempHp) || 0;
+    const absorbed = Math.min(tmp, final);
+    c.tempHp = tmp - absorbed;
+    c.hp.current = Math.max(0, (c.hp.current || 0) - (final - absorbed));
+    // Death saves reset when taking damage above 0? no — only awake chars concentrate
+    // If HP hits 0, wipe death saves so the downed overlay reflects fresh state
+    if (c.hp.current <= 0 && (!c.deathSaves || c.deathSaves.stable)) {
+      c.deathSaves = { successes:0, failures:0, stable:false };
+    }
+    // If already downed (unconscious) and hit for damage, add a failed save (crit = 2)
+    if (c.hp.current <= 0 && c.hp.max > 0) {
+      c.deathSaves = c.deathSaves || {successes:0, failures:0, stable:false};
+      c.deathSaves.failures = Math.min(3, (c.deathSaves.failures||0) + (opts.crit?2:1));
+      c.deathSaves.stable = false;
+    }
+  }
+
+  ensureClamp(c);
+
+  // Log the hit into the roll log (dmg is a form of resolution worth tracking)
+  addRollLog({
+    who: c.name || 'Unnamed',
+    formula: `${dmg}${dmgType ? ' ' + (DAMAGE_TYPE_BY_ID[dmgType]?.label || dmgType) : ''}${flag ? ' · '+flag : ''}${opts.crit?' · CRIT':''}`,
+    result: final,
+    kind: 'damage'
+  });
+
+  // Concentration prompt — 5e rule: CON save DC = max(10, damage/2)
+  if (c.concentration?.active && final > 0 && dmgType !== 'aura') {
+    const dc = Math.max(10, Math.floor(final / 2));
+    // Flag it: DM sees a prompt on next render
+    c._concCheck = { dc, ts: Date.now() };
+  }
+
+  return final;
+}
+
+// ── CORE: roll log ─────────────────────────────────────────────────
+const ROLL_LOG_MAX = 60;
+function addRollLog(entry){
+  if(!Array.isArray(state.rollLog)) state.rollLog = [];
+  state.rollLog.unshift({
+    id: 'r-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
+    ts: Date.now(),
+    who: String(entry.who || '—'),
+    formula: String(entry.formula || ''),
+    result: String(entry.result ?? ''),
+    crit: !!entry.crit,
+    kind: entry.kind || 'roll'    // 'roll' | 'damage' | 'save' | 'skill'
+  });
+  if (state.rollLog.length > ROLL_LOG_MAX) state.rollLog.length = ROLL_LOG_MAX;
+  pushState();
+  try { if (dmUnlocked) renderRollLog(); } catch(e) {}
+}
+
+// ═════════════════════════════════════════════════════════════════
+// A. INITIATIVE TRACKER
+// ═════════════════════════════════════════════════════════════════
+function renderInitiativeTracker(){
+  const host = el('dmInitiativeRoot'); if(!host || !dmUnlocked) return;
+  const ini = state.initiative || (state.initiative = {active:false, round:1, turnIdx:0, entries:[]});
+  const sorted = [...ini.entries].sort((a,b) => b.init - a.init);
+  ini.entries = sorted;   // canonical order = descending init
+  const activeId = ini.active && sorted[ini.turnIdx] ? sorted[ini.turnIdx].id : null;
+
+  const chars = state.characters.filter(c => c.state === 'active');
+  const bestiaryOpts = (state.bestiaries||[])
+    .flatMap(bx => (bx.entries||[]).map(e => ({bxName: bx.name, name: e.name || 'unnamed', hp: (e.stats?.CON||10)*2, ac: 12})));
+
+  host.innerHTML = `
+    <div class="dm-ini-shell">
+      <div class="dm-ini-head">
+        <div class="dm-ini-status ${ini.active?'active':''}">
+          ${ini.active
+            ? `<span class="dm-ini-round">ROUND ${ini.round}</span><span class="dm-ini-turnlbl">TURN</span>`
+            : `<span class="dm-ini-off">COMBAT · OFF</span>`}
+        </div>
+        <div class="dm-ini-actions">
+          ${ini.active
+            ? `<button class="neo-btn small" id="iniNext">▶ Next Turn</button>
+               <button class="neo-btn ghost small" id="iniEnd">■ End Combat</button>`
+            : `<button class="neo-btn small" id="iniStart" ${sorted.length?'':'disabled'}>▶ Start Combat</button>`}
+        </div>
+      </div>
+
+      <div class="dm-ini-add">
+        <div class="dm-ini-add-sec">Add player</div>
+        <div class="dm-ini-add-row">
+          ${chars.length
+            ? chars.map(c => `<button class="dm-ini-quick player" data-addchar="${esc(c.id)}">＋ ${esc(c.name||'Unnamed')}</button>`).join('')
+            : '<span class="dm-empty">No active players</span>'}
+        </div>
+        <div class="dm-ini-add-sec">Add creature / custom</div>
+        <div class="dm-ini-add-row dm-ini-add-form">
+          <input type="text" id="iniName" placeholder="Name" class="dm-ini-input" style="flex:2">
+          <input type="number" id="iniInit" placeholder="Init" class="dm-ini-input" style="width:70px">
+          <input type="number" id="iniHp"   placeholder="HP"   class="dm-ini-input" style="width:70px">
+          <input type="number" id="iniAc"   placeholder="AC"   class="dm-ini-input" style="width:60px">
+          <select id="iniKind" class="dm-ini-input" style="width:100px">
+            <option value="enemy">Enemy</option><option value="ally">Ally</option>
+          </select>
+          <button class="neo-btn small" id="iniAdd">＋ Add</button>
+        </div>
+        ${bestiaryOpts.length ? `<div class="dm-ini-add-sec">From bestiary</div>
+          <div class="dm-ini-add-row"><select id="iniFromBeast" class="dm-ini-input" style="flex:1">
+            <option value="">— pick a creature —</option>
+            ${bestiaryOpts.map((b,ix)=>`<option value="${ix}">${esc(b.name)} · ${esc(b.bxName)}</option>`).join('')}
+          </select>
+          <input type="number" id="iniFromBeastInit" placeholder="Init roll" class="dm-ini-input" style="width:90px">
+          <button class="neo-btn small" id="iniAddBeast">＋ Add</button></div>` : ''}
+      </div>
+
+      <div class="dm-ini-list">
+        ${sorted.length ? sorted.map((e,ix) => {
+          const c = e.charId ? state.characters.find(x => x.id === e.charId) : null;
+          const hp = c ? c.hp.current : e.hp;
+          const maxHp = c ? c.hp.max : e.maxHp;
+          const dead = maxHp > 0 && hp <= 0;
+          const isActive = e.id === activeId;
+          return `<div class="dm-ini-row ${e.kind} ${isActive?'active':''} ${dead?'dead':''}" data-eid="${esc(e.id)}">
+            <div class="dm-ini-init">${e.init}</div>
+            <div class="dm-ini-name">${esc(e.name)}${c?'<span class="dm-ini-linkbadge">P</span>':''}${dead?'<span class="dm-ini-deadmark">DOWN</span>':''}</div>
+            <div class="dm-ini-hp">${hp}${maxHp?'<span class="dm-ini-hpmax">/'+maxHp+'</span>':''}</div>
+            <div class="dm-ini-ac">${e.ac ? 'AC '+e.ac : ''}</div>
+            <div class="dm-ini-ctrl">
+              <button class="dm-ini-btn" data-inibump="-1" data-eid="${esc(e.id)}" title="HP -1">−</button>
+              <button class="dm-ini-btn" data-inibump="+1" data-eid="${esc(e.id)}" title="HP +1">+</button>
+              <button class="dm-ini-btn del" data-inidel="${esc(e.id)}" title="Remove">✕</button>
+            </div>
+          </div>`;
+        }).join('') : '<div class="dm-empty">Add combatants above to build the initiative order.</div>'}
+      </div>
+    </div>
+  `;
+
+  el('iniStart')?.addEventListener('click', () => {
+    ini.active = true; ini.round = 1; ini.turnIdx = 0;
+    pushState(true); renderInitiativeTracker();
+    addRollLog({ who:'⚔ Combat', formula:'Round 1', result:'START', kind:'roll' });
+  });
+  el('iniEnd')?.addEventListener('click', () => {
+    ini.active = false; ini.turnIdx = 0; ini.round = 1;
+    pushState(true); renderInitiativeTracker();
+    addRollLog({ who:'⚔ Combat', formula:'ended', result:'END', kind:'roll' });
+  });
+  el('iniNext')?.addEventListener('click', () => {
+    if (!ini.entries.length) return;
+    ini.turnIdx = (ini.turnIdx + 1) % ini.entries.length;
+    if (ini.turnIdx === 0) ini.round += 1;
+    pushState(true); renderInitiativeTracker();
+  });
+  el('iniAdd')?.addEventListener('click', () => {
+    const nm = (el('iniName')?.value||'').trim();
+    const iv = Number(el('iniInit')?.value)||0;
+    if(!nm){ showToast('Give the combatant a name','warn'); return; }
+    ini.entries.push({
+      id: 'init-' + Date.now(),
+      name: nm, init: iv,
+      hp: Number(el('iniHp')?.value)||0,
+      maxHp: Number(el('iniHp')?.value)||0,
+      ac: Number(el('iniAc')?.value)||0,
+      kind: el('iniKind')?.value || 'enemy',
+      charId: '', note: ''
+    });
+    ['iniName','iniInit','iniHp','iniAc'].forEach(id => { const e=el(id); if(e) e.value=''; });
+    pushState(true); renderInitiativeTracker();
+  });
+  host.querySelectorAll('[data-addchar]').forEach(b => b.addEventListener('click', () => {
+    const c = state.characters.find(x => x.id === b.dataset.addchar); if(!c) return;
+    const init = mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus||0) + (10 + Math.floor(Math.random()*10) + 1); // rough roll
+    ini.entries.push({
+      id: 'init-' + Date.now(),
+      name: c.name || 'Hunter', init,
+      hp: c.hp.current, maxHp: c.hp.max, ac: c.armor || 0,
+      kind: 'player', charId: c.id, note: ''
+    });
+    pushState(true); renderInitiativeTracker();
+  }));
+  el('iniAddBeast')?.addEventListener('click', () => {
+    const ix = Number(el('iniFromBeast')?.value);
+    if (isNaN(ix)) return;
+    const b = bestiaryOpts[ix]; if(!b) return;
+    const roll = Number(el('iniFromBeastInit')?.value) || (10 + Math.floor(Math.random()*20)+1);
+    ini.entries.push({
+      id: 'init-' + Date.now(),
+      name: b.name, init: roll,
+      hp: b.hp, maxHp: b.hp, ac: b.ac,
+      kind: 'enemy', charId: '', note: ''
+    });
+    if(el('iniFromBeastInit')) el('iniFromBeastInit').value='';
+    pushState(true); renderInitiativeTracker();
+  });
+  host.querySelectorAll('[data-inibump]').forEach(b => b.addEventListener('click', () => {
+    const e = ini.entries.find(x => x.id === b.dataset.eid); if(!e) return;
+    const delta = Number(b.dataset.inibump);
+    if (e.charId) {
+      const c = state.characters.find(x => x.id === e.charId);
+      if (c) { c.hp.current = Math.max(0, Math.min(c.hp.max, c.hp.current + delta)); ensureClamp(c); }
+    } else {
+      e.hp = Math.max(0, Math.min(e.maxHp || 999, e.hp + delta));
+    }
+    pushState(true); renderInitiativeTracker(); render();
+  }));
+  host.querySelectorAll('[data-inidel]').forEach(b => b.addEventListener('click', () => {
+    ini.entries = ini.entries.filter(x => x.id !== b.dataset.inidel);
+    if (ini.turnIdx >= ini.entries.length) ini.turnIdx = 0;
+    pushState(true); renderInitiativeTracker();
+  }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// B. DAMAGE BUS — quick damage/healing application by DM
+// ═════════════════════════════════════════════════════════════════
+let _dmgBusState = { targets: new Set(), amount:'', type:'', crit:false, heal:false };
+
+function renderDamageBus(){
+  const host = el('dmDamageBusRoot'); if(!host || !dmUnlocked) return;
+  const chars = state.characters.filter(c => c.state !== 'dead');
+
+  host.innerHTML = `
+    <div class="dm-bus-shell">
+      <div class="dm-bus-form">
+        <div class="dm-bus-title">Apply Damage / Healing</div>
+        <div class="dm-bus-row">
+          <label class="dm-bus-field" style="flex:1;min-width:120px">
+            <span>Amount</span>
+            <input type="text" id="busAmount" value="${esc(_dmgBusState.amount)}" placeholder="e.g. 18 or 3d8+5" class="dm-bus-input">
+          </label>
+          <label class="dm-bus-field" style="flex:1;min-width:140px">
+            <span>Damage type</span>
+            <select id="busType" class="dm-bus-input">
+              <option value="">— untyped —</option>
+              ${DAMAGE_TYPES.map(d => `<option value="${d.id}" ${_dmgBusState.type===d.id?'selected':''}>${d.icon} ${d.label}</option>`).join('')}
+            </select>
+          </label>
+          <label class="dm-bus-flag">
+            <input type="checkbox" id="busCrit" ${_dmgBusState.crit?'checked':''}>
+            <span>Crit</span>
+          </label>
+          <label class="dm-bus-flag">
+            <input type="checkbox" id="busHeal" ${_dmgBusState.heal?'checked':''}>
+            <span>Healing instead</span>
+          </label>
+        </div>
+      </div>
+      <div class="dm-bus-targets">
+        <div class="dm-bus-title">Target(s)</div>
+        <div class="dm-bus-target-grid">
+          ${chars.map(c => {
+            const on = _dmgBusState.targets.has(c.id);
+            return `<label class="dm-bus-target${on?' on':''}" data-cid="${esc(c.id)}">
+              <input type="checkbox" class="dm-bus-tgcb" data-cid="${esc(c.id)}" ${on?'checked':''}>
+              <span class="dm-bus-tgname">${esc(c.name||'Unnamed')}</span>
+              <span class="dm-bus-tgstats">HP ${c.hp.current}/${c.hp.max} · AC ${c.armor||0}</span>
+            </label>`;
+          }).join('')}
+        </div>
+        <div class="dm-bus-target-quick">
+          <button class="neo-btn ghost small" id="busAll">All active</button>
+          <button class="neo-btn ghost small" id="busNone">Clear</button>
+        </div>
+      </div>
+      <div class="dm-bus-apply">
+        <button class="neo-btn ${_dmgBusState.heal?'':'danger'}" id="busApply">${_dmgBusState.heal?'✚ Heal':'💥 Apply damage'}</button>
+      </div>
+    </div>
+  `;
+
+  const store = () => {
+    _dmgBusState.amount = el('busAmount')?.value || '';
+    _dmgBusState.type   = el('busType')?.value || '';
+    _dmgBusState.crit   = !!el('busCrit')?.checked;
+    _dmgBusState.heal   = !!el('busHeal')?.checked;
+  };
+  el('busAmount')?.addEventListener('input', store);
+  el('busType')?.addEventListener('change', store);
+  el('busCrit')?.addEventListener('change', () => { store(); });
+  el('busHeal')?.addEventListener('change', () => { store(); renderDamageBus(); });
+  host.querySelectorAll('.dm-bus-tgcb').forEach(cb => cb.addEventListener('change', e => {
+    const cid = e.target.dataset.cid;
+    if (e.target.checked) _dmgBusState.targets.add(cid);
+    else _dmgBusState.targets.delete(cid);
+    e.target.closest('.dm-bus-target').classList.toggle('on', e.target.checked);
+  }));
+  el('busAll')?.addEventListener('click', () => {
+    chars.forEach(c => _dmgBusState.targets.add(c.id));
+    renderDamageBus();
+  });
+  el('busNone')?.addEventListener('click', () => { _dmgBusState.targets.clear(); renderDamageBus(); });
+  el('busApply')?.addEventListener('click', () => {
+    store();
+    if (!_dmgBusState.targets.size) { showToast('Pick at least one target', 'warn'); return; }
+    const amount = evalMathInput(_dmgBusState.amount);
+    if (!amount || amount <= 0) { showToast('Enter a positive number or math expression', 'warn'); return; }
+    pushUndo(_dmgBusState.heal ? `Healed ${_dmgBusState.targets.size} target(s)` : `Damaged ${_dmgBusState.targets.size} target(s)`);
+
+    _dmgBusState.targets.forEach(cid => {
+      const c = state.characters.find(x => x.id === cid); if(!c) return;
+      if (_dmgBusState.heal) {
+        c.hp.current = Math.min(c.hp.max, (c.hp.current || 0) + amount);
+        // Healing above 0 clears death saves
+        if (c.hp.current > 0 && c.deathSaves) c.deathSaves = { successes:0, failures:0, stable:false };
+        addRollLog({ who: c.name, formula: `+${amount} healing`, result: c.hp.current, kind: 'heal' });
+        try { flashCharCard(c.id, 'heal'); } catch(e){}
+      } else {
+        const dealt = applyDamageToChar(cid, amount, _dmgBusState.type, { crit: _dmgBusState.crit });
+        try { flashCharCard(c.id, 'damage'); } catch(e){}
+      }
+    });
+    pushState(true); render();
+    _dmgBusState.amount = ''; renderDamageBus();
+    showToast(_dmgBusState.heal ? 'Healed' : 'Damage applied', 'success');
+  });
+}
+
+// Little one-shot flash on a character card when they take damage/heal.
+// Purely visual. Requires the card to expose data-cid.
+function flashCharCard(charId, kind){
+  document.querySelectorAll(`[data-cardcid="${charId}"]`).forEach(el => {
+    el.classList.remove('flash-damage','flash-heal');
+    void el.offsetWidth;
+    el.classList.add(kind === 'heal' ? 'flash-heal' : 'flash-damage');
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// G. ROLL HISTORY LOG
+// ═════════════════════════════════════════════════════════════════
+function renderRollLog(){
+  const host = el('dmRollLogRoot'); if(!host || !dmUnlocked) return;
+  const log = Array.isArray(state.rollLog) ? state.rollLog : [];
+
+  host.innerHTML = `
+    <div class="dm-rlog-shell">
+      <div class="dm-rlog-head">
+        <div class="dm-rlog-title">Roll Log <span class="dm-rlog-count">${log.length}</span></div>
+        <div class="dm-rlog-actions">
+          <button class="neo-btn ghost small" id="rlogClear">🗑 Clear</button>
+        </div>
+      </div>
+      <div class="dm-rlog-list">
+        ${log.length ? log.map(r => {
+          const t = new Date(r.ts);
+          const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+          const kindCls = `k-${r.kind || 'roll'}`;
+          return `<div class="dm-rlog-row ${kindCls} ${r.crit?'crit':''}">
+            <div class="dm-rlog-time">${time}</div>
+            <div class="dm-rlog-who">${esc(r.who)}</div>
+            <div class="dm-rlog-formula">${esc(r.formula)}</div>
+            <div class="dm-rlog-result">${esc(String(r.result))}${r.crit?' 💥':''}</div>
+          </div>`;
+        }).join('') : '<div class="dm-empty" style="padding:1.5rem">No rolls logged yet.</div>'}
+      </div>
+    </div>
+  `;
+  el('rlogClear')?.addEventListener('click', () => {
+    if (!confirm('Clear the entire roll log?')) return;
+    state.rollLog = []; pushState(true); renderRollLog();
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// F. DM's PRIVATE NOTES per character
+// L. DAMAGE RESISTANCES / VULNERABILITIES / IMMUNITIES per character
+//    Both live inline on the DM Players tab (rendered per-character card)
+// ═════════════════════════════════════════════════════════════════
+function renderDmPerCharPanels(){
+  if(!dmUnlocked) return;
+  const root = el('dmPerCharRoot'); if(!root) return;
+  root.innerHTML = state.characters.filter(c => c.state !== 'dead').map(c => {
+    const rows = ['resistances','vulnerabilities','immunities'].map(kind => {
+      const set = new Set(Array.isArray(c[kind]) ? c[kind] : []);
+      const lbl = kind === 'resistances' ? 'Resistant ÷2'
+                : kind === 'vulnerabilities' ? 'Vulnerable ×2'
+                : 'Immune (0 dmg)';
+      const cls = kind === 'resistances' ? 'res' : kind === 'vulnerabilities' ? 'vul' : 'imm';
+      return `<div class="dm-res-row">
+        <div class="dm-res-label ${cls}">${lbl}</div>
+        <div class="dm-res-cells">
+          ${DAMAGE_TYPES.map(d => {
+            const on = set.has(d.id);
+            return `<label class="dm-res-cell${on?' on':''}" title="${d.label}" data-restype="${kind}" data-cid="${esc(c.id)}" data-dtype="${d.id}">
+              <input type="checkbox" ${on?'checked':''}>
+              <span class="dm-res-icon">${d.icon}</span>
+            </label>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<details class="dm-charpanel" data-cpcid="${esc(c.id)}">
+      <summary><span class="dm-charpanel-name">${esc(c.name||'Unnamed')}</span>
+        <span class="dm-charpanel-state">${esc(c.state||'active')}</span></summary>
+      <div class="dm-charpanel-body">
+        <div class="dm-charpanel-sec">Damage-type profile</div>
+        <p class="dm-hint" style="margin:.1rem 0 .5rem">These feed the Damage Bus. Click a damage type in a row to toggle it.</p>
+        ${rows}
+        <div class="dm-charpanel-sec">Private DM notes</div>
+        <p class="dm-hint" style="margin:.1rem 0 .5rem">Only visible in DM mode. Backstory hooks, secrets, plot bombs.</p>
+        <textarea class="dm-charpanel-notes" data-dmnotescid="${esc(c.id)}" placeholder="Only DMs see this…">${esc(c.dmNotes||'')}</textarea>
+      </div>
+    </details>`;
+  }).join('') || '<div class="dm-empty">No active characters.</div>';
+
+  root.querySelectorAll('[data-restype]').forEach(cell => {
+    cell.addEventListener('click', e => {
+      if (e.target.tagName !== 'INPUT') {
+        e.preventDefault();
+        const cb = cell.querySelector('input');
+        cb.checked = !cb.checked;
+      }
+      const c = state.characters.find(x => x.id === cell.dataset.cid); if(!c) return;
+      const kind = cell.dataset.restype;
+      const list = Array.isArray(c[kind]) ? c[kind] : [];
+      const dtype = cell.dataset.dtype;
+      const idx = list.indexOf(dtype);
+      if (cell.querySelector('input').checked) { if (idx<0) list.push(dtype); }
+      else { if (idx>=0) list.splice(idx, 1); }
+      c[kind] = list;
+      cell.classList.toggle('on', cell.querySelector('input').checked);
+      pushState();
+    });
+  });
+  root.querySelectorAll('[data-dmnotescid]').forEach(ta => ta.addEventListener('input', e => {
+    const c = state.characters.find(x => x.id === e.target.dataset.dmnotescid); if(!c) return;
+    c.dmNotes = e.target.value; pushState();
+  }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// E. CONCENTRATION · J. REST · M. INSPIRATION
+// Rendered inline on the character sheet's header area
+// ═════════════════════════════════════════════════════════════════
+function renderCombatStatusChips(){
+  const c = getChar(); if(!c) return;
+  const host = el('combatStatusChips'); if(!host) return;
+  const editable = !spectator;
+
+  const conc = c.concentration || {active:false, source:''};
+  const insp = Math.max(0, Number(c.inspiration)||0);
+
+  host.innerHTML = `
+    <div class="csc-row">
+      <button type="button" class="csc-chip conc ${conc.active?'on':''}" id="cscConcToggle" ${editable?'':'disabled'} title="Toggle concentration">
+        <span class="csc-icon">🌀</span>
+        <span class="csc-label">Concentrating${conc.active && conc.source ? ' · ' + esc(conc.source) : ''}</span>
+      </button>
+      ${conc.active ? `<input type="text" class="csc-conc-input" id="cscConcSource" placeholder="on what? (Semblance / Spell)" value="${esc(conc.source||'')}" ${editable?'':'readonly'}>` : ''}
+      <div class="csc-chip insp ${insp>0?'on':''}">
+        <span class="csc-icon">✨</span>
+        <span class="csc-label">Inspiration</span>
+        <span class="csc-count">${insp}</span>
+        ${editable?`<button class="csc-mini-btn" data-inspd="-1" title="−">−</button>
+        <button class="csc-mini-btn" data-inspd="+1" title="+">＋</button>`:''}
+      </div>
+      ${editable ? `
+        <button type="button" class="csc-chip rest-short" id="cscShortRest" title="Short Rest — restore Hit Dice, some tech uses">
+          <span class="csc-icon">🛏</span><span class="csc-label">Short Rest</span>
+        </button>
+        <button type="button" class="csc-chip rest-long" id="cscLongRest" title="Long Rest — full HP, full Aura, all uses reset">
+          <span class="csc-icon">🌙</span><span class="csc-label">Long Rest</span>
+        </button>
+      ` : ''}
+    </div>
+    ${c._concCheck ? `<div class="csc-conc-prompt">
+      <span class="csc-conc-prompt-icon">⚠</span>
+      <span>Concentration check! Take a CON save vs <strong>DC ${c._concCheck.dc}</strong>.</span>
+      <button class="neo-btn small" id="cscConcResolve">Dismiss</button>
+    </div>` : ''}
+  `;
+
+  el('cscConcToggle')?.addEventListener('click', () => {
+    c.concentration = c.concentration || {active:false, source:''};
+    c.concentration.active = !c.concentration.active;
+    if (!c.concentration.active) c.concentration.source = '';
+    pushState(true); renderCombatStatusChips();
+  });
+  el('cscConcSource')?.addEventListener('input', e => {
+    c.concentration.source = e.target.value;
+    pushState();
+  });
+  el('cscConcResolve')?.addEventListener('click', () => {
+    delete c._concCheck;
+    pushState(true); renderCombatStatusChips();
+  });
+  host.querySelectorAll('[data-inspd]').forEach(b => b.addEventListener('click', () => {
+    c.inspiration = Math.max(0, (Number(c.inspiration)||0) + Number(b.dataset.inspd));
+    pushState(true); renderCombatStatusChips();
+  }));
+  el('cscShortRest')?.addEventListener('click', () => {
+    if (!confirm(`Take a Short Rest for ${c.name||'this Hunter'}?`)) return;
+    pushUndo(`${c.name||'Hunter'} took a short rest`);
+    doShortRest(c);
+    pushState(true); render();
+    showToast('Short rest complete', 'success');
+  });
+  el('cscLongRest')?.addEventListener('click', () => {
+    if (!confirm(`Take a Long Rest for ${c.name||'this Hunter'}? Restores HP, aura, and all uses.`)) return;
+    pushUndo(`${c.name||'Hunter'} took a long rest`);
+    doLongRest(c);
+    pushState(true); render();
+    showToast('Long rest — fully restored', 'success');
+  });
+}
+
+// Rest math kept intentionally simple. Robert can extend if he wants
+// per-technique short-rest recovery later.
+function doShortRest(c){
+  // Half aura restored (rounded down), tempHp cleared, downed cleared if stable
+  c.aura.current = Math.min(c.aura.max, Math.floor((c.aura.current||0) + (c.aura.max||0)/2));
+  c.tempHp = 0;
+  // No HP restore on short rest (5e uses hit dice — leave to player choice)
+  if (c.hp.current <= 0 && c.deathSaves?.stable) {
+    c.hp.current = 1;
+    c.deathSaves = { successes:0, failures:0, stable:false };
+  }
+  addRollLog({ who: c.name, formula: 'Short Rest', result: `Aura ${c.aura.current}/${c.aura.max}`, kind:'rest' });
+}
+function doLongRest(c){
+  c.hp.current  = c.hp.max;
+  c.aura.current = c.aura.max;
+  c.tempHp = 0;
+  c.deathSaves = { successes:0, failures:0, stable:false };
+  c.concentration = { active:false, source:'' };
+  // Clear conditions on long rest (5e-ish — most conditions end)
+  c.conditions = [];
+  addRollLog({ who: c.name, formula: 'Long Rest', result: 'Full restore', kind:'rest' });
+}
+
+// Hook the combat suite into the main render pipeline
+function renderCombatSuite(){
+  try { renderCombatStatusChips(); } catch(e) { console.error('renderCombatStatusChips:', e); }
+  if (dmUnlocked) {
+    try { renderInitiativeTracker(); } catch(e) { console.error('renderInitiativeTracker:', e); }
+    try { renderDamageBus(); }        catch(e) { console.error('renderDamageBus:', e); }
+    try { renderRollLog(); }          catch(e) { console.error('renderRollLog:', e); }
+    try { renderDmPerCharPanels(); }  catch(e) { console.error('renderDmPerCharPanels:', e); }
+  }
+}
+
 const SHOP_CATEGORIES_RWBY = ['Weapons','Dust','Gear','Consumables','Tech','Upgrades','Rare','General'];
 function fmtMoney(n){ return (Number(n)||0).toLocaleString('en-US'); }
 
@@ -5878,8 +6600,8 @@ el('addCompassBtn')?.addEventListener('click', ()=>{
   pushUndo(`Added artifact to ${c.name||'player'}`);
   const a = COMPASS_BLANK();
   c.compass.push(a);
-  _compassExpanded.add(a.id);  // freshly added → open so the DM can fill it in
   pushState(true); renderCompass();
+  openArtifactSheet(a.id);
 });
 
 // bestiary: add creature (DM only) + live filter — always targets the

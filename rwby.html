@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>RWBY DnD — Remnant</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="rwby.css?v=202606251052">
+<link rel="stylesheet" href="rwby.css?v=202607191100">
 </head>
 <body>
 <button class="sidebar-toggle" id="sidebarToggle">☰</button>
@@ -389,8 +389,9 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="bestiary">
-        <div class="section-title">🐾 Bestiary <span class="section-hint">— shared field index</span></div>
-        <p class="small-note" style="margin-bottom:.9rem">Creatures the party has catalogued. Visible to everyone; the DM maintains it.</p>
+        <div class="section-title">🐾 Bestiary <span class="section-hint">— field notes granted by your DM</span></div>
+        <p class="small-note" style="margin-bottom:.7rem">Every codex you hold is listed below. Different characters can be granted different collections.</p>
+        <div id="bestiarySelector" class="bx-selector"></div>
         <div class="list-search-row">
           <input id="bestiarySearch" class="list-search" type="text" placeholder="🔍 Search creatures…" autocomplete="off">
           <span id="bestiaryCount" class="list-search-count"></span>
@@ -518,14 +519,21 @@
   <!-- FULLSCREEN DM PANEL -->
   <div id="dmFullscreenPanel" class="dm-fullscreen panel hidden">
 
-    <!-- DM HEADER -->
+    <!-- DM HEADER — mission control bar -->
     <div class="dm-header">
-      <div class="dm-header-left">
-        <div class="dm-header-label">DM Panel</div>
-        <div class="dm-header-char" id="dmSelectedCharacterName">—</div>
+      <div class="dm-header-brand">
+        <div class="dm-brand-glyph">⚔</div>
+        <div class="dm-brand-txt">
+          <div class="dm-header-label">Dungeon Master · Ops</div>
+          <div class="dm-header-char" id="dmSelectedCharacterName">—</div>
+        </div>
+      </div>
+      <div class="dm-header-target">
+        <div class="dm-target-label">Target Character</div>
+        <div id="dmTargetPicker" class="dm-target-picker"></div>
       </div>
       <div class="dm-header-actions">
-        <button id="dmBackToSheetBtn" type="button" class="dm-exit-btn">← Back to sheet</button>
+        <button id="dmBackToSheetBtn" type="button" class="dm-exit-btn">← Sheet</button>
         <button id="dmLogoutBtn"    type="button" class="neo-btn ghost small">🔒 Lock</button>
       </div>
     </div>
@@ -533,41 +541,53 @@
     <!-- DM BODY: sidebar tabs + content -->
     <div class="dm-body">
 
-      <!-- TAB NAV -->
+      <!-- TAB NAV — grouped by domain -->
       <nav class="dm-nav">
-        <div class="dm-nav-section">Target</div>
-        <div id="dmTargetPicker" class="dm-target-picker"></div>
-        <div class="dm-nav-section">Tools</div>
-        <button class="dm-nav-btn active" data-dm-tab="players">
-          <span class="dm-nav-icon">👤</span>Players
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="semblance">
-          <span class="dm-nav-icon">✦</span>Semblance
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="techniques">
-          <span class="dm-nav-icon">⚡</span>Techniques
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="broadcast">
-          <span class="dm-nav-icon">📡</span>Broadcast
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="grouproll">
-          <span class="dm-nav-icon">🎲</span>Group Roll
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="whisper">
-          <span class="dm-nav-icon">💬</span>Whisper
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="curse">
-          <span class="dm-nav-icon">🎲</span>Curse Wheel
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="theme">
-          <span class="dm-nav-icon">🎨</span>Theme
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="economy">
-          <span class="dm-nav-icon">₥</span>Shop &amp; Lien
-        </button>
-        <button class="dm-nav-btn" data-dm-tab="commend">
-          <span class="dm-nav-icon">★</span>Feats
-        </button>
+        <div class="dm-nav-group">
+          <div class="dm-nav-section">Party</div>
+          <button class="dm-nav-btn active" data-dm-tab="players">
+            <span class="dm-nav-icon">👤</span><span class="dm-nav-lbl">Players</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="semblance">
+            <span class="dm-nav-icon">✦</span><span class="dm-nav-lbl">Semblance</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="techniques">
+            <span class="dm-nav-icon">⚡</span><span class="dm-nav-lbl">Techniques</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="commend">
+            <span class="dm-nav-icon">★</span><span class="dm-nav-lbl">Feats</span>
+          </button>
+        </div>
+        <div class="dm-nav-group">
+          <div class="dm-nav-section">Combat &amp; World</div>
+          <button class="dm-nav-btn" data-dm-tab="bestiaries">
+            <span class="dm-nav-icon">🐾</span><span class="dm-nav-lbl">Bestiary</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="grouproll">
+            <span class="dm-nav-icon">🎲</span><span class="dm-nav-lbl">Group Roll</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="curse">
+            <span class="dm-nav-icon">☠</span><span class="dm-nav-lbl">Curse Wheel</span>
+          </button>
+        </div>
+        <div class="dm-nav-group">
+          <div class="dm-nav-section">Comms</div>
+          <button class="dm-nav-btn" data-dm-tab="broadcast">
+            <span class="dm-nav-icon">📡</span><span class="dm-nav-lbl">Broadcast</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="whisper">
+            <span class="dm-nav-icon">💬</span><span class="dm-nav-lbl">Whisper</span>
+          </button>
+        </div>
+        <div class="dm-nav-group">
+          <div class="dm-nav-section">System</div>
+          <button class="dm-nav-btn" data-dm-tab="economy">
+            <span class="dm-nav-icon">₥</span><span class="dm-nav-lbl">Shop &amp; Lien</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="theme">
+            <span class="dm-nav-icon">🎨</span><span class="dm-nav-lbl">Theme</span>
+          </button>
+        </div>
       </nav>
 
       <!-- TAB CONTENT -->
@@ -640,6 +660,17 @@
                 <label class="dm-unlock-pill"><input id="unlockAscended" type="checkbox"> Ascended</label>
               </div>
               <button id="saveSemblanceBtn" type="button" class="neo-btn" style="margin-top:.9rem;width:100%">Save Semblance</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BESTIARIES TAB -->
+        <div class="dm-tab" data-dm-tab="bestiaries">
+          <div class="dm-tab-title">Bestiary Codices</div>
+          <p class="dm-hint">Each codex is its own bestiary. Grant it to as many or as few characters as you like — every player only sees the codices you've handed them. Add / edit creatures from the player-side <strong>Bestiary</strong> tab (switch to the codex first, then hit ＋ Add Creature).</p>
+          <div class="dm-card">
+            <div class="dm-card-body" style="padding:0">
+              <div id="dmBestiariesRoot"></div>
             </div>
           </div>
         </div>
@@ -827,6 +858,11 @@
                     <input id="cfDesc" type="text" placeholder="What is it, in-world?"></label>
                   <div class="cfa-section">Ability score bonuses</div>
                   <div id="cfStats" class="cfa-stats"></div>
+                  <details class="cfa-skills-wrap">
+                    <summary><span class="cfa-section" style="margin:0">Skill bonuses <span class="cfa-hint-inline">— History, Athletics, Perception, etc.</span></span></summary>
+                    <p class="dm-hint cfa-note" style="margin:.6rem 0">Give the feat a bonus to a specific skill or to <em>all</em> skills of a given stat. A bonus to Perception here also raises Passive Perception, since Passive is 10 + your Perception modifier.</p>
+                    <div id="cfSkills" class="cfa-skills"></div>
+                  </details>
                   <div class="cfa-section">Other bonuses</div>
                   <div class="cfa-extras">
                     <label class="cfa-num"><span>Attack</span><input id="cfAttack" type="number" value="0"></label>
@@ -837,7 +873,7 @@
                     <label class="cfa-num"><span>Max Aura</span><input id="cfAura" type="number" value="0"></label>
                     <label class="cfa-num"><span>Speed</span><input id="cfSpeed" type="number" value="0"></label>
                   </div>
-                  <p class="dm-hint cfa-note">A WIS bonus raises Passive Perception automatically (it's 10 + your Perception modifier).</p>
+                  <p class="dm-hint cfa-note">Passive Perception is <strong>10 + Perception modifier</strong>. Passive Perc. above is a flat bonus stacked on top of that.</p>
                   <button id="cfCreate" class="neo-btn small">＋ Create feat</button>
                 </div>
               </details>
@@ -865,8 +901,8 @@
 </div>
 </div>
 
-<script src="curses.js?v=202606251052"></script>
-<script src="rwby_shop.js?v=202606251052"></script>
-<script type="module" src="rwby.js?v=202606251052"></script>
+<script src="curses.js?v=202607191100"></script>
+<script src="rwby_shop.js?v=202607191100"></script>
+<script type="module" src="rwby.js?v=202607191100"></script>
 </body>
 </html>

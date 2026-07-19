@@ -190,13 +190,14 @@ function skillTotal(c, skillName) {
   return total;
 }
 
-// Passive Perception = 10 + Perception total (+ feat passive bonuses)
+// Passive Perception = 10 + your Perception modifier. Any enhancement
+// beyond that comes strictly from feats (via effects.passive).
+// skillTotal already folds in: WIS mod + proficiency (if proficient) +
+// expertise + manual skill bonus + featSkillBonus(Perception).
 function passivePerception(c) {
-  const pb     = getEffectivePB(c);
-  const wisMod = mod(effectiveStat(c,'WIS'));
-  const sk     = c.skills['Perception'] || {bonus:0};
-  let total = 10 + pb + wisMod + (Number(sk.bonus)||0);
-  try { total += featBonus(c,'passive') + featSkillBonus(c,'Perception'); } catch(e) {}
+  let total = 10;
+  try { total += skillTotal(c, 'Perception'); } catch(e) {}
+  try { total += featBonus(c, 'passive'); } catch(e) {}
   return total;
 }
 
@@ -351,7 +352,8 @@ const DEF_STATE = {
   showReserve:false, showDead:false,
   theme:{...DEF_THEME},
   shop:[],
-  bestiary:[],
+  bestiary:[],          // LEGACY — a single shared list. Migrated into bestiaries[] on load.
+  bestiaries:[],        // NEW — [{id, name, entries:[], viewers:[charId], color}]
   customFeats:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
@@ -925,6 +927,7 @@ function startListener() {
       if(typeof remote.shopLocation==='string') state.shopLocation = remote.shopLocation;
       state.cctOnline = remote.cctOnline;
       if (Array.isArray(remote.bestiary)) state.bestiary = remote.bestiary;
+      if (Array.isArray(remote.bestiaries)) state.bestiaries = remote.bestiaries;
       if (Array.isArray(remote.customFeats)) state.customFeats = remote.customFeats;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
@@ -957,6 +960,7 @@ function startListener() {
                  + '|' + state.weather + '|' + state.sceneTime + '|' + JSON.stringify(state.shop)
                  + '|' + state.shopLocation + '|' + state.cctOnline
                  + '|' + JSON.stringify(state.bestiary)
+                 + '|' + JSON.stringify(state.bestiaries)
                  + '|' + JSON.stringify(state.customFeats); } catch(e) {}
         if (fp && fp === _lastVisibleFp) {
           // nothing visible to this player changed — stay silent
@@ -1108,25 +1112,55 @@ function normalize(raw) {
   });
   if (m.selectedCharacter >= m.characters.length) m.selectedCharacter = Math.max(0, m.characters.length - 1);
   if (!Array.isArray(m.shop)) m.shop = [];
-  if (!Array.isArray(m.bestiary)) m.bestiary = [];
-  m.bestiary = m.bestiary.map(b => {
-    const stats = {};
-    const bonuses = {};
+
+  // ── BESTIARY MIGRATION ────────────────────────────────────────────
+  // Old model: single shared `state.bestiary` array. Everyone saw it.
+  // New model: `state.bestiaries` — an array of named collections, each
+  // with its own entries and its own list of viewer character-ids. The
+  // DM chooses who sees which. Legacy entries migrate into a default
+  // "Field Codex" that stays visible to all characters so nothing is
+  // lost in transition.
+  const normalizeBeast = b => {
+    const stats = {}; const bonuses = {};
     STATS.forEach(s => {
       stats[s]   = Number(b?.stats?.[s]) || 10;
       bonuses[s] = Number(b?.bonuses?.[s]) || 0;
     });
     return {
-      id:        String(b?.id ?? ('beast-' + Math.random().toString(36).slice(2))),
-      name:      String(b?.name ?? ''),
-      image:     String(b?.image ?? ''),
-      stats,
-      bonuses,
-      special:   String(b?.special ?? ''),
-      tamer:     String(b?.tamer ?? ''),   // character id/name this creature is assigned to
-      notes:     String(b?.notes ?? '')
+      id:      String(b?.id ?? ('beast-' + Math.random().toString(36).slice(2))),
+      name:    String(b?.name ?? ''),
+      image:   String(b?.image ?? ''),
+      stats, bonuses,
+      special: String(b?.special ?? ''),
+      tamer:   String(b?.tamer ?? ''),
+      notes:   String(b?.notes ?? '')
     };
-  });
+  };
+  if (!Array.isArray(m.bestiary))   m.bestiary   = [];
+  if (!Array.isArray(m.bestiaries)) m.bestiaries = [];
+  m.bestiary   = m.bestiary.map(normalizeBeast);
+  m.bestiaries = m.bestiaries.map(bx => ({
+    id:      String(bx?.id      ?? ('bx-' + Math.random().toString(36).slice(2))),
+    name:    String(bx?.name    ?? 'Untitled Codex'),
+    color:   String(bx?.color   ?? '#00d4ff'),
+    viewers: Array.isArray(bx?.viewers) ? bx.viewers.map(String) : [],
+    entries: Array.isArray(bx?.entries) ? bx.entries.map(normalizeBeast) : []
+  }));
+  // If the DM has legacy entries but no new-style collections, spin up a
+  // default "Field Codex" from them, visible to every character.
+  if (m.bestiaries.length === 0) {
+    const allViewers = m.characters.map(c => c.id).filter(Boolean);
+    m.bestiaries.push({
+      id: 'bx-field-codex',
+      name: 'Field Codex',
+      color: '#00d4ff',
+      viewers: allViewers,
+      entries: m.bestiary.slice()
+    });
+  }
+  // Legacy field kept only for one migration cycle so old clients don't
+  // wipe data mid-rollout. New clients read strictly from bestiaries[].
+  m.bestiary = [];
   m.shop = m.shop.map(it => ({
     name: it.name||'', category: it.category||'General',
     price: Number(it.price)||0,
@@ -2607,13 +2641,45 @@ function renderFeatsList(){
 // ================================================================
 // DM — GRANT MECHANICAL FEATS
 // ================================================================
-// Author form for custom feats — renders the six stat inputs and wires Create.
+// Author form for custom feats — renders the ability inputs, the skill
+// grid (History / Athletics / etc.), and wires Create.
+// Skill inputs are grouped by governing stat so the DM can eyeball what
+// they're stacking (e.g. "+2 to all INT skills? or just History?").
 function renderCustomFeatAuthor(){
   const host = el('cfStats'); if(!host) return;
   if(!host.dataset.built){
     host.innerHTML = STATS.map(s=>`
       <label class="cfa-num"><span>${s}</span><input id="cf_${s}" type="number" value="0"></label>`).join('');
     host.dataset.built = '1';
+  }
+  // Skill grid — built once, then just left in the DOM
+  const skillHost = el('cfSkills');
+  if(skillHost && !skillHost.dataset.built){
+    // group skills by stat, skip saves (those come from the STAT bonus already)
+    const byStat = {};
+    SKILL_DEFS.filter(d=>!d.isSave).forEach(d=>{
+      (byStat[d.stat] = byStat[d.stat] || []).push(d.name);
+    });
+    skillHost.innerHTML = STATS.map(stat => {
+      const skills = byStat[stat] || [];
+      if(!skills.length) return '';
+      return `<div class="cfa-skill-group">
+        <div class="cfa-skill-head">
+          <span class="cfa-skill-stat">${stat}</span>
+          <label class="cfa-skill-all" title="Add a bonus to ALL ${stat} skills at once">
+            <span>all ${stat}</span>
+            <input id="cf_all_${stat}" type="number" value="0">
+          </label>
+        </div>
+        <div class="cfa-skill-row">
+          ${skills.map(s=>`
+            <label class="cfa-skill-cell"><span>${esc(s)}</span>
+              <input id="cf_sk_${esc(s.replace(/\s+/g,'_'))}" type="number" value="0" data-skill="${esc(s)}">
+            </label>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    skillHost.dataset.built = '1';
   }
   const btn = el('cfCreate');
   if(btn && !btn.dataset.bound){
@@ -2623,9 +2689,26 @@ function renderCustomFeatAuthor(){
       const name = (el('cfName')?.value||'').trim();
       if(!name){ showToast('Give the feat a name', 'warn'); return; }
       const effects = {};
+
+      // Ability score bonuses
       const stat = {};
       STATS.forEach(s=>{ const v = Number(el('cf_'+s)?.value)||0; if(v) stat[s]=v; });
       if(Object.keys(stat).length) effects.stat = stat;
+
+      // Per-skill bonuses (History, Athletics, etc.)
+      const skill = {};
+      document.querySelectorAll('#cfSkills input[data-skill]').forEach(inp => {
+        const v = Number(inp.value)||0;
+        if(v) skill[inp.dataset.skill] = v;
+      });
+      if(Object.keys(skill).length) effects.skill = skill;
+
+      // "All X skills" umbrella bonuses
+      const allSkills = {};
+      STATS.forEach(s=>{ const v = Number(el('cf_all_'+s)?.value)||0; if(v) allSkills[s]=v; });
+      if(Object.keys(allSkills).length) effects.allSkillsOfStat = allSkills;
+
+      // Everything else
       const extra = {attack:'cfAttack',initiative:'cfInit',ac:'cfAc',passive:'cfPassive',hpMax:'cfHp',auraMax:'cfAura',speed:'cfSpeed'};
       Object.entries(extra).forEach(([k,id])=>{ const v = Number(el(id)?.value)||0; if(v) effects[k]=v; });
 
@@ -2643,7 +2726,8 @@ function renderCustomFeatAuthor(){
 
       // reset the form
       el('cfName').value=''; el('cfDesc').value=''; el('cfIcon').value='✦';
-      STATS.forEach(s=> el('cf_'+s).value='0');
+      STATS.forEach(s=> { el('cf_'+s).value='0'; const a=el('cf_all_'+s); if(a) a.value='0'; });
+      document.querySelectorAll('#cfSkills input[data-skill]').forEach(inp => inp.value='0');
       Object.values(extra).forEach(id=> { const e=el(id); if(e) e.value='0'; });
 
       pushState(true); render();
@@ -2933,22 +3017,91 @@ function renderCompass(){
 // BESTIARY — shared field index (campaign-wide, DM-managed)
 // ================================================================
 let _bestiaryFilter = '';
+// Which collection is currently open in the player-side bestiary tab
+// (a bestiary id). Local to this browser — never synced.
+let _bestiarySelectedId = null;
 
 function canEditBestiary(){
   if (spectator) return false;
   return dmUnlocked;
 }
 
+// Collections visible to the CURRENT viewer.
+// DM sees all. Players see the ones whose viewers[] contains their char id.
+// Spectators/watchers see anything flagged viewable to *anyone* (they get
+// the read-only union so the party's shared knowledge is still readable).
+function bestiariesVisibleToMe(){
+  if(!Array.isArray(state.bestiaries)) return [];
+  if(dmUnlocked) return state.bestiaries.slice();
+  const me = getChar();
+  if(!me) return [];
+  if(spectator){
+    // watcher-style: show any collection anyone can see
+    return state.bestiaries.filter(bx => (bx.viewers||[]).length > 0);
+  }
+  return state.bestiaries.filter(bx => (bx.viewers||[]).includes(me.id));
+}
+
+// Which collection the sheet is currently pointing at.
+// Falls back to the first visible one; returns null if the viewer has none.
+function activeBestiary(){
+  const vis = bestiariesVisibleToMe();
+  if(!vis.length) return null;
+  let bx = vis.find(b => b.id === _bestiarySelectedId);
+  if(!bx){ bx = vis[0]; _bestiarySelectedId = bx.id; }
+  return bx;
+}
+
 function renderBestiary(){
   const host = el('bestiaryList'); if(!host) return;
-  if(!Array.isArray(state.bestiary)) state.bestiary = [];
+  if(!Array.isArray(state.bestiaries)) state.bestiaries = [];
   const editable = canEditBestiary();
+  const vis = bestiariesVisibleToMe();
 
   const addBtn = el('addBeastBtn');
-  if(addBtn) addBtn.style.display = editable ? '' : 'none';
+  if(addBtn) addBtn.style.display = editable && vis.length ? '' : 'none';
+
+  // Render the selector strip above the list
+  const selHost = el('bestiarySelector');
+  if(selHost){
+    if(!vis.length){
+      selHost.innerHTML = '';
+      selHost.style.display = 'none';
+    } else {
+      selHost.style.display = '';
+      const active = activeBestiary();
+      selHost.innerHTML = vis.map(bx => {
+        const on = active && bx.id === active.id;
+        const cnt = (bx.entries||[]).length;
+        return `<button type="button" class="bx-tab${on?' active':''}" data-bxid="${esc(bx.id)}" style="--bx-col:${esc(bx.color||'#00d4ff')}">
+          <span class="bx-dot"></span>
+          <span class="bx-name">${esc(bx.name||'Untitled')}</span>
+          <span class="bx-count">${cnt}</span>
+        </button>`;
+      }).join('');
+      selHost.querySelectorAll('.bx-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _bestiarySelectedId = btn.dataset.bxid;
+          renderBestiary();
+        });
+      });
+    }
+  }
+
+  if(!vis.length){
+    host.innerHTML = `<div class="beast-empty">${editable
+      ? 'No bestiary collections yet. Create one from the DM Panel under <strong>Bestiary</strong>.'
+      : 'Your DM has not shared any field notes with you yet.'}</div>`;
+    const cnt = el('bestiaryCount'); if(cnt) cnt.textContent = '';
+    return;
+  }
+
+  const bx = activeBestiary();
+  if(!bx){ host.innerHTML = ''; return; }
+  const entries = bx.entries || [];
 
   const q = _bestiaryFilter.trim().toLowerCase();
-  const rows = state.bestiary
+  const rows = entries
     .map((b,i)=>({b,i}))
     .filter(({b}) => !q
       || (b.name||'').toLowerCase().includes(q)
@@ -2956,14 +3109,14 @@ function renderBestiary(){
       || (b.notes||'').toLowerCase().includes(q));
 
   const cnt = el('bestiaryCount');
-  if(cnt) cnt.textContent = q ? `${rows.length}/${state.bestiary.length}` : (state.bestiary.length ? String(state.bestiary.length) : '');
+  if(cnt) cnt.textContent = q ? `${rows.length}/${entries.length}` : (entries.length ? String(entries.length) : '');
 
-  if(!state.bestiary.length){
-    host.innerHTML = `<div class="beast-empty">The bestiary is empty. ${editable ? 'Add the first creature below.' : 'Your DM has not catalogued anything yet.'}</div>`;
+  if(!entries.length){
+    host.innerHTML = `<div class="beast-empty">${esc(bx.name)} is empty. ${editable ? 'Add the first creature below.' : 'Nothing catalogued here yet.'}</div>`;
     return;
   }
   if(!rows.length){
-    host.innerHTML = `<div class="beast-empty">Nothing matches "${esc(_bestiaryFilter)}".</div>`;
+    host.innerHTML = `<div class="beast-empty">Nothing in ${esc(bx.name)} matches "${esc(_bestiaryFilter)}".</div>`;
     return;
   }
 
@@ -3018,54 +3171,204 @@ function renderBestiary(){
 
   if(!editable) return;
 
+  const bxRef = () => activeBestiary(); // resolve fresh each event (collection could switch)
+
   host.querySelectorAll('.beast-input:not(.beast-tamer), .beast-name').forEach(inp=>{
     inp.addEventListener('input', e=>{
+      const bx = bxRef(); if(!bx) return;
       const i = Number(e.target.dataset.bi), f = e.target.dataset.bf;
-      if(!state.bestiary[i] || !f) return;
-      state.bestiary[i][f] = e.target.value;
+      if(!bx.entries[i] || !f) return;
+      bx.entries[i][f] = e.target.value;
       pushState();
     });
   });
   host.querySelectorAll('.beast-tamer').forEach(sel=>{
     sel.addEventListener('change', e=>{
+      const bx = bxRef(); if(!bx) return;
       const i = Number(e.target.dataset.bi);
-      if(!state.bestiary[i]) return;
-      state.bestiary[i].tamer = e.target.value;
+      if(!bx.entries[i]) return;
+      bx.entries[i].tamer = e.target.value;
       pushState(true); renderBestiary();
     });
   });
   const recalcTotal = (i, s) => {
-    const b = state.bestiary[i]; if(!b) return;
+    const bx = bxRef(); if(!bx) return;
+    const b = bx.entries[i]; if(!b) return;
     const tot = (Number(b.stats?.[s])||0) + (Number(b.bonuses?.[s])||0);
     const out = host.querySelector(`.beast-card[data-bi="${i}"] [data-bt="${s}"]`);
     if(out) out.innerHTML = `${tot} <em>(${fmtMod(mod(tot))})</em>`;
   };
   host.querySelectorAll('.bs-val').forEach(inp=>{
     inp.addEventListener('input', e=>{
+      const bx = bxRef(); if(!bx) return;
       const i = Number(e.target.dataset.bi), s = e.target.dataset.bs;
-      if(!state.bestiary[i]) return;
-      if(!state.bestiary[i].stats) state.bestiary[i].stats = {};
-      state.bestiary[i].stats[s] = Number(e.target.value) || 0;
+      if(!bx.entries[i]) return;
+      if(!bx.entries[i].stats) bx.entries[i].stats = {};
+      bx.entries[i].stats[s] = Number(e.target.value) || 0;
       recalcTotal(i, s); pushState();
     });
   });
   host.querySelectorAll('.bs-bon').forEach(inp=>{
     inp.addEventListener('input', e=>{
+      const bx = bxRef(); if(!bx) return;
       const i = Number(e.target.dataset.bi), s = e.target.dataset.bb;
-      if(!state.bestiary[i]) return;
-      if(!state.bestiary[i].bonuses) state.bestiary[i].bonuses = {};
-      state.bestiary[i].bonuses[s] = Number(e.target.value) || 0;
+      if(!bx.entries[i]) return;
+      if(!bx.entries[i].bonuses) bx.entries[i].bonuses = {};
+      bx.entries[i].bonuses[s] = Number(e.target.value) || 0;
       recalcTotal(i, s); pushState();
     });
   });
   host.querySelectorAll('.beast-del').forEach(b=> b.addEventListener('click', ()=>{
+    const bx = bxRef(); if(!bx) return;
     const i = Number(b.dataset.bi);
-    const nm = state.bestiary[i]?.name || 'this creature';
-    if(!confirm(`Remove ${nm} from the bestiary?`)) return;
-    pushUndo(`Removed ${nm} from bestiary`);
-    state.bestiary.splice(i,1);
+    const nm = bx.entries[i]?.name || 'this creature';
+    if(!confirm(`Remove ${nm} from ${bx.name}?`)) return;
+    pushUndo(`Removed ${nm} from ${bx.name}`);
+    bx.entries.splice(i,1);
     pushState(true); renderBestiary();
   }));
+}
+
+// ================================================================
+// DM — BESTIARY MANAGER
+// Creates/renames/deletes collections, and toggles per-character
+// viewer access via a matrix of checkboxes.
+// ================================================================
+let _dmBxSelectedId = null;
+function dmActiveBestiary(){
+  if(!Array.isArray(state.bestiaries) || !state.bestiaries.length) return null;
+  let bx = state.bestiaries.find(b => b.id === _dmBxSelectedId);
+  if(!bx){ bx = state.bestiaries[0]; _dmBxSelectedId = bx.id; }
+  return bx;
+}
+function renderDmBestiaries(){
+  const host = el('dmBestiariesRoot'); if(!host || !dmUnlocked) return;
+  if(!Array.isArray(state.bestiaries)) state.bestiaries = [];
+  const list = state.bestiaries;
+  const bx = dmActiveBestiary();
+
+  host.innerHTML = `
+    <div class="dm-bx-shell">
+      <aside class="dm-bx-side">
+        <div class="dm-bx-side-head">
+          <span>Collections</span>
+          <button type="button" class="neo-btn small" id="dmBxAdd">＋ New</button>
+        </div>
+        <div class="dm-bx-list">
+          ${list.length ? list.map(b => {
+            const on = bx && b.id === bx.id;
+            const cnt = (b.entries||[]).length;
+            const viewers = (b.viewers||[]).length;
+            return `<button type="button" class="dm-bx-row${on?' active':''}" data-bxid="${esc(b.id)}" style="--bx-col:${esc(b.color||'#00d4ff')}">
+              <span class="dm-bx-dot"></span>
+              <span class="dm-bx-info">
+                <span class="dm-bx-name">${esc(b.name||'Untitled')}</span>
+                <span class="dm-bx-sub">${cnt} creature${cnt===1?'':'s'} · ${viewers} viewer${viewers===1?'':'s'}</span>
+              </span>
+            </button>`;
+          }).join('') : `<div class="dm-empty">No collections yet. Click <strong>+ New</strong>.</div>`}
+        </div>
+      </aside>
+      <div class="dm-bx-main">
+        ${bx ? `
+          <div class="dm-bx-head">
+            <label class="dm-bx-namefield">
+              <span>Name</span>
+              <input type="text" id="dmBxName" value="${esc(bx.name||'')}" placeholder="e.g. Grimm Bestiary">
+            </label>
+            <label class="dm-bx-colorfield">
+              <span>Color</span>
+              <input type="color" id="dmBxColor" value="${esc(bx.color||'#00d4ff')}">
+            </label>
+            <button type="button" class="neo-btn ghost small" id="dmBxDelete">🗑 Delete</button>
+          </div>
+          <div class="dm-bx-viewers">
+            <div class="dm-bx-sec">Grant access</div>
+            <p class="dm-hint" style="margin:.1rem 0 .6rem">Tick every character who should be able to open this codex. Multiple characters can share the same one, or each get a unique bestiary.</p>
+            <div class="dm-bx-viewer-grid">
+              ${state.characters.map(c => {
+                const has = (bx.viewers||[]).includes(c.id);
+                return `<label class="dm-bx-viewer${has?' on':''}">
+                  <input type="checkbox" data-bxviewer="${esc(c.id)}" ${has?'checked':''}>
+                  <span class="dm-bx-viewer-name">${esc(c.name||'Unnamed')}</span>
+                  <span class="dm-bx-viewer-state">${c.state||'active'}</span>
+                </label>`;
+              }).join('')}
+            </div>
+            <div class="dm-bx-quick">
+              <button type="button" class="neo-btn ghost small" id="dmBxAllOn">✓ All</button>
+              <button type="button" class="neo-btn ghost small" id="dmBxAllOff">✕ None</button>
+            </div>
+          </div>
+          <div class="dm-bx-entries">
+            <div class="dm-bx-sec">Contents <span style="opacity:.5;font-weight:400">— ${bx.entries.length} entr${bx.entries.length===1?'y':'ies'}</span></div>
+            <p class="dm-hint" style="margin:.1rem 0 .6rem">Add and edit the creatures in the sheet itself: switch to <strong>${esc(bx.name)}</strong> on the Bestiary tab, then use ＋ Add Creature. Everything you type there syncs here live.</p>
+            <div class="dm-bx-preview">
+              ${bx.entries.length
+                ? bx.entries.slice(0,6).map(e => `<span class="dm-bx-chip">${esc(e.name||'unnamed')}</span>`).join('') + (bx.entries.length>6?`<span class="dm-bx-chip more">+${bx.entries.length-6} more</span>`:'')
+                : '<span class="dm-empty" style="padding:.4rem .1rem">Empty</span>'}
+            </div>
+          </div>
+        ` : `<div class="dm-empty" style="padding:2rem">Create a collection to begin.</div>`}
+      </div>
+    </div>`;
+
+  // — wire up —
+  host.querySelectorAll('.dm-bx-row').forEach(r => r.addEventListener('click', () => {
+    _dmBxSelectedId = r.dataset.bxid; renderDmBestiaries();
+  }));
+  el('dmBxAdd')?.addEventListener('click', () => {
+    pushUndo('Created bestiary collection');
+    const nb = {
+      id: 'bx-' + Date.now(),
+      name: 'New Codex',
+      color: '#00d4ff',
+      viewers: [],
+      entries: []
+    };
+    state.bestiaries.push(nb);
+    _dmBxSelectedId = nb.id;
+    pushState(true); renderDmBestiaries(); renderBestiary();
+  });
+  el('dmBxDelete')?.addEventListener('click', () => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    if(!confirm(`Delete "${cur.name}"? This wipes all ${cur.entries.length} entries in this collection.`)) return;
+    pushUndo(`Deleted bestiary "${cur.name}"`);
+    state.bestiaries = state.bestiaries.filter(b => b.id !== cur.id);
+    _dmBxSelectedId = null;
+    pushState(true); renderDmBestiaries(); renderBestiary();
+  });
+  el('dmBxName')?.addEventListener('input', e => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    cur.name = e.target.value; pushState();
+    // update sidebar label live
+    const side = host.querySelector(`.dm-bx-row.active .dm-bx-name`);
+    if(side) side.textContent = cur.name || 'Untitled';
+  });
+  el('dmBxColor')?.addEventListener('input', e => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    cur.color = e.target.value; pushState(true);
+    renderDmBestiaries(); renderBestiary();
+  });
+  host.querySelectorAll('[data-bxviewer]').forEach(cb => cb.addEventListener('change', e => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    const cid = e.target.dataset.bxviewer;
+    const has = cur.viewers.includes(cid);
+    if(e.target.checked && !has) cur.viewers.push(cid);
+    if(!e.target.checked && has) cur.viewers = cur.viewers.filter(x => x !== cid);
+    e.target.closest('.dm-bx-viewer').classList.toggle('on', e.target.checked);
+    pushState(true); renderBestiary();
+  }));
+  el('dmBxAllOn')?.addEventListener('click', () => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    cur.viewers = state.characters.map(c => c.id);
+    pushState(true); renderDmBestiaries(); renderBestiary();
+  });
+  el('dmBxAllOff')?.addEventListener('click', () => {
+    const cur = dmActiveBestiary(); if(!cur) return;
+    cur.viewers = [];
+    pushState(true); renderDmBestiaries(); renderBestiary();
+  });
 }
 
 // ================================================================
@@ -3390,6 +3693,7 @@ function render() {
     try { renderDmShop(); }          catch(e) {}
     try { renderDmMoney(); }         catch(e) {}
     try { renderThemeFields(); }     catch(e) { console.error('renderThemeFields:', e); }
+    try { renderDmBestiaries(); }    catch(e) { console.error('renderDmBestiaries:', e); }
   }
   try { renderTabs(); }            catch(e) { console.error('renderTabs:', e); }
   try { pushPresence(); }          catch(e) {}
@@ -3730,6 +4034,7 @@ function bindAll() {
       if (tab === 'techniques') { renderDmTechniques(); }
       if (tab === 'commend')    { renderDmCommendations(); }
       if (tab === 'curse')      { renderCurseTargetSelect(); }
+      if (tab === 'bestiaries') { renderDmBestiaries(); }
     });
   });
 
@@ -5452,13 +5757,15 @@ el('addCompassBtn')?.addEventListener('click', ()=>{
   pushState(true); renderCompass();
 });
 
-// bestiary: add creature (DM only) + live filter
+// bestiary: add creature (DM only) + live filter — always targets the
+// collection currently open in the player-side Bestiary tab.
 el('addBeastBtn')?.addEventListener('click', ()=>{
   if(!canEditBestiary()) return;
-  if(!Array.isArray(state.bestiary)) state.bestiary = [];
-  pushUndo('Added bestiary entry');
+  const bx = activeBestiary();
+  if(!bx){ showToast('Create a collection in the DM Panel first', 'warn'); return; }
+  pushUndo(`Added creature to ${bx.name}`);
   const stats = {}; const bonuses = {}; STATS.forEach(s=> { stats[s] = 10; bonuses[s] = 0; });
-  state.bestiary.push({
+  bx.entries.push({
     id: 'beast-' + Date.now(),
     name:'', image:'', stats, bonuses, special:'', tamer:'', notes:''
   });

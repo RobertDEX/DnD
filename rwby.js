@@ -2549,7 +2549,20 @@ function renderStatLockBar(){
 //   hpMax:+5  auraMax:+10  hpPerLevel:+1
 //   speed:+10
 const FEATS = [
-  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },     effects:{ attack:1, initiative:1 } },
+  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },
+  { id:'quickstep',    icon:'💨', name:'Quickstep',        desc:'You move before others think. +2 DEX, +2 initiative.',          effects:{ stat:{DEX:2}, initiative:2 } },
+  { id:'aura_well',    icon:'✶', name:'Deep Aura Well',    desc:'Your Aura runs deeper than most. +15 max Aura.',                effects:{ auraMax:15 } },
+  { id:'duelist',      icon:'⚔', name:'Duelist',           desc:'Relentless in close quarters. +1 to all attack rolls.',         effects:{ attack:1 } },
+  { id:'shadow',       icon:'🌑', name:'Shadow',           desc:'Unseen and unheard. +3 Stealth, +2 Sleight of Hand.',           effects:{ skill:{ 'Stealth':3, 'Sleight of Hand':2 } } },
+  { id:'silver_tongue',icon:'💬', name:'Silver Tongue',    desc:'You talk your way out of anything. +1 to all CHA skills.',      effects:{ allSkillsOfStat:{CHA:1} } },
+  { id:'scholar',      icon:'📖', name:'Scholar of Remnant',desc:'Deep study of Dust and Grimm. +2 INT, +1 spell DC.',           effects:{ stat:{INT:2}, spellDC:1 } },
+  { id:'sentinel',     icon:'👁', name:'Sentinel',          desc:'Nothing slips past you. +5 passive Perception, +2 Perception.',effects:{ passive:5, skill:{'Perception':2} } },
+  { id:'fleetfoot',    icon:'👟', name:'Fleet-Footed',     desc:'Faster than you look. +10 speed, +1 Acrobatics.',               effects:{ speed:10, skill:{'Acrobatics':1} } },
+  { id:'brawler',      icon:'👊', name:'Brawler',          desc:'Raw physical power. +2 STR, +1 Athletics.',                     effects:{ stat:{STR:2}, skill:{'Athletics':1} } },
+  { id:'warded',       icon:'🔰', name:'Warded',           desc:'Hard to pin down. +1 Armor.',                                   effects:{ ac:1 } },
+  { id:'survivor',     icon:'❤', name:'Survivor',          desc:'You refuse to fall. +1 max HP per level.',                      effects:{ hpPerLevel:1 } },
+  { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
+  { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
 ];
 function featById(id){
   const built = FEATS.find(f=>f.id===id);

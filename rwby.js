@@ -6117,7 +6117,9 @@ function renderCombatSuite(){
 // ═══════════════════════════════════════════════════════════════════
 
 // ── SHARED HELPERS ─────────────────────────────────────────────────
-function currentLocation(){
+// (renamed from currentLocation to avoid clashing with the shop system's
+// currentLocation() which returns the current shop region)
+function currentScene(){
   return (state.locations||[]).find(l => l.current) || null;
 }
 function seasonForMonth(m){
@@ -6154,7 +6156,7 @@ function advanceCalendar(days){
 // ── PLAYER-FACING BANNER (Location + Date + Weather) ───────────────
 function renderSceneBanner(){
   const host = el('sceneBanner'); if(!host) return;
-  const loc = currentLocation();
+  const loc = currentScene();
   const cal = state.calendar;
   const season = seasonForMonth(cal?.month || 1);
   const atmos = loc?.atmosphere || '';

@@ -8,9 +8,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebas
 import { getFirestore, doc, collection, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const FB_CONFIG = {
-    apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
-    projectId:"dand-3c76a",storageBucket:"dand-3c76a.firebasestorage.app",
-    messagingSenderId:"27455098509",appId:"1:27455098509:web:432929f697da9a947d5cc4",measurementId:"G-D1TQM5WJT8"
+  apiKey:"AIzaSyCfEtfiU5swXvVkqt4shp8i6h4JYI8ES7U",authDomain:"dand-3c76a.firebaseapp.com",
+  projectId:"dand-3c76a",storageBucket:"dand-3c76a.firebasestorage.app",
+  messagingSenderId:"27455098509",appId:"1:27455098509:web:432929f697da9a947d5cc4",measurementId:"G-D1TQM5WJT8"
 };
 const fbApp = initializeApp(FB_CONFIG, 'rwby');
 const db    = getFirestore(fbApp);
@@ -362,7 +362,6 @@ const DEF_STATE = {
   customFeats:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
-  rollLog:[],
   initiative:{active:false, round:1, turnIdx:0, entries:[]},
   // World state — locations, calendar, quests (added July 2026)
   locations:[],         // [{id, name, region, description, atmosphere, weather, npcs, dmNotes, current}]
@@ -946,7 +945,6 @@ function startListener() {
       if (Array.isArray(remote.bestiary)) state.bestiary = remote.bestiary;
       if (Array.isArray(remote.bestiaries)) state.bestiaries = remote.bestiaries;
       if (Array.isArray(remote.customFeats)) state.customFeats = remote.customFeats;
-      if (Array.isArray(remote.rollLog))    state.rollLog    = remote.rollLog;
       if (remote.initiative && typeof remote.initiative==='object') state.initiative = remote.initiative;
       if (Array.isArray(remote.locations))       state.locations       = remote.locations;
       if (remote.calendar && typeof remote.calendar==='object') state.calendar = remote.calendar;
@@ -1045,7 +1043,6 @@ function normalize(raw) {
   if(!['none','rain','snow','ash'].includes(m.weather)) m.weather='none';
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
-  if(!Array.isArray(m.rollLog))    m.rollLog=[];
 
   // ── WORLD STATE — locations, calendar, quests ──
   m.locations = Array.isArray(m.locations) ? m.locations.map((l,ix) => ({
@@ -1190,7 +1187,8 @@ function normalize(raw) {
       currentOwner:  String(a?.currentOwner ?? ''),
       entityKind:    (a?.entityKind === 'angel' ? 'angel' : 'demon'),
       entityName:    String(a?.entityName ?? ''),
-      entityTitle:   String(a?.entityTitle ?? '')
+      entityTitle:   String(a?.entityTitle ?? ''),
+      known:         !!a?.known
     })) : [];
     mc.feats         = Array.isArray(c.feats) ? c.feats.filter(id=>_validFeatIds.has(id)) : [];
     mc.rankOverride  = (typeof c.rankOverride==='string' && c.rankOverride) ? c.rankOverride : null;
@@ -2322,6 +2320,21 @@ function startRollFeed(){
       if(!String(top.id||'').startsWith(MY_PRESENCE_ID) && Date.now()-top.ts < 8000){
         if(top.nat===20) diceSound('crit'); else if(top.nat===1) diceSound('fumble');
       }
+      // Mirror incoming broadcasts into the DM's local roll log so the
+      // DM tab shows what the whole table just rolled — no extra writes.
+      if (dmUnlocked && !String(top.id||'').startsWith(MY_PRESENCE_ID)) {
+        _localRollLog.unshift({
+          id: 'br-' + top.id,
+          ts:  top.ts,
+          who: String(top.who || '—'),
+          formula: `${top.label || ''}${top.detail?' · '+top.detail:''}`.trim(),
+          result: String(top.total ?? ''),
+          crit: top.nat === 20,
+          kind: 'roll'
+        });
+        if (_localRollLog.length > ROLL_LOG_MAX) _localRollLog.length = ROLL_LOG_MAX;
+        try { renderRollLog(); } catch(e) {}
+      }
     }
   }, ()=>{});
 }
@@ -2672,22 +2685,11 @@ function renderStatLockBar(){
 //   attack:+1  initiative:+2  ac:+1  spellDC:+1  passive:+5
 //   hpMax:+5  auraMax:+10  hpPerLevel:+1
 //   speed:+10
-const FEATS = [
-  { id:'iron_hide',    icon:'🛡', name:'Iron Hide',        desc:'Toughened by a hundred fights. +2 CON, +5 max HP.',            effects:{ stat:{CON:2}, hpMax:5 } },
-  { id:'quickstep',    icon:'💨', name:'Quickstep',        desc:'You move before others think. +2 DEX, +2 initiative.',          effects:{ stat:{DEX:2}, initiative:2 } },
-  { id:'aura_well',    icon:'✶', name:'Deep Aura Well',    desc:'Your Aura runs deeper than most. +15 max Aura.',                effects:{ auraMax:15 } },
-  { id:'duelist',      icon:'⚔', name:'Duelist',           desc:'Relentless in close quarters. +1 to all attack rolls.',         effects:{ attack:1 } },
-  { id:'shadow',       icon:'🌑', name:'Shadow',           desc:'Unseen and unheard. +3 Stealth, +2 Sleight of Hand.',           effects:{ skill:{ 'Stealth':3, 'Sleight of Hand':2 } } },
-  { id:'silver_tongue',icon:'💬', name:'Silver Tongue',    desc:'You talk your way out of anything. +1 to all CHA skills.',      effects:{ allSkillsOfStat:{CHA:1} } },
-  { id:'scholar',      icon:'📖', name:'Scholar of Remnant',desc:'Deep study of Dust and Grimm. +2 INT, +1 spell DC.',           effects:{ stat:{INT:2}, spellDC:1 } },
-  { id:'sentinel',     icon:'👁', name:'Sentinel',          desc:'Nothing slips past you. +5 passive Perception, +2 Perception.',effects:{ passive:5, skill:{'Perception':2} } },
-  { id:'fleetfoot',    icon:'👟', name:'Fleet-Footed',     desc:'Faster than you look. +10 speed, +1 Acrobatics.',               effects:{ speed:10, skill:{'Acrobatics':1} } },
-  { id:'brawler',      icon:'👊', name:'Brawler',          desc:'Raw physical power. +2 STR, +1 Athletics.',                     effects:{ stat:{STR:2}, skill:{'Athletics':1} } },
-  { id:'warded',       icon:'🔰', name:'Warded',           desc:'Hard to pin down. +1 Armor.',                                   effects:{ ac:1 } },
-  { id:'survivor',     icon:'❤', name:'Survivor',          desc:'You refuse to fall. +1 max HP per level.',                      effects:{ hpPerLevel:1 } },
-  { id:'keen_senses',  icon:'🐾', name:'Keen Senses',      desc:'Faunus-sharp awareness. +2 WIS, +1 Investigation.',            effects:{ stat:{WIS:2}, skill:{'Investigation':1} } },
-  { id:'battle_focus', icon:'🎯', name:'Battle Focus',     desc:'Calm in the storm. +1 attack, +1 initiative.',                  effects:{ attack:1, initiative:1 } },
-];
+// Built-in feats catalog — INTENTIONALLY EMPTY.
+// The DM adds every feat via the Custom Feat Author in the DM Panel.
+// Nothing is bundled; nothing pre-exists. This keeps the campaign's
+// mechanical language yours instead of a mix of ours + yours.
+const FEATS = [];
 function featById(id){
   const built = FEATS.find(f=>f.id===id);
   if (built) return built;
@@ -3032,7 +3034,8 @@ const COMPASS_BLANK = () => ({
   id: 'art-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
   name:'', type:'holy', image:'', effect:'',
   originalOwner:'', currentOwner:'',
-  entityKind:'demon', entityName:'', entityTitle:''
+  entityKind:'demon', entityName:'', entityTitle:'',
+  known: false  // DM toggles this — if true, other party members see this artifact in their "Known" section
 });
 
 // Players read their own artifacts; only the DM writes them.
@@ -3059,27 +3062,32 @@ function renderCompass(){
   const addBtn = el('addCompassBtn');
   if(addBtn) addBtn.style.display = editable ? '' : 'none';
 
-  if(!c.compass.length){
-    host.innerHTML = `<div class="compass-empty">No armaments or tools bound to ${esc(c.name||'this Hunter')}.</div>`;
-    return;
-  }
+  // Collect every artifact held by ANY other character that's flagged
+  // as `known` — those become visible to this player under "Known".
+  const knownElsewhere = [];
+  (state.characters || []).forEach(other => {
+    if (!other || other.id === c.id) return;
+    (other.compass || []).forEach(art => {
+      if (art.known) knownElsewhere.push({ art, holder: other });
+    });
+  });
 
-  // Compact tile grid — click a tile to open the full sheet overlay.
-  // Mirrors the .beast-tile pattern so both damage collections read
-  // consistently. Portrait / glyph, name, type badge, entity badge.
-  host.innerHTML = c.compass.map((a,i)=>{
+  const renderTile = (a, holderName, isOwned) => {
     const cursed = a.type === 'cursed';
     const angel  = a.entityKind === 'angel';
     const entityChip = a.entityName
       ? `<span class="art-tile-entity ${angel?'angel':'demon'}"><span class="art-tile-entity-glyph">${angel?'✟':'⛧'}</span>${esc(a.entityName)}</span>`
       : '';
-    const holdBy = a.currentOwner ? `<span class="art-tile-note">Held by ${esc(a.currentOwner)}</span>` : '';
-    return `<button type="button" class="art-tile ${cursed?'cursed':'holy'}${a.image?'':' no-img'}" data-artid="${esc(a.id)}" data-ci="${i}">
+    const holdBy = holderName ? `<span class="art-tile-note">Held by ${esc(holderName)}</span>` : '';
+    const knownTag = (!isOwned && a.known) ? `<span class="art-tile-known">KNOWN</span>` : '';
+    return `<button type="button" class="art-tile ${cursed?'cursed':'holy'}${a.image?'':' no-img'}${!isOwned?' foreign':''}"
+              data-artid="${esc(a.id)}" data-holdercid="${esc(isOwned ? '' : holderName ? state.characters.find(x=>x.name===holderName)?.id||'' : '')}">
       <div class="art-tile-portrait">
         ${a.image
           ? `<img src="${esc(a.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
           : `<span class="art-tile-glyph">${cursed?'⛧':'✟'}</span>`}
         <span class="art-tile-typebadge">${cursed?'CURSED':'HOLY'}</span>
+        ${knownTag}
       </div>
       <div class="art-tile-body">
         <div class="art-tile-name">${esc(a.name || 'Unnamed artifact')}</div>
@@ -3090,10 +3098,36 @@ function renderCompass(){
       </div>
       <span class="art-tile-open">↗</span>
     </button>`;
-  }).join('');
+  };
+
+  const ownedHtml = c.compass.length
+    ? c.compass.map(a => renderTile(a, '', true)).join('')
+    : `<div class="compass-empty">No armaments or tools bound to ${esc(c.name||'this Hunter')}.</div>`;
+
+  const knownHtml = knownElsewhere.length
+    ? knownElsewhere.map(({art, holder}) => renderTile(art, holder.name || 'Unknown', false)).join('')
+    : `<div class="compass-empty">Nothing else known about other artifacts in the world.</div>`;
+
+  host.innerHTML = `
+    <div class="compass-section-title">
+      <span class="cst-label">⚔ Bound to Me</span>
+      <span class="cst-count">${c.compass.length}</span>
+    </div>
+    <div class="compass-list">${ownedHtml}</div>
+
+    <div class="compass-section-title" style="margin-top:1.4rem">
+      <span class="cst-label">◈ Known Artifacts</span>
+      <span class="cst-count">${knownElsewhere.length}</span>
+      <span class="cst-hint">— revealed to you by your DM</span>
+    </div>
+    <div class="compass-list">${knownHtml}</div>
+  `;
 
   host.querySelectorAll('.art-tile').forEach(t => {
-    t.addEventListener('click', () => openArtifactSheet(t.dataset.artid));
+    t.addEventListener('click', () => {
+      const foreign = t.classList.contains('foreign');
+      openArtifactSheet(t.dataset.artid, foreign ? t.dataset.holdercid : null);
+    });
   });
 }
 
@@ -3103,10 +3137,16 @@ function renderCompass(){
 // the tile is a summary; all editing happens here.
 // ================================================================
 let _openArtifactId = null;
+let _openArtifactHolderCid = null;   // when null, the current character; otherwise a different owner
 
-function openArtifactSheet(artId){
-  const c = getChar(); if(!c) return;
-  const a = (c.compass||[]).find(x => x.id === artId); if(!a) return;
+function openArtifactSheet(artId, holderCid){
+  _openArtifactHolderCid = holderCid || null;
+  // Find the artifact — either on the current char, or on the explicit holder
+  const holder = holderCid
+    ? state.characters.find(x => x.id === holderCid)
+    : getChar();
+  if(!holder) return;
+  const a = (holder.compass||[]).find(x => x.id === artId); if(!a) return;
   _openArtifactId = artId;
   renderArtifactSheet();
   const overlay = el('artifactSheetOverlay');
@@ -3117,18 +3157,25 @@ function openArtifactSheet(artId){
 }
 function closeArtifactSheet(){
   _openArtifactId = null;
+  _openArtifactHolderCid = null;
   const overlay = el('artifactSheetOverlay');
   if(overlay) overlay.classList.remove('open');
 }
 function renderArtifactSheet(){
   if(!_openArtifactId) return;
-  const c = getChar(); if(!c) { closeArtifactSheet(); return; }
-  const idx = (c.compass||[]).findIndex(x => x.id === _openArtifactId);
+  const holder = _openArtifactHolderCid
+    ? state.characters.find(x => x.id === _openArtifactHolderCid)
+    : getChar();
+  if(!holder) { closeArtifactSheet(); return; }
+  const idx = (holder.compass||[]).findIndex(x => x.id === _openArtifactId);
   if(idx < 0){ closeArtifactSheet(); return; }
-  const a = c.compass[idx];
-  const editable = canEditCompass();
-  const ro  = editable ? '' : 'readonly tabindex="-1"';
-  const dis = editable ? '' : 'disabled';
+  const a = holder.compass[idx];
+  const isForeign = !!_openArtifactHolderCid;
+  const editable = canEditCompass() && !isForeign;   // players/viewers can't edit others' artifacts; DM can (fall-through below)
+  const editableAsDm = canEditCompass() && dmUnlocked;   // DM edits everything
+  const canEdit = editable || editableAsDm;
+  const ro  = canEdit ? '' : 'readonly tabindex="-1"';
+  const dis = canEdit ? '' : 'disabled';
   const cursed = a.type === 'cursed';
   const angel  = a.entityKind === 'angel';
   const body = el('artifactSheetBody'); if(!body) return;
@@ -3141,17 +3188,21 @@ function renderArtifactSheet(){
           : `<span class="ash-glyph">${cursed?'⛧':'✟'}</span>`}
       </div>
       <div class="ash-title-wrap">
-        <div class="ash-kind">${cursed?'Cursed Tool':'Holy Armament'}</div>
+        <div class="ash-kind">${cursed?'Cursed Tool':'Holy Armament'}${isForeign?` · Held by ${esc(holder.name||'?')}`:''}</div>
         <input class="ash-name" data-af="name" value="${esc(a.name)}" placeholder="Unnamed artifact" ${ro}>
         ${a.entityName ? `<div class="ash-entity ${angel?'angel':'demon'}"><span>${angel?'✟':'⛧'}</span> ${esc(a.entityName)}${a.entityTitle?` · <em>${esc(a.entityTitle)}</em>`:''}</div>` : ''}
       </div>
       <div class="ash-actions">
-        ${editable?`<button class="ash-del" title="Delete artifact">🗑</button>`:''}
+        ${dmUnlocked ? `<label class="ash-knowntoggle" title="If enabled, this artifact appears in every other party member's Compass as a known-to-exist entry.">
+          <input type="checkbox" id="ashKnown" ${a.known?'checked':''}>
+          <span>Party knows</span>
+        </label>`:''}
+        ${canEdit?`<button class="ash-del" title="Delete artifact">🗑</button>`:''}
         <button class="ash-close" title="Close">✕</button>
       </div>
     </div>
     <div class="ash-body">
-      ${editable ? `
+      ${canEdit ? `
         <div class="ash-row-two">
           <label class="ash-field">
             <span>Type</span>
@@ -3202,18 +3253,23 @@ function renderArtifactSheet(){
   body.querySelector('.ash-close')?.addEventListener('click', closeArtifactSheet);
   body.querySelector('.ash-del')?.addEventListener('click', () => {
     const nm = a.name || 'this artifact';
-    if(!confirm(`Remove ${nm} from ${c.name||'this Hunter'}?`)) return;
+    if(!confirm(`Remove ${nm} from ${holder.name||'this Hunter'}?`)) return;
     pushUndo(`Removed artifact "${nm}"`);
-    c.compass.splice(idx, 1);
+    holder.compass.splice(idx, 1);
     closeArtifactSheet();
     pushState(true); renderCompass();
   });
+  el('ashKnown')?.addEventListener('change', e => {
+    a.known = e.target.checked; pushState(true); renderCompass();
+  });
 
-  if(!editable) return;
+  if(!canEdit) return;
 
   const target = () => {
-    const cc = getChar(); if(!cc) return null;
-    return (cc.compass||[]).find(x => x.id === _openArtifactId);
+    const h = _openArtifactHolderCid
+      ? state.characters.find(x => x.id === _openArtifactHolderCid)
+      : getChar();
+    return (h?.compass||[]).find(x => x.id === _openArtifactId);
   };
   body.querySelectorAll('.ash-input, .ash-name').forEach(inp => {
     const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
@@ -3221,7 +3277,6 @@ function renderArtifactSheet(){
       const t = target(); if(!t) return;
       t[e.target.dataset.af] = e.target.value;
       pushState();
-      // fields that change chrome need a re-render
       if(['type','entityKind','entityName','entityTitle','name','image','currentOwner'].includes(e.target.dataset.af)){
         renderArtifactSheet(); renderCompass();
       }
@@ -3313,8 +3368,8 @@ function renderBestiary(){
 
   if(!vis.length){
     host.innerHTML = `<div class="beast-empty">${editable
-      ? 'No bestiary collections yet. Create one from the DM Panel under <strong>Bestiary</strong>.'
-      : 'Your DM has not shared any field notes with you yet.'}</div>`;
+      ? 'No rosters yet. Create one from the DM Panel under <strong>Menageries</strong>.'
+      : 'Your DM has not granted you any summons or tamed creatures yet.'}</div>`;
     const cnt = el('bestiaryCount'); if(cnt) cnt.textContent = '';
     return;
   }
@@ -3596,7 +3651,7 @@ function renderDmBestiaries(){
           </div>
           <div class="dm-bx-viewers">
             <div class="dm-bx-sec">Grant access</div>
-            <p class="dm-hint" style="margin:.1rem 0 .6rem">Tick every character who should be able to open this codex. Multiple characters can share the same one, or each get a unique bestiary.</p>
+            <p class="dm-hint" style="margin:.1rem 0 .6rem">Tick every character who should be able to open this roster. Multiple characters can share one, or each get their own private menagerie of summons.</p>
             <div class="dm-bx-viewer-grid">
               ${state.characters.map(c => {
                 const has = (bx.viewers||[]).includes(c.id);
@@ -5217,20 +5272,24 @@ function applyDamageToChar(charId, rawAmount, dmgType, opts){
 }
 
 // ── CORE: roll log ─────────────────────────────────────────────────
-const ROLL_LOG_MAX = 60;
+// LOCAL-only. Every browser has its own log of what it's SEEN. Rolls
+// arrive via the existing rwby-meta/rollfeed broadcast subscription;
+// damage/heal events (which don't broadcast) get appended from
+// applyDamageToChar directly. Zero extra Firestore writes.
+const ROLL_LOG_MAX = 80;
+const _localRollLog = [];
 function addRollLog(entry){
-  if(!Array.isArray(state.rollLog)) state.rollLog = [];
-  state.rollLog.unshift({
+  _localRollLog.unshift({
     id: 'r-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
     ts: Date.now(),
     who: String(entry.who || '—'),
     formula: String(entry.formula || ''),
     result: String(entry.result ?? ''),
     crit: !!entry.crit,
-    kind: entry.kind || 'roll'    // 'roll' | 'damage' | 'save' | 'skill'
+    kind: entry.kind || 'roll'
   });
-  if (state.rollLog.length > ROLL_LOG_MAX) state.rollLog.length = ROLL_LOG_MAX;
-  pushState();
+  if (_localRollLog.length > ROLL_LOG_MAX) _localRollLog.length = ROLL_LOG_MAX;
+  // No pushState — the log stays local. Just refresh the display.
   try { if (dmUnlocked) renderRollLog(); } catch(e) {}
 }
 
@@ -5526,7 +5585,7 @@ function flashCharCard(charId, kind){
 // ═════════════════════════════════════════════════════════════════
 function renderRollLog(){
   const host = el('dmRollLogRoot'); if(!host || !dmUnlocked) return;
-  const log = Array.isArray(state.rollLog) ? state.rollLog : [];
+  const log = _localRollLog;
 
   host.innerHTML = `
     <div class="dm-rlog-shell">
@@ -5547,13 +5606,13 @@ function renderRollLog(){
             <div class="dm-rlog-formula">${esc(r.formula)}</div>
             <div class="dm-rlog-result">${esc(String(r.result))}${r.crit?' 💥':''}</div>
           </div>`;
-        }).join('') : '<div class="dm-empty" style="padding:1.5rem">No rolls logged yet.</div>'}
+        }).join('') : '<div class="dm-empty" style="padding:1.5rem">No rolls yet. Your local log fills as rolls happen — broadcasts from other players auto-append.</div>'}
       </div>
     </div>
   `;
   el('rlogClear')?.addEventListener('click', () => {
-    if (!confirm('Clear the entire roll log?')) return;
-    state.rollLog = []; pushState(true); renderRollLog();
+    if (!confirm('Clear this browser\'s roll log?')) return;
+    _localRollLog.length = 0; renderRollLog();
   });
 }
 

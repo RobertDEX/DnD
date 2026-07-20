@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>RWBY DnD — Remnant</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="rwby.css?v=202607200800">
+<link rel="stylesheet" href="rwby.css?v=202607200900">
 </head>
 <body>
 <button class="sidebar-toggle" id="sidebarToggle">☰</button>
@@ -260,7 +260,7 @@
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
         <button class="tab-btn" data-tab="compass">Compass</button>
-        <button class="tab-btn" data-tab="bestiary">Bestiary</button>
+        <button class="tab-btn" data-tab="bestiary">Menagerie</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn" data-tab="log">Log</button>
         <button class="tab-btn" data-tab="quests">Quests</button>
@@ -399,11 +399,11 @@
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="bestiary">
-        <div class="section-title">🐾 Bestiary <span class="section-hint">— field notes granted by your DM</span></div>
-        <p class="small-note" style="margin-bottom:.7rem">Every codex you hold is listed below. Different characters can be granted different collections.</p>
+        <div class="section-title">🐾 Menagerie <span class="section-hint">— your summons &amp; tamed creatures</span></div>
+        <p class="small-note" style="margin-bottom:.7rem">Every roster you've been granted is listed below. Different characters can hold different creatures.</p>
         <div id="bestiarySelector" class="bx-selector"></div>
         <div class="list-search-row">
-          <input id="bestiarySearch" class="list-search" type="text" placeholder="🔍 Search creatures…" autocomplete="off">
+          <input id="bestiarySearch" class="list-search" type="text" placeholder="🔍 Search your menagerie…" autocomplete="off">
           <span id="bestiaryCount" class="list-search-count"></span>
         </div>
         <div id="bestiaryList" class="bestiary-list"></div>
@@ -577,7 +577,7 @@
             <span class="dm-nav-icon">💥</span><span class="dm-nav-lbl">Damage Bus</span>
           </button>
           <button class="dm-nav-btn" data-dm-tab="bestiaries">
-            <span class="dm-nav-icon">🐾</span><span class="dm-nav-lbl">Bestiary</span>
+            <span class="dm-nav-icon">🐾</span><span class="dm-nav-lbl">Menageries</span>
           </button>
           <button class="dm-nav-btn" data-dm-tab="grouproll">
             <span class="dm-nav-icon">🎲</span><span class="dm-nav-lbl">Group Roll</span>
@@ -750,8 +750,8 @@
 
         <!-- BESTIARIES TAB -->
         <div class="dm-tab" data-dm-tab="bestiaries">
-          <div class="dm-tab-title">Bestiary Codices</div>
-          <p class="dm-hint">Each codex is its own bestiary. Grant it to as many or as few characters as you like — every player only sees the codices you've handed them. Add / edit creatures from the player-side <strong>Bestiary</strong> tab (switch to the codex first, then hit ＋ Add Creature).</p>
+          <div class="dm-tab-title">Menageries · Summons &amp; Tamed Creatures</div>
+          <p class="dm-hint">Each roster is a private inventory of creatures a character has tamed or can summon. Grant a roster to one character or several — every player only sees the rosters you've handed them. Add / edit creatures from the player-side <strong>Menagerie</strong> tab (switch to the roster first, then hit ＋ Add Creature).</p>
           <div class="dm-card">
             <div class="dm-card-body" style="padding:0">
               <div id="dmBestiariesRoot"></div>
@@ -1001,8 +1001,8 @@
   <div id="artifactSheetBody" class="artifact-sheet"></div>
 </div>
 
-<script src="curses.js?v=202607200800"></script>
-<script src="rwby_shop.js?v=202607200800"></script>
-<script type="module" src="rwby.js?v=202607200800"></script>
+<script src="curses.js?v=202607200900"></script>
+<script src="rwby_shop.js?v=202607200900"></script>
+<script type="module" src="rwby.js?v=202607200900"></script>
 </body>
 </html>

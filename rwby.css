@@ -5546,3 +5546,59 @@ input, textarea, select{transition:border-color .14s, box-shadow .14s, backgroun
   .dm-cal-header{flex-direction:column;align-items:flex-start;gap:.75rem}
   .scene-banner{padding:.5rem .65rem}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPASS — dual sections (Bound to Me + Known Artifacts) 2026-07
+   ═══════════════════════════════════════════════════════════════════ */
+.compass-section-title{
+  display:flex;align-items:baseline;gap:.6rem;
+  padding-bottom:.5rem;margin-bottom:.7rem;
+  border-bottom:1px dashed rgba(0,210,255,.14);
+}
+.compass-section-title .cst-label{
+  font-family:var(--F2);font-size:.72rem;font-weight:800;letter-spacing:.14em;
+  color:var(--aura);text-transform:uppercase;
+  text-shadow:0 0 12px rgba(0,210,255,.28);
+}
+.compass-section-title .cst-count{
+  font-family:var(--F2);font-size:.55rem;font-weight:800;letter-spacing:.06em;
+  padding:.12rem .5rem;border-radius:99px;
+  background:rgba(0,0,0,.4);color:var(--muted);
+  border:1px solid rgba(0,210,255,.16);
+}
+.compass-section-title .cst-hint{
+  font-family:var(--F1);font-size:.72rem;color:var(--muted);
+  font-style:italic;font-weight:500;letter-spacing:0;text-transform:none;
+}
+
+/* Foreign artifacts (held by someone else) — dimmer, tagged */
+.art-tile.foreign{
+  background:linear-gradient(145deg, rgba(14,20,32,.85), rgba(6,10,18,.94));
+  opacity:.92;
+}
+.art-tile.foreign:hover{opacity:1}
+.art-tile-known{
+  position:absolute;top:2px;right:2px;
+  font-family:var(--F2);font-size:.4rem;font-weight:800;letter-spacing:.14em;
+  padding:.12rem .32rem;border-radius:4px;
+  background:rgba(0,210,255,.18);color:var(--aura);
+  border:1px solid rgba(0,210,255,.4);
+  text-shadow:0 0 6px rgba(0,210,255,.35);
+}
+
+/* DM "party knows" toggle in the artifact sheet header */
+.ash-knowntoggle{
+  display:inline-flex;align-items:center;gap:.35rem;
+  padding:.4rem .6rem;border-radius:7px;cursor:pointer;
+  background:rgba(0,0,0,.4);border:1px solid rgba(0,210,255,.22);
+  font-family:var(--F2);font-size:.55rem;font-weight:800;letter-spacing:.1em;
+  color:var(--muted);text-transform:uppercase;
+  transition:all .14s;
+}
+.ash-knowntoggle:hover{border-color:var(--aura);color:var(--text)}
+.ash-knowntoggle:has(input:checked){
+  background:linear-gradient(90deg, rgba(0,210,255,.16), rgba(0,0,0,.4));
+  border-color:var(--aura);color:var(--text);
+  box-shadow:0 0 14px -4px var(--aura);
+}
+.ash-knowntoggle input{accent-color:var(--aura);width:14px;height:14px}

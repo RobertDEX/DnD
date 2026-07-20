@@ -871,12 +871,13 @@ async function pushState(immediate = false) {
   if (spectator) return; // spectators never write
   const hasData = state.characters.some(c => c.name && c.name.trim());
   if (!hasData) return;
+  const target = (typeof activeCampaignDoc === 'function') ? activeCampaignDoc() : 'rwby-campaign';
   if (immediate) {
     setSyncDot('syncing');
     try {
-      await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
+      await setDoc(doc(db, 'campaigns', target), { data: JSON.stringify(state) });
       setSyncDot('synced');
-    } catch(e) { console.error(e); setSyncDot('error'); }
+    } catch(e) { console.error(e); setSyncDot('error'); if(typeof _lastError!=='undefined') _lastError = e.message || String(e); }
     return;
   }
   // Debounce text input pushes by 600ms to avoid spamming Firebase
@@ -884,9 +885,9 @@ async function pushState(immediate = false) {
   clearTimeout(_pushDebounce);
   _pushDebounce = setTimeout(async () => {
     try {
-      await setDoc(doc(db, 'campaigns', 'rwby-campaign'), { data: JSON.stringify(state) });
+      await setDoc(doc(db, 'campaigns', target), { data: JSON.stringify(state) });
       setSyncDot('synced');
-    } catch(e) { console.error(e); setSyncDot('error'); }
+    } catch(e) { console.error(e); setSyncDot('error'); if(typeof _lastError!=='undefined') _lastError = e.message || String(e); }
   }, 600);
 }
 // Force any pending debounced write to flush immediately (on blur / before leaving).
@@ -894,10 +895,16 @@ function flushPendingPush(){ if(_pushDebounce){ clearTimeout(_pushDebounce); _pu
 
 function startListener() {
   if (_unsub) _unsub();
-  _unsub = onSnapshot(doc(db, 'campaigns', 'rwby-campaign'), snap => {
-    if (!snap.exists()) return;
+  const target = (typeof activeCampaignDoc === 'function') ? activeCampaignDoc() : 'rwby-campaign';
+  _unsub = onSnapshot(doc(db, 'campaigns', target), snap => {
+    if (!snap.exists()) {
+      if (typeof _lastError !== 'undefined') _lastError = `campaigns/${target} does not exist yet`;
+      setSyncDot('error');
+      return;
+    }
     try {
       const raw = snap.data().data;
+      if (typeof _lastPullTs !== 'undefined') { _lastPullTs = Date.now(); _lastPullBytes = String(raw||'').length; }
       // ── FLICKER GUARD ──
       // If the incoming payload is byte-identical to what we last applied,
       // there is nothing visible to change — skip the whole re-render. This
@@ -5271,7 +5278,307 @@ function applyDamageToChar(charId, rawAmount, dmgType, opts){
   return final;
 }
 
-// ── CORE: roll log ─────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════
+// FIREBASE DIAGNOSTICS + CAMPAIGN IMPORT (July 2026)
+// Shows exactly what's in Firestore, lets you switch which campaign
+// document the site reads from, and provides console debug utilities.
+// ═════════════════════════════════════════════════════════════════
+
+// Track sync health for the diagnostics panel
+let _lastPushTs   = 0;
+let _lastPushBytes = 0;
+let _lastPushOk   = null;
+let _lastPullTs   = 0;
+let _lastPullBytes = 0;
+let _lastError    = '';
+
+// Wrap the existing pushState telemetry — record when writes happen
+const _origPushState = pushState;
+pushState = async function(immediate = false){
+  const bytes = (typeof JSON.stringify(state) === 'string') ? JSON.stringify(state).length : 0;
+  const r = await _origPushState.call(this, immediate);
+  _lastPushTs   = Date.now();
+  _lastPushBytes = bytes;
+  return r;
+};
+
+// Which document the site reads/writes. Stored in localStorage so a
+// DM can switch to an alt campaign (e.g. staging vs live) without
+// editing code. Defaults to 'rwby-campaign'.
+function activeCampaignDoc(){
+  return localStorage.getItem('rwby-active-campaign') || 'rwby-campaign';
+}
+
+async function renderFirebaseDiagnostics(){
+  const host = el('dmFirebaseDiag'); if(!host || !dmUnlocked) return;
+  const active = activeCampaignDoc();
+  const currentBytes = JSON.stringify(state).length;
+  const near1MB = currentBytes > 800_000;
+
+  const fmtTs = (ts) => !ts ? '—' : new Date(ts).toLocaleTimeString();
+  const fmtBytes = (b) => !b ? '0' : b > 1024 ? `${(b/1024).toFixed(1)} KB` : `${b} B`;
+
+  host.innerHTML = `
+    <div class="fb-diag">
+      <div class="fb-diag-grid">
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Active document</div>
+          <div class="fb-diag-val fb-diag-mono">campaigns/${esc(active)}</div>
+        </div>
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Current state size</div>
+          <div class="fb-diag-val ${near1MB?'danger':''}">${fmtBytes(currentBytes)}${near1MB?' ⚠ near limit':''}</div>
+        </div>
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Last write</div>
+          <div class="fb-diag-val">${fmtTs(_lastPushTs)} · ${fmtBytes(_lastPushBytes)}</div>
+        </div>
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Last read</div>
+          <div class="fb-diag-val">${fmtTs(_lastPullTs)} · ${fmtBytes(_lastPullBytes)}</div>
+        </div>
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Characters loaded</div>
+          <div class="fb-diag-val">${state.characters?.length || 0}
+            <span class="fb-diag-sub">(${state.characters?.filter(c=>c.name).length || 0} named)</span></div>
+        </div>
+        <div class="fb-diag-cell">
+          <div class="fb-diag-lbl">Last error</div>
+          <div class="fb-diag-val ${_lastError?'danger':''}">${_lastError ? esc(_lastError) : 'none'}</div>
+        </div>
+      </div>
+
+      <div class="fb-diag-actions">
+        <button class="neo-btn small" id="fbForcePull">↻ Force reload from Firebase</button>
+        <button class="neo-btn small" id="fbForcePush">▲ Push current state now</button>
+        <button class="neo-btn ghost small" id="fbListCampaigns">📁 List all campaigns</button>
+      </div>
+
+      <div id="fbCampaignList" class="fb-campaign-list" style="display:none"></div>
+
+      <div class="fb-diag-sec">Import from another campaign</div>
+      <p class="dm-hint" style="margin:.2rem 0 .5rem">Pull data from a different document (e.g. <code>ft-campaign</code>, <code>maw-campaign</code>, a backup name, etc.) and overwrite the current state. Current state is auto-backed up first so this is reversible via Backups.</p>
+      <div class="fb-diag-import">
+        <input type="text" id="fbImportId" placeholder="campaign document ID (e.g. ft-campaign)" class="fb-diag-input">
+        <button class="neo-btn small" id="fbImportBtn">Preview</button>
+      </div>
+      <div id="fbImportPreview" class="fb-import-preview"></div>
+
+      <div class="fb-diag-sec">Switch active document</div>
+      <p class="dm-hint" style="margin:.2rem 0 .5rem">Change which document this browser reads/writes. All players need to switch too, or they'll be on different data. Setting persists in this browser only.</p>
+      <div class="fb-diag-import">
+        <input type="text" id="fbSwitchId" placeholder="new active document ID" class="fb-diag-input" value="${esc(active)}">
+        <button class="neo-btn small" id="fbSwitchBtn">Switch &amp; reload</button>
+      </div>
+    </div>
+  `;
+
+  el('fbForcePull')?.addEventListener('click', async () => {
+    try {
+      showToast('Pulling from Firebase…', 'info', 1500);
+      const snap = await getDoc(doc(db, 'campaigns', active));
+      if (!snap.exists()) {
+        _lastError = `Document campaigns/${active} does not exist`;
+        showToast(_lastError, 'warn'); renderFirebaseDiagnostics(); return;
+      }
+      const raw = snap.data().data;
+      _lastPullTs = Date.now();
+      _lastPullBytes = String(raw || '').length;
+      _lastAppliedRaw = ''; // bust the flicker guard so it re-applies
+      const remote = normalize(JSON.parse(raw));
+      state.characters = remote.characters;
+      Object.keys(remote).forEach(k => { if (k !== 'characters') state[k] = remote[k]; });
+      render();
+      _lastError = '';
+      showToast(`Loaded ${remote.characters.length} chars from ${active}`, 'success');
+      renderFirebaseDiagnostics();
+    } catch(e) {
+      _lastError = e.message || String(e);
+      showToast('Pull failed: ' + _lastError, 'warn');
+      renderFirebaseDiagnostics();
+    }
+  });
+
+  el('fbForcePush')?.addEventListener('click', async () => {
+    try {
+      showToast('Pushing to Firebase…', 'info', 1500);
+      await pushState(true);
+      _lastError = '';
+      showToast('Pushed', 'success');
+      renderFirebaseDiagnostics();
+    } catch(e) {
+      _lastError = e.message || String(e);
+      showToast('Push failed: ' + _lastError, 'warn');
+      renderFirebaseDiagnostics();
+    }
+  });
+
+  el('fbListCampaigns')?.addEventListener('click', async () => {
+    const listHost = el('fbCampaignList');
+    if (!listHost) return;
+    listHost.style.display = '';
+    listHost.innerHTML = '<div class="fb-diag-loading">Loading…</div>';
+    try {
+      const all = await getDocs(collection(db, 'campaigns'));
+      const docs = [];
+      all.forEach(d => {
+        const size = String(d.data()?.data || '').length;
+        docs.push({ id: d.id, size });
+      });
+      docs.sort((a,b) => b.size - a.size);
+      if (!docs.length) {
+        listHost.innerHTML = '<div class="fb-diag-loading">No campaigns found.</div>';
+        return;
+      }
+      listHost.innerHTML = docs.map(d => {
+        const isActive = d.id === active;
+        return `<div class="fb-campaign-row ${isActive?'active':''}">
+          <div class="fb-campaign-name">${esc(d.id)}${isActive?' <span class="fb-tag">ACTIVE</span>':''}</div>
+          <div class="fb-campaign-size">${fmtBytes(d.size)}</div>
+          <button class="neo-btn ghost small" data-fbimport="${esc(d.id)}">Import from</button>
+          <button class="neo-btn ghost small" data-fbswitch="${esc(d.id)}">Switch to</button>
+        </div>`;
+      }).join('');
+      listHost.querySelectorAll('[data-fbimport]').forEach(b => b.addEventListener('click', () => {
+        el('fbImportId').value = b.dataset.fbimport;
+        el('fbImportBtn').click();
+      }));
+      listHost.querySelectorAll('[data-fbswitch]').forEach(b => b.addEventListener('click', () => {
+        el('fbSwitchId').value = b.dataset.fbswitch;
+        el('fbSwitchBtn').click();
+      }));
+    } catch(e) {
+      listHost.innerHTML = `<div class="fb-diag-loading danger">Error: ${esc(e.message||String(e))}</div>`;
+    }
+  });
+
+  el('fbImportBtn')?.addEventListener('click', async () => {
+    const id = (el('fbImportId')?.value || '').trim();
+    const preview = el('fbImportPreview'); if(!preview) return;
+    if (!id) { showToast('Enter a document ID first', 'warn'); return; }
+    preview.innerHTML = '<div class="fb-diag-loading">Reading…</div>';
+    try {
+      const snap = await getDoc(doc(db, 'campaigns', id));
+      if (!snap.exists()) {
+        preview.innerHTML = `<div class="fb-diag-loading danger">campaigns/${esc(id)} does not exist</div>`;
+        return;
+      }
+      const raw = snap.data().data;
+      const parsed = JSON.parse(raw);
+      const charCount = Array.isArray(parsed.characters) ? parsed.characters.length : 0;
+      const namedCount = Array.isArray(parsed.characters) ? parsed.characters.filter(c=>c?.name).length : 0;
+      const questCount = Array.isArray(parsed.quests) ? parsed.quests.length : 0;
+      const locCount = Array.isArray(parsed.locations) ? parsed.locations.length : 0;
+      const bxCount = Array.isArray(parsed.bestiaries) ? parsed.bestiaries.reduce((n,b)=>n+(b.entries?.length||0),0) : 0;
+      const hasRwbyFields = Array.isArray(parsed.characters) && parsed.characters.some(c => c?.semblance || c?.aura);
+      const hasForeignFields = Array.isArray(parsed.characters) && parsed.characters.some(c => c?.magicType || c?.guild || c?.religion);
+      preview.innerHTML = `
+        <div class="fb-preview-card ${hasForeignFields?'foreign':''}">
+          <div class="fb-preview-head">
+            <span class="fb-preview-name">${esc(id)}</span>
+            <span class="fb-preview-size">${String(raw).length.toLocaleString()} bytes</span>
+          </div>
+          <div class="fb-preview-stats">
+            <span>${charCount} chars <em>(${namedCount} named)</em></span>
+            <span>${questCount} quests</span>
+            <span>${locCount} locations</span>
+            <span>${bxCount} creatures</span>
+          </div>
+          ${hasForeignFields ? `<div class="fb-preview-warn">⚠ This document has NON-RWBY fields (magicType/guild/religion). It's from a different project. Importing will lose that data or leave the sheet in an odd state — proceed only if you know what you're doing.</div>` : ''}
+          ${!hasRwbyFields && charCount ? `<div class="fb-preview-warn">⚠ Characters here don't look like RWBY characters (missing semblance/aura).</div>` : ''}
+          <div class="fb-preview-actions">
+            <button class="neo-btn small" id="fbImportConfirm">Import &amp; overwrite current state</button>
+            <button class="neo-btn ghost small" id="fbImportCancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      el('fbImportConfirm')?.addEventListener('click', async () => {
+        if (!confirm(`Overwrite the current campaign with data from ${id}?\n\nA backup of your current state is saved first, so this is reversible.`)) return;
+        try {
+          // Backup current state first
+          if (typeof saveSnapshot === 'function') {
+            await saveSnapshot(`before import from ${id}`);
+          }
+          // Apply the imported data
+          _lastAppliedRaw = '';
+          const remote = normalize(parsed);
+          state.characters = remote.characters;
+          Object.keys(remote).forEach(k => { if (k !== 'characters') state[k] = remote[k]; });
+          await pushState(true);
+          render();
+          preview.innerHTML = '';
+          if (el('fbImportId')) el('fbImportId').value = '';
+          showToast(`Imported from ${id}`, 'success');
+          renderFirebaseDiagnostics();
+        } catch(e) {
+          _lastError = e.message || String(e);
+          showToast('Import failed: ' + _lastError, 'warn');
+        }
+      });
+      el('fbImportCancel')?.addEventListener('click', () => {
+        preview.innerHTML = '';
+      });
+    } catch(e) {
+      preview.innerHTML = `<div class="fb-diag-loading danger">Error: ${esc(e.message||String(e))}</div>`;
+    }
+  });
+
+  el('fbSwitchBtn')?.addEventListener('click', () => {
+    const id = (el('fbSwitchId')?.value || '').trim();
+    if (!id) { showToast('Enter a document ID', 'warn'); return; }
+    if (id === active) { showToast('Already active', 'info'); return; }
+    if (!confirm(`Switch this browser to campaigns/${id}?\n\nThe page will reload. Other players on this campaign will need to switch too.`)) return;
+    localStorage.setItem('rwby-active-campaign', id);
+    location.reload();
+  });
+}
+
+// Wire diagnostics into DM render pipeline (and Theme tab)
+const _origRenderSiteSettings = renderSiteSettings;
+renderSiteSettings = function(){
+  _origRenderSiteSettings.call(this);
+  try { renderFirebaseDiagnostics(); } catch(e) { console.error('renderFirebaseDiagnostics:', e); }
+};
+
+// ── CONSOLE DEBUG UTILITIES ──
+// Available as window.rwbyDebug in the browser console
+window.rwbyDebug = {
+  async showCampaign(id){
+    const target = id || activeCampaignDoc();
+    const snap = await getDoc(doc(db, 'campaigns', target));
+    if (!snap.exists()) { console.log(`❌ campaigns/${target} does not exist`); return null; }
+    const raw = snap.data().data;
+    const parsed = JSON.parse(raw);
+    console.log(`📄 campaigns/${target} (${raw.length} bytes)`);
+    console.log(parsed);
+    return parsed;
+  },
+  async listCampaigns(){
+    const all = await getDocs(collection(db, 'campaigns'));
+    const results = [];
+    all.forEach(d => {
+      const size = String(d.data()?.data || '').length;
+      results.push({ id: d.id, sizeBytes: size, sizeKB: (size/1024).toFixed(1) });
+    });
+    console.table(results);
+    return results;
+  },
+  currentDoc(){ return activeCampaignDoc(); },
+  currentSize(){ return JSON.stringify(state).length; },
+  lastError(){ return _lastError; },
+  async forcePush(){ return pushState(true); },
+  help(){
+    console.log(`RWBY Debug Utilities:
+  rwbyDebug.showCampaign()          → dump the currently loaded campaign doc
+  rwbyDebug.showCampaign('some-id') → dump a specific campaign doc
+  rwbyDebug.listCampaigns()         → list all campaigns in Firestore with sizes
+  rwbyDebug.currentDoc()            → which doc this browser reads
+  rwbyDebug.currentSize()           → bytes of the current in-memory state
+  rwbyDebug.lastError()             → most recent Firebase error
+  rwbyDebug.forcePush()             → force a Firebase write now`);
+  }
+};
+console.log('[rwby] debug utilities available — type rwbyDebug.help() in this console');
 // LOCAL-only. Every browser has its own log of what it's SEEN. Rolls
 // arrive via the existing rwby-meta/rollfeed broadcast subscription;
 // damage/heal events (which don't broadcast) get appended from

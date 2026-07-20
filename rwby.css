@@ -5602,3 +5602,89 @@ input, textarea, select{transition:border-color .14s, box-shadow .14s, backgroun
   box-shadow:0 0 14px -4px var(--aura);
 }
 .ash-knowntoggle input{accent-color:var(--aura);width:14px;height:14px}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FIREBASE DIAGNOSTICS (July 2026)
+   ═══════════════════════════════════════════════════════════════════ */
+.fb-diag{display:flex;flex-direction:column;gap:.9rem}
+.fb-diag-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.5rem;
+}
+.fb-diag-cell{
+  padding:.6rem .75rem;border-radius:8px;
+  background:rgba(0,0,0,.32);border:1px solid rgba(0,210,255,.1);
+}
+.fb-diag-lbl{
+  font-family:var(--F2);font-size:.5rem;font-weight:800;letter-spacing:.14em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:.3rem;
+}
+.fb-diag-val{
+  font-family:var(--F1);font-size:.9rem;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.fb-diag-val.danger{color:#ff9090}
+.fb-diag-val .fb-diag-sub{font-size:.68rem;font-weight:600;color:var(--muted);margin-left:.35rem}
+.fb-diag-mono{font-family:'Courier New', monospace;font-size:.82rem}
+.fb-diag-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.fb-diag-sec{
+  font-family:var(--F2);font-size:.58rem;font-weight:800;letter-spacing:.14em;
+  color:var(--aura);text-transform:uppercase;margin-top:.4rem;
+  padding-bottom:.3rem;border-bottom:1px dashed rgba(0,210,255,.14);
+}
+.fb-diag-import{display:flex;gap:.4rem;align-items:stretch}
+.fb-diag-input{
+  flex:1;padding:.5rem .7rem;background:rgba(0,0,0,.42);color:var(--text);
+  border:1px solid rgba(0,210,255,.15);border-radius:7px;
+  font-family:'Courier New', monospace;font-size:.85rem;
+}
+.fb-diag-input:focus{outline:none;border-color:var(--aura);box-shadow:0 0 0 3px rgba(0,210,255,.1)}
+.fb-diag-loading{padding:.75rem;text-align:center;font-family:var(--F2);font-size:.7rem;color:var(--muted)}
+.fb-diag-loading.danger{color:#ff9090}
+.fb-campaign-list{
+  display:flex;flex-direction:column;gap:.3rem;
+  background:rgba(0,0,0,.28);border:1px solid rgba(0,210,255,.1);
+  border-radius:8px;padding:.5rem;max-height:280px;overflow-y:auto;
+}
+.fb-campaign-row{
+  display:grid;grid-template-columns:1fr auto auto auto;gap:.5rem;align-items:center;
+  padding:.42rem .65rem;border-radius:6px;
+  background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.05);
+}
+.fb-campaign-row.active{
+  background:linear-gradient(90deg, rgba(0,210,255,.12), rgba(0,0,0,.3));
+  border-color:rgba(0,210,255,.4);
+}
+.fb-campaign-name{
+  font-family:'Courier New', monospace;font-size:.85rem;font-weight:700;color:var(--text);
+}
+.fb-tag{
+  display:inline-block;margin-left:.3rem;padding:.05rem .35rem;border-radius:4px;
+  font-family:var(--F2);font-size:.5rem;font-weight:800;letter-spacing:.14em;
+  background:rgba(0,210,255,.2);color:var(--aura);border:1px solid rgba(0,210,255,.4);
+}
+.fb-campaign-size{
+  font-family:var(--F2);font-size:.6rem;font-weight:700;letter-spacing:.06em;color:var(--muted);
+}
+
+.fb-import-preview:empty{display:none}
+.fb-preview-card{
+  padding:.75rem .9rem;border-radius:9px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(0,210,255,.28);
+  display:flex;flex-direction:column;gap:.55rem;
+}
+.fb-preview-card.foreign{border-color:rgba(240,184,96,.4);background:rgba(60,40,10,.14)}
+.fb-preview-head{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.fb-preview-name{font-family:'Courier New', monospace;font-size:.95rem;font-weight:800;color:var(--text)}
+.fb-preview-size{font-family:var(--F2);font-size:.6rem;color:var(--muted);font-weight:700;letter-spacing:.06em}
+.fb-preview-stats{
+  display:flex;flex-wrap:wrap;gap:.6rem;
+  font-family:var(--F2);font-size:.68rem;font-weight:700;color:var(--text);letter-spacing:.02em;
+}
+.fb-preview-stats em{font-style:normal;color:var(--muted)}
+.fb-preview-warn{
+  padding:.55rem .7rem;border-radius:6px;
+  background:rgba(240,184,96,.14);color:#ffd98a;
+  border-left:3px solid #f0b860;
+  font-family:var(--F1);font-size:.82rem;line-height:1.5;
+}
+.fb-preview-actions{display:flex;gap:.4rem;justify-content:flex-end}

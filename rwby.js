@@ -343,8 +343,7 @@ function blankChar(i) {
     curses: [],          // [{id, name, severity, duration, text, rolledAt}]
     commendations: [],   // earned commendation ids (DM-granted, cosmetic)
     compass: [],         // Holy Armaments / Cursed Tools bound to this character (DM-managed)
-    feats: [],           // mechanical feat ids (DM-granted, change real numbers)
-    feats: [],           // custom DM-created feats [{id, name, desc, ts}]
+    feats: [],           // mechanical feat ids (DM-granted); catalog stored in state.customFeats
     dustInventory: dust, dustSpells:[], techniques:[], conditions:[],
     semblance:{
       base:blankStage(),first:blankStage(),second:blankStage(),third:blankStage(),ascended:blankStage(),
@@ -2529,7 +2528,7 @@ function setDmTarget(i){
   // refresh every tab that depends on the target
   try{ renderDmSemblance(); }catch(e){}
   try{ renderDmTechniques(); }catch(e){}
-  try{ renderCommendPanel(); }catch(e){}
+  try{ renderDmCommendations(); }catch(e){}
   try{ renderDmFeatGrid(); }catch(e){}
   try{ renderDmDashboard(); }catch(e){}
   const nameEl = el('dmSelectedCharacterName');
@@ -5087,20 +5086,22 @@ function applyDamageToChar(charId, rawAmount, dmgType, opts){
   if (dmgType === 'aura') {
     c.aura.current = Math.max(0, (c.aura.current || 0) - final);
   } else {
+    const wasDown = (c.hp.current || 0) <= 0;   // ← check BEFORE we subtract
     const tmp = Number(c.tempHp) || 0;
     const absorbed = Math.min(tmp, final);
     c.tempHp = tmp - absorbed;
     c.hp.current = Math.max(0, (c.hp.current || 0) - (final - absorbed));
-    // Death saves reset when taking damage above 0? no — only awake chars concentrate
-    // If HP hits 0, wipe death saves so the downed overlay reflects fresh state
-    if (c.hp.current <= 0 && (!c.deathSaves || c.deathSaves.stable)) {
-      c.deathSaves = { successes:0, failures:0, stable:false };
-    }
-    // If already downed (unconscious) and hit for damage, add a failed save (crit = 2)
+
     if (c.hp.current <= 0 && c.hp.max > 0) {
-      c.deathSaves = c.deathSaves || {successes:0, failures:0, stable:false};
-      c.deathSaves.failures = Math.min(3, (c.deathSaves.failures||0) + (opts.crit?2:1));
-      c.deathSaves.stable = false;
+      if (wasDown) {
+        // Already unconscious — this hit costs a death save (crit costs two)
+        c.deathSaves = c.deathSaves || { successes:0, failures:0, stable:false };
+        c.deathSaves.failures = Math.min(3, (c.deathSaves.failures||0) + (opts.crit ? 2 : 1));
+        c.deathSaves.stable = false;
+      } else {
+        // Fresh drop to 0 — reset the death save slate cleanly
+        c.deathSaves = { successes:0, failures:0, stable:false };
+      }
     }
   }
 
@@ -5109,7 +5110,7 @@ function applyDamageToChar(charId, rawAmount, dmgType, opts){
   // Log the hit into the roll log (dmg is a form of resolution worth tracking)
   addRollLog({
     who: c.name || 'Unnamed',
-    formula: `${dmg}${dmgType ? ' ' + (DAMAGE_TYPE_BY_ID[dmgType]?.label || dmgType) : ''}${flag ? ' · '+flag : ''}${opts.crit?' · CRIT':''}`,
+    formula: `${dmg}${opts.rolledDetail || ''}${dmgType ? ' ' + (DAMAGE_TYPE_BY_ID[dmgType]?.label || dmgType) : ''}${flag ? ' · '+flag : ''}${opts.crit?' · CRIT':''}`,
     result: final,
     kind: 'damage'
   });
@@ -5256,7 +5257,10 @@ function renderInitiativeTracker(){
   });
   host.querySelectorAll('[data-addchar]').forEach(b => b.addEventListener('click', () => {
     const c = state.characters.find(x => x.id === b.dataset.addchar); if(!c) return;
-    const init = mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus||0) + (10 + Math.floor(Math.random()*10) + 1); // rough roll
+    // Auto-roll a fair d20 and add DEX mod + init bonus. The DM can still
+    // hand-edit the number after by tweaking the row.
+    const d20 = 1 + Math.floor(Math.random() * 20);
+    const init = d20 + mod(effectiveStat(c,'DEX')) + Number(c.initiativeBonus||0);
     ini.entries.push({
       id: 'init-' + Date.now(),
       name: c.name || 'Hunter', init,
@@ -5269,7 +5273,7 @@ function renderInitiativeTracker(){
     const ix = Number(el('iniFromBeast')?.value);
     if (isNaN(ix)) return;
     const b = bestiaryOpts[ix]; if(!b) return;
-    const roll = Number(el('iniFromBeastInit')?.value) || (10 + Math.floor(Math.random()*20)+1);
+    const roll = Number(el('iniFromBeastInit')?.value) || (1 + Math.floor(Math.random() * 20));
     ini.entries.push({
       id: 'init-' + Date.now(),
       name: b.name, init: roll,
@@ -5379,20 +5383,31 @@ function renderDamageBus(){
   el('busApply')?.addEventListener('click', () => {
     store();
     if (!_dmgBusState.targets.size) { showToast('Pick at least one target', 'warn'); return; }
-    const amount = evalMathInput(_dmgBusState.amount);
-    if (!amount || amount <= 0) { showToast('Enter a positive number or math expression', 'warn'); return; }
+    // Try plain math first; if that fails, roll it as a dice expression (e.g. "3d8+5").
+    let amount = evalMathInput(_dmgBusState.amount);
+    let rolledDetail = '';
+    if (!amount || amount <= 0) {
+      const dice = parseDiceExpr(_dmgBusState.amount);
+      if (dice && dice.total > 0) {
+        amount = dice.total;
+        // Show the roll breakdown in the log so the DM sees what happened
+        rolledDetail = ' [' + dice.parts.map(p =>
+          p.type === 'dice' ? `${p.count}d${p.sides}(${p.rolls.join(',')})` : (p.value>=0?'+':'') + p.value
+        ).join(' ') + ']';
+      }
+    }
+    if (!amount || amount <= 0) { showToast('Enter a positive number or dice roll (e.g. 3d8+5)', 'warn'); return; }
     pushUndo(_dmgBusState.heal ? `Healed ${_dmgBusState.targets.size} target(s)` : `Damaged ${_dmgBusState.targets.size} target(s)`);
 
     _dmgBusState.targets.forEach(cid => {
       const c = state.characters.find(x => x.id === cid); if(!c) return;
       if (_dmgBusState.heal) {
         c.hp.current = Math.min(c.hp.max, (c.hp.current || 0) + amount);
-        // Healing above 0 clears death saves
         if (c.hp.current > 0 && c.deathSaves) c.deathSaves = { successes:0, failures:0, stable:false };
-        addRollLog({ who: c.name, formula: `+${amount} healing`, result: c.hp.current, kind: 'heal' });
+        addRollLog({ who: c.name, formula: `+${amount} healing${rolledDetail}`, result: c.hp.current, kind: 'heal' });
         try { flashCharCard(c.id, 'heal'); } catch(e){}
       } else {
-        const dealt = applyDamageToChar(cid, amount, _dmgBusState.type, { crit: _dmgBusState.crit });
+        applyDamageToChar(cid, amount, _dmgBusState.type, { crit: _dmgBusState.crit, rolledDetail });
         try { flashCharCard(c.id, 'damage'); } catch(e){}
       }
     });
@@ -5403,11 +5418,14 @@ function renderDamageBus(){
 }
 
 // Little one-shot flash on a character card when they take damage/heal.
-// Purely visual. Requires the card to expose data-cid.
+// Targets the DM dashboard's per-character card, which is the visual
+// most likely to be on screen when the DM applies damage via the bus.
 function flashCharCard(charId, kind){
-  document.querySelectorAll(`[data-cardcid="${charId}"]`).forEach(el => {
+  const idx = state.characters.findIndex(x => x.id === charId);
+  if (idx < 0) return;
+  document.querySelectorAll(`.dmd-card[data-dmd="${idx}"]`).forEach(el => {
     el.classList.remove('flash-damage','flash-heal');
-    void el.offsetWidth;
+    void el.offsetWidth;   // force reflow so the animation restarts
     el.classList.add(kind === 'heal' ? 'flash-heal' : 'flash-damage');
   });
 }
@@ -5551,7 +5569,7 @@ function renderCombatStatusChips(){
         </button>
       ` : ''}
     </div>
-    ${c._concCheck ? `<div class="csc-conc-prompt">
+    ${(c._concCheck && (Date.now() - (c._concCheck.ts||0) < 15*60*1000)) ? `<div class="csc-conc-prompt">
       <span class="csc-conc-prompt-icon">⚠</span>
       <span>Concentration check! Take a CON save vs <strong>DC ${c._concCheck.dc}</strong>.</span>
       <button class="neo-btn small" id="cscConcResolve">Dismiss</button>

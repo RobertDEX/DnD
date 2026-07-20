@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>RWBY DnD — Remnant</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="rwby.css?v=202607192100">
+<link rel="stylesheet" href="rwby.css?v=202607200800">
 </head>
 <body>
 <button class="sidebar-toggle" id="sidebarToggle">☰</button>
@@ -62,6 +62,7 @@
 <!-- ═══ MAIN ═══ -->
 <main class="main">
       <div id="dmSheetBar" class="dm-sheet-bar" style="display:none"></div>
+      <div id="sceneBanner" class="scene-banner"></div>
 
   <!-- TOP BAR -->
   <header class="topbar panel">
@@ -262,6 +263,7 @@
         <button class="tab-btn" data-tab="bestiary">Bestiary</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
         <button class="tab-btn" data-tab="log">Log</button>
+        <button class="tab-btn" data-tab="quests">Quests</button>
         <button class="tab-btn curse-tab-btn" data-tab="curses">Curses</button>
         <button class="tab-btn" data-tab="honors">Feats</button>
         <div class="tab-menu-wrap">
@@ -323,6 +325,12 @@
           <button id="addSessionBtn" type="button" class="neo-btn" style="width:100%">+ Log This Session</button>
         </div>
         <div id="sessionLogList" class="slog-list"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="quests">
+        <div class="section-title">📜 Active Quests <span class="section-hint">— assigned by your DM</span></div>
+        <p class="small-note" style="margin-bottom:.7rem">Only quests your DM has granted access to appear here.</p>
+        <div id="playerQuestsList" class="pq-list"></div>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="loadout">
@@ -579,6 +587,18 @@
           </button>
         </div>
         <div class="dm-nav-group">
+          <div class="dm-nav-section">World</div>
+          <button class="dm-nav-btn" data-dm-tab="locations">
+            <span class="dm-nav-icon">📍</span><span class="dm-nav-lbl">Locations</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="calendar">
+            <span class="dm-nav-icon">📅</span><span class="dm-nav-lbl">Calendar</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="quests">
+            <span class="dm-nav-icon">📜</span><span class="dm-nav-lbl">Quests</span>
+          </button>
+        </div>
+        <div class="dm-nav-group">
           <div class="dm-nav-section">Chronicle</div>
           <button class="dm-nav-btn" data-dm-tab="rolllog">
             <span class="dm-nav-icon">🎲</span><span class="dm-nav-lbl">Roll Log</span>
@@ -700,6 +720,27 @@
           <div class="dm-card"><div class="dm-card-body" style="padding:0"><div id="dmDamageBusRoot"></div></div></div>
         </div>
 
+        <!-- LOCATIONS TAB -->
+        <div class="dm-tab" data-dm-tab="locations">
+          <div class="dm-tab-title">Location Manager</div>
+          <p class="dm-hint">Track every place the party might visit. Set one as the <strong>current scene</strong> and it shows up on every player's screen with atmosphere and weather.</p>
+          <div class="dm-card"><div class="dm-card-body" style="padding:0"><div id="dmLocationsRoot"></div></div></div>
+        </div>
+
+        <!-- CALENDAR TAB -->
+        <div class="dm-tab" data-dm-tab="calendar">
+          <div class="dm-tab-title">In-Game Calendar</div>
+          <p class="dm-hint">12 months × 30 days per year. Long rests auto-advance one day. Timeline events fire at their assigned date; DM-only events stay hidden from players.</p>
+          <div class="dm-card"><div class="dm-card-body" style="padding:0"><div id="dmCalendarRoot"></div></div></div>
+        </div>
+
+        <!-- QUESTS TAB -->
+        <div class="dm-tab" data-dm-tab="quests">
+          <div class="dm-tab-title">Quest Tracker</div>
+          <p class="dm-hint">One quest can be granted to one player, some players, or the whole party — same viewer-checkbox pattern as bestiaries. DM hooks stay private; players only see the description + objectives you assigned to them.</p>
+          <div class="dm-card"><div class="dm-card-body" style="padding:0"><div id="dmQuestsRoot"></div></div></div>
+        </div>
+
         <!-- ROLL LOG TAB -->
         <div class="dm-tab" data-dm-tab="rolllog">
           <div class="dm-tab-title">Roll Log</div>
@@ -809,6 +850,12 @@
         <!-- THEME TAB -->
         <div class="dm-tab" data-dm-tab="theme">
           <div class="dm-tab-title">Site Theme</div>
+          <div class="dm-card">
+            <div class="dm-card-title">⚙ Site Settings</div>
+            <div class="dm-card-body">
+              <div id="dmSiteSettingsRoot"></div>
+            </div>
+          </div>
           <div class="dm-card">
             <div class="dm-card-title">🌦️ Atmosphere</div>
             <div class="dm-card-body">
@@ -954,8 +1001,8 @@
   <div id="artifactSheetBody" class="artifact-sheet"></div>
 </div>
 
-<script src="curses.js?v=202607192100"></script>
-<script src="rwby_shop.js?v=202607192100"></script>
-<script type="module" src="rwby.js?v=202607192100"></script>
+<script src="curses.js?v=202607200800"></script>
+<script src="rwby_shop.js?v=202607200800"></script>
+<script type="module" src="rwby.js?v=202607200800"></script>
 </body>
 </html>

@@ -362,8 +362,18 @@ const DEF_STATE = {
   customFeats:[],
   weather:'none', sceneTime:'auto',
   sessionLog:[],
-  rollLog:[],           // last N rolls: [{id, ts, who, formula, result, crit, kind}]
-  initiative:{active:false, round:1, turnIdx:0, entries:[]}, // combat tracker
+  rollLog:[],
+  initiative:{active:false, round:1, turnIdx:0, entries:[]},
+  // World state — locations, calendar, quests (added July 2026)
+  locations:[],         // [{id, name, region, description, atmosphere, weather, npcs, dmNotes, current}]
+  calendar:{ day:1, month:1, year:1, dayCount:0, monthNames:[
+      'Genesis','Cinder','Wither','Frost','Bloom','Meridian',
+      'Ashen','Verdant','Vespera','Ember','Argent','Nocturne'
+    ]},
+  calendarEvents:[],    // [{id, day, month, year, title, description, dmOnly}]
+  quests:[],            // [{id, title, description, status, giver, reward, objectives, visibleTo, dmHooks, created}]
+  // Site settings — toggle visual effects, etc.
+  settings:{ semblancePulseEnabled: true },
   shopLocation:'vale',
   cctOnline:true,
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
@@ -938,6 +948,11 @@ function startListener() {
       if (Array.isArray(remote.customFeats)) state.customFeats = remote.customFeats;
       if (Array.isArray(remote.rollLog))    state.rollLog    = remote.rollLog;
       if (remote.initiative && typeof remote.initiative==='object') state.initiative = remote.initiative;
+      if (Array.isArray(remote.locations))       state.locations       = remote.locations;
+      if (remote.calendar && typeof remote.calendar==='object') state.calendar = remote.calendar;
+      if (Array.isArray(remote.calendarEvents)) state.calendarEvents = remote.calendarEvents;
+      if (Array.isArray(remote.quests))         state.quests         = remote.quests;
+      if (remote.settings && typeof remote.settings==='object') state.settings = remote.settings;
       try { applyWeather(); applyTimeSkin(); } catch(e){}
       state.shop = remote.shop;
       if ((!Array.isArray(state.shop) || !state.shop.length)) {
@@ -970,7 +985,11 @@ function startListener() {
                  + '|' + state.shopLocation + '|' + state.cctOnline
                  + '|' + JSON.stringify(state.bestiary)
                  + '|' + JSON.stringify(state.bestiaries)
-                 + '|' + JSON.stringify(state.customFeats); } catch(e) {}
+                 + '|' + JSON.stringify(state.customFeats)
+                 + '|' + JSON.stringify(state.locations)
+                 + '|' + JSON.stringify(state.calendar)
+                 + '|' + JSON.stringify(state.quests)
+                 + '|' + JSON.stringify(state.settings); } catch(e) {}
         if (fp && fp === _lastVisibleFp) {
           // nothing visible to this player changed — stay silent
           recheckWelcomeIfNeeded();
@@ -1027,6 +1046,71 @@ function normalize(raw) {
   if(!['auto','dawn','day','dusk','night','bloodmoon'].includes(m.sceneTime)) m.sceneTime='auto';
   if(!Array.isArray(m.sessionLog)) m.sessionLog=[];
   if(!Array.isArray(m.rollLog))    m.rollLog=[];
+
+  // ── WORLD STATE — locations, calendar, quests ──
+  m.locations = Array.isArray(m.locations) ? m.locations.map((l,ix) => ({
+    id:          String(l?.id ?? ('loc-' + Date.now() + '-' + ix + '-' + Math.random().toString(16).slice(2,5))),
+    name:        String(l?.name ?? 'Unnamed Location'),
+    region:      String(l?.region ?? 'vale'),
+    description: String(l?.description ?? ''),
+    atmosphere:  String(l?.atmosphere ?? ''),
+    weather:     String(l?.weather ?? ''),
+    npcs:        Array.isArray(l?.npcs) ? l.npcs.map(String) : [],
+    dmNotes:     String(l?.dmNotes ?? ''),
+    current:     !!l?.current
+  })) : [];
+  // Enforce exactly one (or zero) current location
+  const currentCount = m.locations.filter(l => l.current).length;
+  if (currentCount > 1) {
+    let found = false;
+    m.locations.forEach(l => { if (l.current) { if (found) l.current = false; else found = true; } });
+  }
+
+  if (!m.calendar || typeof m.calendar !== 'object') {
+    m.calendar = { day:1, month:1, year:1, dayCount:0, monthNames:[
+      'Genesis','Cinder','Wither','Frost','Bloom','Meridian',
+      'Ashen','Verdant','Vespera','Ember','Argent','Nocturne'
+    ]};
+  } else {
+    m.calendar.day       = Math.max(1, Math.min(30, Number(m.calendar.day)   || 1));
+    m.calendar.month     = Math.max(1, Math.min(12, Number(m.calendar.month) || 1));
+    m.calendar.year      = Math.max(1, Number(m.calendar.year) || 1);
+    m.calendar.dayCount  = Math.max(0, Number(m.calendar.dayCount) || 0);
+    m.calendar.monthNames = Array.isArray(m.calendar.monthNames) && m.calendar.monthNames.length === 12
+      ? m.calendar.monthNames.map(String)
+      : ['Genesis','Cinder','Wither','Frost','Bloom','Meridian','Ashen','Verdant','Vespera','Ember','Argent','Nocturne'];
+  }
+  m.calendarEvents = Array.isArray(m.calendarEvents) ? m.calendarEvents.map((e,ix) => ({
+    id:          String(e?.id ?? ('cev-' + Date.now() + '-' + ix)),
+    day:         Math.max(1, Math.min(30, Number(e?.day) || 1)),
+    month:       Math.max(1, Math.min(12, Number(e?.month) || 1)),
+    year:        Math.max(1, Number(e?.year) || 1),
+    title:       String(e?.title ?? ''),
+    description: String(e?.description ?? ''),
+    dmOnly:      !!e?.dmOnly
+  })) : [];
+
+  m.quests = Array.isArray(m.quests) ? m.quests.map((q,ix) => ({
+    id:          String(q?.id ?? ('quest-' + Date.now() + '-' + ix + '-' + Math.random().toString(16).slice(2,5))),
+    title:       String(q?.title ?? 'Untitled Quest'),
+    description: String(q?.description ?? ''),
+    status:      ['active','completed','failed'].includes(q?.status) ? q.status : 'active',
+    giver:       String(q?.giver ?? ''),
+    reward:      String(q?.reward ?? ''),
+    objectives:  Array.isArray(q?.objectives) ? q.objectives.map(o => ({
+      id:   String(o?.id ?? ('obj-' + Math.random().toString(16).slice(2,6))),
+      text: String(o?.text ?? ''),
+      done: !!o?.done
+    })) : [],
+    visibleTo:   Array.isArray(q?.visibleTo) ? q.visibleTo.map(String) : [],
+    dmHooks:     String(q?.dmHooks ?? ''),
+    created:     Number(q?.created) || Date.now()
+  })) : [];
+
+  // Site settings
+  if (!m.settings || typeof m.settings !== 'object') m.settings = {};
+  m.settings.semblancePulseEnabled = m.settings.semblancePulseEnabled !== false; // default true
+
   if(!m.initiative || typeof m.initiative!=='object'){ m.initiative = {active:false, round:1, turnIdx:0, entries:[]}; }
   else {
     m.initiative.active  = !!m.initiative.active;
@@ -1977,6 +2061,7 @@ function renderTabs() {
       case 'dust':       renderDust(); break;
       case 'status':     renderConditions(); renderThreatMeter(); break;
       case 'log':        renderSessionLog(); break;
+      case 'quests':     renderPlayerQuests(); break;
       case 'semblance':  renderSemblance(); break;
       case 'honors':     renderCommendations(); renderHuntsmanLicense(); break;
     }
@@ -3969,6 +4054,8 @@ function useSemblance(key) {
   const cost = c.semblance[key].auraCost;
   if (c.aura.current < cost) { alert(`Not enough Aura. Need ${cost}, have ${c.aura.current}.`); return; }
   c.aura.current -= cost; ensureClamp(c); pushState(true); render();
+  // One-shot accent-colored burst — respects the site-wide setting toggle
+  try { triggerSemblancePulse(c.id); } catch(e) {}
 }
 function useDustSpell(id) {
   const c = getChar(); const sp = c.dustSpells.find(s=>s.id===id); if(!sp) return;
@@ -4288,6 +4375,10 @@ function bindAll() {
       if (tab === 'damagebus')  { renderDamageBus(); }
       if (tab === 'rolllog')    { renderRollLog(); }
       if (tab === 'players')    { renderDmPerCharPanels(); }
+      if (tab === 'locations')  { renderDmLocations(); }
+      if (tab === 'calendar')   { renderDmCalendar(); }
+      if (tab === 'quests')     { renderDmQuests(); }
+      if (tab === 'theme')      { renderSiteSettings(); }
     });
   });
 
@@ -5643,6 +5734,602 @@ function renderCombatSuite(){
     try { renderRollLog(); }          catch(e) { console.error('renderRollLog:', e); }
     try { renderDmPerCharPanels(); }  catch(e) { console.error('renderDmPerCharPanels:', e); }
   }
+  // World state — locations/calendar/quests are visible to everyone
+  try { renderSceneBanner(); }        catch(e) { console.error('renderSceneBanner:', e); }
+  try { renderPlayerQuests(); }       catch(e) { console.error('renderPlayerQuests:', e); }
+  if (dmUnlocked) {
+    try { renderDmLocations(); }      catch(e) { console.error('renderDmLocations:', e); }
+    try { renderDmCalendar(); }       catch(e) { console.error('renderDmCalendar:', e); }
+    try { renderDmQuests(); }         catch(e) { console.error('renderDmQuests:', e); }
+    try { renderSiteSettings(); }     catch(e) { console.error('renderSiteSettings:', e); }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WORLD STATE (July 2026)
+// Location Manager · In-Game Calendar · Quest Tracker · Site Settings
+// ═══════════════════════════════════════════════════════════════════
+
+// ── SHARED HELPERS ─────────────────────────────────────────────────
+function currentLocation(){
+  return (state.locations||[]).find(l => l.current) || null;
+}
+function seasonForMonth(m){
+  // 12 months / 4 seasons — Nocturne back to Cinder is winter, etc.
+  if (m >= 3 && m <= 5)  return 'Spring';
+  if (m >= 6 && m <= 8)  return 'Summer';
+  if (m >= 9 && m <= 11) return 'Autumn';
+  return 'Winter';
+}
+function fmtGameDate(cal){
+  if (!cal) return '—';
+  const mn = (cal.monthNames && cal.monthNames[cal.month-1]) || `Month ${cal.month}`;
+  return `${cal.day} ${mn}, Year ${cal.year}`;
+}
+function advanceCalendar(days){
+  const cal = state.calendar;
+  if (!cal) return;
+  const totalDay = days | 0;
+  if (!totalDay) return;
+  cal.dayCount = Math.max(0, (cal.dayCount||0) + totalDay);
+  cal.day = (cal.day||1) + totalDay;
+  while (cal.day > 30) {
+    cal.day -= 30;
+    cal.month = (cal.month||1) + 1;
+    if (cal.month > 12) { cal.month = 1; cal.year = (cal.year||1) + 1; }
+  }
+  while (cal.day < 1) {
+    cal.day += 30;
+    cal.month = (cal.month||1) - 1;
+    if (cal.month < 1) { cal.month = 12; cal.year = Math.max(1, (cal.year||1) - 1); }
+  }
+}
+
+// ── PLAYER-FACING BANNER (Location + Date + Weather) ───────────────
+function renderSceneBanner(){
+  const host = el('sceneBanner'); if(!host) return;
+  const loc = currentLocation();
+  const cal = state.calendar;
+  const season = seasonForMonth(cal?.month || 1);
+  const atmos = loc?.atmosphere || '';
+  const weath = loc?.weather || '';
+  if (!loc && !cal) { host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.innerHTML = `
+    ${loc ? `<div class="sb-chip sb-loc" title="${esc(loc.description||'')}">
+      <span class="sb-icon">📍</span>
+      <span class="sb-main">${esc(loc.name)}</span>
+      ${loc.region ? `<span class="sb-sub">${esc(loc.region)}</span>` : ''}
+    </div>` : ''}
+    <div class="sb-chip sb-date">
+      <span class="sb-icon">📅</span>
+      <span class="sb-main">${esc(fmtGameDate(cal))}</span>
+      <span class="sb-sub">${season}</span>
+    </div>
+    ${atmos ? `<div class="sb-chip sb-atmos"><span class="sb-icon">✧</span><span class="sb-atmos-text">${esc(atmos)}</span></div>` : ''}
+    ${weath ? `<div class="sb-chip sb-weather"><span class="sb-icon">☁</span><span class="sb-main">${esc(weath)}</span></div>` : ''}
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · LOCATION MANAGER
+// ═════════════════════════════════════════════════════════════════
+let _dmLocSelectedId = null;
+function dmActiveLocation(){
+  const list = state.locations || [];
+  if (!list.length) return null;
+  let l = list.find(x => x.id === _dmLocSelectedId);
+  if (!l) { l = list[0]; _dmLocSelectedId = l.id; }
+  return l;
+}
+function renderDmLocations(){
+  const host = el('dmLocationsRoot'); if(!host || !dmUnlocked) return;
+  const list = state.locations || [];
+  const cur = dmActiveLocation();
+
+  host.innerHTML = `
+    <div class="dm-loc-shell">
+      <aside class="dm-loc-side">
+        <div class="dm-loc-side-head">
+          <span>Locations</span>
+          <button type="button" class="neo-btn small" id="dmLocAdd">＋ New</button>
+        </div>
+        <div class="dm-loc-list">
+          ${list.length ? list.map(l => {
+            const on = cur && l.id === cur.id;
+            return `<button type="button" class="dm-loc-row${on?' active':''}${l.current?' scene':''}" data-locid="${esc(l.id)}">
+              <span class="dm-loc-dot${l.current?' on':''}"></span>
+              <span class="dm-loc-info">
+                <span class="dm-loc-name">${esc(l.name||'Untitled')}</span>
+                <span class="dm-loc-sub">${esc(l.region||'—')}${l.current?' · <b>CURRENT</b>':''}</span>
+              </span>
+            </button>`;
+          }).join('') : '<div class="dm-empty">No locations yet.</div>'}
+        </div>
+      </aside>
+      <div class="dm-loc-main">
+        ${cur ? `
+          <div class="dm-loc-head">
+            <label class="dm-loc-field" style="flex:1">
+              <span>Name</span>
+              <input type="text" id="dmLocName" value="${esc(cur.name)}" placeholder="e.g. Beacon Academy">
+            </label>
+            <label class="dm-loc-field" style="width:150px">
+              <span>Region</span>
+              <select id="dmLocRegion">
+                ${['vale','atlas','vacuo','mistral','menagerie','wilds','outside'].map(r =>
+                  `<option value="${r}" ${cur.region===r?'selected':''}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`
+                ).join('')}
+              </select>
+            </label>
+            <div class="dm-loc-actions">
+              <button type="button" class="neo-btn small ${cur.current?'':'ghost'}" id="dmLocSetScene">
+                ${cur.current?'✓ Scene':'Set as Scene'}
+              </button>
+              <button type="button" class="neo-btn ghost small" id="dmLocDelete">🗑</button>
+            </div>
+          </div>
+
+          <label class="dm-loc-field">
+            <span>Description (players see this)</span>
+            <textarea id="dmLocDesc" placeholder="What does it look like? What does it feel like?">${esc(cur.description||'')}</textarea>
+          </label>
+          <div class="dm-loc-two">
+            <label class="dm-loc-field">
+              <span>Atmosphere (banner tagline)</span>
+              <input type="text" id="dmLocAtmos" value="${esc(cur.atmosphere||'')}" placeholder="e.g. thick fog, distant howls">
+            </label>
+            <label class="dm-loc-field">
+              <span>Weather</span>
+              <input type="text" id="dmLocWeather" value="${esc(cur.weather||'')}" placeholder="e.g. Heavy rain">
+            </label>
+          </div>
+          <label class="dm-loc-field">
+            <span>Key NPCs (one per line)</span>
+            <textarea id="dmLocNpcs" placeholder="Glynda Goodwitch — deputy headmistress&#10;Ozpin — headmaster">${esc((cur.npcs||[]).join('\n'))}</textarea>
+          </label>
+          <label class="dm-loc-field">
+            <span>DM notes (private)</span>
+            <textarea id="dmLocDm" class="dm-loc-privatenotes" placeholder="Only DMs see this. Secrets, plot hooks, encounters lurking here…">${esc(cur.dmNotes||'')}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Add a location to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-loc-row').forEach(r => r.addEventListener('click', () => {
+    _dmLocSelectedId = r.dataset.locid; renderDmLocations();
+  }));
+  el('dmLocAdd')?.addEventListener('click', () => {
+    pushUndo('Created location');
+    const l = {
+      id: 'loc-' + Date.now(),
+      name: 'New Location', region: 'vale',
+      description: '', atmosphere: '', weather: '',
+      npcs: [], dmNotes: '', current: false
+    };
+    state.locations.push(l);
+    _dmLocSelectedId = l.id;
+    pushState(true); renderDmLocations();
+  });
+  el('dmLocDelete')?.addEventListener('click', () => {
+    const c = dmActiveLocation(); if(!c) return;
+    if (!confirm(`Delete "${c.name}"?`)) return;
+    pushUndo(`Deleted location "${c.name}"`);
+    state.locations = state.locations.filter(x => x.id !== c.id);
+    _dmLocSelectedId = null;
+    pushState(true); renderDmLocations(); renderSceneBanner();
+  });
+  el('dmLocSetScene')?.addEventListener('click', () => {
+    const c = dmActiveLocation(); if(!c) return;
+    // Only one at a time
+    const wasCurrent = c.current;
+    state.locations.forEach(l => l.current = false);
+    c.current = !wasCurrent;
+    pushState(true); renderDmLocations(); renderSceneBanner();
+    showToast(c.current ? `Scene set to ${c.name}` : 'No current scene', 'success');
+  });
+  const bind = (id, field, arr) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveLocation(); if(!c) return;
+    if (arr) c[field] = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+    else c[field] = e.target.value;
+    pushState();
+    if (['name','region'].includes(field)) renderDmLocations();
+    if (['name','atmosphere','weather','description'].includes(field)) renderSceneBanner();
+  });
+  bind('dmLocName','name'); bind('dmLocDesc','description');
+  bind('dmLocAtmos','atmosphere'); bind('dmLocWeather','weather');
+  bind('dmLocNpcs','npcs', true); bind('dmLocDm','dmNotes');
+  el('dmLocRegion')?.addEventListener('change', e => {
+    const c = dmActiveLocation(); if(!c) return;
+    c.region = e.target.value; pushState(true); renderDmLocations(); renderSceneBanner();
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · CALENDAR
+// ═════════════════════════════════════════════════════════════════
+function renderDmCalendar(){
+  const host = el('dmCalendarRoot'); if(!host || !dmUnlocked) return;
+  const cal = state.calendar;
+  const events = (state.calendarEvents||[]).slice().sort((a,b) =>
+    (a.year - b.year) || (a.month - b.month) || (a.day - b.day)
+  );
+  const monthName = cal.monthNames[cal.month-1];
+
+  host.innerHTML = `
+    <div class="dm-cal-shell">
+      <div class="dm-cal-header">
+        <div class="dm-cal-current">
+          <div class="dm-cal-date-big">${cal.day}</div>
+          <div class="dm-cal-month">
+            <div class="dm-cal-monthname">${esc(monthName)}</div>
+            <div class="dm-cal-year">Year ${cal.year} · <span class="dm-cal-season">${seasonForMonth(cal.month)}</span></div>
+          </div>
+        </div>
+        <div class="dm-cal-advance">
+          <button class="neo-btn ghost small" data-adv="-1">− 1 day</button>
+          <button class="neo-btn small" data-adv="1">＋ 1 day</button>
+          <button class="neo-btn small" data-adv="7">＋ 1 week</button>
+          <button class="neo-btn small" data-adv="30">＋ 1 month</button>
+        </div>
+      </div>
+
+      <div class="dm-cal-editor">
+        <div class="dm-cal-sec">Set date directly</div>
+        <div class="dm-cal-row">
+          <label class="dm-cal-field"><span>Day</span>
+            <input type="number" id="dmCalDay" min="1" max="30" value="${cal.day}">
+          </label>
+          <label class="dm-cal-field"><span>Month</span>
+            <select id="dmCalMonth">
+              ${cal.monthNames.map((n,i)=>`<option value="${i+1}" ${cal.month===i+1?'selected':''}>${i+1}. ${esc(n)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="dm-cal-field"><span>Year</span>
+            <input type="number" id="dmCalYear" min="1" value="${cal.year}">
+          </label>
+        </div>
+      </div>
+
+      <div class="dm-cal-events">
+        <div class="dm-cal-sec">Timeline Events</div>
+        <div class="dm-cal-row">
+          <input type="number" id="ceDay"   placeholder="Day"   class="dm-cal-input" style="width:70px">
+          <select id="ceMonth" class="dm-cal-input" style="width:140px">
+            ${cal.monthNames.map((n,i)=>`<option value="${i+1}">${i+1}. ${esc(n)}</option>`).join('')}
+          </select>
+          <input type="number" id="ceYear"  placeholder="Year"  class="dm-cal-input" style="width:70px" value="${cal.year}">
+          <input type="text"   id="ceTitle" placeholder="Event title" class="dm-cal-input" style="flex:1">
+          <label class="dm-cal-flag"><input type="checkbox" id="ceDmOnly"> <span>DM only</span></label>
+          <button class="neo-btn small" id="ceAdd">＋ Add</button>
+        </div>
+        <div class="dm-cal-eventlist">
+          ${events.length ? events.map(e => {
+            const mn = cal.monthNames[e.month-1];
+            const past = (e.year < cal.year) || (e.year === cal.year && e.month < cal.month) || (e.year === cal.year && e.month === cal.month && e.day < cal.day);
+            return `<div class="dm-cal-ev ${past?'past':''} ${e.dmOnly?'dmonly':''}" data-evid="${esc(e.id)}">
+              <div class="dm-cal-ev-date">${e.day} ${esc(mn)}<br><span class="dm-cal-ev-y">Y${e.year}</span></div>
+              <div class="dm-cal-ev-title">${esc(e.title)}${e.dmOnly?' <span class="dm-cal-ev-tag">DM</span>':''}</div>
+              <button class="dm-cal-ev-del" data-evdel="${esc(e.id)}" title="Remove">✕</button>
+            </div>`;
+          }).join('') : '<div class="dm-empty" style="padding:.5rem">No events scheduled.</div>'}
+        </div>
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('[data-adv]').forEach(b => b.addEventListener('click', () => {
+    advanceCalendar(Number(b.dataset.adv));
+    pushState(true); renderDmCalendar(); renderSceneBanner();
+  }));
+  el('dmCalDay')?.addEventListener('change', e => {
+    state.calendar.day = Math.max(1, Math.min(30, Number(e.target.value)||1));
+    pushState(true); renderDmCalendar(); renderSceneBanner();
+  });
+  el('dmCalMonth')?.addEventListener('change', e => {
+    state.calendar.month = Math.max(1, Math.min(12, Number(e.target.value)||1));
+    pushState(true); renderDmCalendar(); renderSceneBanner();
+  });
+  el('dmCalYear')?.addEventListener('change', e => {
+    state.calendar.year = Math.max(1, Number(e.target.value)||1);
+    pushState(true); renderDmCalendar(); renderSceneBanner();
+  });
+  el('ceAdd')?.addEventListener('click', () => {
+    const title = el('ceTitle')?.value.trim();
+    if (!title) { showToast('Give the event a title', 'warn'); return; }
+    if (!Array.isArray(state.calendarEvents)) state.calendarEvents = [];
+    state.calendarEvents.push({
+      id: 'cev-' + Date.now(),
+      day:   Math.max(1, Math.min(30, Number(el('ceDay')?.value) || cal.day)),
+      month: Math.max(1, Math.min(12, Number(el('ceMonth')?.value) || cal.month)),
+      year:  Math.max(1, Number(el('ceYear')?.value) || cal.year),
+      title,
+      description: '',
+      dmOnly: !!el('ceDmOnly')?.checked
+    });
+    if (el('ceTitle')) el('ceTitle').value = '';
+    if (el('ceDay')) el('ceDay').value = '';
+    pushState(true); renderDmCalendar();
+  });
+  host.querySelectorAll('[data-evdel]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.evdel;
+    state.calendarEvents = state.calendarEvents.filter(e => e.id !== id);
+    pushState(true); renderDmCalendar();
+  }));
+}
+
+// Hook long rest into the calendar — passing time is real
+const _origDoLongRest = doLongRest;
+doLongRest = function(c){
+  _origDoLongRest(c);
+  try { advanceCalendar(1); renderSceneBanner(); } catch(e){}
+};
+
+// ═════════════════════════════════════════════════════════════════
+// DM · QUEST TRACKER + PLAYER-SIDE VIEW
+// ═════════════════════════════════════════════════════════════════
+let _dmQuestSelectedId = null;
+function dmActiveQuest(){
+  const list = state.quests || [];
+  if (!list.length) return null;
+  let q = list.find(x => x.id === _dmQuestSelectedId);
+  if (!q) { q = list[0]; _dmQuestSelectedId = q.id; }
+  return q;
+}
+function renderDmQuests(){
+  const host = el('dmQuestsRoot'); if(!host || !dmUnlocked) return;
+  const list = state.quests || [];
+  const q = dmActiveQuest();
+  const grouped = { active: [], completed: [], failed: [] };
+  list.forEach(x => (grouped[x.status] || grouped.active).push(x));
+
+  host.innerHTML = `
+    <div class="dm-q-shell">
+      <aside class="dm-q-side">
+        <div class="dm-q-side-head">
+          <span>Quests</span>
+          <button type="button" class="neo-btn small" id="dmQuestAdd">＋ New</button>
+        </div>
+        <div class="dm-q-list">
+          ${['active','completed','failed'].map(status => {
+            if (!grouped[status].length) return '';
+            const lbl = status==='active'?'Active':status==='completed'?'Completed':'Failed';
+            return `<div class="dm-q-group">
+              <div class="dm-q-groupname">${lbl}</div>
+              ${grouped[status].map(x => {
+                const on = q && x.id === q.id;
+                const doneCt = (x.objectives||[]).filter(o=>o.done).length;
+                const totCt  = (x.objectives||[]).length;
+                return `<button type="button" class="dm-q-row ${status}${on?' active':''}" data-qid="${esc(x.id)}">
+                  <span class="dm-q-name">${esc(x.title||'Untitled')}</span>
+                  <span class="dm-q-sub">${totCt?`${doneCt}/${totCt}`:'—'} · ${(x.visibleTo||[]).length} viewer${(x.visibleTo||[]).length===1?'':'s'}</span>
+                </button>`;
+              }).join('')}
+            </div>`;
+          }).join('')}
+          ${list.length ? '' : '<div class="dm-empty">No quests yet.</div>'}
+        </div>
+      </aside>
+      <div class="dm-q-main">
+        ${q ? `
+          <div class="dm-q-head">
+            <input type="text" class="dm-q-title" id="dmQTitle" value="${esc(q.title)}" placeholder="Quest title">
+            <select id="dmQStatus" class="dm-q-status">
+              <option value="active" ${q.status==='active'?'selected':''}>ACTIVE</option>
+              <option value="completed" ${q.status==='completed'?'selected':''}>COMPLETED</option>
+              <option value="failed" ${q.status==='failed'?'selected':''}>FAILED</option>
+            </select>
+            <button class="neo-btn ghost small" id="dmQDelete">🗑</button>
+          </div>
+
+          <div class="dm-q-two">
+            <label class="dm-q-field"><span>Quest giver</span>
+              <input type="text" id="dmQGiver" value="${esc(q.giver||'')}" placeholder="Who gave this quest?">
+            </label>
+            <label class="dm-q-field"><span>Reward</span>
+              <input type="text" id="dmQReward" value="${esc(q.reward||'')}" placeholder="Lien, item, favor, revelation…">
+            </label>
+          </div>
+          <label class="dm-q-field">
+            <span>Description (players see this)</span>
+            <textarea id="dmQDesc" placeholder="The setup, the stakes, why it matters.">${esc(q.description||'')}</textarea>
+          </label>
+
+          <div class="dm-q-sec">Objectives</div>
+          <div class="dm-q-objs">
+            ${(q.objectives||[]).map(o => `<div class="dm-q-obj" data-oid="${esc(o.id)}">
+              <input type="checkbox" ${o.done?'checked':''} class="dm-q-obj-cb" data-oid="${esc(o.id)}">
+              <input type="text" class="dm-q-obj-text" data-oid="${esc(o.id)}" value="${esc(o.text)}" placeholder="…">
+              <button class="dm-q-obj-del" data-oid="${esc(o.id)}" title="Remove">✕</button>
+            </div>`).join('')}
+            <button class="neo-btn ghost small" id="dmQObjAdd">＋ Add objective</button>
+          </div>
+
+          <div class="dm-q-sec">Visibility · who can see this quest?</div>
+          <div class="dm-q-viewers">
+            ${state.characters.filter(c => c.state !== 'dead').map(c => {
+              const on = (q.visibleTo||[]).includes(c.id);
+              return `<label class="dm-q-viewer${on?' on':''}">
+                <input type="checkbox" data-qview="${esc(c.id)}" ${on?'checked':''}>
+                <span>${esc(c.name||'Unnamed')}</span>
+              </label>`;
+            }).join('')}
+            <button class="neo-btn ghost small" id="dmQAllView">All</button>
+            <button class="neo-btn ghost small" id="dmQNoneView">None</button>
+          </div>
+
+          <label class="dm-q-field">
+            <span>DM hooks (private)</span>
+            <textarea id="dmQHooks" class="dm-q-privatenotes" placeholder="What's really going on here? Complications, twist reveals, DM-only info.">${esc(q.dmHooks||'')}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Create a quest to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-q-row').forEach(r => r.addEventListener('click', () => {
+    _dmQuestSelectedId = r.dataset.qid; renderDmQuests();
+  }));
+  el('dmQuestAdd')?.addEventListener('click', () => {
+    pushUndo('Created quest');
+    const q = {
+      id: 'quest-' + Date.now(),
+      title: 'New Quest', description: '', status: 'active',
+      giver: '', reward: '',
+      objectives: [], visibleTo: [], dmHooks: '',
+      created: Date.now()
+    };
+    state.quests.push(q);
+    _dmQuestSelectedId = q.id;
+    pushState(true); renderDmQuests();
+  });
+  el('dmQDelete')?.addEventListener('click', () => {
+    const c = dmActiveQuest(); if(!c) return;
+    if (!confirm(`Delete "${c.title}"?`)) return;
+    pushUndo(`Deleted quest "${c.title}"`);
+    state.quests = state.quests.filter(x => x.id !== c.id);
+    _dmQuestSelectedId = null;
+    pushState(true); renderDmQuests(); renderPlayerQuests();
+  });
+  const qBind = (id, field) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveQuest(); if(!c) return;
+    c[field] = e.target.value; pushState();
+    if (field === 'title' || field === 'status') renderDmQuests();
+    if (['title','description','status','giver','reward'].includes(field)) renderPlayerQuests();
+  });
+  qBind('dmQTitle','title'); qBind('dmQDesc','description');
+  qBind('dmQGiver','giver'); qBind('dmQReward','reward'); qBind('dmQHooks','dmHooks');
+  el('dmQStatus')?.addEventListener('change', e => {
+    const c = dmActiveQuest(); if(!c) return;
+    c.status = e.target.value; pushState(true); renderDmQuests(); renderPlayerQuests();
+  });
+  host.querySelectorAll('.dm-q-obj-text').forEach(inp => inp.addEventListener('input', e => {
+    const c = dmActiveQuest(); if(!c) return;
+    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
+    o.text = e.target.value; pushState();
+  }));
+  host.querySelectorAll('.dm-q-obj-cb').forEach(cb => cb.addEventListener('change', e => {
+    const c = dmActiveQuest(); if(!c) return;
+    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
+    o.done = e.target.checked; pushState(true); renderDmQuests(); renderPlayerQuests();
+  }));
+  host.querySelectorAll('.dm-q-obj-del').forEach(b => b.addEventListener('click', () => {
+    const c = dmActiveQuest(); if(!c) return;
+    c.objectives = c.objectives.filter(x => x.id !== b.dataset.oid);
+    pushState(true); renderDmQuests(); renderPlayerQuests();
+  }));
+  el('dmQObjAdd')?.addEventListener('click', () => {
+    const c = dmActiveQuest(); if(!c) return;
+    c.objectives.push({ id:'obj-'+Date.now(), text:'', done:false });
+    pushState(true); renderDmQuests();
+  });
+  host.querySelectorAll('[data-qview]').forEach(cb => cb.addEventListener('change', e => {
+    const c = dmActiveQuest(); if(!c) return;
+    const cid = e.target.dataset.qview;
+    const has = c.visibleTo.includes(cid);
+    if (e.target.checked && !has) c.visibleTo.push(cid);
+    if (!e.target.checked && has) c.visibleTo = c.visibleTo.filter(x => x !== cid);
+    e.target.closest('.dm-q-viewer').classList.toggle('on', e.target.checked);
+    pushState(true); renderPlayerQuests();
+  }));
+  el('dmQAllView')?.addEventListener('click', () => {
+    const c = dmActiveQuest(); if(!c) return;
+    c.visibleTo = state.characters.map(x => x.id);
+    pushState(true); renderDmQuests(); renderPlayerQuests();
+  });
+  el('dmQNoneView')?.addEventListener('click', () => {
+    const c = dmActiveQuest(); if(!c) return;
+    c.visibleTo = [];
+    pushState(true); renderDmQuests(); renderPlayerQuests();
+  });
+}
+
+// PLAYER-SIDE: quests visible to me
+function renderPlayerQuests(){
+  const host = el('playerQuestsList'); if(!host) return;
+  const c = getChar(); if(!c){ host.innerHTML = ''; return; }
+  const mine = (state.quests||[]).filter(q => dmUnlocked || (q.visibleTo||[]).includes(c.id));
+  const grouped = { active: [], completed: [], failed: [] };
+  mine.forEach(q => (grouped[q.status] || grouped.active).push(q));
+
+  if (!mine.length) {
+    host.innerHTML = '<div class="pq-empty">No quests assigned to you yet.</div>';
+    return;
+  }
+  host.innerHTML = ['active','completed','failed'].map(status => {
+    if (!grouped[status].length) return '';
+    const lbl = status==='active'?'Active':status==='completed'?'Completed':'Failed';
+    return `<div class="pq-group ${status}">
+      <div class="pq-groupname">${lbl}</div>
+      ${grouped[status].map(q => {
+        const doneCt = (q.objectives||[]).filter(o=>o.done).length;
+        const totCt  = (q.objectives||[]).length;
+        return `<details class="pq-card ${status}">
+          <summary>
+            <span class="pq-title">${esc(q.title)}</span>
+            ${totCt ? `<span class="pq-progress">${doneCt}/${totCt}</span>` : ''}
+          </summary>
+          <div class="pq-body">
+            ${q.giver ? `<div class="pq-meta"><span class="pq-meta-lbl">Giver</span><span>${esc(q.giver)}</span></div>` : ''}
+            ${q.reward ? `<div class="pq-meta"><span class="pq-meta-lbl">Reward</span><span>${esc(q.reward)}</span></div>` : ''}
+            ${q.description ? `<div class="pq-desc">${esc(q.description)}</div>` : ''}
+            ${(q.objectives||[]).length ? `<div class="pq-objs">
+              ${q.objectives.map(o => `<div class="pq-obj ${o.done?'done':''}">
+                <span class="pq-obj-check">${o.done?'✓':'○'}</span>
+                <span class="pq-obj-text">${esc(o.text)}</span>
+              </div>`).join('')}
+            </div>` : ''}
+          </div>
+        </details>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · SITE SETTINGS (semblance pulse toggle etc.)
+// ═════════════════════════════════════════════════════════════════
+function renderSiteSettings(){
+  const host = el('dmSiteSettingsRoot'); if(!host || !dmUnlocked) return;
+  const s = state.settings || (state.settings = {});
+  host.innerHTML = `
+    <div class="dm-settings-list">
+      <label class="dm-setting-row">
+        <div class="dm-setting-info">
+          <div class="dm-setting-name">Semblance Activation Pulse</div>
+          <div class="dm-setting-desc">One-shot visual burst in the character's accent color when they activate their Semblance. Signals the party without narration.</div>
+        </div>
+        <input type="checkbox" id="settingSemPulse" ${s.semblancePulseEnabled!==false?'checked':''}>
+      </label>
+    </div>
+  `;
+  el('settingSemPulse')?.addEventListener('change', e => {
+    state.settings.semblancePulseEnabled = e.target.checked;
+    pushState(true);
+    showToast(e.target.checked ? 'Semblance Pulse enabled' : 'Semblance Pulse disabled', 'success');
+  });
+}
+
+// ── SEMBLANCE PULSE trigger (called from useSemblance) ─────────────
+function triggerSemblancePulse(charId){
+  if (!state.settings || state.settings.semblancePulseEnabled === false) return;
+  const c = state.characters.find(x => x.id === charId); if(!c) return;
+  const col = c.accentColor || '#00d4ff';
+  // Style the pulse in this character's accent color, wherever a
+  // dashboard card exists for them, and on the current sheet body.
+  const idx = state.characters.indexOf(c);
+  const targets = [
+    ...document.querySelectorAll(`.dmd-card[data-dmd="${idx}"]`),
+    document.querySelector('.app') // fallback: full sheet flash
+  ].filter(Boolean);
+  targets.forEach(el => {
+    el.style.setProperty('--pulse-col', col);
+    el.classList.remove('semblance-pulse');
+    void el.offsetWidth;
+    el.classList.add('semblance-pulse');
+    setTimeout(() => el.classList.remove('semblance-pulse'), 900);
+  });
 }
 
 const SHOP_CATEGORIES_RWBY = ['Weapons','Dust','Gear','Consumables','Tech','Upgrades','Rare','General'];

@@ -5826,3 +5826,195 @@ input, textarea, select{transition:border-color .14s, box-shadow .14s, backgroun
   border:1px dashed rgba(0,210,255,.14);
   border-radius:8px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   VISUAL POLISH v3 (2026-07-20)
+   Portrait dossier · sidebar hierarchy · tab bar · empty bars ·
+   button sheen · section-title accent · panel corner glyphs
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── CHARACTER PORTRAIT — dossier photo mount ── */
+.portrait-slot{
+  width:96px;height:96px;flex-shrink:0;
+  border-radius:12px;position:relative;overflow:visible;
+  background:radial-gradient(circle at 30% 30%, rgba(0,210,255,.06), rgba(0,0,0,.68) 72%);
+  border:1px solid rgba(0,210,255,.24);
+  box-shadow:
+    0 0 0 2px var(--char-color, rgba(0,210,255,.28)),
+    0 0 24px -6px var(--char-color, rgba(0,210,255,.35)),
+    inset 0 1px 0 rgba(255,255,255,.03);
+  transition:box-shadow .28s cubic-bezier(.2,.8,.2,1), transform .18s;
+}
+.portrait-slot:hover{
+  transform:translateY(-1px);
+  box-shadow:
+    0 0 0 2px var(--char-color, rgba(0,210,255,.42)),
+    0 0 32px -4px var(--char-color, rgba(0,210,255,.55)),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+.portrait-slot > .portrait-img,
+.portrait-slot > .portrait-upload,
+.portrait-slot > .portrait-edit-overlay{
+  border-radius:11px;overflow:hidden;
+}
+/* Dossier corner brackets */
+.portrait-slot::before, .portrait-slot::after{
+  content:'';position:absolute;width:12px;height:12px;pointer-events:none;
+  border:1.5px solid var(--char-color, rgba(0,210,255,.55));
+  opacity:.7;transition:opacity .2s;
+}
+.portrait-slot::before{
+  top:-4px;left:-4px;border-right:none;border-bottom:none;
+  border-top-left-radius:4px;
+}
+.portrait-slot::after{
+  bottom:-4px;right:-4px;border-left:none;border-top:none;
+  border-bottom-right-radius:4px;
+}
+.portrait-slot:hover::before, .portrait-slot:hover::after{opacity:1}
+
+/* Empty portrait state — replace the "+" with a stylized silhouette */
+.portrait-upload{
+  background:
+    radial-gradient(ellipse 40% 30% at 50% 78%, rgba(0,210,255,.12), transparent 65%),
+    radial-gradient(circle 22% at 50% 32%, rgba(0,210,255,.18), transparent 60%);
+}
+.portrait-upload::before{
+  content:'';
+  width:34px;height:34px;
+  border-radius:50%;
+  background:linear-gradient(180deg, rgba(0,210,255,.28), rgba(0,60,90,.4));
+  box-shadow:
+    /* shoulders below */
+    0 22px 0 -6px rgba(0,210,255,.22),
+    0 22px 0 -4px rgba(0,210,255,.22),
+    /* soft glow */
+    0 0 14px rgba(0,210,255,.28);
+  font-size:0;    /* hide the old "+" */
+  margin-bottom:.15rem;
+  transition:box-shadow .22s;
+}
+.portrait-upload span{
+  font-family:var(--F2);font-size:.55rem;letter-spacing:.16em;color:rgba(0,210,255,.55);
+  text-transform:uppercase;font-weight:800;
+  margin-top:1.35rem;
+}
+.portrait-upload:hover::before{
+  box-shadow:
+    0 22px 0 -6px rgba(0,210,255,.4),
+    0 22px 0 -4px rgba(0,210,255,.4),
+    0 0 20px rgba(0,210,255,.5);
+}
+.portrait-upload:hover span{color:var(--aura)}
+
+/* ── SIDEBAR SECTION LABELS — richer hierarchy ── */
+.sidebar-section{
+  padding:.75rem .8rem;border-radius:9px;
+  background:linear-gradient(180deg, rgba(0,210,255,.025) 0%, rgba(0,0,0,.15) 100%);
+  border:1px solid rgba(255,255,255,.04);
+  position:relative;
+}
+.section-label{
+  font-family:var(--F2);font-size:.55rem;letter-spacing:.22em;
+  text-transform:uppercase;color:rgba(0,210,255,.6);
+  opacity:1;margin-bottom:.6rem;padding-left:.55rem;
+  position:relative;font-weight:800;
+  text-shadow:0 0 8px rgba(0,210,255,.15);
+}
+.section-label::before{
+  content:'';position:absolute;left:0;top:12%;bottom:12%;width:2px;
+  background:linear-gradient(180deg, transparent, var(--aura), transparent);
+  box-shadow:0 0 6px rgba(0,210,255,.4);
+  border-radius:2px;
+}
+
+/* ── SHEET TAB BAR — richer active state ── */
+.tab-btn{
+  position:relative;overflow:hidden;
+  transition:all .18s cubic-bezier(.2,.8,.2,1);
+}
+.tab-btn.active{
+  border-color:var(--aura);color:var(--aura);
+  background:linear-gradient(180deg,rgba(0,210,255,.14),rgba(0,0,0,.55));
+  box-shadow:
+    0 0 22px rgba(0,210,255,.22),
+    0 -1px 0 var(--aura) inset,
+    inset 0 1px 0 rgba(255,255,255,.05);
+  text-shadow:0 0 10px rgba(0,210,255,.5);
+}
+/* Underline glow bar under active tab */
+.tab-btn.active::before{
+  content:'';position:absolute;left:15%;right:15%;bottom:-1px;height:2px;
+  background:linear-gradient(90deg, transparent, var(--aura), transparent);
+  box-shadow:0 0 8px var(--aura);
+  border-radius:2px;
+}
+
+/* ── EMPTY HP/AURA BARS — dim neutral when 0/0, no false-danger red ── */
+.hud-bar-fill{transition:width .4s cubic-bezier(.4,0,.2,1), box-shadow .3s, opacity .2s}
+.hud-hp-fill[style*="width: 0%"], .hud-hp-fill[style*="width:0%"],
+.hud-aura-fill[style*="width: 0%"], .hud-aura-fill[style*="width:0%"]{
+  opacity:.15;box-shadow:none;
+}
+.hud-bar-track{
+  border-color:rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(0,0,0,.7), rgba(0,0,0,.55));
+}
+
+/* ── NEO BUTTONS — refined sheen ── */
+.neo-btn{
+  position:relative;overflow:hidden;
+  transition:transform .14s cubic-bezier(.2,.8,.2,1), border-color .18s, box-shadow .22s, background .18s;
+}
+.neo-btn::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(120deg,
+    transparent 25%,
+    rgba(255,255,255,.08) 45%,
+    rgba(255,255,255,.16) 50%,
+    rgba(255,255,255,.08) 55%,
+    transparent 75%);
+  transform:translateX(-100%);
+  transition:transform .55s cubic-bezier(.2,.8,.2,1);
+}
+.neo-btn:not(:disabled):hover::before{transform:translateX(100%)}
+.neo-btn:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 18px -6px rgba(0,210,255,.4)}
+.neo-btn:not(:disabled):active{transform:translateY(0);transition-duration:.06s}
+
+/* ── SECTION TITLE — richer separator ── */
+.section-title{
+  position:relative;
+  padding:0 0 .55rem .95rem;margin-bottom:.85rem;
+  border-bottom:1px solid transparent;
+  background:linear-gradient(90deg, rgba(0,210,255,.14), rgba(0,210,255,.02) 40%, transparent 90%) bottom / 100% 1px no-repeat;
+}
+.section-title::before{
+  content:'';position:absolute;left:0;top:8%;bottom:32%;width:3px;
+  background:linear-gradient(180deg, transparent, var(--aura), transparent);
+  box-shadow:0 0 10px rgba(0,210,255,.5);
+  border-radius:2px;
+}
+.section-title::after{
+  content:'';flex:0;height:0;background:none;   /* neutralize old rule */
+}
+.section-title{display:block}
+.section-hint{
+  font-family:var(--F2);font-size:.6rem;font-weight:500;letter-spacing:.06em;
+  color:var(--muted);font-style:italic;text-transform:none;margin-left:.4rem;
+}
+
+/* ── PANEL EDGE GLYPHS — subtle mission-control corners ── */
+.panel{position:relative}
+.panel > .panel-corner-glyphs{display:none}   /* if wired later */
+
+/* ── SMALL POLISH ACROSS THE BOARD ── */
+input, textarea, select{
+  transition:border-color .14s, box-shadow .14s, background .14s;
+}
+input:focus, textarea:focus, select:focus{
+  box-shadow:0 0 0 3px rgba(0,210,255,.08);
+}
+
+/* Softer text-selection highlight — matches the palette */
+::selection{background:rgba(0,210,255,.28);color:#fff;text-shadow:none}
+::-moz-selection{background:rgba(0,210,255,.28);color:#fff;text-shadow:none}

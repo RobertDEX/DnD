@@ -3642,7 +3642,8 @@ input:focus, textarea:focus, select:focus{
 .snap-restore:hover{background:rgba(94,212,146,.24);transform:translateY(-1px)}
 
 /* ═══════════ COMPASS — Holy Armaments & Cursed Tools ═══════════ */
-.compass-empty,.beast-empty{padding:1.6rem 1rem;text-align:center;font-family:var(--F3);font-size:.82rem;
+/* .compass-empty defined below in the sectioned-card block */
+.beast-empty{padding:1.6rem 1rem;text-align:center;font-family:var(--F3);font-size:.82rem;
   font-style:italic;color:var(--muted);border:1px dashed rgba(0,210,255,.15);border-radius:10px}
 /* Legacy .compass-card / .cc-* rules removed 2026-07-19 — the tile
    pattern (.art-tile) replaced expanded-card layout entirely. */
@@ -4810,11 +4811,6 @@ body.dm-page-active .dm-body{grid-template-columns:215px 1fr}
    Each artifact is a tile; click opens the full sheet overlay.
    Holy = gold-tinted, Cursed = crimson-tinted.
    ═══════════════════════════════════════════════════════════════════ */
-.compass-list{
-  display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
-  gap:.75rem;
-}
 .art-tile{
   --acol: #00d4ff;
   --acol-soft: rgba(0,210,255,.15);
@@ -4904,9 +4900,7 @@ body.dm-page-active .dm-body{grid-template-columns:215px 1fr}
 }
 .art-tile:hover .art-tile-open{color:var(--acol);transform:translate(2px,-2px)}
 
-@media(max-width:520px){
-  .compass-list{grid-template-columns:1fr}
-}
+/* Mobile responsiveness now handled by .compass-tile-grid rules earlier */
 
 /* ═══════════════════════════════════════════════════════════════════
    ARTIFACT SHEET OVERLAY — click-to-open editor
@@ -5548,60 +5542,116 @@ input, textarea, select{transition:border-color .14s, box-shadow .14s, backgroun
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   COMPASS — dual sections (Bound to Me + Known Artifacts) 2026-07
+   COMPASS — sectioned card layout (2026-07)
+   Two stacked sections: Bound to Me, Known Artifacts.
+   Each section is its own card with icon header + tile grid.
    ═══════════════════════════════════════════════════════════════════ */
-.compass-section-title{
-  display:flex;align-items:baseline;gap:.6rem;
-  padding-bottom:.5rem;margin-bottom:.7rem;
-  border-bottom:1px dashed rgba(0,210,255,.14);
-}
-.compass-section-title .cst-label{
-  font-family:var(--F2);font-size:.72rem;font-weight:800;letter-spacing:.14em;
-  color:var(--aura);text-transform:uppercase;
-  text-shadow:0 0 12px rgba(0,210,255,.28);
-}
-.compass-section-title .cst-count{
-  font-family:var(--F2);font-size:.55rem;font-weight:800;letter-spacing:.06em;
-  padding:.12rem .5rem;border-radius:99px;
-  background:rgba(0,0,0,.4);color:var(--muted);
-  border:1px solid rgba(0,210,255,.16);
-}
-.compass-section-title .cst-hint{
-  font-family:var(--F1);font-size:.72rem;color:var(--muted);
-  font-style:italic;font-weight:500;letter-spacing:0;text-transform:none;
+.compass-shell{
+  display:flex;flex-direction:column;gap:1rem;
 }
 
-/* Foreign artifacts (held by someone else) — dimmer, tagged */
-.art-tile.foreign{
-  background:linear-gradient(145deg, rgba(14,20,32,.85), rgba(6,10,18,.94));
-  opacity:.92;
+.compass-section{
+  background:linear-gradient(180deg, rgba(0,0,0,.24) 0%, rgba(0,0,0,.14) 100%);
+  border:1px solid rgba(0,210,255,.1);
+  border-radius:11px;
+  overflow:hidden;
+  position:relative;
+  transition:border-color .18s, box-shadow .22s;
 }
-.art-tile.foreign:hover{opacity:1}
-.art-tile-known{
-  position:absolute;top:2px;right:2px;
-  font-family:var(--F2);font-size:.4rem;font-weight:800;letter-spacing:.14em;
-  padding:.12rem .32rem;border-radius:4px;
-  background:rgba(0,210,255,.18);color:var(--aura);
-  border:1px solid rgba(0,210,255,.4);
-  text-shadow:0 0 6px rgba(0,210,255,.35);
+.compass-section:hover{
+  border-color:rgba(0,210,255,.24);
+}
+.compass-section.bound{
+  border-left:3px solid rgba(0,210,255,.4);
+}
+.compass-section.known{
+  border-left:3px solid rgba(240,184,96,.35);
+  background:linear-gradient(180deg, rgba(30,20,4,.14) 0%, rgba(0,0,0,.14) 100%);
+}
+.compass-section.known:hover{border-color:rgba(240,184,96,.32)}
+
+.compass-section-head{
+  display:flex;justify-content:space-between;align-items:center;gap:.85rem;
+  padding:.85rem 1rem;
+  border-bottom:1px solid rgba(0,210,255,.08);
+  background:linear-gradient(90deg, rgba(0,210,255,.045), transparent 60%);
+}
+.compass-section.known .compass-section-head{
+  background:linear-gradient(90deg, rgba(240,184,96,.06), transparent 60%);
+  border-bottom-color:rgba(240,184,96,.1);
+}
+.csh-title{display:flex;align-items:center;gap:.7rem;min-width:0;flex:1}
+.csh-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;flex-shrink:0;font-size:1.05rem;
+  border-radius:8px;
+  background:radial-gradient(circle at 30% 30%, rgba(0,210,255,.22), rgba(0,10,20,.6) 70%);
+  border:1px solid rgba(0,210,255,.35);
+  color:var(--aura);
+  text-shadow:0 0 10px rgba(0,210,255,.5);
+  box-shadow:0 0 14px -6px rgba(0,210,255,.5), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.compass-section.known .csh-icon{
+  background:radial-gradient(circle at 30% 30%, rgba(240,184,96,.24), rgba(30,20,4,.6) 70%);
+  border-color:rgba(240,184,96,.4);
+  color:#ffd98a;
+  text-shadow:0 0 10px rgba(240,184,96,.5);
+  box-shadow:0 0 14px -6px rgba(240,184,96,.5), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.csh-text{display:flex;flex-direction:column;gap:.12rem;min-width:0}
+.csh-label{
+  font-family:var(--F2);font-size:.7rem;font-weight:800;letter-spacing:.16em;
+  color:var(--text);text-transform:uppercase;
+  text-shadow:0 0 10px rgba(0,210,255,.22);
+}
+.compass-section.known .csh-label{text-shadow:0 0 10px rgba(240,184,96,.22)}
+.csh-hint{
+  font-family:var(--F1);font-size:.72rem;font-weight:500;letter-spacing:.02em;
+  color:var(--muted);font-style:italic;
+}
+.csh-count{
+  flex-shrink:0;
+  min-width:32px;height:32px;padding:0 .55rem;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:16px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(0,210,255,.25);
+  color:var(--aura);
+  font-family:var(--F2);font-size:.85rem;font-weight:800;letter-spacing:.02em;
+  text-shadow:0 0 8px rgba(0,210,255,.4);
+}
+.compass-section.known .csh-count{
+  border-color:rgba(240,184,96,.28);
+  color:#ffd98a;
+  text-shadow:0 0 8px rgba(240,184,96,.4);
 }
 
-/* DM "party knows" toggle in the artifact sheet header */
-.ash-knowntoggle{
-  display:inline-flex;align-items:center;gap:.35rem;
-  padding:.4rem .6rem;border-radius:7px;cursor:pointer;
-  background:rgba(0,0,0,.4);border:1px solid rgba(0,210,255,.22);
-  font-family:var(--F2);font-size:.55rem;font-weight:800;letter-spacing:.1em;
-  color:var(--muted);text-transform:uppercase;
-  transition:all .14s;
+.compass-tile-grid{
+  display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  gap:.65rem;
+  padding:.85rem 1rem 1rem;
 }
-.ash-knowntoggle:hover{border-color:var(--aura);color:var(--text)}
-.ash-knowntoggle:has(input:checked){
-  background:linear-gradient(90deg, rgba(0,210,255,.16), rgba(0,0,0,.4));
-  border-color:var(--aura);color:var(--text);
-  box-shadow:0 0 14px -4px var(--aura);
+.compass-tile-grid:has(> .compass-empty){
+  display:block;
 }
-.ash-knowntoggle input{accent-color:var(--aura);width:14px;height:14px}
+.compass-empty{
+  padding:1.4rem 1rem;
+  text-align:center;
+  font-family:var(--F1);font-size:.85rem;font-style:italic;
+  color:var(--muted);
+  background:rgba(0,0,0,.2);
+  border:1px dashed rgba(0,210,255,.14);
+  border-radius:8px;
+}
+.compass-section.known .compass-empty{
+  border-color:rgba(240,184,96,.16);
+}
+
+@media(max-width:520px){
+  .compass-tile-grid{grid-template-columns:1fr}
+  .compass-section-head{padding:.7rem .85rem}
+  .csh-icon{width:28px;height:28px;font-size:.9rem}
+  .csh-label{font-size:.62rem}
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    FIREBASE DIAGNOSTICS (July 2026)
@@ -5688,3 +5738,91 @@ input, textarea, select{transition:border-color .14s, box-shadow .14s, backgroun
   font-family:var(--F1);font-size:.82rem;line-height:1.5;
 }
 .fb-preview-actions{display:flex;gap:.4rem;justify-content:flex-end}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DM "PARTY KNOWS" TOGGLE — on artifact sheet header
+   ═══════════════════════════════════════════════════════════════════ */
+.ash-knowntoggle{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.45rem .65rem;border-radius:7px;cursor:pointer;
+  background:rgba(0,0,0,.42);border:1px solid rgba(0,210,255,.22);
+  font-family:var(--F2);font-size:.55rem;font-weight:800;letter-spacing:.12em;
+  color:var(--muted);text-transform:uppercase;
+  transition:all .15s cubic-bezier(.2,.8,.2,1);
+}
+.ash-knowntoggle:hover{border-color:var(--aura);color:var(--text);transform:translateY(-1px)}
+.ash-knowntoggle:has(input:checked){
+  background:linear-gradient(90deg, rgba(0,210,255,.18), rgba(0,0,0,.4));
+  border-color:var(--aura);color:var(--text);
+  box-shadow:0 0 16px -4px var(--aura), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.ash-knowntoggle input{accent-color:var(--aura);width:14px;height:14px;cursor:pointer}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DM PAGE POLISH PASS (2026-07-20)
+   Tighter tab titles, richer card headers, better hierarchy.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* DM tab titles — richer, more presence, subtle accent bar */
+.dm-tab-title{
+  font-family:var(--F1);font-size:1.05rem;font-weight:700;letter-spacing:.06em;
+  color:var(--text);
+  margin:0 0 .25rem;padding:.15rem 0 .75rem .95rem;
+  position:relative;
+  border-bottom:1px solid rgba(0,210,255,.14);
+  text-shadow:0 0 14px rgba(0,210,255,.2);
+}
+.dm-tab-title::before{
+  content:'';position:absolute;left:0;top:16%;bottom:16%;width:3px;
+  background:linear-gradient(180deg, transparent, var(--aura), transparent);
+  box-shadow:0 0 10px rgba(0,210,255,.5);
+  border-radius:3px;
+}
+
+/* DM cards — richer header + backdrop + edge glow */
+.dm-card{
+  background:linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,.15) 100%);
+  border:1px solid rgba(0,210,255,.12);
+  border-radius:11px;
+  overflow:hidden;
+  margin-bottom:1rem;
+  position:relative;
+}
+.dm-card-title{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.75rem 1rem .7rem;
+  background:linear-gradient(90deg, rgba(0,210,255,.08), transparent 55%);
+  border-bottom:1px solid rgba(0,210,255,.1);
+  font-family:var(--F2);font-size:.7rem;font-weight:800;letter-spacing:.16em;
+  color:var(--aura);text-transform:uppercase;
+  text-shadow:0 0 10px rgba(0,210,255,.28);
+}
+.dm-card-body{padding:1rem}
+
+/* DM section headers within cards */
+.dm-hint{
+  font-family:var(--F1);font-size:.82rem;font-weight:500;line-height:1.55;
+  color:var(--muted);
+  padding:.35rem .55rem;
+  background:rgba(0,0,0,.14);
+  border-left:2px solid rgba(0,210,255,.22);
+  border-radius:0 5px 5px 0;
+  margin:0 0 .8rem;
+}
+.dm-hint code{
+  padding:.05rem .3rem;border-radius:3px;
+  background:rgba(0,210,255,.14);color:var(--aura);
+  font-family:'Courier New', monospace;font-size:.78rem;
+  border:1px solid rgba(0,210,255,.24);
+}
+.dm-hint strong{color:var(--text);font-weight:700}
+
+/* dm-empty consistency */
+.dm-empty{
+  padding:1.4rem 1rem;text-align:center;
+  font-family:var(--F1);font-size:.85rem;font-style:italic;
+  color:var(--muted);
+  background:rgba(0,0,0,.2);
+  border:1px dashed rgba(0,210,255,.14);
+  border-radius:8px;
+}

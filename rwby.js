@@ -14,13 +14,13 @@ const FB_CONFIG = {
 };
 const fbApp = initializeApp(FB_CONFIG, 'rwby');
 const db    = getFirestore(fbApp);
-const DOC   = 'rwby-campaign';
+// Which Firestore document this browser reads/writes is now dynamic —
+// see activeCampaignDoc() in the Firebase Diagnostics section.
 
 // ================================================================
 // CONSTANTS
 // ================================================================
 const DM_PASS   = '1122334455';
-const LOC_KEY   = 'rwby-v4-local';
 
 const STATS = ['STR','DEX','CON','INT','WIS','CHA'];
 
@@ -3086,15 +3086,14 @@ function renderCompass(){
       ? `<span class="art-tile-entity ${angel?'angel':'demon'}"><span class="art-tile-entity-glyph">${angel?'✟':'⛧'}</span>${esc(a.entityName)}</span>`
       : '';
     const holdBy = holderName ? `<span class="art-tile-note">Held by ${esc(holderName)}</span>` : '';
-    const knownTag = (!isOwned && a.known) ? `<span class="art-tile-known">KNOWN</span>` : '';
+    const holderId = holderName ? (state.characters.find(x=>x.name===holderName)?.id||'') : '';
     return `<button type="button" class="art-tile ${cursed?'cursed':'holy'}${a.image?'':' no-img'}${!isOwned?' foreign':''}"
-              data-artid="${esc(a.id)}" data-holdercid="${esc(isOwned ? '' : holderName ? state.characters.find(x=>x.name===holderName)?.id||'' : '')}">
+              data-artid="${esc(a.id)}" data-holdercid="${esc(isOwned ? '' : holderId)}">
       <div class="art-tile-portrait">
         ${a.image
           ? `<img src="${esc(a.image)}" alt="" onerror="this.parentElement.classList.add('no-img');this.remove()">`
           : `<span class="art-tile-glyph">${cursed?'⛧':'✟'}</span>`}
         <span class="art-tile-typebadge">${cursed?'CURSED':'HOLY'}</span>
-        ${knownTag}
       </div>
       <div class="art-tile-body">
         <div class="art-tile-name">${esc(a.name || 'Unnamed artifact')}</div>
@@ -3107,28 +3106,44 @@ function renderCompass(){
     </button>`;
   };
 
-  const ownedHtml = c.compass.length
-    ? c.compass.map(a => renderTile(a, '', true)).join('')
-    : `<div class="compass-empty">No armaments or tools bound to ${esc(c.name||'this Hunter')}.</div>`;
-
-  const knownHtml = knownElsewhere.length
-    ? knownElsewhere.map(({art, holder}) => renderTile(art, holder.name || 'Unknown', false)).join('')
-    : `<div class="compass-empty">Nothing else known about other artifacts in the world.</div>`;
-
-  host.innerHTML = `
-    <div class="compass-section-title">
-      <span class="cst-label">⚔ Bound to Me</span>
-      <span class="cst-count">${c.compass.length}</span>
-    </div>
-    <div class="compass-list">${ownedHtml}</div>
-
-    <div class="compass-section-title" style="margin-top:1.4rem">
-      <span class="cst-label">◈ Known Artifacts</span>
-      <span class="cst-count">${knownElsewhere.length}</span>
-      <span class="cst-hint">— revealed to you by your DM</span>
-    </div>
-    <div class="compass-list">${knownHtml}</div>
+  // Section renderer — one wrapper per group, so the outer container
+  // stays a normal block flow and the tile grid lives inside its section.
+  const renderSection = (icon, label, hint, count, tilesHtml, emptyMsg, extraClass = '') => `
+    <section class="compass-section ${extraClass}">
+      <header class="compass-section-head">
+        <div class="csh-title">
+          <span class="csh-icon">${icon}</span>
+          <div class="csh-text">
+            <span class="csh-label">${esc(label)}</span>
+            ${hint ? `<span class="csh-hint">${esc(hint)}</span>` : ''}
+          </div>
+        </div>
+        <span class="csh-count">${count}</span>
+      </header>
+      <div class="compass-tile-grid">
+        ${count ? tilesHtml : `<div class="compass-empty">${esc(emptyMsg)}</div>`}
+      </div>
+    </section>
   `;
+
+  const ownedTilesHtml = c.compass.map(a => renderTile(a, '', true)).join('');
+  const knownTilesHtml = knownElsewhere.map(({art, holder}) => renderTile(art, holder.name || 'Unknown', false)).join('');
+
+  host.innerHTML = renderSection(
+    '⚔', 'Bound to Me',
+    'Artifacts in your personal possession',
+    c.compass.length,
+    ownedTilesHtml,
+    `No armaments or tools bound to ${c.name||'this Hunter'}.`,
+    'bound'
+  ) + renderSection(
+    '◈', 'Known Artifacts',
+    'Others in the world, revealed to you by your DM',
+    knownElsewhere.length,
+    knownTilesHtml,
+    'Nothing else known about other artifacts in the world.',
+    'known'
+  );
 
   host.querySelectorAll('.art-tile').forEach(t => {
     t.addEventListener('click', () => {
@@ -5287,7 +5302,6 @@ function applyDamageToChar(charId, rawAmount, dmgType, opts){
 // Track sync health for the diagnostics panel
 let _lastPushTs   = 0;
 let _lastPushBytes = 0;
-let _lastPushOk   = null;
 let _lastPullTs   = 0;
 let _lastPullBytes = 0;
 let _lastError    = '';
@@ -6735,8 +6749,6 @@ function locationPrice(it){
   const mult = (Number(loc.base)||1) * raceMultAt(loc, getChar());
   return Math.max(0, Math.round(base * mult));
 }
-// Back-compat alias used elsewhere in the file.
-function discountedPrice(it){ return locationPrice(it); }
 // Net multiplier for the current character at the current location (for display).
 function locationMultiplier(){
   const loc = currentLocation();

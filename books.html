@@ -318,6 +318,115 @@ body::after{
 .reader.holo-reader .toc-item:hover{background:rgba(0,210,255,.08);color:#bfe8f8}
 .reader.holo-reader .toc-item.active{background:rgba(0,210,255,.15);border-color:rgba(0,210,255,.35);color:var(--aura)}
 
+/* ═══════════ TOC CONTROLS — search + danger sort ═══════════ */
+.toc-controls{
+  display:flex;flex-direction:column;gap:.35rem;
+  padding:.15rem 0 .55rem;margin-bottom:.35rem;
+  border-bottom:1px solid rgba(0,210,255,.1);
+}
+.toc-search{
+  width:100%;padding:.42rem .6rem;
+  background:rgba(0,0,0,.35);color:#e8f4f8;
+  border:1px solid rgba(0,210,255,.2);border-radius:6px;
+  font-family:'Share Tech Mono',monospace;font-size:.7rem;letter-spacing:.02em;
+  transition:border-color .12s, box-shadow .12s;
+}
+.toc-search::placeholder{color:rgba(180,220,235,.4)}
+.toc-search:focus{outline:none;border-color:var(--aura);box-shadow:0 0 0 2px rgba(0,210,255,.15)}
+
+.toc-sort{
+  display:flex;align-items:center;justify-content:center;gap:.35rem;
+  padding:.4rem .6rem;cursor:pointer;
+  background:rgba(0,0,0,.28);color:rgba(180,220,235,.65);
+  border:1px solid rgba(0,210,255,.14);border-radius:6px;
+  font-family:'Share Tech Mono',monospace;font-size:.6rem;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;
+  transition:all .14s cubic-bezier(.2,.8,.2,1);
+}
+.toc-sort:hover{border-color:rgba(0,210,255,.35);color:#c8e8f8}
+.toc-sort.active{
+  background:linear-gradient(90deg, rgba(224,34,74,.18), rgba(0,0,0,.4));
+  border-color:rgba(255,90,120,.5);color:#ffb0bc;
+  box-shadow:0 0 14px -4px rgba(224,34,74,.6), inset 0 1px 0 rgba(255,255,255,.05);
+  text-shadow:0 0 6px rgba(255,90,120,.4);
+}
+.toc-sort-icon{font-size:.75rem;line-height:1}
+.toc-sort.active .toc-sort-icon{filter:drop-shadow(0 0 4px rgba(255,90,120,.7))}
+
+/* Paper-theme overrides — warm, ink-friendly */
+.reader.paper .toc-controls{border-bottom-color:rgba(120,90,50,.25)}
+.reader.paper .toc-search{
+  background:rgba(90,60,30,.06);color:#3a2c1c;
+  border-color:rgba(120,90,50,.28);
+  font-family:'Cormorant Garamond',serif;font-size:.85rem;
+}
+.reader.paper .toc-search::placeholder{color:rgba(90,60,30,.4)}
+.reader.paper .toc-search:focus{border-color:rgba(120,90,50,.6);box-shadow:0 0 0 2px rgba(120,90,50,.15)}
+.reader.paper .toc-sort{
+  background:rgba(90,60,30,.08);color:rgba(90,60,30,.7);
+  border-color:rgba(120,90,50,.28);
+  font-family:'Cormorant Garamond',serif;letter-spacing:.1em;
+}
+.reader.paper .toc-sort:hover{border-color:rgba(120,90,50,.55);color:#3a2c1c}
+.reader.paper .toc-sort.active{
+  background:linear-gradient(90deg, rgba(150,30,40,.14), rgba(90,60,30,.08));
+  border-color:rgba(150,30,40,.5);color:#6a1020;
+  box-shadow:0 0 10px -3px rgba(150,30,40,.4);
+  text-shadow:none;
+}
+
+.toc-no-results{
+  padding:1.2rem .5rem;text-align:center;
+  font-family:'Share Tech Mono',monospace;font-size:.7rem;font-style:italic;
+  color:rgba(180,220,235,.45);
+}
+.reader.paper .toc-no-results{color:rgba(90,60,30,.5);font-family:'Cormorant Garamond',serif;font-size:.85rem}
+
+/* ═══════════ DANGER BADGES on TOC items ═══════════ */
+.toc-item{position:relative}
+.toc-danger{
+  margin-left:auto;flex-shrink:0;
+  min-width:26px;padding:.05rem .38rem;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:4px;
+  font-family:'Share Tech Mono',monospace;font-size:.58rem;font-weight:800;letter-spacing:.06em;
+  border:1px solid transparent;
+  text-shadow:0 0 4px rgba(0,0,0,.6);
+  line-height:1;
+}
+/* Rank color scheme — Z (apex) through F (basic) */
+.dr-z   { background:linear-gradient(135deg, #a0122a, #6b0018); color:#fff;    border-color:#e0224a;
+          box-shadow:0 0 12px -2px #e0224a, inset 0 0 8px rgba(255,255,255,.15);
+          animation:dr-z-pulse 2.4s ease-in-out infinite; }
+.dr-sss { background:linear-gradient(135deg, #d4302a, #8a0f10); color:#fff;    border-color:#ff4a5c; }
+.dr-ss  { background:linear-gradient(135deg, #d95a1a, #8a2e0a); color:#fff;    border-color:#ff7043; }
+.dr-s   { background:linear-gradient(135deg, #d99a30, #7a5a10); color:#1a1408; border-color:#f0b860; font-weight:900; }
+.dr-a   { background:linear-gradient(135deg, #3a8a4a, #1a4020); color:#e8ffe8; border-color:#5ad17a; }
+.dr-b   { background:linear-gradient(135deg, #2a8a80, #0a4038); color:#d8fff8; border-color:#4ecdc4; }
+.dr-c   { background:linear-gradient(135deg, #1a7ab0, #0a3a5a); color:#e0f4ff; border-color:#00d4ff; }
+.dr-d   { background:linear-gradient(135deg, #3a5a80, #1a2a40); color:#d0e0f0; border-color:#5ba3d0; }
+.dr-e   { background:linear-gradient(135deg, #4a5560, #22292f); color:#c0c8d0; border-color:#7a8a9a; }
+.dr-f   { background:linear-gradient(135deg, #3a4048, #1a1e22); color:#a8b0b8; border-color:#5a6a78; }
+
+@keyframes dr-z-pulse{
+  0%,100% { box-shadow:0 0 12px -2px #e0224a, inset 0 0 8px rgba(255,255,255,.15) }
+  50%     { box-shadow:0 0 18px 0    #e0224a, inset 0 0 10px rgba(255,255,255,.2) }
+}
+
+/* Paper-theme badge muting — a book uses inked stamps, not neon */
+.reader.paper .toc-danger{
+  font-family:'Share Tech Mono',monospace;
+  filter:saturate(.7) contrast(.95);
+  box-shadow:none;
+  animation:none;
+  text-shadow:none;
+}
+.reader.paper .dr-z{box-shadow:0 0 6px -1px #a0122a}
+.reader.paper .dr-s{color:#3a2010}
+
+/* ═══════════ DANGER select in DM editor ═══════════ */
+.danger-select{min-width:150px}
+
 .reader-toc-toggle{
   width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:none;
   align-items:center;justify-content:center;border:1px solid;margin-right:.6rem;background:transparent;
@@ -850,6 +959,22 @@ body::after{
 .reader.grimm-reader .toc-item::before{content:'▸ ';color:rgba(0,210,255,.4)}
 .reader.grimm-reader .toc-item:hover{background:rgba(0,210,255,.1);color:#d6f3ff;border-color:rgba(0,210,255,.2)}
 .reader.grimm-reader .toc-item.active{background:linear-gradient(90deg,rgba(0,210,255,.18),rgba(0,210,255,.04));border-color:rgba(0,210,255,.45);color:var(--aura);box-shadow:inset 2px 0 0 var(--aura)}
+/* Grimm reader — badges are the star, boost their glow */
+.reader.grimm-reader .toc-danger{
+  font-size:.6rem;padding:.1rem .42rem;
+  box-shadow:0 0 12px -3px currentColor, inset 0 1px 0 rgba(255,255,255,.15);
+}
+.reader.grimm-reader .dr-z{
+  box-shadow:0 0 20px 0 #e0224a, inset 0 0 12px rgba(255,255,255,.25);
+  animation:dr-z-pulse-grimm 1.8s ease-in-out infinite;
+}
+.reader.grimm-reader .toc-sort.active{
+  box-shadow:0 0 22px -3px rgba(224,34,74,.75), inset 0 1px 0 rgba(255,255,255,.08);
+}
+@keyframes dr-z-pulse-grimm{
+  0%,100% { box-shadow:0 0 20px 0 #e0224a, inset 0 0 12px rgba(255,255,255,.25) }
+  50%     { box-shadow:0 0 32px 4px #e0224a, inset 0 0 16px rgba(255,255,255,.35) }
+}
 .reader.grimm-reader .reader-body{padding:2.6rem 3.4rem;color:#c8ecfa}
 .reader.grimm-reader .page-title{font-family:'Orbitron',sans-serif;font-size:2.1rem;font-weight:700;color:#fff;
   border-bottom:1px solid rgba(0,210,255,.3);padding-bottom:.8rem;margin-bottom:1.6rem;letter-spacing:.02em;
@@ -1477,6 +1602,8 @@ let _privateMode = 'edit';
 function openReader(book) {
   _readerBook = book; _readerPage = 0;
   _privateMode = 'edit';
+  _dangerSort = false;
+  _readerSearch = '';
   const reader = $('reader');
   reader.className = `reader ${(book.style==='holo'||book.style==='grimm')?'holo-reader':'paper'}${book.style==='grimm'?' grimm-reader':''}${book.style==='notebook'?' notebook-reader':''}`;
   // rip is per-page and re-applied by renderReaderPage; never inherit it
@@ -1485,18 +1612,90 @@ function openReader(book) {
   renderReaderPage();
   $('readerOverlay').classList.add('open');
 }
+// ── DANGER RATING SYSTEM ────────────────────────────────────
+// Z = apex threat, F = basic Grimm. Empty string = unrated.
+// Used on any book, but especially Grimm Studies.
+const DANGER_RANKS = ['Z','SSS','SS','S','A','B','C','D','E','F'];
+const DANGER_WEIGHT = { Z:10, SSS:9, SS:8, S:7, A:6, B:5, C:4, D:3, E:2, F:1, '':0 };
+
+// Local reader state — resets when a new book opens
+let _dangerSort   = false;   // toggle: reorder TOC by danger, most dangerous first
+let _readerSearch = '';      // filter TOC by page title (case-insensitive)
+
 function renderReaderToc() {
   const book = _readerBook; if(!book) return;
   const toc = $('readerToc');
   if (!book.pages.length) { toc.innerHTML = '<div class="reader-toc-title">No entries</div>'; return; }
-  toc.innerHTML = `<div class="reader-toc-title">Contents · ${book.pages.length}</div>` +
-    book.pages.map((pg,i)=>`
-      <button class="toc-item ${i===_readerPage?'active':''}" data-toc="${i}">
-        <span class="toc-num">${i+1}</span>
+
+  // Build [{page, idx}] pairs so we can filter/sort without losing original position
+  let entries = book.pages.map((pg, idx) => ({ pg, idx }));
+
+  // FILTER by search — matches page title (case-insensitive substring)
+  const q = _readerSearch.trim().toLowerCase();
+  if (q) {
+    entries = entries.filter(({pg}) =>
+      (pg.title||'').toLowerCase().includes(q) ||
+      (pg.text||'').toLowerCase().includes(q)     // also match body content
+    );
+  }
+
+  // SORT — when Danger List is on, most dangerous first; else original order
+  if (_dangerSort) {
+    entries.sort((a, b) => {
+      const wa = DANGER_WEIGHT[a.pg.danger || ''] || 0;
+      const wb = DANGER_WEIGHT[b.pg.danger || ''] || 0;
+      if (wb !== wa) return wb - wa;
+      return a.idx - b.idx;  // stable: original order breaks ties
+    });
+  }
+
+  const totalCount = book.pages.length;
+  const shownCount = entries.length;
+  const countLabel = shownCount === totalCount ? `${totalCount}` : `${shownCount} / ${totalCount}`;
+
+  toc.innerHTML = `
+    <div class="reader-toc-title">Contents · ${countLabel}</div>
+    <div class="toc-controls">
+      <input type="text" class="toc-search" id="tocSearch" placeholder="🔍 Search…"
+             value="${esc(_readerSearch)}" autocomplete="off">
+      <button type="button" class="toc-sort ${_dangerSort?'active':''}" id="tocDangerSort"
+              title="Reorder by threat level (Z first)">
+        <span class="toc-sort-icon">⚠</span>
+        <span class="toc-sort-lbl">Danger List</span>
+      </button>
+    </div>
+    ${entries.length ? entries.map(({pg, idx}) => {
+      const dr = (pg.danger || '').toUpperCase();
+      const badge = dr ? `<span class="toc-danger dr-${dr.toLowerCase().replace(/[^a-z0-9]/g,'')}">${dr}</span>` : '';
+      return `<button class="toc-item ${idx===_readerPage?'active':''}" data-toc="${idx}">
+        <span class="toc-num">${idx+1}</span>
         <span class="toc-name ${pg.title?'':'untitled'}">${pg.title?esc(pg.title):'Untitled'}</span>
-      </button>`).join('');
-  toc.querySelectorAll('[data-toc]').forEach(b=>{
-    b.addEventListener('click',()=>{ _readerPage=Number(b.dataset.toc); renderReaderPage(); $('reader').classList.remove('toc-open'); });
+        ${badge}
+      </button>`;
+    }).join('') : '<div class="toc-no-results">No pages match.</div>'}
+  `;
+
+  toc.querySelectorAll('[data-toc]').forEach(b => {
+    b.addEventListener('click', () => {
+      _readerPage = Number(b.dataset.toc);
+      renderReaderPage();
+      $('reader').classList.remove('toc-open');
+    });
+  });
+  const searchInp = $('tocSearch');
+  if (searchInp) {
+    searchInp.addEventListener('input', e => {
+      _readerSearch = e.target.value;
+      renderReaderToc();
+      searchInp.focus();
+      // put cursor at the end so typing feels natural after re-render
+      const val = searchInp.value;
+      searchInp.setSelectionRange(val.length, val.length);
+    });
+  }
+  $('tocDangerSort')?.addEventListener('click', () => {
+    _dangerSort = !_dangerSort;
+    renderReaderToc();
   });
 }
 // ── BLOOD SPLATTER ──────────────────────────────────────────
@@ -1889,6 +2088,22 @@ function renderPageFolds(){
       <div class="page-fold-body">
         <div class="dm-field"><label>Page Title</label><input type="text" data-f="title" data-pi="${pi}" value="${esc(pg.title)}" placeholder="Optional title…"></div>
         <div class="torn-toggle-row">
+          <label>⚠ Danger:</label>
+          <select class="torn-select danger-select" data-pi="${pi}" data-dangersel>
+            <option value="" ${!pg.danger?'selected':''}>— Unrated —</option>
+            <option value="Z"   ${pg.danger==='Z'?'selected':''}>Z · Apex Threat</option>
+            <option value="SSS" ${pg.danger==='SSS'?'selected':''}>SSS · Catastrophic</option>
+            <option value="SS"  ${pg.danger==='SS'?'selected':''}>SS · Deadly</option>
+            <option value="S"   ${pg.danger==='S'?'selected':''}>S · Grave</option>
+            <option value="A"   ${pg.danger==='A'?'selected':''}>A · Serious</option>
+            <option value="B"   ${pg.danger==='B'?'selected':''}>B · Notable</option>
+            <option value="C"   ${pg.danger==='C'?'selected':''}>C · Standard</option>
+            <option value="D"   ${pg.danger==='D'?'selected':''}>D · Minor</option>
+            <option value="E"   ${pg.danger==='E'?'selected':''}>E · Trivial</option>
+            <option value="F"   ${pg.danger==='F'?'selected':''}>F · Basic</option>
+          </select>
+        </div>
+        <div class="torn-toggle-row">
           <label>✂ Torn page:</label>
           <select class="torn-select" data-pi="${pi}" data-tornsel>
             <option value="" ${!pg.torn?'selected':''}>None</option>
@@ -1989,6 +2204,17 @@ function renderPageFolds(){
       const pi=Number(sel.dataset.pi);
       book.pages[pi].blood = Number(sel.value) || 0;
       pushLibrary();
+    });
+  });
+
+  cont.querySelectorAll('[data-dangersel]').forEach(sel=>{
+    sel.addEventListener('change',()=>{
+      const pi=Number(sel.dataset.pi);
+      book.pages[pi].danger = sel.value || '';
+      pushLibrary();
+      // Live-refresh TOC if the reader is currently viewing this book,
+      // so the badge appears immediately without reopening.
+      if (_readerBook && _readerBook.id === book.id) renderReaderToc();
     });
   });
 

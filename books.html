@@ -380,6 +380,7 @@ body::after{
   font-family:'Share Tech Mono',monospace;font-size:.7rem;font-style:italic;
   color:rgba(180,220,235,.45);
 }
+.toc-list{display:flex;flex-direction:column;gap:.25rem}
 .reader.paper .toc-no-results{color:rgba(90,60,30,.5);font-family:'Cormorant Garamond',serif;font-size:.85rem}
 
 /* ═══════════ DANGER BADGES on TOC items ═══════════ */
@@ -1626,76 +1627,93 @@ function renderReaderToc() {
   const book = _readerBook; if(!book) return;
   const toc = $('readerToc');
   if (!book.pages.length) { toc.innerHTML = '<div class="reader-toc-title">No entries</div>'; return; }
+  const isGrimm = book.style === 'grimm';
 
-  // Build [{page, idx}] pairs so we can filter/sort without losing original position
+  // Render the shell ONCE — a header + persistent controls + a list container.
+  // The list is the only thing that gets rebuilt on search/sort so the input
+  // element is never destroyed mid-keystroke.
+  toc.innerHTML = `
+    <div class="reader-toc-title" id="tocCountLabel">Contents · ${book.pages.length}</div>
+    <div class="toc-controls">
+      <input type="text" class="toc-search" id="tocSearch" placeholder="🔍 Search…"
+             value="${esc(_readerSearch)}" autocomplete="off">
+      ${isGrimm ? `<button type="button" class="toc-sort ${_dangerSort?'active':''}" id="tocDangerSort"
+              title="Reorder by threat level (Z first)">
+        <span class="toc-sort-icon">⚠</span>
+        <span class="toc-sort-lbl">Danger List</span>
+      </button>` : ''}
+    </div>
+    <div class="toc-list" id="tocList"></div>
+  `;
+
+  renderTocList();
+
+  $('tocSearch')?.addEventListener('input', e => {
+    _readerSearch = e.target.value;
+    renderTocList();
+  });
+  $('tocDangerSort')?.addEventListener('click', () => {
+    _dangerSort = !_dangerSort;
+    $('tocDangerSort').classList.toggle('active', _dangerSort);
+    renderTocList();
+  });
+}
+
+// Rebuilds ONLY the list of TOC items. Called on every search keystroke
+// and every sort toggle. Never touches the input element.
+function renderTocList() {
+  const book = _readerBook; if(!book) return;
+  const listEl = $('tocList'); if(!listEl) return;
+  const isGrimm = book.style === 'grimm';
+
   let entries = book.pages.map((pg, idx) => ({ pg, idx }));
 
-  // FILTER by search — matches page title (case-insensitive substring)
+  // FILTER by search — matches title + body content, case-insensitive
   const q = _readerSearch.trim().toLowerCase();
   if (q) {
     entries = entries.filter(({pg}) =>
       (pg.title||'').toLowerCase().includes(q) ||
-      (pg.text||'').toLowerCase().includes(q)     // also match body content
+      (pg.text||'').toLowerCase().includes(q)
     );
   }
 
-  // SORT — when Danger List is on, most dangerous first; else original order
-  if (_dangerSort) {
+  // SORT — Grimm books only, when the toggle is active
+  if (isGrimm && _dangerSort) {
     entries.sort((a, b) => {
       const wa = DANGER_WEIGHT[a.pg.danger || ''] || 0;
       const wb = DANGER_WEIGHT[b.pg.danger || ''] || 0;
       if (wb !== wa) return wb - wa;
-      return a.idx - b.idx;  // stable: original order breaks ties
+      return a.idx - b.idx;
     });
   }
 
+  // Update the count label to reflect what's shown
   const totalCount = book.pages.length;
   const shownCount = entries.length;
-  const countLabel = shownCount === totalCount ? `${totalCount}` : `${shownCount} / ${totalCount}`;
+  const label = $('tocCountLabel');
+  if (label) {
+    label.textContent = shownCount === totalCount
+      ? `Contents · ${totalCount}`
+      : `Contents · ${shownCount} / ${totalCount}`;
+  }
 
-  toc.innerHTML = `
-    <div class="reader-toc-title">Contents · ${countLabel}</div>
-    <div class="toc-controls">
-      <input type="text" class="toc-search" id="tocSearch" placeholder="🔍 Search…"
-             value="${esc(_readerSearch)}" autocomplete="off">
-      <button type="button" class="toc-sort ${_dangerSort?'active':''}" id="tocDangerSort"
-              title="Reorder by threat level (Z first)">
-        <span class="toc-sort-icon">⚠</span>
-        <span class="toc-sort-lbl">Danger List</span>
-      </button>
-    </div>
-    ${entries.length ? entries.map(({pg, idx}) => {
-      const dr = (pg.danger || '').toUpperCase();
-      const badge = dr ? `<span class="toc-danger dr-${dr.toLowerCase().replace(/[^a-z0-9]/g,'')}">${dr}</span>` : '';
-      return `<button class="toc-item ${idx===_readerPage?'active':''}" data-toc="${idx}">
-        <span class="toc-num">${idx+1}</span>
-        <span class="toc-name ${pg.title?'':'untitled'}">${pg.title?esc(pg.title):'Untitled'}</span>
-        ${badge}
-      </button>`;
-    }).join('') : '<div class="toc-no-results">No pages match.</div>'}
-  `;
+  listEl.innerHTML = entries.length ? entries.map(({pg, idx}) => {
+    // Danger badges only render on Grimm books — other books use the raw title
+    const dr = isGrimm ? (pg.danger || '').toUpperCase() : '';
+    const badge = dr ? `<span class="toc-danger dr-${dr.toLowerCase().replace(/[^a-z0-9]/g,'')}">${dr}</span>` : '';
+    return `<button class="toc-item ${idx===_readerPage?'active':''}" data-toc="${idx}">
+      <span class="toc-num">${idx+1}</span>
+      <span class="toc-name ${pg.title?'':'untitled'}">${pg.title?esc(pg.title):'Untitled'}</span>
+      ${badge}
+    </button>`;
+  }).join('') : '<div class="toc-no-results">No pages match.</div>';
 
-  toc.querySelectorAll('[data-toc]').forEach(b => {
+  listEl.querySelectorAll('[data-toc]').forEach(b => {
     b.addEventListener('click', () => {
       _readerPage = Number(b.dataset.toc);
       renderReaderPage();
       $('reader').classList.remove('toc-open');
     });
-  });
-  const searchInp = $('tocSearch');
-  if (searchInp) {
-    searchInp.addEventListener('input', e => {
-      _readerSearch = e.target.value;
-      renderReaderToc();
-      searchInp.focus();
-      // put cursor at the end so typing feels natural after re-render
-      const val = searchInp.value;
-      searchInp.setSelectionRange(val.length, val.length);
-    });
-  }
-  $('tocDangerSort')?.addEventListener('click', () => {
-    _dangerSort = !_dangerSort;
-    renderReaderToc();
   });
 }
 // ── BLOOD SPLATTER ──────────────────────────────────────────
@@ -2087,7 +2105,7 @@ function renderPageFolds(){
       </div>
       <div class="page-fold-body">
         <div class="dm-field"><label>Page Title</label><input type="text" data-f="title" data-pi="${pi}" value="${esc(pg.title)}" placeholder="Optional title…"></div>
-        <div class="torn-toggle-row">
+        ${book.style === 'grimm' ? `<div class="torn-toggle-row">
           <label>⚠ Danger:</label>
           <select class="torn-select danger-select" data-pi="${pi}" data-dangersel>
             <option value="" ${!pg.danger?'selected':''}>— Unrated —</option>
@@ -2102,7 +2120,7 @@ function renderPageFolds(){
             <option value="E"   ${pg.danger==='E'?'selected':''}>E · Trivial</option>
             <option value="F"   ${pg.danger==='F'?'selected':''}>F · Basic</option>
           </select>
-        </div>
+        </div>` : ''}
         <div class="torn-toggle-row">
           <label>✂ Torn page:</label>
           <select class="torn-select" data-pi="${pi}" data-tornsel>
@@ -2212,9 +2230,9 @@ function renderPageFolds(){
       const pi=Number(sel.dataset.pi);
       book.pages[pi].danger = sel.value || '';
       pushLibrary();
-      // Live-refresh TOC if the reader is currently viewing this book,
-      // so the badge appears immediately without reopening.
-      if (_readerBook && _readerBook.id === book.id) renderReaderToc();
+      // Live-refresh the TOC list if the reader is currently viewing this
+      // book — only rebuilds the list rows, keeps the search input alive.
+      if (_readerBook && _readerBook.id === book.id) renderTocList();
     });
   });
 

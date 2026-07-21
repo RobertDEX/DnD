@@ -502,7 +502,7 @@ function renderHeader(){
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
   s('topSanityMini', `${c.sanity.current} / ${c.sanity.max}`);
   s('topArmorMini', c.armor);
-  s('dmSelectedName', c.name||'—');
+  try { renderDmTargetPicker(); } catch(e){}
   const hpPct = c.hp.max>0?(c.hp.current/c.hp.max)*100:0;
   const sPct  = c.sanity.max>0?(c.sanity.current/c.sanity.max)*100:0;
   const hb=el('topHpBar'); if(hb) hb.style.width=clamp(hpPct,0,100)+'%';
@@ -556,15 +556,25 @@ function renderStats(){
   grid.innerHTML = STATS.map(st=>{
     const score = c.stats[st];
     const m = mod(score);
+    const modPos = m > 0;
+    const modZero = m === 0;
     return `
-    <div class="stat-block">
-      <div class="stat-label">${st}<span class="stat-sub">${STAT_LABELS[st]}</span></div>
-      <div class="stat-mod">${fmtMod(m)}</div>
-      <div class="stat-score-row">
-        <button class="stat-adj" data-stat="${st}" data-action="minus">−</button>
-        <input class="stat-score" id="stat_${st}" type="number" value="${score}" data-stat="${st}">
-        <button class="stat-adj" data-stat="${st}" data-action="plus">+</button>
+    <div class="stat-block ${modPos?'positive':''} ${modZero?'neutral':''}">
+      <div class="stat-header">
+        <span class="stat-key">${st}</span>
+        <span class="stat-sub">${STAT_LABELS[st]}</span>
       </div>
+      <div class="stat-mod-display">
+        <span class="stat-mod-sign">${modPos?'+':m<0?'−':'±'}</span>
+        <span class="stat-mod-val">${Math.abs(m)}</span>
+      </div>
+      <div class="stat-score-row">
+        <button class="stat-adj minus" data-stat="${st}" data-action="minus" title="Decrease">−</button>
+        <input class="stat-score" id="stat_${st}" type="number" value="${score}" data-stat="${st}" aria-label="${st} score">
+        <button class="stat-adj plus" data-stat="${st}" data-action="plus" title="Increase">+</button>
+      </div>
+      <div class="stat-corner tl"></div>
+      <div class="stat-corner br"></div>
     </div>`;
   }).join('');
   grid.querySelectorAll('.stat-score').forEach(inp=>{
@@ -1034,6 +1044,24 @@ function addAbility(){ const c=getChar(); if(!Array.isArray(c.abilities))c.abili
 // ================================================================
 // DM PANEL
 // ================================================================
+// Target picker in the DM console header — shows every character,
+// active selection glows, click switches the DM's focus.
+function renderDmTargetPicker(){
+  const sel = el('dmTargetPicker'); if(!sel) return;
+  const cur = state.selectedCharacter;
+  sel.innerHTML = state.characters.map((c,i) => {
+    const rk = rankOf(c);
+    const st = c.state === 'dead' ? ' · KIA' : c.state === 'reserve' ? ' · Reserve' : '';
+    return `<option value="${i}" ${i===cur?'selected':''}>${esc(c.name || `Agent ${i+1}`)} — ${rk.id}${st}</option>`;
+  }).join('');
+  // Rebind handler each call — sel.onchange doesn't stack
+  sel.onchange = e => {
+    state.selectedCharacter = Number(e.target.value) || 0;
+    pushState(true);
+    render();
+  };
+}
+
 function renderDmPanel(){
   if(!dmUnlocked) return;
   // Player roster with rank + points controls
@@ -2077,6 +2105,7 @@ function bindFields(){
   el('dmUnlockBtn')?.addEventListener('click', unlockDm);
   el('dmPasswordInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') unlockDm(); });
   el('dmCloseBtn')?.addEventListener('click', closeDmOverlay);
+  el('dmCloseBtn2')?.addEventListener('click', closeDmOverlay);
   el('dmLockBtn')?.addEventListener('click', lockDm);
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
   el('dmLoadCatalogBtn')?.addEventListener('click', ()=> loadDefaultCatalog(false));

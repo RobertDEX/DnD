@@ -287,124 +287,240 @@
 
     <!-- FULL PANEL -->
     <div id="dmFullPanel" class="dm-full hidden">
-      <div class="dm-full-head">
-        <div class="dm-full-title">⚿ ADMINISTRATOR CONSOLE <span class="dm-sel">Viewing: <strong id="dmSelectedName">—</strong></span></div>
-        <button id="dmLockBtn" class="maw-btn ghost small">Lock</button>
-      </div>
-      <div class="dm-nav">
-        <button class="dm-nav-btn active" data-dm="roster">Roster & Ranks</button>
-        <button class="dm-nav-btn" data-dm="missions">Mission Points</button>
-        <button class="dm-nav-btn" data-dm="shop">Requisitions</button>
-        <button class="dm-nav-btn" data-dm="requests">Requests <span id="reqBadge" class="req-badge"></span></button>
-        <button class="dm-nav-btn" data-dm="broadcast">Broadcast</button>
-        <button class="dm-nav-btn" data-dm="bulk">Bulk Actions</button>
-        <button class="dm-nav-btn" data-dm="commend">Commendations</button>
-        <button class="dm-nav-btn" data-dm="evidence">Evidence Board</button>
-        <button class="dm-nav-btn" data-dm="site">Site Control</button>
+      <!-- CONSOLE HEADER — brand + target picker + lock -->
+      <div class="dm-console-head">
+        <div class="dch-brand">
+          <span class="dch-mark">⚿</span>
+          <div class="dch-title-block">
+            <div class="dch-title">ADMINISTRATOR CONSOLE</div>
+            <div class="dch-sub">Make a Wish Incorporated · Site Operations</div>
+          </div>
+        </div>
+        <div class="dch-target">
+          <div class="dch-target-lbl">Viewing Personnel File</div>
+          <select id="dmTargetPicker" class="dch-target-sel"></select>
+        </div>
+        <div class="dch-actions">
+          <button id="dmLockBtn" class="maw-btn ghost small">🔒 Lock</button>
+        </div>
       </div>
 
+      <!-- CONSOLE BODY — sidebar nav + content -->
+      <div class="dm-console-body">
+
+        <!-- SIDEBAR NAV — grouped sections -->
+        <aside class="dm-console-nav">
+          <div class="dm-nav-group">
+            <div class="dm-nav-section">Personnel</div>
+            <button class="dm-nav-btn active" data-dm="roster">
+              <span class="dm-nav-icon">👥</span><span class="dm-nav-lbl">Roster &amp; Ranks</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="bulk">
+              <span class="dm-nav-icon">⚙</span><span class="dm-nav-lbl">Bulk Actions</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="commend">
+              <span class="dm-nav-icon">✦</span><span class="dm-nav-lbl">Commendations</span>
+            </button>
+          </div>
+
+          <div class="dm-nav-group">
+            <div class="dm-nav-section">Operations</div>
+            <button class="dm-nav-btn" data-dm="missions">
+              <span class="dm-nav-icon">◈</span><span class="dm-nav-lbl">Mission Points</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="broadcast">
+              <span class="dm-nav-icon">📡</span><span class="dm-nav-lbl">Broadcast</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="site">
+              <span class="dm-nav-icon">☢</span><span class="dm-nav-lbl">Site Control</span>
+            </button>
+          </div>
+
+          <div class="dm-nav-group">
+            <div class="dm-nav-section">Logistics</div>
+            <button class="dm-nav-btn" data-dm="shop">
+              <span class="dm-nav-icon">⌗</span><span class="dm-nav-lbl">Requisitions</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="requests">
+              <span class="dm-nav-icon">⚑</span><span class="dm-nav-lbl">Requests</span>
+              <span id="reqBadge" class="req-badge"></span>
+            </button>
+          </div>
+
+          <div class="dm-nav-group">
+            <div class="dm-nav-section">Intelligence</div>
+            <button class="dm-nav-btn" data-dm="evidence">
+              <span class="dm-nav-icon">🔍</span><span class="dm-nav-lbl">Evidence Board</span>
+            </button>
+          </div>
+
+          <button class="dm-x-inline" id="dmCloseBtn2">✕ Close Console</button>
+        </aside>
+
+        <!-- CONTENT AREA — cards live here -->
+        <div class="dm-console-content">
+
       <div class="dm-section active" data-dm="roster">
-        <div class="dm-section-title">Personnel Roster — Assign Rank, Points & Status</div>
-        <div id="dmRoster" class="dm-roster"></div>
-        <button id="dmAddAgentBtn" class="maw-btn" style="margin-top:.8rem">+ Create Personnel File</button>
+        <div class="dm-section-title">Personnel Roster — Assign Rank, Points &amp; Status</div>
+        <div class="dm-card">
+          <div class="dm-card-title">👥 Active &amp; Reserve Personnel</div>
+          <div class="dm-card-body">
+            <div id="dmRoster" class="dm-roster"></div>
+            <button id="dmAddAgentBtn" class="maw-btn" style="margin-top:.8rem">+ Create Personnel File</button>
+          </div>
+        </div>
       </div>
 
       <div class="dm-section" data-dm="missions">
         <div class="dm-section-title">Award Mission Points</div>
-        <div class="dm-award-config">
-          <label class="dm-mini"><span>Award To</span><select id="dmAwardTarget"></select></label>
-          <label class="dm-mini grow"><span>Mission / Operation Name</span><input id="dmMissionName" type="text" placeholder="Operation designation…"></label>
+        <div class="dm-card">
+          <div class="dm-card-title">◈ Configure Award</div>
+          <div class="dm-card-body">
+            <div class="dm-award-config">
+              <label class="dm-mini"><span>Award To</span><select id="dmAwardTarget"></select></label>
+              <label class="dm-mini grow"><span>Mission / Operation Name</span><input id="dmMissionName" type="text" placeholder="Operation designation…"></label>
+            </div>
+          </div>
         </div>
-        <div class="dm-section-subtitle">Threat Grade Bounties</div>
-        <div id="dmAwardGrades" class="dm-award-grades"></div>
-        <div class="dm-grade-legend">F · 100 &nbsp;|&nbsp; D · 500 &nbsp;|&nbsp; C · 1,000 &nbsp;|&nbsp; B · 5,000 &nbsp;|&nbsp; A · 10,000 &nbsp;|&nbsp; S · 50,000+ (separate review)</div>
+        <div class="dm-card">
+          <div class="dm-card-title">Threat Grade Bounties</div>
+          <div class="dm-card-body">
+            <div id="dmAwardGrades" class="dm-award-grades"></div>
+            <div class="dm-grade-legend">F · 100 &nbsp;|&nbsp; D · 500 &nbsp;|&nbsp; C · 1,000 &nbsp;|&nbsp; B · 5,000 &nbsp;|&nbsp; A · 10,000 &nbsp;|&nbsp; S · 50,000+ (separate review)</div>
+          </div>
+        </div>
       </div>
 
       <div class="dm-section" data-dm="shop">
         <div class="dm-section-title">Requisitions Catalog <span id="dmShopMeta" class="dm-shop-meta"></span></div>
-        <div class="dm-shop-toolbar">
-          <button id="dmLoadCatalogBtn" class="maw-btn small">⤓ Load MAW Default Catalog</button>
-          <button id="dmResetCatalogBtn" class="maw-btn small ghost">↻ Reset to Default</button>
+        <div class="dm-card">
+          <div class="dm-card-title">⌗ Catalog Management</div>
+          <div class="dm-card-body">
+            <div class="dm-shop-toolbar">
+              <button id="dmLoadCatalogBtn" class="maw-btn small">⤓ Load MAW Default Catalog</button>
+              <button id="dmResetCatalogBtn" class="maw-btn small ghost">↻ Reset to Default</button>
+            </div>
+            <div class="dm-shop-legend">Tier gates access: <b style="color:#7a8590">T1 Employee</b> · <b style="color:#9aa6b2">T2 Supervisor</b> · <b style="color:#c2b067">T3 Deputy</b> · <b style="color:#d94f4f">T4 Chief</b>. Agents see their tier and below.</div>
+            <div id="dmShopList" class="dm-shop-list"></div>
+            <button id="addShopItemBtn" class="maw-btn" style="margin-top:.8rem">+ Stock New Item</button>
+          </div>
         </div>
-        <div class="dm-shop-legend">Tier gates access: <b style="color:#7a8590">T1 Employee</b> · <b style="color:#9aa6b2">T2 Supervisor</b> · <b style="color:#c2b067">T3 Deputy</b> · <b style="color:#d94f4f">T4 Chief</b>. Agents see their tier and below.</div>
-        <div id="dmShopList" class="dm-shop-list"></div>
-        <button id="addShopItemBtn" class="maw-btn" style="margin-top:.8rem">+ Stock New Item</button>
       </div>
 
       <div class="dm-section" data-dm="requests">
         <div class="dm-section-title">Requisition Requests — Review Queue</div>
-        <p class="dm-broadcast-note">Agents request items not in the catalog. Set a price, tier, and category, then approve to stock it (it lands in the catalog and they're notified), or deny it.</p>
-        <div id="dmRequestsList" class="dm-requests-list"></div>
-        <button id="dmClearRequestsBtn" class="maw-btn ghost small" style="margin-top:.8rem">Clear Resolved</button>
+        <div class="dm-card">
+          <div class="dm-card-title">⚑ Pending Review</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Agents request items not in the catalog. Set a price, tier, and category, then approve to stock it (it lands in the catalog and they're notified), or deny it.</p>
+            <div id="dmRequestsList" class="dm-requests-list"></div>
+            <button id="dmClearRequestsBtn" class="maw-btn ghost small" style="margin-top:.8rem">Clear Resolved</button>
+          </div>
+        </div>
       </div>
 
       <div class="dm-section" data-dm="broadcast">
         <div class="dm-section-title">Internal Broadcast — Full-Screen Transmission</div>
-        <p class="dm-broadcast-note">This takes over every connected terminal until you end the transmission. Use it for directives, warnings, and announcements.</p>
-        <textarea id="dmBroadcastInput" class="dm-broadcast-input" placeholder="Enter transmission text…&#10;e.g. ALL PERSONNEL: SITE-██ IS NOW UNDER CONTAINMENT LOCKDOWN. REMAIN AT YOUR STATIONS."></textarea>
-        <div class="dm-broadcast-actions">
-          <button id="dmBroadcastSendBtn" class="maw-btn dm">⚠ TRANSMIT TO ALL</button>
-          <button id="dmBroadcastClearBtn" class="maw-btn ghost">End Active Transmission</button>
+        <div class="dm-card">
+          <div class="dm-card-title">📡 Site-Wide Transmission</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">This takes over every connected terminal until you end the transmission. Use it for directives, warnings, and announcements.</p>
+            <textarea id="dmBroadcastInput" class="dm-broadcast-input" placeholder="Enter transmission text…&#10;e.g. ALL PERSONNEL: SITE-██ IS NOW UNDER CONTAINMENT LOCKDOWN. REMAIN AT YOUR STATIONS."></textarea>
+            <div class="dm-broadcast-actions">
+              <button id="dmBroadcastSendBtn" class="maw-btn dm">⚠ TRANSMIT TO ALL</button>
+              <button id="dmBroadcastClearBtn" class="maw-btn ghost">End Active Transmission</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="dm-section" data-dm="bulk">
         <div class="dm-section-title">Bulk Actions — Apply to Multiple Agents</div>
-        <div class="bulk-config">
-          <label class="dm-mini"><span>Scope</span>
-            <select id="bulkScope">
-              <option value="active">All Active Agents</option>
-              <option value="all">Entire Roster</option>
-              <option value="selected">Selected Agent Only</option>
-            </select>
-          </label>
-          <label class="dm-mini"><span>Amount</span><input id="bulkAmount" type="number" value="5" min="0"></label>
+        <div class="dm-card">
+          <div class="dm-card-title">⚙ Scope &amp; Amount</div>
+          <div class="dm-card-body">
+            <div class="bulk-config">
+              <label class="dm-mini"><span>Scope</span>
+                <select id="bulkScope">
+                  <option value="active">All Active Agents</option>
+                  <option value="all">Entire Roster</option>
+                  <option value="selected">Selected Agent Only</option>
+                </select>
+              </label>
+              <label class="dm-mini"><span>Amount</span><input id="bulkAmount" type="number" value="5" min="0"></label>
+            </div>
+          </div>
         </div>
-        <div class="dm-section-subtitle">Vitals</div>
-        <div class="bulk-grid">
-          <button class="bulk-btn dmg" data-bulk="hp-dmg">− HP Damage</button>
-          <button class="bulk-btn heal" data-bulk="hp-heal">+ HP Heal</button>
-          <button class="bulk-btn full" data-bulk="hp-full">↺ Full HP</button>
-          <button class="bulk-btn dmg" data-bulk="san-dmg">− Sanity</button>
-          <button class="bulk-btn heal" data-bulk="san-heal">+ Sanity</button>
-          <button class="bulk-btn full" data-bulk="san-full">↺ Full Sanity</button>
+        <div class="dm-card">
+          <div class="dm-card-title">Vitals</div>
+          <div class="dm-card-body">
+            <div class="bulk-grid">
+              <button class="bulk-btn dmg" data-bulk="hp-dmg">− HP Damage</button>
+              <button class="bulk-btn heal" data-bulk="hp-heal">+ HP Heal</button>
+              <button class="bulk-btn full" data-bulk="hp-full">↺ Full HP</button>
+              <button class="bulk-btn dmg" data-bulk="san-dmg">− Sanity</button>
+              <button class="bulk-btn heal" data-bulk="san-heal">+ Sanity</button>
+              <button class="bulk-btn full" data-bulk="san-full">↺ Full Sanity</button>
+            </div>
+          </div>
         </div>
-        <div class="dm-section-subtitle">Points</div>
-        <div class="bulk-grid pts">
-          <button class="bulk-btn heal" data-bulk="pts-give">+ Give Points</button>
-          <button class="bulk-btn dmg" data-bulk="pts-take">− Take Points</button>
+        <div class="dm-card">
+          <div class="dm-card-title">Mission Points</div>
+          <div class="dm-card-body">
+            <div class="bulk-grid pts">
+              <button class="bulk-btn heal" data-bulk="pts-give">+ Give Points</button>
+              <button class="bulk-btn dmg" data-bulk="pts-take">− Take Points</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="dm-section" data-dm="commend">
-        <div class="dm-section-title">Commendations — Award & Revoke</div>
-        <label class="dm-mini" style="max-width:280px;margin-bottom:.9rem"><span>Recipient</span><select id="dmCommendTarget"></select></label>
-        <p class="dm-broadcast-note">Click a commendation to grant it to the selected agent. Click again to revoke. Awarded badges appear on the agent's Talents tab.</p>
-        <div id="dmCommendList" class="dm-commend-grid"></div>
+        <div class="dm-section-title">Commendations — Award &amp; Revoke</div>
+        <div class="dm-card">
+          <div class="dm-card-title">✦ Award Panel</div>
+          <div class="dm-card-body">
+            <label class="dm-mini" style="max-width:280px;margin-bottom:.9rem"><span>Recipient</span><select id="dmCommendTarget"></select></label>
+            <p class="dm-broadcast-note">Click a commendation to grant it to the selected agent. Click again to revoke. Awarded badges appear on the agent's Talents tab.</p>
+            <div id="dmCommendList" class="dm-commend-grid"></div>
+          </div>
+        </div>
       </div>
 
       <div class="dm-section" data-dm="evidence">
         <div class="dm-section-title">Evidence Board</div>
-        <p class="dm-broadcast-note">Pin elements and drag to arrange. Use the “link” button on a node, then click another node to connect them. All agents see the board update live.</p>
-        <div class="ev-toolbar">
-          <button class="ev-add-btn" data-evtype="anomaly">⬡ Anomaly</button>
-          <button class="ev-add-btn" data-evtype="person">☖ Person</button>
-          <button class="ev-add-btn" data-evtype="location">⌖ Location</button>
-          <button class="ev-add-btn" data-evtype="evidence">❖ Evidence</button>
-          <button class="ev-add-btn" data-evtype="note">✎ Note</button>
+        <div class="dm-card">
+          <div class="dm-card-title">🔍 Investigation Web</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Pin elements and drag to arrange. Use the "link" button on a node, then click another node to connect them. All agents see the board update live.</p>
+            <div class="ev-toolbar">
+              <button class="ev-add-btn" data-evtype="anomaly">⬡ Anomaly</button>
+              <button class="ev-add-btn" data-evtype="person">☖ Person</button>
+              <button class="ev-add-btn" data-evtype="location">⌖ Location</button>
+              <button class="ev-add-btn" data-evtype="evidence">❖ Evidence</button>
+              <button class="ev-add-btn" data-evtype="note">✎ Note</button>
+            </div>
+            <div id="evidenceBoard" class="evidence-board"></div>
+          </div>
         </div>
-        <div id="evidenceBoard" class="evidence-board"></div>
       </div>
 
       <div class="dm-section" data-dm="site">
         <div class="dm-section-title">Site Status Control</div>
-        <p class="dm-broadcast-note">Changes the entire site's atmosphere for every connected terminal — emergency lighting, warning bars, and alert klaxons.</p>
-        <div class="site-alert-controls">
-          <button class="site-alert-btn" data-alert="normal"><span class="sab-dot normal"></span>NORMAL OPERATIONS</button>
-          <button class="site-alert-btn" data-alert="lockdown"><span class="sab-dot lockdown"></span>SITE LOCKDOWN</button>
-          <button class="site-alert-btn" data-alert="uncontained"><span class="sab-dot uncontained"></span>CONTAINMENT BREACH</button>
+        <div class="dm-card">
+          <div class="dm-card-title">☢ Emergency Protocols</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Changes the entire site's atmosphere for every connected terminal — emergency lighting, warning bars, and alert klaxons.</p>
+            <div class="site-alert-controls">
+              <button class="site-alert-btn" data-alert="normal"><span class="sab-dot normal"></span>NORMAL OPERATIONS</button>
+              <button class="site-alert-btn" data-alert="lockdown"><span class="sab-dot lockdown"></span>SITE LOCKDOWN</button>
+              <button class="site-alert-btn" data-alert="uncontained"><span class="sab-dot uncontained"></span>CONTAINMENT BREACH</button>
+            </div>
+          </div>
         </div>
       </div>
+        </div><!-- .dm-console-content -->
+      </div><!-- .dm-console-body -->
     </div>
   </div>
 </div>

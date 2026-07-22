@@ -99,12 +99,13 @@ const SKILL_DESCS = {
   'Deception':     'Lie convincingly. Maintain cover. Misdirect.'
 };
 
-// Corporate ranks (Tiers)
+// Corporate ranks (Clearance Tiers) — flavored for a paranormal
+// investigation corporation with SCP-adjacent hierarchy.
 const RANKS = [
-  { id:'I',   tier:'TIER 1', title:'EMPLOYEE',   color:'#7a8590' },
-  { id:'II',  tier:'TIER 2', title:'SUPERVISOR', color:'#9aa6b2' },
-  { id:'III', tier:'TIER 3', title:'DEPUTY',     color:'#c2b067' },
-  { id:'IV',  tier:'TIER 4', title:'CHIEF',      color:'#d94f4f' }
+  { id:'I',   tier:'TIER 1', title:'PROBATE',    subtitle:'Threshold Clearance',  color:'#7a8590' },
+  { id:'II',  tier:'TIER 2', title:'OPERATIVE',  subtitle:'Field Clearance',      color:'#9aa6b2' },
+  { id:'III', tier:'TIER 3', title:'CUSTODIAN',  subtitle:'Sanctioned Clearance', color:'#c2b067' },
+  { id:'IV',  tier:'TIER 4', title:'OVERSEER',   subtitle:'Absolute Clearance',   color:'#d94f4f' }
 ];
 const RANK_BY_ID = Object.fromEntries(RANKS.map(r=>[r.id,r]));
 
@@ -121,6 +122,27 @@ const THREAT_BY_GRADE = Object.fromEntries(THREAT_GRADES.map(t=>[t.grade,t]));
 
 // Anomaly containment classes (flavor for the bestiary-like anomaly log)
 const ANOMALY_CLASSES = ['Safe','Euclid','Keter','Thaumiel','Neutralized','Uncontained'];
+
+// Damage types — mundane, elemental, paranormal, memetic. Each character
+// can have a set they RESIST (half damage), a set they're VULNERABLE to
+// (double damage), and a set they're IMMUNE to (no damage).
+const DAMAGE_TYPES = [
+  { id:'physical',      label:'Physical',      cat:'mundane',    icon:'⚔', desc:'Blunt, piercing, and slashing damage — the everyday kind.' },
+  { id:'fire',          label:'Fire',          cat:'elemental',  icon:'🔥', desc:'Burning heat, open flame, incendiary weapons.' },
+  { id:'cold',          label:'Cold',          cat:'elemental',  icon:'❄', desc:'Freezing temperatures, ice attacks, hypothermic exposure.' },
+  { id:'electric',      label:'Electric',      cat:'elemental',  icon:'⚡', desc:'Lightning, current, and directed electrical discharge.' },
+  { id:'acid',          label:'Acid',          cat:'elemental',  icon:'☣', desc:'Corrosive substances that dissolve tissue and material.' },
+  { id:'radiant',       label:'Radiant',       cat:'divine',     icon:'✟', desc:'Holy light and consecrated energy — anathema to unclean entities.' },
+  { id:'necrotic',      label:'Necrotic',      cat:'divine',     icon:'⚰', desc:'Life-draining rot and unhallowed decay.' },
+  { id:'psychic',       label:'Psychic',       cat:'mental',     icon:'☾', desc:'Direct assault on the mind — thought-warfare, mental compulsion.' },
+  { id:'cognitohazard', label:'Cognitohazard', cat:'mental',     icon:'⊗', desc:'Memetic hazards — ideas, images, or patterns that hurt to know.' },
+  { id:'corruption',    label:'Corruption',    cat:'paranormal', icon:'⌇', desc:'Long-term paranormal exposure that eats away at identity and form.' },
+  { id:'poison',        label:'Poison',        cat:'mundane',    icon:'⚕', desc:'Toxins, venoms, and biological agents.' },
+  { id:'silver',        label:'Silver',        cat:'paranormal', icon:'☾', desc:'Silver weapons — the classic counter to shapechangers.' },
+  { id:'cold_iron',     label:'Cold Iron',     cat:'paranormal', icon:'⚒', desc:'Cold-forged iron — traditional bane of fae and certain spirits.' },
+  { id:'salt',          label:'Salt',          cat:'paranormal', icon:'◇', desc:'Consecrated salt — ancient boundary between the living and the other.' },
+];
+const DAMAGE_TYPE_BY_ID = Object.fromEntries(DAMAGE_TYPES.map(t => [t.id, t]));
 
 const DMG_TYPES = ['Ballistic','Slashing','Bludgeoning','Fire','Cryo','Electric','Chemical','Anomalous','Psychic','Other'];
 const TRAINING  = ['Untrained','Trained','Specialist'];
@@ -181,7 +203,7 @@ let state = {
   showReserve: false,
   theme: null,
   shop: [],  // shared shop catalog managed by the DM
-  evidenceBoard: { nodes: [], links: [] },   // DM evidence board
+  evidenceBoard: { nodes: [], links: [] },   // legacy — evidence board removed
   siteAlert: 'normal',                        // normal | lockdown | uncontained
   requests: []  // player requisition requests awaiting DM review
 };
@@ -245,6 +267,10 @@ function normalize(raw){
     mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
     mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
     mc.missions   = Array.isArray(c.missions)?c.missions:[];
+    // Damage-type arrays — signature paranormal defense/vulnerability
+    mc.resistances    = Array.isArray(c.resistances)    ? c.resistances.map(String)    : [];
+    mc.vulnerabilities= Array.isArray(c.vulnerabilities)? c.vulnerabilities.map(String): [];
+    mc.immunities     = Array.isArray(c.immunities)     ? c.immunities.map(String)     : [];
     mc.abilities  = (Array.isArray(c.abilities)?c.abilities:[]).map(a=>({
       name:a.name||'', type:a.type||'Talent', cost:a.cost||'', cooldown:a.cooldown||'', desc:a.desc||''
     }));
@@ -289,6 +315,61 @@ function normalize(raw){
     redacted:  !!a?.redacted,   // DM classifies the description — players see █████
     grantedTo: Array.isArray(a?.grantedTo) ? a.grantedTo.map(String) : []
   }));
+
+  // Investigation Cases — DM-authored, granted to specific agents
+  if(!Array.isArray(m.cases)) m.cases = [];
+  m.cases = m.cases.map((k,ix) => ({
+    id:         String(k?.id ?? ('case-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    codename:   String(k?.codename ?? ''),
+    title:      String(k?.title ?? 'Untitled Case'),
+    briefing:   String(k?.briefing ?? ''),
+    status:     ['open','closed','failed','cold'].includes(k?.status) ? k.status : 'open',
+    priority:   ['low','normal','high','critical'].includes(k?.priority) ? k.priority : 'normal',
+    objectives: Array.isArray(k?.objectives) ? k.objectives.map(o => ({
+      id: String(o?.id ?? ('obj-'+Math.random().toString(16).slice(2,6))),
+      text: String(o?.text ?? ''),
+      done: !!o?.done
+    })) : [],
+    visibleTo:  Array.isArray(k?.visibleTo) ? k.visibleTo.map(String) : [],
+    dmNotes:    String(k?.dmNotes ?? ''),
+    created:    Number(k?.created) || Date.now()
+  }));
+
+  // Site Locator — investigation sites with atmosphere. One flagged as current scene.
+  if(!Array.isArray(m.sites)) m.sites = [];
+  m.sites = m.sites.map((s,ix) => ({
+    id:         String(s?.id ?? ('site-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    name:       String(s?.name ?? 'Unnamed Site'),
+    designation:String(s?.designation ?? ''),
+    region:     String(s?.region ?? 'urban'),
+    description:String(s?.description ?? ''),
+    atmosphere: String(s?.atmosphere ?? ''),
+    contaminated: !!s?.contaminated,
+    dmNotes:    String(s?.dmNotes ?? ''),
+    current:    !!s?.current
+  }));
+  // Enforce single current site
+  const cur = m.sites.filter(s => s.current).length;
+  if (cur > 1) {
+    let found = false;
+    m.sites.forEach(s => { if (s.current) { if (found) s.current = false; else found = true; } });
+  }
+
+  // Initiative Tracker — combat encounter turn order (DM-managed)
+  if(!m.initiative || typeof m.initiative !== 'object') m.initiative = { active:false, round:1, turnIdx:0, entries:[] };
+  m.initiative.active = !!m.initiative.active;
+  m.initiative.round  = Math.max(1, Number(m.initiative.round) || 1);
+  m.initiative.turnIdx = Math.max(0, Number(m.initiative.turnIdx) || 0);
+  m.initiative.entries = Array.isArray(m.initiative.entries) ? m.initiative.entries.map((e,ix) => ({
+    id:    String(e?.id ?? ('init-'+Date.now()+'-'+ix)),
+    name:  String(e?.name ?? '—'),
+    init:  Number(e?.init) || 0,
+    hp:    e?.hp === undefined ? null : Number(e.hp),
+    hpMax: e?.hpMax === undefined ? null : Number(e.hpMax),
+    hostile: !!e?.hostile,
+    kind:  ['agent','anomaly','npc'].includes(e?.kind) ? e.kind : 'npc'
+  })) : [];
+
   return m;
 }
 
@@ -373,6 +454,9 @@ function startListener(){
       state.theme = remote.theme;
       state.evidenceBoard = remote.evidenceBoard;
       state.anomalyCatalog = remote.anomalyCatalog || [];
+      state.cases         = remote.cases         || [];
+      state.sites         = remote.sites         || [];
+      state.initiative    = remote.initiative    || { active:false, round:1, turnIdx:0, entries:[] };
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
@@ -484,6 +568,9 @@ function render(){
   try{ renderHeader(); }catch(e){ console.error('header',e); }
   try{ renderMainFields(); }catch(e){ console.error('fields',e); }
   try{ renderStats(); }catch(e){ console.error('stats',e); }
+  try{ renderDamageTypes(); }catch(e){ console.error('damageTypes',e); }
+  try{ renderSceneBanner(); }catch(e){}
+  try{ renderPlayerCases(); }catch(e){}
   try{ renderSkillsMatrix(); }catch(e){ console.error('skills',e); }
   try{ renderCalcPanel(); }catch(e){ console.error('calc',e); }
   try{ renderRankBadge(); }catch(e){}
@@ -516,6 +603,7 @@ function renderTabs(){
       case 'loadout':   renderWeapons(); renderInventory(); break;
       case 'relations': renderRelationships(); break;
       case 'anomalies': renderAnomalies(); break;
+      case 'cases':     renderPlayerCases(); break;
       case 'abilities': renderAbilities(); renderCommendations(); break;
       case 'shop':      renderShop(); renderRequests(); break;
     }
@@ -558,7 +646,7 @@ function renderHeader(){
   const rk = rankOf(c);
   s('topAgentName', c.name||'—');
   s('topAgentRole', c.role||c.codename||'Unassigned');
-  s('topRank', `${rk.tier} · ${rk.title}`);
+  s('topRank', `${rk.tier} · ${rk.title}${rk.subtitle ? ' · ' + rk.subtitle : ''}`);
   s('topPoints', fmtPoints(c.points)+' pts');
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
   s('topSanityMini', `${c.sanity.current} / ${c.sanity.max}`);
@@ -608,6 +696,41 @@ function renderMainFields(){
   ['Active','Reserve','Dead'].forEach(st=>{
     const r = el('state'+st); if(r) r.checked = c.state===st.toLowerCase();
   });
+}
+
+// ── DAMAGE TYPES — click to cycle: none → resist → vulnerable → immune ──
+function renderDamageTypes(){
+  const c = getChar();
+  const host = el('damageTypesGrid'); if(!host) return;
+
+  host.innerHTML = DAMAGE_TYPES.map(t => {
+    let stateCls = 'none';
+    if ((c.immunities||[]).includes(t.id))          stateCls = 'imm';
+    else if ((c.resistances||[]).includes(t.id))    stateCls = 'res';
+    else if ((c.vulnerabilities||[]).includes(t.id)) stateCls = 'vuln';
+    return `<button type="button" class="dt-cell dt-${stateCls}" data-dt="${t.id}"
+      data-tt="${esc(t.desc)} · Click to cycle: neutral → resist → vulnerable → immune → neutral">
+      <span class="dt-icon">${t.icon}</span>
+      <span class="dt-name">${t.label}</span>
+      <span class="dt-badge">${stateCls==='res'?'RES':stateCls==='vuln'?'VUL':stateCls==='imm'?'IMM':''}</span>
+    </button>`;
+  }).join('');
+
+  host.querySelectorAll('[data-dt]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.dt;
+    let cur = 'none';
+    if ((c.immunities||[]).includes(id))          cur = 'imm';
+    else if ((c.resistances||[]).includes(id))    cur = 'res';
+    else if ((c.vulnerabilities||[]).includes(id)) cur = 'vuln';
+    c.resistances     = (c.resistances||[]).filter(x => x !== id);
+    c.vulnerabilities = (c.vulnerabilities||[]).filter(x => x !== id);
+    c.immunities      = (c.immunities||[]).filter(x => x !== id);
+    const next = { none:'res', res:'vuln', vuln:'imm', imm:'none' }[cur];
+    if (next === 'res')  c.resistances.push(id);
+    if (next === 'vuln') c.vulnerabilities.push(id);
+    if (next === 'imm')  c.immunities.push(id);
+    pushState(true); renderDamageTypes();
+  }));
 }
 
 // ── STATS ──
@@ -1299,10 +1422,15 @@ function renderDmPanel(){
   // New systems
   try{ renderDmCommendations(); }catch(e){}
   try{ renderDmRequests(); }catch(e){}
-  try{ renderEvidenceBoard(); }catch(e){}
   try{ syncSiteAlertButtons(); }catch(e){}
   try{ renderDmAnomalyCatalog(); }catch(e){}
+  try{ renderDmSites(); }catch(e){}
+  try{ renderDmCases(); }catch(e){}
+  try{ renderDmInitiative(); }catch(e){}
+  try{ renderDmDiagnostics(); }catch(e){}
   el('dmAddAnomBtn')?.addEventListener('click', addAnomalyToCatalog);
+  el('dmAddSiteBtn')?.addEventListener('click', addSite);
+  el('dmAddCaseBtn')?.addEventListener('click', addCase);
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -1428,6 +1556,547 @@ function renderDmAnomalyCatalog(){
     e.target.closest('.dm-anom-redact').classList.toggle('on', e.target.checked);
     pushState(true); renderAnomalies();
   }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// SCENE BANNER — current site indicator at top of every terminal
+// ═════════════════════════════════════════════════════════════════
+function currentSite(){ return (state.sites || []).find(s => s.current) || null; }
+function renderSceneBanner(){
+  const host = el('sceneBanner'); if(!host) return;
+  const site = currentSite();
+  if (!site) { host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.className = `scene-banner ${site.contaminated ? 'contaminated' : ''}`;
+  host.innerHTML = `
+    <div class="scb-icon">⌖</div>
+    <div class="scb-body">
+      <div class="scb-line1">
+        <span class="scb-name">${esc(site.name)}</span>
+        ${site.designation ? `<span class="scb-desig">${esc(site.designation)}</span>` : ''}
+        ${site.contaminated ? `<span class="scb-warn">⚠ CONTAMINATED</span>` : ''}
+      </div>
+      ${site.atmosphere ? `<div class="scb-atmos">${esc(site.atmosphere)}</div>` : ''}
+    </div>
+    <div class="scb-region">${esc(site.region.toUpperCase())}</div>
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · SITE LOCATOR
+// ═════════════════════════════════════════════════════════════════
+let _dmSiteSelectedId = null;
+function dmActiveSite(){
+  const list = state.sites || [];
+  if (!list.length) return null;
+  let s = list.find(x => x.id === _dmSiteSelectedId);
+  if (!s) { s = list[0]; _dmSiteSelectedId = s.id; }
+  return s;
+}
+function addSite(){
+  if(!Array.isArray(state.sites)) state.sites = [];
+  const s = {
+    id: 'site-' + Date.now(),
+    name: 'New Site', designation: '', region: 'urban',
+    description: '', atmosphere: '', contaminated: false,
+    dmNotes: '', current: false
+  };
+  state.sites.push(s);
+  _dmSiteSelectedId = s.id;
+  pushState(true); renderDmSites();
+}
+function renderDmSites(){
+  const host = el('dmSitesRoot'); if(!host) return;
+  const list = state.sites || [];
+  const cur = dmActiveSite();
+
+  host.innerHTML = `
+    <div class="dm-site-shell">
+      <aside class="dm-site-side">
+        ${list.length ? list.map(s => {
+          const on = cur && s.id === cur.id;
+          return `<button type="button" class="dm-site-row ${on?'active':''} ${s.current?'scene':''}" data-siteid="${esc(s.id)}">
+            <span class="dm-site-dot ${s.current?'on':''}"></span>
+            <span class="dm-site-info">
+              <span class="dm-site-name">${esc(s.name)}</span>
+              <span class="dm-site-sub">${esc(s.region)}${s.current?' · <b>CURRENT</b>':''}</span>
+            </span>
+          </button>`;
+        }).join('') : '<div class="dm-empty" style="padding:1rem">No sites registered.</div>'}
+      </aside>
+      <div class="dm-site-main">
+        ${cur ? `
+          <div class="dm-site-head">
+            <label class="dm-site-field" style="flex:1"><span>Name</span>
+              <input type="text" id="dmSiteName" value="${esc(cur.name)}" placeholder="Site name">
+            </label>
+            <label class="dm-site-field" style="width:140px"><span>Designation</span>
+              <input type="text" id="dmSiteDesig" value="${esc(cur.designation)}" placeholder="SITE-██">
+            </label>
+            <label class="dm-site-field" style="width:130px"><span>Region</span>
+              <select id="dmSiteRegion">
+                ${['urban','rural','forest','coastal','underground','industrial','remote','anomalous'].map(r =>
+                  `<option value="${r}" ${cur.region===r?'selected':''}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`
+                ).join('')}
+              </select>
+            </label>
+            <div class="dm-site-actions">
+              <button class="maw-btn small ${cur.current?'':'ghost'}" id="dmSiteScene">
+                ${cur.current?'✓ Current Scene':'Set as Scene'}
+              </button>
+              <button class="maw-btn ghost small" id="dmSiteDel">🗑</button>
+            </div>
+          </div>
+          <label class="dm-site-field">
+            <span>Description (players see this)</span>
+            <textarea id="dmSiteDesc" placeholder="What is this place? What history does it have?">${esc(cur.description)}</textarea>
+          </label>
+          <label class="dm-site-field">
+            <span>Atmosphere (banner tagline)</span>
+            <input type="text" id="dmSiteAtmos" value="${esc(cur.atmosphere)}" placeholder="e.g. thick fog, distant screams, sterile silence">
+          </label>
+          <label class="dm-site-toggle ${cur.contaminated?'on':''}">
+            <input type="checkbox" id="dmSiteContam" ${cur.contaminated?'checked':''}>
+            <span class="dm-site-toggle-icon">☣</span>
+            <span class="dm-site-toggle-text">
+              <b>Contamination Alert</b>
+              <em>Marks the site with a warning stripe on all agent terminals</em>
+            </span>
+          </label>
+          <label class="dm-site-field">
+            <span>DM notes (private)</span>
+            <textarea id="dmSiteNotes" class="dm-site-private" placeholder="Only DMs see this. Secrets, encounters lurking here, plot hooks…">${esc(cur.dmNotes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Register a site to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-site-row').forEach(r => r.addEventListener('click', () => {
+    _dmSiteSelectedId = r.dataset.siteid; renderDmSites();
+  }));
+  el('dmSiteScene')?.addEventListener('click', () => {
+    const c = dmActiveSite(); if(!c) return;
+    const wasCurrent = c.current;
+    state.sites.forEach(s => s.current = false);
+    c.current = !wasCurrent;
+    pushState(true); renderDmSites(); renderSceneBanner();
+    showToast(c.current ? `Scene: ${c.name}` : 'No current scene', 'success');
+  });
+  el('dmSiteDel')?.addEventListener('click', () => {
+    const c = dmActiveSite(); if(!c) return;
+    if (!confirm(`Remove site "${c.name}"?`)) return;
+    state.sites = state.sites.filter(x => x.id !== c.id);
+    _dmSiteSelectedId = null;
+    pushState(true); renderDmSites(); renderSceneBanner();
+  });
+  el('dmSiteContam')?.addEventListener('change', e => {
+    const c = dmActiveSite(); if(!c) return;
+    c.contaminated = e.target.checked;
+    pushState(true); renderDmSites(); renderSceneBanner();
+  });
+  const bind = (id, field) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveSite(); if(!c) return;
+    c[field] = e.target.value; pushState();
+    if (['name','region','contaminated'].includes(field)) renderDmSites();
+    if (['name','atmosphere','designation','region','contaminated'].includes(field)) renderSceneBanner();
+  });
+  bind('dmSiteName','name'); bind('dmSiteDesig','designation');
+  bind('dmSiteDesc','description'); bind('dmSiteAtmos','atmosphere');
+  bind('dmSiteNotes','dmNotes');
+  el('dmSiteRegion')?.addEventListener('change', e => {
+    const c = dmActiveSite(); if(!c) return;
+    c.region = e.target.value; pushState(true); renderDmSites(); renderSceneBanner();
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · INVESTIGATION CASES
+// ═════════════════════════════════════════════════════════════════
+let _dmCaseSelectedId = null;
+function dmActiveCase(){
+  const list = state.cases || [];
+  if (!list.length) return null;
+  let k = list.find(x => x.id === _dmCaseSelectedId);
+  if (!k) { k = list[0]; _dmCaseSelectedId = k.id; }
+  return k;
+}
+function addCase(){
+  if(!Array.isArray(state.cases)) state.cases = [];
+  const k = {
+    id: 'case-' + Date.now(),
+    codename: '', title: 'New Case', briefing: '',
+    status: 'open', priority: 'normal',
+    objectives: [], visibleTo: [], dmNotes: '',
+    created: Date.now()
+  };
+  state.cases.push(k);
+  _dmCaseSelectedId = k.id;
+  pushState(true); renderDmCases();
+}
+function renderDmCases(){
+  const host = el('dmCasesRoot'); if(!host) return;
+  const list = state.cases || [];
+  const cur = dmActiveCase();
+  const grouped = { open:[], closed:[], failed:[], cold:[] };
+  list.forEach(k => (grouped[k.status] || grouped.open).push(k));
+
+  host.innerHTML = `
+    <div class="dm-case-shell">
+      <aside class="dm-case-side">
+        ${['open','cold','closed','failed'].map(status => {
+          if (!grouped[status].length) return '';
+          const lbl = { open:'Open', cold:'Cold', closed:'Closed', failed:'Failed' }[status];
+          return `<div class="dm-case-group">
+            <div class="dm-case-groupname ${status}">${lbl}</div>
+            ${grouped[status].map(k => {
+              const on = cur && k.id === cur.id;
+              const doneCt = (k.objectives||[]).filter(o=>o.done).length;
+              const totCt  = (k.objectives||[]).length;
+              return `<button type="button" class="dm-case-row ${status} ${on?'active':''} pri-${k.priority}" data-caseid="${esc(k.id)}">
+                <span class="dm-case-name">${esc(k.codename?`[${k.codename}] `:'')}${esc(k.title||'Untitled')}</span>
+                <span class="dm-case-sub">${totCt?`${doneCt}/${totCt}`:'—'} · ${(k.visibleTo||[]).length} viewers</span>
+              </button>`;
+            }).join('')}
+          </div>`;
+        }).join('') || '<div class="dm-empty" style="padding:1rem">No cases opened.</div>'}
+      </aside>
+      <div class="dm-case-main">
+        ${cur ? `
+          <div class="dm-case-head">
+            <input type="text" id="dmCaseCode" value="${esc(cur.codename)}" class="dm-case-code" placeholder="CODENAME">
+            <input type="text" id="dmCaseTitle" value="${esc(cur.title)}" class="dm-case-title" placeholder="Case title">
+            <select id="dmCaseStatus" class="dm-case-status">
+              <option value="open"   ${cur.status==='open'?'selected':''}>OPEN</option>
+              <option value="cold"   ${cur.status==='cold'?'selected':''}>COLD</option>
+              <option value="closed" ${cur.status==='closed'?'selected':''}>CLOSED</option>
+              <option value="failed" ${cur.status==='failed'?'selected':''}>FAILED</option>
+            </select>
+            <select id="dmCasePri" class="dm-case-pri pri-${cur.priority}">
+              <option value="low"      ${cur.priority==='low'?'selected':''}>LOW</option>
+              <option value="normal"   ${cur.priority==='normal'?'selected':''}>NORMAL</option>
+              <option value="high"     ${cur.priority==='high'?'selected':''}>HIGH</option>
+              <option value="critical" ${cur.priority==='critical'?'selected':''}>CRITICAL</option>
+            </select>
+            <button class="maw-btn ghost small" id="dmCaseDel">🗑</button>
+          </div>
+          <label class="dm-case-field">
+            <span>Briefing (players see this)</span>
+            <textarea id="dmCaseBrief" placeholder="What has the party been told? What is the setup? Where do they start?">${esc(cur.briefing)}</textarea>
+          </label>
+          <div class="dm-case-sec">Objectives</div>
+          <div class="dm-case-objs">
+            ${(cur.objectives||[]).map(o => `<div class="dm-case-obj" data-oid="${esc(o.id)}">
+              <input type="checkbox" ${o.done?'checked':''} class="dm-case-obj-cb" data-oid="${esc(o.id)}">
+              <input type="text" class="dm-case-obj-text" data-oid="${esc(o.id)}" value="${esc(o.text)}" placeholder="Objective…">
+              <button class="dm-case-obj-del" data-oid="${esc(o.id)}">✕</button>
+            </div>`).join('')}
+            <button class="maw-btn ghost small" id="dmCaseObjAdd">+ Add Objective</button>
+          </div>
+          <div class="dm-case-sec">Authorized Viewers</div>
+          <div class="dm-case-viewers">
+            ${state.characters.filter(c => c.state !== 'dead').map(c => {
+              const on = (cur.visibleTo||[]).includes(c.id);
+              return `<label class="dm-case-viewer ${on?'on':''}">
+                <input type="checkbox" data-caseview="${esc(c.id)}" ${on?'checked':''}>
+                <span>${esc(c.name || 'Unnamed')}</span>
+              </label>`;
+            }).join('')}
+            <button class="maw-btn ghost small" id="dmCaseAllView">All</button>
+            <button class="maw-btn ghost small" id="dmCaseNoneView">None</button>
+          </div>
+          <label class="dm-case-field">
+            <span>DM Notes (private)</span>
+            <textarea id="dmCaseNotes" class="dm-case-private" placeholder="Twists, complications, real stakes. Not shown to players.">${esc(cur.dmNotes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Open a case to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-case-row').forEach(r => r.addEventListener('click', () => {
+    _dmCaseSelectedId = r.dataset.caseid; renderDmCases();
+  }));
+  el('dmCaseDel')?.addEventListener('click', () => {
+    const c = dmActiveCase(); if(!c) return;
+    if (!confirm(`Delete case "${c.title}"?`)) return;
+    state.cases = state.cases.filter(x => x.id !== c.id);
+    _dmCaseSelectedId = null;
+    pushState(true); renderDmCases(); renderPlayerCases();
+  });
+  const bind = (id, field) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveCase(); if(!c) return;
+    c[field] = e.target.value; pushState();
+    if (['codename','title','priority','status'].includes(field)) renderDmCases();
+    renderPlayerCases();
+  });
+  bind('dmCaseCode','codename'); bind('dmCaseTitle','title');
+  bind('dmCaseBrief','briefing'); bind('dmCaseNotes','dmNotes');
+  ['dmCaseStatus','dmCasePri'].forEach(id => el(id)?.addEventListener('change', e => {
+    const c = dmActiveCase(); if(!c) return;
+    c[id==='dmCaseStatus'?'status':'priority'] = e.target.value;
+    pushState(true); renderDmCases(); renderPlayerCases();
+  }));
+  host.querySelectorAll('.dm-case-obj-text').forEach(inp => inp.addEventListener('input', e => {
+    const c = dmActiveCase(); if(!c) return;
+    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
+    o.text = e.target.value; pushState(); renderPlayerCases();
+  }));
+  host.querySelectorAll('.dm-case-obj-cb').forEach(cb => cb.addEventListener('change', e => {
+    const c = dmActiveCase(); if(!c) return;
+    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
+    o.done = e.target.checked; pushState(true); renderDmCases(); renderPlayerCases();
+  }));
+  host.querySelectorAll('.dm-case-obj-del').forEach(b => b.addEventListener('click', () => {
+    const c = dmActiveCase(); if(!c) return;
+    c.objectives = c.objectives.filter(x => x.id !== b.dataset.oid);
+    pushState(true); renderDmCases(); renderPlayerCases();
+  }));
+  el('dmCaseObjAdd')?.addEventListener('click', () => {
+    const c = dmActiveCase(); if(!c) return;
+    c.objectives.push({ id:'obj-'+Date.now(), text:'', done:false });
+    pushState(true); renderDmCases();
+  });
+  host.querySelectorAll('[data-caseview]').forEach(cb => cb.addEventListener('change', e => {
+    const c = dmActiveCase(); if(!c) return;
+    const cid = e.target.dataset.caseview;
+    if (e.target.checked && !c.visibleTo.includes(cid)) c.visibleTo.push(cid);
+    if (!e.target.checked) c.visibleTo = c.visibleTo.filter(x => x !== cid);
+    e.target.closest('.dm-case-viewer').classList.toggle('on', e.target.checked);
+    pushState(true); renderPlayerCases();
+  }));
+  el('dmCaseAllView')?.addEventListener('click', () => {
+    const c = dmActiveCase(); if(!c) return;
+    c.visibleTo = state.characters.map(x => x.id);
+    pushState(true); renderDmCases(); renderPlayerCases();
+  });
+  el('dmCaseNoneView')?.addEventListener('click', () => {
+    const c = dmActiveCase(); if(!c) return;
+    c.visibleTo = [];
+    pushState(true); renderDmCases(); renderPlayerCases();
+  });
+}
+
+// Player-side view of cases visible to them
+function renderPlayerCases(){
+  const host = el('playerCasesList'); if(!host) return;
+  const c = getChar(); if(!c) { host.innerHTML = ''; return; }
+  const mine = (state.cases || []).filter(k => dmUnlocked || (k.visibleTo||[]).includes(c.id));
+  if (!mine.length) {
+    host.innerHTML = `<div class="empty-note dim"><div class="empty-glyph">▤</div><div>NO ACTIVE ASSIGNMENTS</div><span>Your handler has not briefed you on any cases yet.</span></div>`;
+    return;
+  }
+  const grouped = { open:[], cold:[], closed:[], failed:[] };
+  mine.forEach(k => (grouped[k.status] || grouped.open).push(k));
+  host.innerHTML = ['open','cold','closed','failed'].map(status => {
+    if (!grouped[status].length) return '';
+    const lbl = { open:'Active', cold:'Cold', closed:'Closed', failed:'Failed' }[status];
+    return `<div class="pc-group ${status}">
+      <div class="pc-groupname">${lbl}</div>
+      ${grouped[status].map(k => {
+        const doneCt = (k.objectives||[]).filter(o=>o.done).length;
+        const totCt  = (k.objectives||[]).length;
+        return `<details class="pc-card ${status} pri-${k.priority}">
+          <summary>
+            <span class="pc-pri" data-tt="Priority: ${k.priority}">●</span>
+            <span class="pc-code">${k.codename?esc(`[${k.codename}]`):''}</span>
+            <span class="pc-title">${esc(k.title)}</span>
+            ${totCt ? `<span class="pc-prog">${doneCt}/${totCt}</span>` : ''}
+          </summary>
+          <div class="pc-body">
+            ${k.briefing ? `<div class="pc-brief">${esc(k.briefing)}</div>` : ''}
+            ${(k.objectives||[]).length ? `<div class="pc-objs">
+              ${k.objectives.map(o => `<div class="pc-obj ${o.done?'done':''}">
+                <span class="pc-obj-check">${o.done?'✓':'○'}</span>
+                <span>${esc(o.text)}</span>
+              </div>`).join('')}
+            </div>` : ''}
+          </div>
+        </details>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · INITIATIVE TRACKER
+// ═════════════════════════════════════════════════════════════════
+function renderDmInitiative(){
+  const host = el('dmInitiativeRoot'); if(!host) return;
+  const t = state.initiative || { active:false, round:1, turnIdx:0, entries:[] };
+  const sorted = t.entries.slice().sort((a,b) => b.init - a.init);
+  const activeId = sorted[t.turnIdx]?.id;
+
+  host.innerHTML = `
+    <div class="dm-init-shell">
+      <div class="dm-init-status">
+        <div class="dm-init-round">
+          <span class="dis-lbl">Round</span>
+          <span class="dis-val">${t.active ? t.round : '—'}</span>
+        </div>
+        <div class="dm-init-actions">
+          ${t.active
+            ? `<button class="maw-btn small" id="initNext">▶ Next Turn</button>
+               <button class="maw-btn ghost small" id="initPrev">◀ Prev</button>
+               <button class="maw-btn ghost small" id="initEnd">✕ End Combat</button>`
+            : `<button class="maw-btn" id="initStart">⚔ Begin Encounter</button>`
+          }
+        </div>
+      </div>
+
+      <div class="dm-init-add">
+        <input type="text" id="initAddName" placeholder="Combatant name" class="dia-name">
+        <input type="number" id="initAddRoll" placeholder="Init" class="dia-roll">
+        <select id="initAddKind" class="dia-kind">
+          <option value="agent">Agent</option>
+          <option value="anomaly">Anomaly</option>
+          <option value="npc">NPC</option>
+        </select>
+        <button class="maw-btn small" id="initAddBtn">+ Add</button>
+        <button class="maw-btn ghost small" id="initAddAgents">+ All Active Agents</button>
+      </div>
+
+      <div class="dm-init-list">
+        ${sorted.length ? sorted.map((e,i) => {
+          const isActive = e.id === activeId && t.active;
+          return `<div class="dm-init-row ${isActive?'active':''} kind-${e.kind}">
+            <div class="dir-init">${e.init}</div>
+            <div class="dir-name">${esc(e.name)}</div>
+            <div class="dir-kind">${e.kind.toUpperCase()}</div>
+            <div class="dir-hp">
+              ${e.hp !== null ? `<input type="number" class="dir-hp-in" data-hpid="${esc(e.id)}" value="${e.hp}" style="width:44px">
+              <span>/ ${e.hpMax !== null ? e.hpMax : '?'}</span>` : ''}
+            </div>
+            <button class="dir-del" data-initdel="${esc(e.id)}">✕</button>
+          </div>`;
+        }).join('') : '<div class="dm-empty" style="padding:1rem">No combatants. Add some to begin.</div>'}
+      </div>
+    </div>
+  `;
+
+  el('initStart')?.addEventListener('click', () => {
+    state.initiative.active = true;
+    state.initiative.round = 1;
+    state.initiative.turnIdx = 0;
+    pushState(true); renderDmInitiative();
+  });
+  el('initEnd')?.addEventListener('click', () => {
+    state.initiative.active = false;
+    pushState(true); renderDmInitiative();
+  });
+  el('initNext')?.addEventListener('click', () => {
+    const count = state.initiative.entries.length;
+    if (!count) return;
+    state.initiative.turnIdx++;
+    if (state.initiative.turnIdx >= count) {
+      state.initiative.turnIdx = 0;
+      state.initiative.round++;
+    }
+    pushState(true); renderDmInitiative();
+  });
+  el('initPrev')?.addEventListener('click', () => {
+    const count = state.initiative.entries.length;
+    if (!count) return;
+    state.initiative.turnIdx--;
+    if (state.initiative.turnIdx < 0) {
+      state.initiative.turnIdx = count - 1;
+      state.initiative.round = Math.max(1, state.initiative.round - 1);
+    }
+    pushState(true); renderDmInitiative();
+  });
+  el('initAddBtn')?.addEventListener('click', () => {
+    const name = el('initAddName')?.value.trim() || '—';
+    const init = Number(el('initAddRoll')?.value) || 10;
+    const kind = el('initAddKind')?.value || 'npc';
+    state.initiative.entries.push({
+      id: 'init-' + Date.now() + '-' + Math.random().toString(16).slice(2,4),
+      name, init, kind, hp:null, hpMax:null, hostile:kind!=='agent'
+    });
+    if (el('initAddName')) el('initAddName').value = '';
+    if (el('initAddRoll')) el('initAddRoll').value = '';
+    pushState(true); renderDmInitiative();
+  });
+  el('initAddAgents')?.addEventListener('click', () => {
+    state.characters.filter(c => c.state === 'active').forEach(c => {
+      // Skip if already present
+      if (state.initiative.entries.some(e => e.name === c.name && e.kind === 'agent')) return;
+      const initMod = mod(c.stats.DEX) + (Number(c.initiativeBonus)||0);
+      const roll = 1 + Math.floor(Math.random() * 20) + initMod;
+      state.initiative.entries.push({
+        id: 'init-' + Date.now() + '-' + Math.random().toString(16).slice(2,4),
+        name: c.name || 'Agent',
+        init: roll,
+        kind: 'agent',
+        hp: c.hp.current, hpMax: c.hp.max,
+        hostile: false
+      });
+    });
+    pushState(true); renderDmInitiative();
+  });
+  host.querySelectorAll('[data-initdel]').forEach(b => b.addEventListener('click', () => {
+    state.initiative.entries = state.initiative.entries.filter(e => e.id !== b.dataset.initdel);
+    if (state.initiative.turnIdx >= state.initiative.entries.length) state.initiative.turnIdx = 0;
+    pushState(true); renderDmInitiative();
+  }));
+  host.querySelectorAll('[data-hpid]').forEach(inp => inp.addEventListener('change', e => {
+    const entry = state.initiative.entries.find(x => x.id === e.target.dataset.hpid);
+    if (entry) { entry.hp = Number(e.target.value) || 0; pushState(true); }
+  }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · FIREBASE DIAGNOSTICS
+// ═════════════════════════════════════════════════════════════════
+function renderDmDiagnostics(){
+  const host = el('dmDiagRoot'); if(!host) return;
+  const bytes = JSON.stringify(state).length;
+  const kb = (bytes / 1024).toFixed(1);
+  const chars = state.characters?.length || 0;
+  const named = state.characters?.filter(c => c.name).length || 0;
+  const nearLimit = bytes > 800_000;
+
+  host.innerHTML = `
+    <div class="dm-diag-grid">
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">Firestore Document</div>
+        <div class="dm-diag-val mono">campaigns/${DOC}</div>
+      </div>
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">State Size</div>
+        <div class="dm-diag-val ${nearLimit?'danger':''}">${kb} KB${nearLimit?' ⚠':''}</div>
+      </div>
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">Personnel Records</div>
+        <div class="dm-diag-val">${chars} <span class="dm-diag-sub">(${named} named)</span></div>
+      </div>
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">Anomaly Catalog</div>
+        <div class="dm-diag-val">${(state.anomalyCatalog||[]).length}</div>
+      </div>
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">Investigation Cases</div>
+        <div class="dm-diag-val">${(state.cases||[]).length}</div>
+      </div>
+      <div class="dm-diag-cell">
+        <div class="dm-diag-lbl">Registered Sites</div>
+        <div class="dm-diag-val">${(state.sites||[]).length}</div>
+      </div>
+    </div>
+    <p class="dm-broadcast-note" style="margin-top:.9rem">Firestore has a 1MB per-document limit. If state size approaches that, consider archiving old cases or clearing the anomaly catalog of resolved entries. All syncs go through <code>campaigns/${DOC}</code>.</p>
+    <div class="dm-diag-actions">
+      <button id="diagPush" class="maw-btn small">▲ Force Sync Now</button>
+      <button id="diagLog" class="maw-btn ghost small">📋 Log State to Console</button>
+    </div>
+  `;
+
+  el('diagPush')?.addEventListener('click', async () => {
+    try { await pushState(true); showToast('State pushed to Firebase', 'success'); renderDmDiagnostics(); }
+    catch(e) { showToast('Push failed: ' + (e.message||e), 'warn'); }
+  });
+  el('diagLog')?.addEventListener('click', () => {
+    console.log('MAW STATE:', state);
+    showToast('State logged to browser console (F12)', 'info');
+  });
 }
 function syncSiteAlertButtons(){
   document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=>{
@@ -2054,111 +2723,6 @@ function grantCommendation(id){
 }
 
 // ================================================================
-// EVIDENCE BOARD — DM pins nodes and draws connections
-// ================================================================
-const EVIDENCE_TYPES = {
-  anomaly:  { label:'Anomaly',  color:'#b04ad9', icon:'⬡' },
-  person:   { label:'Person',   color:'#5a82c2', icon:'☖' },
-  location: { label:'Location', color:'#5a9a78', icon:'⌖' },
-  evidence: { label:'Evidence', color:'#c2a23a', icon:'❖' },
-  note:     { label:'Note',     color:'#8a96a2', icon:'✎' }
-};
-let _evLinkFrom = null;  // node id when drawing a connection
-
-function renderEvidenceBoard(){
-  const board = el('evidenceBoard'); if(!board) return;
-  const eb = state.evidenceBoard || {nodes:[],links:[]};
-  const canEditBoard = dmUnlocked;
-
-  // SVG links layer + node layer
-  const linksSvg = eb.links.map(l=>{
-    const a = eb.nodes.find(n=>n.id===l.from), b = eb.nodes.find(n=>n.id===l.to);
-    if(!a||!b) return '';
-    return `<line x1="${a.x+70}" y1="${a.y+28}" x2="${b.x+70}" y2="${b.y+28}" class="ev-link" data-link="${l.id}" />
-      ${l.label?`<text x="${(a.x+b.x)/2+70}" y="${(a.y+b.y)/2+24}" class="ev-link-label">${esc(l.label)}</text>`:''}`;
-  }).join('');
-
-  const nodesHtml = eb.nodes.map(n=>{
-    const t = EVIDENCE_TYPES[n.type]||EVIDENCE_TYPES.note;
-    const linking = _evLinkFrom===n.id;
-    return `<div class="ev-node ${linking?'linking':''}" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px;--ev:${t.color}">
-      <div class="ev-node-head"><span class="ev-node-icon">${t.icon}</span><span class="ev-node-type">${t.label}</span>
-        ${canEditBoard?`<button class="ev-node-del" data-del="${n.id}">✕</button>`:''}</div>
-      <div class="ev-node-title" ${canEditBoard?'contenteditable="true"':''} data-title="${n.id}">${esc(n.title||'')}</div>
-      ${canEditBoard?`<button class="ev-node-link" data-link-from="${n.id}">${linking?'cancel':'⃔ link'}</button>`:''}
-    </div>`;
-  }).join('');
-
-  board.innerHTML = `
-    <svg class="ev-links-layer">${linksSvg}</svg>
-    <div class="ev-nodes-layer">${nodesHtml}</div>
-    ${!eb.nodes.length?'<div class="ev-empty">Empty board. The DM pins anomalies, persons, locations, and evidence here — then draws the connections between them.</div>':''}`;
-
-  if(!canEditBoard) return;
-
-  // dragging
-  board.querySelectorAll('.ev-node').forEach(node=>{
-    const id = node.dataset.node;
-    const head = node.querySelector('.ev-node-head');
-    head.addEventListener('mousedown', e=>{
-      if(e.target.closest('button')) return;
-      e.preventDefault();
-      const n = state.evidenceBoard.nodes.find(x=>x.id===id);
-      const startX=e.clientX, startY=e.clientY, ox=n.x, oy=n.y;
-      const move = ev=>{ n.x=Math.max(0,ox+ev.clientX-startX); n.y=Math.max(0,oy+ev.clientY-startY); renderEvidenceBoardLight(); };
-      const up = ()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); pushState(true); };
-      document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
-    });
-  });
-  // title editing
-  board.querySelectorAll('.ev-node-title').forEach(t=>{
-    t.addEventListener('blur', ()=>{ const n=state.evidenceBoard.nodes.find(x=>x.id===t.dataset.title); if(n){ n.title=t.textContent; pushState(true);} });
-  });
-  // delete
-  board.querySelectorAll('.ev-node-del').forEach(b=> b.addEventListener('click', ()=>{
-    state.evidenceBoard.nodes = state.evidenceBoard.nodes.filter(x=>x.id!==b.dataset.del);
-    state.evidenceBoard.links = state.evidenceBoard.links.filter(l=>l.from!==b.dataset.del && l.to!==b.dataset.del);
-    pushState(true); renderEvidenceBoard();
-  }));
-  // linking
-  board.querySelectorAll('.ev-node-link').forEach(b=> b.addEventListener('click', ()=>{
-    const id = b.dataset.linkFrom;
-    if(_evLinkFrom===null){ _evLinkFrom = id; renderEvidenceBoard(); }
-    else if(_evLinkFrom===id){ _evLinkFrom=null; renderEvidenceBoard(); }
-    else {
-      const label = prompt('Connection label (optional):','');
-      state.evidenceBoard.links.push({ id:'lnk-'+Date.now(), from:_evLinkFrom, to:id, label:label||'' });
-      _evLinkFrom=null; pushState(true); renderEvidenceBoard();
-    }
-  }));
-  // delete link on click
-  board.querySelectorAll('.ev-link').forEach(l=> l.addEventListener('click', ()=>{
-    if(confirm('Remove this connection?')){ state.evidenceBoard.links = state.evidenceBoard.links.filter(x=>x.id!==l.dataset.link); pushState(true); renderEvidenceBoard(); }
-  }));
-}
-// lightweight reposition during drag (no full rebuild / no re-bind)
-function renderEvidenceBoardLight(){
-  const board = el('evidenceBoard'); if(!board) return;
-  const eb = state.evidenceBoard;
-  eb.nodes.forEach(n=>{ const el2=board.querySelector(`.ev-node[data-node="${n.id}"]`); if(el2){ el2.style.left=n.x+'px'; el2.style.top=n.y+'px'; } });
-  const svg = board.querySelector('.ev-links-layer');
-  if(svg){
-    svg.innerHTML = eb.links.map(l=>{
-      const a=eb.nodes.find(n=>n.id===l.from), b=eb.nodes.find(n=>n.id===l.to);
-      if(!a||!b) return '';
-      return `<line x1="${a.x+70}" y1="${a.y+28}" x2="${b.x+70}" y2="${b.y+28}" class="ev-link" data-link="${l.id}"/>${l.label?`<text x="${(a.x+b.x)/2+70}" y="${(a.y+b.y)/2+24}" class="ev-link-label">${esc(l.label)}</text>`:''}`;
-    }).join('');
-  }
-}
-function addEvidenceNode(type){
-  if(!dmUnlocked) return;
-  if(!state.evidenceBoard) state.evidenceBoard={nodes:[],links:[]};
-  const offset = state.evidenceBoard.nodes.length*14 % 200;
-  state.evidenceBoard.nodes.push({ id:'ev-'+Date.now()+Math.random().toString(16).slice(2,6), type, title:'', x:40+offset, y:40+offset });
-  pushState(true); renderEvidenceBoard();
-}
-
-// ================================================================
 // WELCOME / CLAIM
 // ================================================================
 function checkWelcome(){
@@ -2429,7 +2993,6 @@ function bindFields(){
   el('knockBtn')?.addEventListener('click', sendKnock);
   document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=> b.addEventListener('click', ()=> setSiteAlert(b.dataset.alert)));
   el('dmCommendTarget')?.addEventListener('change', ()=>{});
-  document.querySelectorAll('.ev-add-btn[data-evtype]').forEach(b=> b.addEventListener('click', ()=> addEvidenceNode(b.dataset.evtype)));
   document.querySelectorAll('.bulk-btn[data-bulk]').forEach(b=> b.addEventListener('click', ()=> bulkApply(b.dataset.bulk)));
   el('reqSubmitBtn')?.addEventListener('click', submitRequest);
   el('reqItemName')?.addEventListener('keydown', e=>{ if(e.key==='Enter') submitRequest(); });

@@ -47,6 +47,9 @@
 <!-- ═══ MAIN ═══ -->
 <main class="main">
 
+  <!-- SCENE BANNER (current investigation site) -->
+  <div id="sceneBanner" class="scene-banner"></div>
+
   <!-- TOP BAR -->
   <header class="topbar">
     <div class="topbar-id">
@@ -156,6 +159,12 @@
         </div>
       </section>
 
+      <!-- DAMAGE-TYPE DEFENSES -->
+      <section class="panel">
+        <div class="panel-title">Damage Types <span class="dt-legend"><span class="dt-dot res"></span>Resist <span class="dt-dot vuln"></span>Vulnerable <span class="dt-dot imm"></span>Immune</span></div>
+        <div id="damageTypesGrid" class="damage-types-grid"></div>
+      </section>
+
       <!-- STATS -->
       <section class="panel">
         <div class="panel-title">Attributes</div>
@@ -176,6 +185,7 @@
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="abilities">Talents</button>
         <button class="tab-btn" data-tab="anomalies">Anomaly Log</button>
+        <button class="tab-btn" data-tab="cases">Cases</button>
         <button class="tab-btn" data-tab="relations">Personnel</button>
         <button class="tab-btn" data-tab="shop">Requisitions</button>
         <button class="tab-btn" data-tab="notes">Notes</button>
@@ -226,6 +236,13 @@
       </div>
 
       <!-- RELATIONS -->
+      <!-- CASES -->
+      <div class="tab-content panel tab-panel" data-tab="cases">
+        <div class="panel-title">Assigned Cases <span class="section-hint">— authorized by your handler</span></div>
+        <p class="dm-broadcast-note" style="margin-bottom:.85rem">Only cases you have been briefed on appear here. Open cases show live objectives; closed and cold cases stay on your record for reference.</p>
+        <div id="playerCasesList" class="player-cases-list"></div>
+      </div>
+
       <div class="tab-content panel tab-panel" data-tab="relations">
         <div class="panel-title">Personnel & Contacts</div>
         <div id="relationshipsList" class="relationships-list"></div>
@@ -328,11 +345,14 @@
             <button class="dm-nav-btn" data-dm="missions">
               <span class="dm-nav-icon">◈</span><span class="dm-nav-lbl">Mission Points</span>
             </button>
+            <button class="dm-nav-btn" data-dm="initiative">
+              <span class="dm-nav-icon">⚔</span><span class="dm-nav-lbl">Initiative</span>
+            </button>
             <button class="dm-nav-btn" data-dm="broadcast">
               <span class="dm-nav-icon">📡</span><span class="dm-nav-lbl">Broadcast</span>
             </button>
             <button class="dm-nav-btn" data-dm="site">
-              <span class="dm-nav-icon">☢</span><span class="dm-nav-lbl">Site Control</span>
+              <span class="dm-nav-icon">☢</span><span class="dm-nav-lbl">Site Alert</span>
             </button>
           </div>
 
@@ -352,8 +372,14 @@
             <button class="dm-nav-btn" data-dm="anomalies">
               <span class="dm-nav-icon">⬡</span><span class="dm-nav-lbl">Anomaly Catalog</span>
             </button>
-            <button class="dm-nav-btn" data-dm="evidence">
-              <span class="dm-nav-icon">🔍</span><span class="dm-nav-lbl">Evidence Board</span>
+            <button class="dm-nav-btn" data-dm="cases">
+              <span class="dm-nav-icon">▤</span><span class="dm-nav-lbl">Investigation Cases</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="sites">
+              <span class="dm-nav-icon">⌖</span><span class="dm-nav-lbl">Site Locator</span>
+            </button>
+            <button class="dm-nav-btn" data-dm="diag">
+              <span class="dm-nav-icon">⚙</span><span class="dm-nav-lbl">Firebase Diagnostics</span>
             </button>
           </div>
 
@@ -502,20 +528,47 @@
         </div>
       </div>
 
-      <div class="dm-section" data-dm="evidence">
-        <div class="dm-section-title">Evidence Board</div>
+      <div class="dm-section" data-dm="initiative">
+        <div class="dm-section-title">Initiative Tracker — Encounter Turn Order</div>
         <div class="dm-card">
-          <div class="dm-card-title">🔍 Investigation Web</div>
+          <div class="dm-card-title">⚔ Active Encounter</div>
           <div class="dm-card-body">
-            <p class="dm-broadcast-note">Pin elements and drag to arrange. Use the "link" button on a node, then click another node to connect them. All agents see the board update live.</p>
-            <div class="ev-toolbar">
-              <button class="ev-add-btn" data-evtype="anomaly">⬡ Anomaly</button>
-              <button class="ev-add-btn" data-evtype="person">☖ Person</button>
-              <button class="ev-add-btn" data-evtype="location">⌖ Location</button>
-              <button class="ev-add-btn" data-evtype="evidence">❖ Evidence</button>
-              <button class="ev-add-btn" data-evtype="note">✎ Note</button>
-            </div>
-            <div id="evidenceBoard" class="evidence-board"></div>
+            <p class="dm-broadcast-note">Roll or set initiative for combatants. Advance the turn to signal who's up. Agents, anomalies, and NPCs can all be entered.</p>
+            <div id="dmInitiativeRoot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="cases">
+        <div class="dm-section-title">Investigation Cases — Assign &amp; Track</div>
+        <div class="dm-card">
+          <div class="dm-card-title">▤ Case Files</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Author cases with objectives. Grant them to specific agents by visibility. Cold cases stay in the archive; failed cases stay as record. Priority sets urgency indicators on the player's tab.</p>
+            <button id="dmAddCaseBtn" class="maw-btn" style="margin-bottom:.85rem">+ Open New Case</button>
+            <div id="dmCasesRoot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="sites">
+        <div class="dm-section-title">Site Locator — Investigation Locations</div>
+        <div class="dm-card">
+          <div class="dm-card-title">⌖ Registered Sites</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Author sites the party may investigate. Set one as the <strong>current scene</strong> and it appears at the top of every agent's terminal with atmosphere and containment status.</p>
+            <button id="dmAddSiteBtn" class="maw-btn" style="margin-bottom:.85rem">+ Register New Site</button>
+            <div id="dmSitesRoot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="diag">
+        <div class="dm-section-title">Firebase Diagnostics</div>
+        <div class="dm-card">
+          <div class="dm-card-title">⚙ Data Sync Health</div>
+          <div class="dm-card-body">
+            <div id="dmDiagRoot"></div>
           </div>
         </div>
       </div>

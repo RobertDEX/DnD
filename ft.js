@@ -54,6 +54,39 @@ const SKILL_DEFS = [
 const SPELL_RANKS = ['D','C','B','A','S','SS'];
 const RANK_ORDER  = {D:0,C:1,B:2,A:3,S:4,SS:5};
 
+// GUILD RANKS — formal mage classification. D through SS through Wizard Saint.
+// Gates job board access: agents can only claim jobs at or below their guild rank.
+const GUILD_RANKS = [
+  { id:'D',  label:'D-Rank',        title:'Novice Mage',       color:'#8b7355', desc:'Starter mage — apprentice jobs.' },
+  { id:'C',  label:'C-Rank',        title:'Apprentice Mage',   color:'#c07040', desc:'Proven mage — local contracts.' },
+  { id:'B',  label:'B-Rank',        title:'Practiced Mage',    color:'#c0a040', desc:'Skilled mage — regional work.' },
+  { id:'A',  label:'A-Rank',        title:'Elite Mage',        color:'#e8a030', desc:'Elite mage — high-profile jobs.' },
+  { id:'S',  label:'S-Rank',        title:'Master Mage',       color:'#ff6020', desc:'Master mage — dangerous S-Class quests.' },
+  { id:'SS', label:'SS-Rank',       title:'Grand Master',      color:'#e040a0', desc:'Grand master — legendary undertakings.' },
+  { id:'WS', label:'Wizard Saint',  title:'Ten Wizard Saint',  color:'#ffd060', desc:'One of the ten most powerful mages in Fiore.' }
+];
+const GUILD_RANK_BY_ID = Object.fromEntries(GUILD_RANKS.map(r=>[r.id,r]));
+const GUILD_RANK_ORDER = Object.fromEntries(GUILD_RANKS.map((r,i)=>[r.id,i]));
+
+// ELEMENTAL AFFINITIES — Fairy Tail is defined by elemental magic. Every mage
+// has resistances (their attunement), vulnerabilities (opposing element), and
+// immunities (dragon slayer style — Natsu eats fire, Gray endures ice).
+const ELEMENTAL_TYPES = [
+  { id:'physical',  label:'Physical',  icon:'⚔', desc:'Blunt, piercing, and slashing damage — the everyday kind.' },
+  { id:'fire',      label:'Fire',      icon:'🔥', desc:'Flame, heat, combustion — Natsu\'s domain.' },
+  { id:'ice',       label:'Ice',       icon:'❄', desc:'Freezing cold — Gray, Lyon, Ur.' },
+  { id:'lightning', label:'Lightning', icon:'⚡', desc:'Electricity, thunder — Laxus, Justine.' },
+  { id:'water',     label:'Water',     icon:'💧', desc:'Currents, tides, drowning force — Juvia.' },
+  { id:'wind',      label:'Wind',      icon:'🌪', desc:'Air, storms, cutting gales — Wendy.' },
+  { id:'earth',     label:'Earth',     icon:'⛰', desc:'Stone, sand, tremor — Jura, sand dragon.' },
+  { id:'light',     label:'Light',     icon:'✦', desc:'Holy radiance, purifying beams — Sky God, Rayule.' },
+  { id:'dark',      label:'Dark',      icon:'🌑', desc:'Shadow, corruption, oblivion — Zeref, dark guilds.' },
+  { id:'arcane',    label:'Arcane',    icon:'✧', desc:'Pure magical energy — memory-make, requip, celestial.' },
+  { id:'poison',    label:'Poison',    icon:'☠', desc:'Toxins and corrosion — Cobra, Erigor.' },
+  { id:'iron',      label:'Iron',      icon:'⚒', desc:'Metal, chains, iron scales — Gajeel.' }
+];
+const ELEMENT_BY_ID = Object.fromEntries(ELEMENTAL_TYPES.map(t=>[t.id,t]));
+
 // Magic Category definitions
 const MAGIC_CATS = {
   sense_int: {label:'Sense · INT', stat:'INT', manaRoll:'1d10', bonusNote:'1d10 mana pool · INT spell checks'},
@@ -152,6 +185,7 @@ function blankChar(i) {
     id:`char-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'',race:'',className:'',age:'',level:1,background:'',
     magicType:'',magicCategory:'',guild:'',guildMark:'',religion:'',magicRank:'',
+    guildRank:'D',        // Formal guild classification — gates job board access
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
     money: 0,            // Jewels — DM-controlled currency
@@ -161,12 +195,15 @@ function blankChar(i) {
     hp:{current:0,max:0}, mana:{current:0,max:0},
     armor:0, speed:'30 ft', tempHp:0,
     deathSaves:{successes:0,failures:0,stable:false},
+    // Elemental affinities — resist/vulnerable/immune per element
+    resistances:[], vulnerabilities:[], immunities:[],
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     relationships:[],
-    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[]
+    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[],
+    claimedJobs:[]  // Job IDs the character has claimed from the guild board
   };
 }
-const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},shop:[],characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]};
+const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},shop:[],characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)],jobBoard:[],locations:[],initiative:{active:false,round:1,turnIdx:0,entries:[]}};
 
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
@@ -261,8 +298,21 @@ function bindGrant(){document.getElementById('grantBtn')?.addEventListener('clic
 function bindBroadcast(){document.getElementById('broadcastBtn')?.addEventListener('click',()=>{const msg=document.getElementById('broadcastInput')?.value.trim();if(!msg)return;sendBroadcast(msg);document.getElementById('broadcastInput').value='';});}
 
 let _pushDebounce=null;
+let _firstSnapshotReceived = false;  // Firebase load-completed guard — see pushState safety notes below
 async function pushState(immediate=false){
   if(spectator)return;
+  // ────────────────────────────────────────────────────────────
+  // CRITICAL SAFETY: never push local state to Firebase until we
+  // have successfully RECEIVED at least one snapshot from Firebase.
+  // Without this guard, if the initial load fails silently, the
+  // default empty state would overwrite the real data on first
+  // interaction. This is what caused "everything is gone" in MaW.
+  // ────────────────────────────────────────────────────────────
+  if(!_firstSnapshotReceived){
+    console.warn('pushState blocked: no Firebase snapshot received yet. Will retry after load.');
+    setSyncDot('warn');
+    return;
+  }
   const hasData=state.characters.some(c=>c.name&&c.name.trim());
   if(!hasData)return;
   if(immediate){
@@ -283,10 +333,15 @@ function flushPendingPush(){ if(_pushDebounce){ clearTimeout(_pushDebounce); _pu
 function startListener(){
   if(_unsub)_unsub();
   _unsub=onSnapshot(doc(db,'campaigns','ft-campaign'),snap=>{
-    if(!snap.exists())return;
+    if(!snap.exists()){
+      // Brand-new campaign — unlock pushes so initial character setup can save
+      _firstSnapshotReceived = true;
+      setSyncDot('synced');
+      return;
+    }
     try{
       const raw=snap.data().data;
-      if(raw===_lastAppliedRaw){setSyncDot('synced');return;}
+      if(raw===_lastAppliedRaw){setSyncDot('synced'); _firstSnapshotReceived = true; return;}
       _lastAppliedRaw=raw;
       const remote=normalize(JSON.parse(raw));
       checkStateChanges(remote);
@@ -308,6 +363,10 @@ function startListener(){
         state.selectedCharacter=Math.max(0,state.characters.length-1);
       state.theme=remote.theme;
       state.shop=remote.shop;
+      state.jobBoard   = remote.jobBoard   || [];
+      state.locations  = remote.locations  || [];
+      state.initiative = remote.initiative || { active:false, round:1, turnIdx:0, entries:[] };
+      _firstSnapshotReceived = true;   // Firebase data safely loaded — writes now safe
       setSyncDot('synced');
 
       if(isTyping){
@@ -338,7 +397,12 @@ function startListener(){
       try{checkLowHp(getChar());}catch(e){}
       recheckWelcomeIfNeeded();
       if(!document.getElementById('welcomeOverlay')&&!_welcomeShown){_welcomeShown=true;checkWelcome();}
-    }catch(e){console.error('Snapshot error:',e);}
+    }catch(e){
+      console.error('Snapshot error — Firebase load failed:', e);
+      setSyncDot('error');
+      // Do NOT flip _firstSnapshotReceived — writes stay blocked so
+      // we can't overwrite Firebase with local defaults.
+    }
   },e=>{console.error(e);setSyncDot('error');});
 }
 
@@ -356,18 +420,82 @@ function normalize(raw){
     if(!m.theme[k]||typeof m.theme[k]!=='string'||!m.theme[k].startsWith('#'))m.theme[k]=DEF_THEME[k];
   });
   m.characters=(raw?.characters?.length?raw.characters:DEF_STATE.characters).map((c,i)=>{
-    const b=blankChar(i);const mc={...b,...c};
-    mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
-    mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
-    mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];mc.archiveFolders=Array.isArray(c.archiveFolders)?c.archiveFolders:[];mc.bestiaryFolders=Array.isArray(c.bestiaryFolders)?c.bestiaryFolders:[];
-    mc.money=Number(c.money)||0;
-    const blankSk=makeBlankSkills();mc.skills={};
-    Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
-    return mc;
+    try {
+      const b=blankChar(i);const mc={...b,...c};
+      mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
+      mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
+      mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];mc.archiveFolders=Array.isArray(c.archiveFolders)?c.archiveFolders:[];mc.bestiaryFolders=Array.isArray(c.bestiaryFolders)?c.bestiaryFolders:[];
+      mc.money=Number(c.money)||0;
+      // Guild rank + elemental affinities (new)
+      mc.guildRank = GUILD_RANK_BY_ID[c.guildRank] ? c.guildRank : 'D';
+      mc.resistances     = Array.isArray(c.resistances)     ? c.resistances.map(String)     : [];
+      mc.vulnerabilities = Array.isArray(c.vulnerabilities) ? c.vulnerabilities.map(String) : [];
+      mc.immunities      = Array.isArray(c.immunities)      ? c.immunities.map(String)      : [];
+      mc.claimedJobs     = Array.isArray(c.claimedJobs)     ? c.claimedJobs.map(String)     : [];
+      const blankSk=makeBlankSkills();mc.skills={};
+      Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
+      return mc;
+    } catch(err) {
+      console.error(`Normalize failed for character ${i}, keeping raw:`, err, c);
+      return c || blankChar(i);
+    }
   });
   if(m.selectedCharacter>=m.characters.length)m.selectedCharacter=Math.max(0,m.characters.length-1);
   if(!Array.isArray(m.shop))m.shop=[];
   m.shop=m.shop.map(it=>({name:it.name||'',category:it.category||'General',price:Number(it.price)||0,stock:(it.stock===undefined?null:it.stock),desc:it.desc||''}));
+
+  // Job Board — DM-authored guild quests
+  if(!Array.isArray(m.jobBoard))m.jobBoard=[];
+  m.jobBoard = m.jobBoard.map((j,ix)=>({
+    id:         String(j?.id ?? ('job-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    title:      String(j?.title ?? 'Untitled Job'),
+    client:     String(j?.client ?? ''),
+    location:   String(j?.location ?? ''),
+    rank:       GUILD_RANK_BY_ID[j?.rank] ? j.rank : 'D',
+    reward:     Number(j?.reward) || 0,
+    rewardItem: String(j?.rewardItem ?? ''),
+    briefing:   String(j?.briefing ?? ''),
+    objectives: Array.isArray(j?.objectives) ? j.objectives.map(o=>({
+      id: String(o?.id ?? ('obj-'+Math.random().toString(16).slice(2,6))),
+      text: String(o?.text ?? ''),
+      done: !!o?.done
+    })) : [],
+    status:     ['posted','claimed','completed','failed'].includes(j?.status) ? j.status : 'posted',
+    claimedBy:  Array.isArray(j?.claimedBy) ? j.claimedBy.map(String) : [],
+    dmNotes:    String(j?.dmNotes ?? ''),
+    posted:     Number(j?.posted) || Date.now()
+  }));
+
+  // Locations — cities and landmarks of Fiore
+  if(!Array.isArray(m.locations))m.locations=[];
+  m.locations = m.locations.map((s,ix)=>({
+    id:          String(s?.id ?? ('loc-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    name:        String(s?.name ?? 'Unnamed Location'),
+    region:      String(s?.region ?? 'Fiore'),
+    description: String(s?.description ?? ''),
+    atmosphere:  String(s?.atmosphere ?? ''),
+    dmNotes:     String(s?.dmNotes ?? ''),
+    current:     !!s?.current
+  }));
+  const cur = m.locations.filter(s=>s.current).length;
+  if (cur > 1) {
+    let found = false;
+    m.locations.forEach(s=>{ if(s.current){ if(found) s.current = false; else found = true; }});
+  }
+
+  // Initiative Tracker
+  if(!m.initiative || typeof m.initiative !== 'object') m.initiative = { active:false, round:1, turnIdx:0, entries:[] };
+  m.initiative.active  = !!m.initiative.active;
+  m.initiative.round   = Math.max(1, Number(m.initiative.round) || 1);
+  m.initiative.turnIdx = Math.max(0, Number(m.initiative.turnIdx) || 0);
+  m.initiative.entries = Array.isArray(m.initiative.entries) ? m.initiative.entries.map((e,ix)=>({
+    id: String(e?.id ?? ('init-'+Date.now()+'-'+ix)),
+    name: String(e?.name ?? '—'),
+    init: Number(e?.init) || 0,
+    hp: e?.hp === undefined ? null : Number(e.hp),
+    hpMax: e?.hpMax === undefined ? null : Number(e.hpMax),
+    kind: ['player','enemy','npc'].includes(e?.kind) ? e.kind : 'npc'
+  })) : [];
   return m;
 }
 
@@ -706,6 +834,35 @@ function renderStats(){
 // ================================================================
 // SKILLS MATRIX — full auto-calculation
 // ================================================================
+// Skill descriptions — one-liner explanations for the tooltip system.
+// Fantasy/guild flavor to match Fairy Tail's tone.
+const SKILL_DESCS = {
+  'STR Save':         'Resist being moved, held, or shoved against your will.',
+  'DEX Save':         'Dodge blasts, react in time, evade grasping magic.',
+  'CON Save':         'Endure poison, exhaustion, and lingering magical effects.',
+  'INT Save':         'Resist mind-magic, illusion, and forced memory alteration.',
+  'WIS Save':         'Resist fear, charm, corruption of will.',
+  'CHA Save':         'Resist domination — refuse to have your soul overridden.',
+  'Athletics':        'Climb, swim, run, jump — physical prowess in the field.',
+  'Acrobatics':       'Balance, tumble, escape restraints, flashy dodges.',
+  'Sleight of Hand':  'Pick pockets, palm items, disarm subtle mechanisms.',
+  'Stealth':          'Move unseen and unheard — vital for infiltration.',
+  'Arcana':           'What you know about magic — schools, artifacts, precedent.',
+  'History':          'Kingdoms, wars, guilds, forgotten eras.',
+  'Investigation':    'Search a room, deduce what happened, find hidden clues.',
+  'Nature':           'Wilderness lore, beasts, terrain, plants.',
+  'Religion':         'Gods, prayer, priesthoods, and holy sites.',
+  'Animal Handling':  'Calm, direct, and read the intent of beasts.',
+  'Insight':          'Read people. Detect lies. Sense hidden motives.',
+  'Medicine':         'Stabilize the wounded. Diagnose ailments and cursed conditions.',
+  'Perception':       'Notice sounds, movements, hidden details.',
+  'Survival':         'Track, navigate, endure the elements, find shelter.',
+  'Deception':        'Lie convincingly. Maintain cover. Misdirect with charm.',
+  'Intimidation':     'Threaten. Coerce. Bend others through fear.',
+  'Performance':      'Sing, play, act, dance — command an audience.',
+  'Persuasion':       'Convince, negotiate, win over. Get civilians to comply.'
+};
+
 function renderSkillsMatrix(){
   const c=getChar();const pb=getEffectivePB(c);const m=el('skillsMatrix');if(!m)return;m.innerHTML='';
   const groups={};
@@ -718,18 +875,20 @@ function renderSkillsMatrix(){
     defs.forEach(def=>{
       const sk=c.skills[def.name]||{prof:false,expertise:false,bonus:0};
       const total=skillTotal(c,def.name);
+      const desc=SKILL_DESCS[def.name]||'';
       const row=document.createElement('div');row.className='skill-row';
+      row.setAttribute('data-tt', desc);
       row.innerHTML=`
         <div class="skill-prof-toggles">
-          <button type="button" class="prof-btn${sk.prof?' active':''}" data-skill="${esc(def.name)}" data-toggle="prof" title="Proficient">${sk.prof?'●':'○'}</button>
-          <button type="button" class="prof-btn exp${sk.expertise?' active':''}" data-skill="${esc(def.name)}" data-toggle="expertise" title="Expertise">${sk.expertise?'★':'☆'}</button>
+          <button type="button" class="prof-btn${sk.prof?' active':''}" data-skill="${esc(def.name)}" data-toggle="prof" data-tt="Proficient — add your proficiency bonus to this skill">${sk.prof?'●':'○'}</button>
+          <button type="button" class="prof-btn exp${sk.expertise?' active':''}" data-skill="${esc(def.name)}" data-toggle="expertise" data-tt="Expertise — double your proficiency bonus">${sk.expertise?'★':'☆'}</button>
         </div>
         <div class="skill-row-label">
           <strong>${esc(def.name)}</strong>
           <span>${def.stat}${sk.prof?(sk.expertise?' · Expertise':' · Prof'):''}</span>
         </div>
         <div class="skill-total ${total>=0?'pos':'neg'}">${fmtMod(total)}</div>
-        <input type="number" data-skill="${esc(def.name)}" value="${sk.bonus||0}" placeholder="+0" title="Extra bonus">`;
+        <input type="number" data-skill="${esc(def.name)}" value="${sk.bonus||0}" placeholder="+0" data-tt="Extra bonus — add any situational modifier here">`;
       list.appendChild(row);
     });
     m.appendChild(grp);
@@ -744,6 +903,475 @@ function renderSkillsMatrix(){
   });
   m.querySelectorAll('input[data-skill]').forEach(inp=>{
     inp.addEventListener('input',e=>{c.skills[e.target.dataset.skill].bonus=Number(e.target.value)||0;pushState();renderSkillsMatrix();});
+  });
+}
+
+// ================================================================
+// ELEMENTAL AFFINITIES — Resist / Vulnerable / Immune per element
+// Click a cell to cycle: neutral → resist → vulnerable → immune → neutral
+// ================================================================
+function renderElementalAffinities(){
+  const c = getChar();
+  const host = el('elementalGrid'); if(!host) return;
+
+  host.innerHTML = ELEMENTAL_TYPES.map(t => {
+    let stateCls = 'none';
+    if ((c.immunities||[]).includes(t.id))          stateCls = 'imm';
+    else if ((c.resistances||[]).includes(t.id))    stateCls = 'res';
+    else if ((c.vulnerabilities||[]).includes(t.id)) stateCls = 'vuln';
+    return `<button type="button" class="elem-cell elem-${stateCls}" data-elem="${t.id}"
+      data-tt="${esc(t.desc)} · Click to cycle: neutral → resist → vulnerable → immune → neutral">
+      <span class="elem-icon">${t.icon}</span>
+      <span class="elem-name">${t.label}</span>
+      <span class="elem-badge">${stateCls==='res'?'RES':stateCls==='vuln'?'VUL':stateCls==='imm'?'IMM':''}</span>
+    </button>`;
+  }).join('');
+
+  host.querySelectorAll('[data-elem]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.elem;
+    let cur = 'none';
+    if ((c.immunities||[]).includes(id))          cur = 'imm';
+    else if ((c.resistances||[]).includes(id))    cur = 'res';
+    else if ((c.vulnerabilities||[]).includes(id)) cur = 'vuln';
+    c.resistances     = (c.resistances||[]).filter(x => x !== id);
+    c.vulnerabilities = (c.vulnerabilities||[]).filter(x => x !== id);
+    c.immunities      = (c.immunities||[]).filter(x => x !== id);
+    const next = { none:'res', res:'vuln', vuln:'imm', imm:'none' }[cur];
+    if (next === 'res')  c.resistances.push(id);
+    if (next === 'vuln') c.vulnerabilities.push(id);
+    if (next === 'imm')  c.immunities.push(id);
+    pushState(true); renderElementalAffinities();
+  }));
+}
+
+// ================================================================
+// GUILD RANK — dropdown + colored badge display
+// ================================================================
+function renderGuildRankDisplay(){
+  const c = getChar();
+  const badge = el('guildRankBadge');
+  const label = el('guildRankLabel');
+  const sel   = el('guildRankSelect');
+  if (!c) return;
+  const rk = GUILD_RANK_BY_ID[c.guildRank] || GUILD_RANK_BY_ID['D'];
+  if (badge) {
+    badge.textContent = rk.id;
+    badge.style.color = rk.color;
+    badge.style.borderColor = rk.color;
+    badge.style.background = `radial-gradient(circle at 30% 30%, ${rk.color}22, rgba(0,0,0,.5) 70%)`;
+    badge.style.textShadow = `0 0 12px ${rk.color}88`;
+    badge.setAttribute('data-tt', `${rk.label} — ${rk.title}. ${rk.desc}`);
+  }
+  if (label) label.textContent = `${rk.label} · ${rk.title}`;
+  if (sel && document.activeElement !== sel) {
+    sel.innerHTML = GUILD_RANKS.map(r => `<option value="${r.id}" ${r.id===c.guildRank?'selected':''}>${r.label} · ${r.title}</option>`).join('');
+  }
+}
+function bindGuildRankSelect(){
+  const sel = el('guildRankSelect'); if(!sel) return;
+  sel.addEventListener('change', e => {
+    const c = getChar();
+    c.guildRank = e.target.value;
+    pushState(true); renderGuildRankDisplay(); renderJobBoard();
+  });
+}
+
+// ================================================================
+// SCENE BANNER — current location in Fiore
+// ================================================================
+function currentLocation(){ return (state.locations || []).find(s => s.current) || null; }
+function renderSceneBanner(){
+  const host = el('sceneBanner'); if(!host) return;
+  const loc = currentLocation();
+  if (!loc) { host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.className = 'scene-banner';
+  host.innerHTML = `
+    <div class="scb-icon">⌖</div>
+    <div class="scb-body">
+      <div class="scb-line1">
+        <span class="scb-name">${esc(loc.name)}</span>
+      </div>
+      ${loc.atmosphere ? `<div class="scb-atmos">${esc(loc.atmosphere)}</div>` : ''}
+    </div>
+    <div class="scb-region">${esc(loc.region.toUpperCase())}</div>
+  `;
+}
+
+// ================================================================
+// JOB BOARD — the guild's iconic request board
+// ================================================================
+function renderJobBoard(){
+  const c = getChar();
+  const host = el('jobBoardList'); if(!host) return;
+  const board = state.jobBoard || [];
+  const myRankOrder = GUILD_RANK_ORDER[c?.guildRank] ?? 0;
+
+  // Split: mine vs available vs completed
+  const mine      = board.filter(j => (j.claimedBy||[]).includes(c?.id) && j.status !== 'completed' && j.status !== 'failed');
+  const available = board.filter(j => j.status === 'posted' && !(j.claimedBy||[]).includes(c?.id));
+  const finished  = board.filter(j => j.status === 'completed' || j.status === 'failed');
+
+  const renderJob = (j, opts={}) => {
+    const rk = GUILD_RANK_BY_ID[j.rank] || GUILD_RANK_BY_ID['D'];
+    const canClaim = GUILD_RANK_ORDER[j.rank] <= myRankOrder;
+    const doneCt = (j.objectives||[]).filter(o=>o.done).length;
+    const totCt  = (j.objectives||[]).length;
+    return `
+    <details class="job-card ${opts.available?'available':''} ${j.status}" style="--jrk:${rk.color}">
+      <summary class="job-head">
+        <span class="job-rank" style="background:${rk.color}" data-tt="${rk.label} — ${rk.title}">${rk.id}</span>
+        <div class="job-title-block">
+          <div class="job-title">${esc(j.title || 'Untitled Job')}</div>
+          <div class="job-meta">
+            ${j.client ? `<span>👤 ${esc(j.client)}</span>` : ''}
+            ${j.location ? `<span>📍 ${esc(j.location)}</span>` : ''}
+          </div>
+        </div>
+        <div class="job-reward" data-tt="Jewels reward on completion">
+          <span class="jrw-jewels">${fmtMoney(j.reward||0)}</span>
+          <span class="jrw-label">Jewels</span>
+        </div>
+        ${totCt ? `<span class="job-prog" data-tt="Objectives completed">${doneCt}/${totCt}</span>` : ''}
+        ${opts.available
+          ? (canClaim
+              ? `<button class="job-claim" data-claim="${esc(j.id)}" data-tt="Claim this job for your character">CLAIM</button>`
+              : `<button class="job-claim disabled" disabled data-tt="Your guild rank is too low for this job">RANK ${j.rank}+</button>`)
+          : opts.status === 'completed' ? `<span class="job-badge done">✓ DONE</span>`
+          : opts.status === 'failed' ? `<span class="job-badge failed">✕ FAILED</span>`
+          : `<span class="job-badge active">⚡ ACTIVE</span>`}
+      </summary>
+      <div class="job-body">
+        ${j.briefing ? `<div class="job-brief">${esc(j.briefing)}</div>` : ''}
+        ${totCt ? `<div class="job-objs">
+          ${j.objectives.map(o => `<div class="job-obj ${o.done?'done':''}">
+            <span class="job-obj-check">${o.done?'✓':'○'}</span>
+            <span>${esc(o.text)}</span>
+          </div>`).join('')}
+        </div>` : ''}
+        ${j.rewardItem ? `<div class="job-reward-item">🎁 Bonus reward: <strong>${esc(j.rewardItem)}</strong></div>` : ''}
+      </div>
+    </details>`;
+  };
+
+  host.innerHTML = `
+    ${mine.length ? `<section class="job-section">
+      <header class="job-section-head active">
+        <span class="jsh-icon">⚡</span>
+        <div class="jsh-text"><div class="jsh-label">Active Jobs</div><div class="jsh-hint">Jobs you've claimed and are working on</div></div>
+        <span class="jsh-count">${mine.length}</span>
+      </header>
+      <div class="job-grid">${mine.map(j => renderJob(j, {status:'claimed'})).join('')}</div>
+    </section>` : ''}
+
+    <section class="job-section">
+      <header class="job-section-head">
+        <span class="jsh-icon">📜</span>
+        <div class="jsh-text"><div class="jsh-label">Available Jobs</div><div class="jsh-hint">Posted on the guild board — claim what suits you</div></div>
+        <span class="jsh-count">${available.length}</span>
+      </header>
+      <div class="job-grid">
+        ${available.length ? available.map(j => renderJob(j, {available:true})).join('')
+          : `<div class="empty-note"><div class="empty-glyph">📋</div><div>NO JOBS POSTED</div><span>Check back when the guild master has new contracts.</span></div>`}
+      </div>
+    </section>
+
+    ${finished.length ? `<section class="job-section">
+      <header class="job-section-head done">
+        <span class="jsh-icon">✓</span>
+        <div class="jsh-text"><div class="jsh-label">Job History</div><div class="jsh-hint">Completed and failed contracts</div></div>
+        <span class="jsh-count">${finished.length}</span>
+      </header>
+      <div class="job-grid">${finished.map(j => renderJob(j, {status:j.status})).join('')}</div>
+    </section>` : ''}
+  `;
+
+  host.querySelectorAll('[data-claim]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation(); e.preventDefault();
+    const id = b.dataset.claim;
+    const job = state.jobBoard.find(x => x.id === id); if(!job) return;
+    const cc = getChar(); if(!cc) return;
+    if (GUILD_RANK_ORDER[job.rank] > (GUILD_RANK_ORDER[cc.guildRank] ?? 0)) {
+      alert('Your guild rank is too low for this job.'); return;
+    }
+    if (!confirm(`Claim "${job.title}"? Once claimed, your guild master can mark it complete for the ${fmtMoney(job.reward)} Jewel reward.`)) return;
+    if (!Array.isArray(job.claimedBy)) job.claimedBy = [];
+    if (!job.claimedBy.includes(cc.id)) job.claimedBy.push(cc.id);
+    if (!Array.isArray(cc.claimedJobs)) cc.claimedJobs = [];
+    if (!cc.claimedJobs.includes(job.id)) cc.claimedJobs.push(job.id);
+    job.status = 'claimed';
+    pushState(true); renderJobBoard();
+  }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · JOB BOARD MANAGER
+// ═════════════════════════════════════════════════════════════════
+let _dmJobSelectedId = null;
+function dmActiveJob(){
+  const list = state.jobBoard || []; if(!list.length) return null;
+  let j = list.find(x => x.id === _dmJobSelectedId);
+  if (!j) { j = list[0]; _dmJobSelectedId = j.id; }
+  return j;
+}
+function addJob(){
+  if (!Array.isArray(state.jobBoard)) state.jobBoard = [];
+  const j = {
+    id: 'job-' + Date.now(),
+    title: 'New Job', client: '', location: '',
+    rank: 'D', reward: 500, rewardItem: '',
+    briefing: '', objectives: [],
+    status: 'posted', claimedBy: [], dmNotes: '',
+    posted: Date.now()
+  };
+  state.jobBoard.unshift(j);
+  _dmJobSelectedId = j.id;
+  pushState(true); renderDmJobBoard(); renderJobBoard();
+}
+function renderDmJobBoard(){
+  const host = el('dmJobBoardRoot'); if(!host) return;
+  const list = state.jobBoard || [];
+  const cur = dmActiveJob();
+  const grouped = { posted:[], claimed:[], completed:[], failed:[] };
+  list.forEach(j => (grouped[j.status] || grouped.posted).push(j));
+
+  host.innerHTML = `
+    <div class="dm-job-shell">
+      <aside class="dm-job-side">
+        ${['posted','claimed','completed','failed'].map(status => {
+          if (!grouped[status].length) return '';
+          const lbl = { posted:'Posted', claimed:'Active', completed:'Completed', failed:'Failed' }[status];
+          return `<div class="dm-job-group">
+            <div class="dm-job-groupname ${status}">${lbl}</div>
+            ${grouped[status].map(j => {
+              const on = cur && j.id === cur.id;
+              const rk = GUILD_RANK_BY_ID[j.rank] || GUILD_RANK_BY_ID['D'];
+              return `<button type="button" class="dm-job-row ${status} ${on?'active':''}" data-jobid="${esc(j.id)}" style="--jrk:${rk.color}">
+                <span class="dm-job-rank" style="background:${rk.color}">${j.rank}</span>
+                <div class="dm-job-info">
+                  <div class="dm-job-name">${esc(j.title||'Untitled')}</div>
+                  <div class="dm-job-sub">${fmtMoney(j.reward)} J · ${(j.claimedBy||[]).length} claimant${(j.claimedBy||[]).length===1?'':'s'}</div>
+                </div>
+              </button>`;
+            }).join('')}
+          </div>`;
+        }).join('') || '<div class="dm-empty" style="padding:1rem">No jobs posted yet.</div>'}
+      </aside>
+      <div class="dm-job-main">
+        ${cur ? `
+          <div class="dm-job-head">
+            <input type="text" id="dmJobTitle" value="${esc(cur.title)}" class="dm-job-title" placeholder="Job title">
+            <select id="dmJobRank" class="dm-job-rank-sel">
+              ${GUILD_RANKS.map(r=>`<option value="${r.id}" ${cur.rank===r.id?'selected':''}>${r.label}</option>`).join('')}
+            </select>
+            <select id="dmJobStatus" class="dm-job-status">
+              <option value="posted"    ${cur.status==='posted'?'selected':''}>POSTED</option>
+              <option value="claimed"   ${cur.status==='claimed'?'selected':''}>ACTIVE</option>
+              <option value="completed" ${cur.status==='completed'?'selected':''}>COMPLETED</option>
+              <option value="failed"    ${cur.status==='failed'?'selected':''}>FAILED</option>
+            </select>
+            <button class="neo-btn ghost small" id="dmJobDel">🗑</button>
+          </div>
+          <div class="dm-job-row2">
+            <label class="dm-job-field" style="flex:1"><span>Client</span>
+              <input type="text" id="dmJobClient" value="${esc(cur.client)}" placeholder="Who's posting this job?">
+            </label>
+            <label class="dm-job-field" style="flex:1"><span>Location</span>
+              <input type="text" id="dmJobLoc" value="${esc(cur.location)}" placeholder="Where does it take place?">
+            </label>
+            <label class="dm-job-field" style="width:120px"><span>Reward (J)</span>
+              <input type="number" id="dmJobReward" value="${cur.reward}" placeholder="500">
+            </label>
+          </div>
+          <label class="dm-job-field">
+            <span>Bonus Reward (item, favor, information — optional)</span>
+            <input type="text" id="dmJobRewardItem" value="${esc(cur.rewardItem)}" placeholder="e.g. Rare Lacrima, favor from a noble">
+          </label>
+          <label class="dm-job-field">
+            <span>Briefing (players see this)</span>
+            <textarea id="dmJobBrief" placeholder="What's the situation? What are the stakes?">${esc(cur.briefing)}</textarea>
+          </label>
+          <div class="dm-job-sec">Objectives</div>
+          <div class="dm-job-objs">
+            ${(cur.objectives||[]).map(o => `<div class="dm-job-obj">
+              <input type="checkbox" ${o.done?'checked':''} class="dm-job-obj-cb" data-oid="${esc(o.id)}">
+              <input type="text" class="dm-job-obj-text" data-oid="${esc(o.id)}" value="${esc(o.text)}" placeholder="Objective…">
+              <button class="dm-job-obj-del" data-oid="${esc(o.id)}">✕</button>
+            </div>`).join('')}
+            <button class="neo-btn ghost small" id="dmJobObjAdd">+ Add Objective</button>
+          </div>
+          ${(cur.claimedBy||[]).length ? `<div class="dm-job-sec">Claimants</div>
+          <div class="dm-job-claimants">
+            ${cur.claimedBy.map(cid => {
+              const cc = state.characters.find(x=>x.id===cid);
+              return `<span class="dm-job-claimant">${esc(cc?.name || 'Unknown')}</span>`;
+            }).join('')}
+          </div>` : ''}
+          <div class="dm-job-payout">
+            <button class="neo-btn" id="dmJobComplete" data-tt="Mark this job complete AND automatically pay all claimants their reward in Jewels">✓ Complete &amp; Pay Out</button>
+            <button class="neo-btn ghost" id="dmJobFail">✕ Mark Failed</button>
+          </div>
+          <label class="dm-job-field">
+            <span>DM Notes (private)</span>
+            <textarea id="dmJobNotes" placeholder="Twists, hidden dangers, secret objectives…">${esc(cur.dmNotes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Post a job to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-job-row').forEach(r => r.addEventListener('click', () => {
+    _dmJobSelectedId = r.dataset.jobid; renderDmJobBoard();
+  }));
+  const bind = (id, field) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveJob(); if(!c) return;
+    c[field] = field === 'reward' ? (Number(e.target.value)||0) : e.target.value;
+    pushState();
+    if (['title','rank','status'].includes(field)) renderDmJobBoard();
+    renderJobBoard();
+  });
+  bind('dmJobTitle','title'); bind('dmJobClient','client');
+  bind('dmJobLoc','location'); bind('dmJobReward','reward');
+  bind('dmJobRewardItem','rewardItem'); bind('dmJobBrief','briefing');
+  bind('dmJobNotes','dmNotes');
+  ['dmJobRank','dmJobStatus'].forEach(id => el(id)?.addEventListener('change', e => {
+    const c = dmActiveJob(); if(!c) return;
+    c[id==='dmJobRank'?'rank':'status'] = e.target.value;
+    pushState(true); renderDmJobBoard(); renderJobBoard();
+  }));
+  el('dmJobDel')?.addEventListener('click', () => {
+    const c = dmActiveJob(); if(!c) return;
+    if (!confirm(`Delete job "${c.title}"?`)) return;
+    state.jobBoard = state.jobBoard.filter(x => x.id !== c.id);
+    _dmJobSelectedId = null;
+    pushState(true); renderDmJobBoard(); renderJobBoard();
+  });
+  host.querySelectorAll('.dm-job-obj-text').forEach(inp => inp.addEventListener('input', e => {
+    const c = dmActiveJob(); if(!c) return;
+    const o = c.objectives.find(x=>x.id === e.target.dataset.oid); if(!o) return;
+    o.text = e.target.value; pushState(); renderJobBoard();
+  }));
+  host.querySelectorAll('.dm-job-obj-cb').forEach(cb => cb.addEventListener('change', e => {
+    const c = dmActiveJob(); if(!c) return;
+    const o = c.objectives.find(x=>x.id === e.target.dataset.oid); if(!o) return;
+    o.done = e.target.checked; pushState(true); renderDmJobBoard(); renderJobBoard();
+  }));
+  host.querySelectorAll('.dm-job-obj-del').forEach(b => b.addEventListener('click', () => {
+    const c = dmActiveJob(); if(!c) return;
+    c.objectives = c.objectives.filter(x=>x.id !== b.dataset.oid);
+    pushState(true); renderDmJobBoard(); renderJobBoard();
+  }));
+  el('dmJobObjAdd')?.addEventListener('click', () => {
+    const c = dmActiveJob(); if(!c) return;
+    c.objectives.push({ id:'obj-'+Date.now(), text:'', done:false });
+    pushState(true); renderDmJobBoard();
+  });
+  el('dmJobComplete')?.addEventListener('click', () => {
+    const c = dmActiveJob(); if(!c) return;
+    if (!confirm(`Mark "${c.title}" complete and pay out ${fmtMoney(c.reward)} Jewels to each claimant?`)) return;
+    (c.claimedBy||[]).forEach(cid => {
+      const ch = state.characters.find(x=>x.id===cid);
+      if (ch) ch.money = (Number(ch.money)||0) + (Number(c.reward)||0);
+    });
+    c.status = 'completed';
+    pushState(true); renderDmJobBoard(); renderJobBoard();
+    if (typeof renderHeader === 'function') renderHeader();
+  });
+  el('dmJobFail')?.addEventListener('click', () => {
+    const c = dmActiveJob(); if(!c) return;
+    if (!confirm(`Mark "${c.title}" as failed? No payout.`)) return;
+    c.status = 'failed';
+    pushState(true); renderDmJobBoard(); renderJobBoard();
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · LOCATIONS MANAGER
+// ═════════════════════════════════════════════════════════════════
+let _dmLocSelectedId = null;
+function dmActiveLocation(){
+  const list = state.locations || []; if(!list.length) return null;
+  let s = list.find(x => x.id === _dmLocSelectedId);
+  if (!s) { s = list[0]; _dmLocSelectedId = s.id; }
+  return s;
+}
+function addLocation(){
+  if (!Array.isArray(state.locations)) state.locations = [];
+  const s = { id:'loc-'+Date.now(), name:'New Location', region:'Fiore', description:'', atmosphere:'', dmNotes:'', current:false };
+  state.locations.push(s); _dmLocSelectedId = s.id;
+  pushState(true); renderDmLocations();
+}
+function renderDmLocations(){
+  const host = el('dmLocationsRoot'); if(!host) return;
+  const list = state.locations || [];
+  const cur = dmActiveLocation();
+  host.innerHTML = `
+    <div class="dm-loc-shell">
+      <aside class="dm-loc-side">
+        ${list.length ? list.map(s => {
+          const on = cur && s.id === cur.id;
+          return `<button type="button" class="dm-loc-row ${on?'active':''} ${s.current?'scene':''}" data-locid="${esc(s.id)}">
+            <span class="dm-loc-dot ${s.current?'on':''}"></span>
+            <span class="dm-loc-info">
+              <span class="dm-loc-name">${esc(s.name)}</span>
+              <span class="dm-loc-sub">${esc(s.region)}${s.current?' · <b>CURRENT</b>':''}</span>
+            </span>
+          </button>`;
+        }).join('') : '<div class="dm-empty" style="padding:1rem">No locations added.</div>'}
+      </aside>
+      <div class="dm-loc-main">
+        ${cur ? `
+          <div class="dm-loc-head">
+            <label class="dm-loc-field" style="flex:1"><span>Name</span>
+              <input type="text" id="dmLocName" value="${esc(cur.name)}">
+            </label>
+            <label class="dm-loc-field" style="width:180px"><span>Region</span>
+              <input type="text" id="dmLocRegion" value="${esc(cur.region)}" placeholder="e.g. Fiore, Bosco…">
+            </label>
+            <button class="neo-btn small ${cur.current?'':'ghost'}" id="dmLocScene">${cur.current?'✓ Current Scene':'Set as Scene'}</button>
+            <button class="neo-btn ghost small" id="dmLocDel">🗑</button>
+          </div>
+          <label class="dm-loc-field">
+            <span>Description (players see this)</span>
+            <textarea id="dmLocDesc">${esc(cur.description)}</textarea>
+          </label>
+          <label class="dm-loc-field">
+            <span>Atmosphere (banner tagline)</span>
+            <input type="text" id="dmLocAtmos" value="${esc(cur.atmosphere)}" placeholder="e.g. autumn leaves and pipe smoke">
+          </label>
+          <label class="dm-loc-field">
+            <span>DM Notes (private)</span>
+            <textarea id="dmLocNotes">${esc(cur.dmNotes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Add a location to begin.</div>`}
+      </div>
+    </div>
+  `;
+  host.querySelectorAll('.dm-loc-row').forEach(r => r.addEventListener('click', () => {
+    _dmLocSelectedId = r.dataset.locid; renderDmLocations();
+  }));
+  const bind = (id, field) => el(id)?.addEventListener('input', e => {
+    const c = dmActiveLocation(); if(!c) return;
+    c[field] = e.target.value; pushState();
+    if (['name','region'].includes(field)) renderDmLocations();
+    renderSceneBanner();
+  });
+  bind('dmLocName','name'); bind('dmLocRegion','region');
+  bind('dmLocDesc','description'); bind('dmLocAtmos','atmosphere');
+  bind('dmLocNotes','dmNotes');
+  el('dmLocScene')?.addEventListener('click', () => {
+    const c = dmActiveLocation(); if(!c) return;
+    const was = c.current;
+    state.locations.forEach(x => x.current = false);
+    c.current = !was;
+    pushState(true); renderDmLocations(); renderSceneBanner();
+  });
+  el('dmLocDel')?.addEventListener('click', () => {
+    const c = dmActiveLocation(); if(!c) return;
+    if (!confirm(`Remove location "${c.name}"?`)) return;
+    state.locations = state.locations.filter(x => x.id !== c.id);
+    _dmLocSelectedId = null;
+    pushState(true); renderDmLocations(); renderSceneBanner();
   });
 }
 
@@ -1325,6 +1953,12 @@ function render(){
   try{renderCalcPanel();}catch(e){}
   try{renderStats();}catch(e){}
   try{renderSkillsMatrix();}catch(e){}
+  try{renderElementalAffinities();}catch(e){}
+  try{renderGuildRankDisplay();}catch(e){}
+  try{renderSceneBanner();}catch(e){}
+  try{renderJobBoard();}catch(e){}
+  try{renderDmJobBoard();}catch(e){}
+  try{renderDmLocations();}catch(e){}
   try{renderSpells();}catch(e){}
   try{renderLostMagic();}catch(e){}
   try{renderDmLostMagic();}catch(e){}
@@ -1999,3 +2633,66 @@ window.addEventListener('beforeunload', () => {
     container.appendChild(el);
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════════
+// TOOLTIP SYSTEM — hover any [data-tt] element for a floating card
+// Delegated, single-instance, viewport-aware. Fairy Tail flavored.
+// ═══════════════════════════════════════════════════════════════════
+(function initTooltips(){
+  const tt = document.createElement('div');
+  tt.className = 'ft-tooltip';
+  tt.setAttribute('aria-hidden','true');
+  document.body.appendChild(tt);
+  let showTimer = null;
+  let currentTarget = null;
+
+  function position(target){
+    const r = target.getBoundingClientRect();
+    const ttR = tt.getBoundingClientRect();
+    let left = r.left + r.width/2 - ttR.width/2;
+    let top  = r.top - ttR.height - 10;
+    let side = 'top';
+    if (top < 8) { top = r.bottom + 10; side = 'bottom'; }
+    const pad = 10;
+    if (left < pad) left = pad;
+    if (left + ttR.width > window.innerWidth - pad) left = window.innerWidth - pad - ttR.width;
+    tt.style.left = left + 'px';
+    tt.style.top  = top + 'px';
+    tt.dataset.side = side;
+  }
+  document.addEventListener('mouseover', e => {
+    const target = e.target.closest?.('[data-tt]');
+    if (!target || target === currentTarget) return;
+    const text = target.dataset.tt; if (!text) return;
+    currentTarget = target;
+    clearTimeout(showTimer);
+    showTimer = setTimeout(() => {
+      tt.textContent = text;
+      tt.classList.add('show');
+      requestAnimationFrame(() => position(target));
+    }, 300);
+  });
+  document.addEventListener('mouseout', e => {
+    const target = e.target.closest?.('[data-tt]');
+    if (!target || target !== currentTarget) return;
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+    clearTimeout(showTimer);
+    currentTarget = null;
+    tt.classList.remove('show');
+  });
+  document.addEventListener('scroll', () => { tt.classList.remove('show'); currentTarget = null; }, {capture:true, passive:true});
+  document.addEventListener('mousedown', () => { tt.classList.remove('show'); currentTarget = null; });
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// GUILD RANK SELECT BINDING
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => { try { bindGuildRankSelect(); } catch(e){} });
+
+// ═══════════════════════════════════════════════════════════════════
+// DM ADD BUTTONS — wire once
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('dmAddJobBtn')?.addEventListener('click', addJob);
+  document.getElementById('dmAddLocationBtn')?.addEventListener('click', addLocation);
+});

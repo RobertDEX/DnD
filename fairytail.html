@@ -62,11 +62,20 @@
 <!-- ═══ MAIN ═══ -->
 <main class="main">
 
+  <!-- SCENE BANNER (current location in Fiore) -->
+  <div id="sceneBanner" class="scene-banner" style="display:none"></div>
+
   <!-- TOP BAR -->
   <header class="topbar panel">
     <div class="topbar-left">
-      <div class="micro">Active Sheet</div>
-      <div id="topCharacterName" class="top-character-name">—</div>
+      <div class="topbar-id">
+        <div class="guild-rank-badge" id="guildRankBadge" data-tt="Your guild rank">D</div>
+        <div class="topbar-id-text">
+          <div class="micro">Active Sheet</div>
+          <div id="topCharacterName" class="top-character-name">—</div>
+          <div class="guild-rank-label" id="guildRankLabel">D-Rank · Novice Mage</div>
+        </div>
+      </div>
     </div>
     <div class="topbar-bars">
       <div class="hud-bar hud-hp">
@@ -220,7 +229,17 @@
             <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
           </select>
         </div>
+        <div class="field" data-tt="Formal guild classification — gates which jobs you can accept from the board">
+          <label>Guild Rank <span class="field-hint">— gates job board</span></label>
+          <select id="guildRankSelect"></select>
+        </div>
         <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
+      </section>
+
+      <!-- ELEMENTAL AFFINITIES -->
+      <section class="panel">
+        <div class="section-title">Elemental Affinities <span class="elem-legend"><span class="elem-dot res"></span>Resist <span class="elem-dot vuln"></span>Vulnerable <span class="elem-dot imm"></span>Immune</span></div>
+        <div id="elementalGrid" class="elemental-grid"></div>
       </section>
 
       <!-- ABILITY SCORES -->
@@ -245,6 +264,7 @@
         <button class="tab-btn active" data-tab="skills">Skills</button>
         <button class="tab-btn" data-tab="magic">Spells</button>
         <button class="tab-btn" data-tab="lostmagic">Lost Magic</button>
+        <button class="tab-btn" data-tab="jobs">Job Board</button>
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
@@ -295,6 +315,12 @@
         <div class="section-title">Lost Magic &amp; Special Abilities</div>
         <p class="small-note" style="margin-bottom:.9rem">Granted by the DM only — assigned via the DM panel.</p>
         <div id="lostMagicList" class="spell-list"></div>
+      </div>
+
+      <div class="tab-content panel tab-panel" data-tab="jobs">
+        <div class="section-title">Guild Job Board</div>
+        <p class="small-note" style="margin-bottom:1rem;opacity:.7">Jobs are posted by your guild master. Claim what fits your rank. Objectives get marked as your DM tracks progress. Rewards pay out in Jewels on completion.</p>
+        <div id="jobBoardList" class="job-board-list"></div>
       </div>
 
       <div class="tab-content panel tab-panel" data-tab="loadout">
@@ -443,6 +469,12 @@
         <button class="dm-nav-btn active" data-dm-tab="players">
           <span class="dm-nav-icon">👤</span>Players
         </button>
+        <button class="dm-nav-btn" data-dm-tab="jobs">
+          <span class="dm-nav-icon">📜</span>Job Board
+        </button>
+        <button class="dm-nav-btn" data-dm-tab="locations">
+          <span class="dm-nav-icon">⌖</span>Locations
+        </button>
         <button class="dm-nav-btn" data-dm-tab="magic">
           <span class="dm-nav-icon">✦</span>Lost Magic
         </button>
@@ -489,6 +521,32 @@
                 <div class="field"><label>Item / Note</label><input id="grantItem" type="text" placeholder="e.g. Lacrima Crystal"></div>
               </div>
               <button id="grantBtn" type="button" class="neo-btn" style="margin-top:.8rem;width:100%">Grant to Player</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOB BOARD TAB -->
+        <div class="dm-tab" data-dm-tab="jobs">
+          <div class="dm-tab-title">Guild Job Board</div>
+          <div class="dm-card">
+            <div class="dm-card-title">📜 Post &amp; Manage Contracts</div>
+            <div class="dm-card-body">
+              <p class="small-note" style="margin-bottom:.8rem;opacity:.7">Author guild jobs. Rank gates who can claim them (D through Wizard Saint). Reward pays out automatically to every claimant when you mark the job complete.</p>
+              <button id="dmAddJobBtn" type="button" class="neo-btn" style="margin-bottom:.9rem">+ Post New Job</button>
+              <div id="dmJobBoardRoot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOCATIONS TAB -->
+        <div class="dm-tab" data-dm-tab="locations">
+          <div class="dm-tab-title">Locations of Fiore</div>
+          <div class="dm-card">
+            <div class="dm-card-title">⌖ Map &amp; Scene Banner</div>
+            <div class="dm-card-body">
+              <p class="small-note" style="margin-bottom:.8rem;opacity:.7">Add Fiore cities, guild halls, and landmarks. Set one as the <strong>current scene</strong> and it appears at the top of every player's sheet with atmosphere.</p>
+              <button id="dmAddLocationBtn" type="button" class="neo-btn" style="margin-bottom:.9rem">+ Add Location</button>
+              <div id="dmLocationsRoot"></div>
             </div>
           </div>
         </div>

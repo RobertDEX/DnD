@@ -1577,3 +1577,1771 @@ html{scroll-behavior:smooth}
   #heartbeatOverlay.thump,.knock-icon{animation:none}
   #heartbeatOverlay.thump{opacity:0}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FAIRY TAIL v6 — RWBY/MaW-PORTED FEATURES + TOOLTIPS + THEMATIC POLISH
+   Job Board · Elemental Affinities · Guild Ranks · Scene Banner · Tips
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   GUILD RANK BADGE — topbar left, corporate-medieval sigil
+──────────────────────────────────────────────────────────────── */
+.topbar-id{display:flex;align-items:center;gap:.9rem}
+.guild-rank-badge{
+  width:52px;height:52px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--F1);font-size:1.05rem;font-weight:900;letter-spacing:.02em;
+  color:var(--gold);
+  border:2px solid var(--gold);
+  border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, rgba(232,160,48,.24), rgba(0,0,0,.6) 70%);
+  text-shadow:0 0 12px var(--gold-glow);
+  box-shadow:
+    inset 0 0 18px -6px var(--gold-glow),
+    0 0 16px -4px var(--gold-glow);
+  cursor:help;
+  position:relative;
+}
+.guild-rank-badge::before,
+.guild-rank-badge::after{
+  content:'';position:absolute;width:8px;height:8px;pointer-events:none;
+  border:1.5px solid currentColor;
+  opacity:.85;
+}
+.guild-rank-badge::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.guild-rank-badge::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+.topbar-id-text{display:flex;flex-direction:column;gap:.1rem;min-width:0}
+.guild-rank-label{
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.16em;
+  color:var(--muted);text-transform:uppercase;font-weight:600;
+  margin-top:.1rem;
+}
+
+/* Field hint (small italic subtitle inside labels) */
+.field-hint{font-family:var(--F3);font-size:.72rem;color:var(--muted);font-style:italic;font-weight:400;margin-left:.35rem}
+
+/* ────────────────────────────────────────────────────────────────
+   SCENE BANNER — current location in Fiore
+──────────────────────────────────────────────────────────────── */
+.scene-banner{
+  display:flex;align-items:center;gap:.9rem;
+  padding:.75rem 1.2rem;
+  background:
+    linear-gradient(90deg,
+      rgba(232,160,48,.14) 0%,
+      rgba(12,7,20,.88) 40%,
+      rgba(12,7,20,.94) 100%);
+  border-bottom:1px solid var(--line);
+  border-top:1px solid var(--gold);
+  position:relative;z-index:10;
+  box-shadow:0 4px 20px -12px rgba(0,0,0,.7);
+}
+.scene-banner::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold-hi), transparent);
+  opacity:.5;
+}
+.scb-icon{
+  font-size:1.2rem;
+  color:var(--gold);
+  text-shadow:0 0 14px var(--gold-glow);
+  width:36px;height:36px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 30% 30%, rgba(232,160,48,.24), rgba(0,0,0,.55) 70%);
+  border:1px solid var(--gold);
+  border-radius:50%;
+}
+.scb-body{flex:1;min-width:0}
+.scb-line1{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.scb-name{
+  font-family:var(--F1);font-size:1.02rem;font-weight:700;letter-spacing:.05em;
+  color:var(--gold-hi);text-shadow:0 0 12px var(--gold-glow);
+}
+.scb-atmos{
+  font-family:var(--F3);font-size:.82rem;font-style:italic;
+  color:var(--muted);margin-top:.15rem;
+}
+.scb-region{
+  font-family:var(--F4);font-size:.58rem;letter-spacing:.18em;
+  color:var(--muted);text-transform:uppercase;font-weight:700;
+  padding:.28rem .65rem;background:rgba(0,0,0,.5);border:1px solid var(--line);
+  flex-shrink:0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ELEMENTAL AFFINITIES GRID
+──────────────────────────────────────────────────────────────── */
+.elemental-grid{
+  display:grid;grid-template-columns:repeat(auto-fill, minmax(108px, 1fr));
+  gap:.4rem;margin-top:.6rem;
+}
+.elem-legend{
+  float:right;display:flex;gap:.65rem;align-items:center;
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.14em;
+  color:var(--muted);font-weight:500;
+}
+.elem-dot{width:8px;height:8px;display:inline-block;margin-right:.25rem;vertical-align:middle;border-radius:50%}
+.elem-dot.res{background:var(--safe)}
+.elem-dot.vuln{background:var(--warn)}
+.elem-dot.imm{background:var(--ember)}
+
+.elem-cell{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;gap:.15rem;
+  padding:.6rem .35rem .45rem;
+  background:linear-gradient(180deg, rgba(20,10,30,.75) 0%, rgba(8,4,12,.85) 100%);
+  border:1px solid var(--line);
+  border-radius:var(--rs);
+  cursor:pointer;
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+  color:var(--text);
+  font-family:var(--F3);
+  overflow:hidden;
+}
+.elem-cell::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:transparent;transition:background .16s;
+}
+.elem-cell:hover{
+  transform:translateY(-1px);
+  border-color:var(--gold);
+  box-shadow:0 0 14px -4px var(--gold-glow);
+}
+.elem-icon{
+  font-size:1.15rem;line-height:1;
+  color:var(--muted);
+  transition:color .16s, text-shadow .16s, transform .16s;
+}
+.elem-cell:hover .elem-icon{transform:scale(1.1)}
+.elem-name{
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.14em;
+  color:var(--muted);text-transform:uppercase;font-weight:600;
+}
+.elem-badge{
+  font-family:var(--F1);font-size:.55rem;font-weight:900;letter-spacing:.08em;
+  color:transparent;line-height:1;padding:.05rem 0;
+  transition:color .16s;
+}
+
+.elem-cell.elem-res::before{background:var(--safe);box-shadow:0 0 6px var(--safe)}
+.elem-cell.elem-res{
+  background:linear-gradient(180deg, rgba(74,222,128,.14) 0%, rgba(8,4,12,.9) 100%);
+  border-color:rgba(74,222,128,.4);
+}
+.elem-cell.elem-res .elem-icon{color:var(--safe);text-shadow:0 0 8px rgba(74,222,128,.5)}
+.elem-cell.elem-res .elem-badge{color:var(--safe)}
+
+.elem-cell.elem-vuln::before{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.elem-cell.elem-vuln{
+  background:linear-gradient(180deg, rgba(251,191,36,.14) 0%, rgba(8,4,12,.9) 100%);
+  border-color:rgba(251,191,36,.4);
+}
+.elem-cell.elem-vuln .elem-icon{color:var(--warn);text-shadow:0 0 8px rgba(251,191,36,.5)}
+.elem-cell.elem-vuln .elem-badge{color:var(--warn)}
+
+.elem-cell.elem-imm::before{background:var(--ember);box-shadow:0 0 6px var(--ember)}
+.elem-cell.elem-imm{
+  background:linear-gradient(180deg, rgba(255,96,32,.18) 0%, rgba(8,4,12,.9) 100%);
+  border-color:var(--ember);
+  box-shadow:inset 0 0 20px -8px rgba(255,96,32,.32);
+}
+.elem-cell.elem-imm .elem-icon{color:var(--ember);text-shadow:0 0 10px rgba(255,96,32,.6)}
+.elem-cell.elem-imm .elem-badge{color:var(--ember)}
+
+/* ────────────────────────────────────────────────────────────────
+   TOOLTIP — floating fantasy parchment
+──────────────────────────────────────────────────────────────── */
+.ft-tooltip{
+  position:fixed;pointer-events:none;
+  max-width:280px;padding:.6rem .8rem;
+  z-index:99999;
+  background:linear-gradient(180deg, #1a0f24 0%, #0a0512 100%);
+  border:1px solid var(--gold);
+  border-radius:var(--rs);
+  color:var(--text);
+  font-family:var(--F3);font-size:.82rem;font-weight:400;line-height:1.5;
+  letter-spacing:.01em;
+  box-shadow:
+    0 12px 32px -8px rgba(0,0,0,.9),
+    0 0 24px -4px var(--gold-glow),
+    inset 0 1px 0 rgba(232,160,48,.25);
+  opacity:0;visibility:hidden;
+  transform:translateY(-4px);
+  transition:opacity .18s cubic-bezier(.2,.8,.2,1),
+             transform .18s cubic-bezier(.2,.8,.2,1),
+             visibility 0s .18s;
+}
+.ft-tooltip.show{
+  opacity:1;visibility:visible;transform:translateY(0);
+  transition:opacity .18s cubic-bezier(.2,.8,.2,1),
+             transform .18s cubic-bezier(.2,.8,.2,1),
+             visibility 0s;
+}
+.ft-tooltip::before{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);
+  width:0;height:0;pointer-events:none;
+}
+.ft-tooltip[data-side="top"]::before{
+  bottom:-6px;
+  border-left:6px solid transparent;border-right:6px solid transparent;
+  border-top:6px solid var(--gold);
+}
+.ft-tooltip[data-side="bottom"]::before{
+  top:-6px;
+  border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:6px solid var(--gold);
+}
+.ft-tooltip::after{
+  content:'';position:absolute;top:3px;right:3px;
+  width:8px;height:8px;pointer-events:none;
+  border-top:1px solid rgba(232,160,48,.5);
+  border-right:1px solid rgba(232,160,48,.5);
+}
+[data-tt]{cursor:help}
+button[data-tt], a[data-tt], .skill-row[data-tt] > *:not([data-tt]){cursor:pointer}
+.prof-btn[data-tt]{cursor:pointer}
+
+/* ────────────────────────────────────────────────────────────────
+   JOB BOARD (player-side) — cork-board request cards
+──────────────────────────────────────────────────────────────── */
+.job-board-list{display:flex;flex-direction:column;gap:1.2rem}
+.job-section{display:flex;flex-direction:column}
+.job-section-head{
+  display:flex;align-items:center;gap:.8rem;
+  padding:.75rem 1rem;
+  background:linear-gradient(90deg, rgba(232,160,48,.14) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.6) 100%);
+  border:1px solid var(--line);
+  border-left:3px solid var(--gold);
+  border-bottom:2px solid var(--gold);
+  border-top-left-radius:var(--rs);border-top-right-radius:var(--rs);
+}
+.job-section-head.active{
+  background:linear-gradient(90deg, rgba(255,96,32,.16) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.6) 100%);
+  border-left-color:var(--ember);border-bottom-color:var(--ember);
+}
+.job-section-head.done{
+  background:linear-gradient(90deg, rgba(74,222,128,.14) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,.6) 100%);
+  border-left-color:var(--safe);border-bottom-color:var(--safe);
+  opacity:.85;
+}
+.jsh-icon{
+  width:36px;height:36px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 30% 30%, var(--gold-glow), rgba(0,0,0,.6) 70%);
+  border:1px solid var(--gold);border-radius:50%;
+  color:var(--gold);font-size:1.05rem;
+  text-shadow:0 0 12px var(--gold-glow);
+}
+.job-section-head.active .jsh-icon{
+  background:radial-gradient(circle at 30% 30%, rgba(255,96,32,.28), rgba(0,0,0,.6) 70%);
+  border-color:var(--ember);color:var(--ember);
+  text-shadow:0 0 12px rgba(255,96,32,.6);
+}
+.job-section-head.done .jsh-icon{
+  background:radial-gradient(circle at 30% 30%, rgba(74,222,128,.24), rgba(0,0,0,.6) 70%);
+  border-color:var(--safe);color:var(--safe);
+  text-shadow:0 0 12px rgba(74,222,128,.5);
+}
+.jsh-text{flex:1;min-width:0}
+.jsh-label{
+  font-family:var(--F1);font-size:.9rem;font-weight:700;letter-spacing:.1em;
+  color:var(--gold-hi);text-transform:uppercase;
+  text-shadow:0 0 10px var(--gold-glow);
+}
+.jsh-hint{
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.14em;
+  color:var(--muted);text-transform:uppercase;margin-top:.1rem;
+}
+.jsh-count{
+  padding:.25rem .7rem;background:rgba(0,0,0,.55);border:1px solid var(--gold);
+  font-family:var(--F1);font-size:.9rem;font-weight:800;color:var(--gold);
+  min-width:36px;text-align:center;
+  text-shadow:0 0 8px var(--gold-glow);
+}
+
+.job-grid{
+  display:flex;flex-direction:column;gap:.6rem;
+  padding:.75rem;
+  background:linear-gradient(180deg, rgba(20,10,30,.7) 0%, rgba(6,4,10,.65) 100%);
+  border:1px solid var(--line);border-top:none;
+  border-bottom-left-radius:var(--rs);border-bottom-right-radius:var(--rs);
+}
+
+.job-card{
+  background:linear-gradient(180deg, rgba(20,12,30,.94), rgba(10,6,16,.94));
+  border:1px solid var(--line);
+  border-left:3px solid var(--jrk, var(--gold));
+  border-radius:var(--rs);
+  overflow:hidden;
+  transition:border-color .16s, transform .16s, box-shadow .18s;
+}
+.job-card:hover{
+  border-color:var(--gold);
+  transform:translateY(-1px);
+  box-shadow:0 6px 18px -8px rgba(0,0,0,.7), 0 0 14px -4px var(--gold-glow);
+}
+.job-card.completed{opacity:.75}
+.job-card.failed{opacity:.55}
+.job-card.available{opacity:.9}
+
+.job-head{
+  display:grid;grid-template-columns:44px 1fr auto auto auto;gap:.7rem;align-items:center;
+  padding:.75rem .9rem;cursor:pointer;list-style:none;
+  background:linear-gradient(90deg, rgba(0,0,0,.35), transparent);
+}
+.job-head::-webkit-details-marker{display:none}
+.job-head::before{
+  content:'▸';color:var(--gold);font-size:.75rem;
+  transition:transform .16s;
+  order:99;
+}
+.job-card[open] .job-head::before{transform:rotate(90deg)}
+
+.job-rank{
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--F1);font-size:1.05rem;font-weight:900;letter-spacing:.02em;
+  color:#fff;text-shadow:0 0 6px rgba(0,0,0,.75);
+  border-radius:50%;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.35), 0 0 12px -4px currentColor;
+}
+.job-title-block{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.job-title{
+  font-family:var(--F1);font-size:1rem;font-weight:700;letter-spacing:.04em;
+  color:var(--gold-hi);text-shadow:0 0 10px var(--gold-glow);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.job-meta{
+  display:flex;gap:.9rem;flex-wrap:wrap;
+  font-family:var(--F4);font-size:.6rem;letter-spacing:.1em;
+  color:var(--muted);text-transform:uppercase;
+}
+.job-reward{
+  display:flex;flex-direction:column;align-items:flex-end;gap:.1rem;
+  padding:.35rem .6rem;
+  background:rgba(232,160,48,.08);border:1px solid var(--gold);
+  border-radius:var(--rs);
+}
+.jrw-jewels{
+  font-family:var(--F1);font-size:1rem;font-weight:800;
+  color:var(--gold-hi);text-shadow:0 0 8px var(--gold-glow);
+  line-height:1;
+}
+.jrw-label{
+  font-family:var(--F4);font-size:.5rem;letter-spacing:.18em;
+  color:var(--muted);text-transform:uppercase;
+}
+.job-prog{
+  padding:.25rem .55rem;
+  background:rgba(0,0,0,.4);border:1px solid var(--mana);
+  font-family:var(--F1);font-size:.75rem;color:var(--mana);
+  border-radius:var(--rs);
+  text-shadow:0 0 6px var(--mana-glow);
+}
+
+.job-claim{
+  padding:.5rem .9rem;cursor:pointer;
+  background:linear-gradient(180deg, var(--ember), var(--ember2));
+  color:#fff;border:1px solid var(--ember);border-radius:var(--rs);
+  font-family:var(--F1);font-size:.75rem;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+  box-shadow:0 4px 12px -4px rgba(255,96,32,.5), inset 0 1px 0 rgba(255,255,255,.15);
+  transition:all .14s;
+}
+.job-claim:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px -4px rgba(255,96,32,.6), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.job-claim.disabled, .job-claim:disabled{
+  background:transparent;color:var(--muted);border-color:var(--line);
+  cursor:not-allowed;opacity:.6;
+  text-shadow:none;box-shadow:none;
+}
+
+.job-badge{
+  padding:.35rem .65rem;
+  font-family:var(--F4);font-size:.6rem;letter-spacing:.16em;
+  text-transform:uppercase;font-weight:800;
+  border:1px solid currentColor;border-radius:var(--rs);
+}
+.job-badge.active{color:var(--ember);background:rgba(255,96,32,.1);text-shadow:0 0 6px rgba(255,96,32,.4)}
+.job-badge.done{color:var(--safe);background:rgba(74,222,128,.1);text-shadow:0 0 6px rgba(74,222,128,.4)}
+.job-badge.failed{color:var(--danger);background:rgba(248,113,113,.1);text-shadow:0 0 6px rgba(248,113,113,.4)}
+
+.job-body{padding:.85rem 1rem;display:flex;flex-direction:column;gap:.6rem;border-top:1px solid var(--line)}
+.job-brief{
+  font-family:var(--F3);font-size:.9rem;line-height:1.6;color:var(--text);
+  padding:.6rem .8rem;
+  background:rgba(232,160,48,.05);
+  border-left:2px solid var(--gold);
+  border-radius:var(--rs);
+}
+.job-objs{display:flex;flex-direction:column;gap:.28rem}
+.job-obj{
+  display:flex;align-items:center;gap:.55rem;
+  padding:.4rem .6rem;
+  background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--rs);
+  font-family:var(--F3);font-size:.85rem;
+}
+.job-obj.done{opacity:.55;text-decoration:line-through}
+.job-obj-check{
+  color:var(--muted);font-family:var(--F1);font-weight:800;width:16px;text-align:center;
+}
+.job-obj.done .job-obj-check{color:var(--safe);text-shadow:0 0 6px rgba(74,222,128,.5)}
+.job-reward-item{
+  padding:.5rem .7rem;
+  background:linear-gradient(90deg, rgba(232,160,48,.14), transparent);
+  border:1px solid var(--gold);border-radius:var(--rs);
+  font-family:var(--F3);font-size:.85rem;
+}
+.job-reward-item strong{color:var(--gold-hi)}
+
+/* Empty note */
+.empty-note{
+  padding:1.6rem;text-align:center;
+  font-family:var(--F1);font-size:.9rem;letter-spacing:.1em;color:var(--muted);
+  text-transform:uppercase;font-weight:600;
+  background:rgba(0,0,0,.35);
+  border:1px dashed var(--line);border-radius:var(--rs);
+}
+.empty-note .empty-glyph{
+  font-size:2rem;color:var(--gold);opacity:.5;margin-bottom:.5rem;
+  text-shadow:0 0 12px var(--gold-glow);
+}
+.empty-note span{
+  display:block;font-family:var(--F3);font-size:.85rem;color:var(--muted);
+  letter-spacing:.02em;text-transform:none;font-weight:400;margin-top:.5rem;
+  font-style:italic;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM · JOB BOARD MANAGER
+──────────────────────────────────────────────────────────────── */
+.dm-job-shell{display:grid;grid-template-columns:280px 1fr;gap:0;min-height:560px;border:1px solid var(--line);border-radius:var(--rs);overflow:hidden}
+.dm-job-side{
+  padding:.7rem;border-right:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.2));
+  overflow-y:auto;
+}
+.dm-job-group{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.65rem}
+.dm-job-groupname{
+  font-family:var(--F4);font-size:.5rem;letter-spacing:.22em;font-weight:800;
+  color:var(--muted);text-transform:uppercase;padding:.2rem .35rem;
+}
+.dm-job-groupname.posted{color:var(--gold)}
+.dm-job-groupname.claimed{color:var(--ember)}
+.dm-job-groupname.completed{color:var(--safe)}
+.dm-job-groupname.failed{color:var(--danger)}
+.dm-job-row{
+  display:flex;align-items:center;gap:.55rem;padding:.5rem .6rem;
+  background:rgba(0,0,0,.4);border:1px solid var(--line);
+  border-left:3px solid var(--jrk, var(--gold));border-radius:var(--rs);
+  cursor:pointer;text-align:left;
+  transition:all .12s;
+}
+.dm-job-row:hover{border-color:var(--gold);transform:translateX(2px)}
+.dm-job-row.active{
+  background:linear-gradient(90deg, rgba(232,160,48,.16), rgba(0,0,0,.4));
+  border-color:var(--gold);
+}
+.dm-job-rank{
+  width:26px;height:26px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--F1);font-size:.75rem;font-weight:800;color:#fff;
+  border-radius:50%;text-shadow:0 0 4px rgba(0,0,0,.6);
+}
+.dm-job-info{display:flex;flex-direction:column;gap:.1rem;min-width:0;flex:1}
+.dm-job-name{
+  font-family:var(--F1);font-size:.78rem;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dm-job-sub{font-family:var(--F4);font-size:.5rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+
+.dm-job-main{padding:1.1rem 1.3rem;display:flex;flex-direction:column;gap:.75rem;overflow-y:auto}
+.dm-job-head{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.dm-job-title{
+  flex:1;padding:.55rem .75rem;min-width:220px;
+  background:rgba(0,0,0,.5);color:var(--gold-hi);border:1px solid var(--line);border-radius:var(--rs);
+  font-family:var(--F1);font-size:1rem;font-weight:700;letter-spacing:.04em;
+}
+.dm-job-rank-sel, .dm-job-status{
+  padding:.5rem .6rem;
+  background:rgba(0,0,0,.5);color:var(--text);border:1px solid var(--line);border-radius:var(--rs);
+  font-family:var(--F4);font-size:.68rem;letter-spacing:.12em;font-weight:700;
+}
+.dm-job-row2{display:flex;gap:.55rem;align-items:end;flex-wrap:wrap}
+.dm-job-field{display:flex;flex-direction:column;gap:.3rem}
+.dm-job-field > span{
+  font-family:var(--F4);font-size:.5rem;letter-spacing:.2em;
+  color:var(--muted);text-transform:uppercase;font-weight:700;
+}
+.dm-job-field input, .dm-job-field textarea{
+  padding:.5rem .65rem;background:rgba(0,0,0,.5);color:var(--text);
+  border:1px solid var(--line);border-radius:var(--rs);
+  font-family:var(--F3);font-size:.88rem;
+}
+.dm-job-field textarea{min-height:80px;resize:vertical;line-height:1.55}
+.dm-job-sec{
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.2em;font-weight:800;
+  color:var(--gold);text-transform:uppercase;
+  padding-bottom:.3rem;border-bottom:1px dashed var(--line);
+  margin-top:.5rem;
+}
+.dm-job-objs{display:flex;flex-direction:column;gap:.3rem}
+.dm-job-obj{display:grid;grid-template-columns:20px 1fr 28px;gap:.4rem;align-items:center;padding:.3rem .45rem;background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--rs)}
+.dm-job-obj-cb{width:14px;height:14px;accent-color:var(--gold)}
+.dm-job-obj-text{padding:.35rem .5rem;background:rgba(0,0,0,.4);color:var(--text);border:1px solid transparent;border-radius:var(--rs);font-family:var(--F3);font-size:.82rem}
+.dm-job-obj-text:focus{border-color:var(--gold);outline:none}
+.dm-job-obj-del{width:22px;height:22px;padding:0;cursor:pointer;background:rgba(0,0,0,.4);color:var(--muted);border:1px solid var(--line);border-radius:var(--rs);font-size:.7rem;transition:all .12s}
+.dm-job-obj-del:hover{background:rgba(248,113,113,.2);color:var(--danger);border-color:var(--danger)}
+.dm-job-claimants{display:flex;flex-wrap:wrap;gap:.35rem}
+.dm-job-claimant{
+  padding:.28rem .6rem;font-family:var(--F3);font-size:.75rem;
+  background:rgba(232,160,48,.14);color:var(--gold-hi);
+  border:1px solid var(--gold);border-radius:var(--rs);
+}
+.dm-job-payout{display:flex;gap:.5rem;padding:.75rem 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);margin:.5rem 0}
+
+/* ────────────────────────────────────────────────────────────────
+   DM · LOCATIONS MANAGER
+──────────────────────────────────────────────────────────────── */
+.dm-loc-shell{display:grid;grid-template-columns:240px 1fr;gap:0;min-height:460px;border:1px solid var(--line);border-radius:var(--rs);overflow:hidden}
+.dm-loc-side{padding:.7rem;border-right:1px solid var(--line);background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.2));overflow-y:auto;display:flex;flex-direction:column;gap:.3rem}
+.dm-loc-row{
+  display:flex;align-items:center;gap:.55rem;padding:.55rem .65rem;
+  background:rgba(0,0,0,.4);border:1px solid var(--line);
+  border-left:3px solid transparent;border-radius:var(--rs);
+  cursor:pointer;text-align:left;
+  transition:all .12s;
+}
+.dm-loc-row:hover{border-color:var(--gold);transform:translateX(2px)}
+.dm-loc-row.active{background:linear-gradient(90deg, rgba(232,160,48,.16), rgba(0,0,0,.4));border-color:var(--gold)}
+.dm-loc-row.scene{border-left-color:var(--gold-hi)}
+.dm-loc-dot{width:6px;height:22px;background:var(--line);flex-shrink:0}
+.dm-loc-dot.on{background:var(--gold-hi);box-shadow:0 0 8px var(--gold-hi)}
+.dm-loc-info{display:flex;flex-direction:column;gap:.1rem;min-width:0;flex:1}
+.dm-loc-name{font-family:var(--F1);font-size:.78rem;font-weight:600;color:var(--text)}
+.dm-loc-sub{font-family:var(--F4);font-size:.5rem;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.dm-loc-sub b{color:var(--gold-hi)}
+.dm-loc-main{padding:1.1rem 1.3rem;display:flex;flex-direction:column;gap:.75rem;overflow-y:auto}
+.dm-loc-head{display:flex;gap:.5rem;align-items:end;flex-wrap:wrap}
+.dm-loc-field{display:flex;flex-direction:column;gap:.3rem}
+.dm-loc-field > span{font-family:var(--F4);font-size:.5rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;font-weight:700}
+.dm-loc-field input, .dm-loc-field textarea{padding:.5rem .65rem;background:rgba(0,0,0,.5);color:var(--text);border:1px solid var(--line);border-radius:var(--rs);font-family:var(--F3);font-size:.88rem}
+.dm-loc-field textarea{min-height:70px;resize:vertical;line-height:1.55}
+
+.dm-empty{color:var(--muted);font-family:var(--F3);font-style:italic;text-align:center}
+
+/* Small responsive collapse */
+@media(max-width:800px){
+  .dm-job-shell, .dm-loc-shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .dm-job-side, .dm-loc-side{border-right:0;border-bottom:1px solid var(--line);max-height:220px}
+  .job-head{grid-template-columns:36px 1fr auto;grid-template-rows:auto auto}
+  .job-title-block{grid-column:2 / -1}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAGICAL ENHANCEMENT PASS v7 (2026-07-23)
+   Aurora depth · illuminated panels · heraldic corner sigils
+   Enchanted focus states · gilded scrollbars · shimmer buttons
+   Every surface should feel like it holds magic.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   AURORA BACKDROP — layered magical mist behind everything
+──────────────────────────────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(ellipse 90% 50% at 50% -10%, rgba(232,160,48,.22) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 60% at 5% 40%,   rgba(200,50,10,.24) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 60% at 95% 30%,  rgba(130,40,200,.20) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 40% at 50% 105%, rgba(232,160,48,.10) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 100%, rgba(50,10,80,.42) 0%, transparent 70%),
+    #050206;
+}
+
+/* Aurora sweep layer — a slowly-shifting shimmer far behind content */
+body::before {
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 90% 30% at 50% 20%, rgba(232,160,48,.05) 0%, transparent 60%);
+  background-size: 200px 200px, 100% 100%;
+  opacity: .55;
+}
+
+/* Extra magical dust layer — softer than the top-layer particles */
+.bg-magic::after {
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(circle 2px at 15% 25%, rgba(255,220,120,.4), transparent 100%),
+    radial-gradient(circle 1px at 82% 40%, rgba(232,160,48,.5), transparent 100%),
+    radial-gradient(circle 1.5px at 45% 65%, rgba(200,120,255,.4), transparent 100%),
+    radial-gradient(circle 2px at 78% 80%, rgba(255,160,80,.35), transparent 100%),
+    radial-gradient(circle 1px at 25% 88%, rgba(255,220,120,.4), transparent 100%),
+    radial-gradient(circle 1.5px at 60% 15%, rgba(232,160,48,.35), transparent 100%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ENCHANTED PANELS — illuminated frames with corner sigils
+──────────────────────────────────────────────────────────────── */
+.panel {
+  position: relative;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(232,160,48,.06) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(20,12,32,.98) 0%, rgba(10,6,20,.98) 100%);
+  border: 1px solid rgba(200,130,40,.18);
+  border-radius: var(--r);
+  box-shadow:
+    0 4px 24px -12px rgba(0,0,0,.85),
+    inset 0 0 60px -20px rgba(232,160,48,.08),
+    inset 0 1px 0 rgba(232,160,48,.12);
+  transition: box-shadow .32s cubic-bezier(.2,.8,.2,1), border-color .32s;
+}
+.panel:hover {
+  box-shadow:
+    0 8px 32px -12px rgba(0,0,0,.9),
+    inset 0 0 80px -20px rgba(232,160,48,.14),
+    inset 0 1px 0 rgba(232,160,48,.22);
+}
+
+/* Illuminated top-edge shimmer strip — always live, very subtle */
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(232,160,48,.5) 30%,
+    rgba(255,208,96,.7) 50%,
+    rgba(232,160,48,.5) 70%,
+    transparent 100%);
+  box-shadow: 0 0 12px rgba(232,160,48,.4);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Corner heraldic marks — subtle ornament in each corner */
+.panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--r);
+  background-image:
+    linear-gradient(135deg, rgba(232,160,48,.24) 0%, transparent 12%),
+    linear-gradient(-135deg, rgba(232,160,48,.24) 0%, transparent 12%),
+    linear-gradient(45deg, rgba(232,160,48,.24) 0%, transparent 12%),
+    linear-gradient(-45deg, rgba(232,160,48,.24) 0%, transparent 12%);
+  background-position: top left, top right, bottom left, bottom right;
+  background-size: 24px 24px;
+  background-repeat: no-repeat;
+  opacity: .6;
+  transition: opacity .32s;
+}
+.panel:hover::after { opacity: 1; }
+
+/* ────────────────────────────────────────────────────────────────
+   SECTION TITLES — illuminated manuscript capitals
+──────────────────────────────────────────────────────────────── */
+.section-title {
+  position: relative;
+  font-family: var(--F1);
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--gold-hi);
+  text-transform: uppercase;
+  text-shadow:
+    0 0 12px var(--gold-glow),
+    0 1px 2px rgba(0,0,0,.6);
+  padding: 0 0 .6rem 1.2rem;
+  margin-bottom: .9rem;
+  border-bottom: 1px solid;
+  border-image: linear-gradient(90deg,
+    rgba(232,160,48,.5) 0%,
+    rgba(232,160,48,.14) 40%,
+    transparent 100%) 1;
+}
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8%; bottom: 34%;
+  width: 3px;
+  background: linear-gradient(180deg,
+    var(--gold-hi) 0%,
+    var(--gold) 50%,
+    var(--ember) 100%);
+  border-radius: 2px;
+  box-shadow:
+    0 0 10px var(--gold-glow),
+    0 0 20px rgba(255,96,32,.28);
+}
+
+.panel-title {
+  position: relative;
+  padding-left: 1.1rem;
+  font-family: var(--F1);
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px var(--gold-glow);
+  letter-spacing: .1em;
+}
+.panel-title::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 12%; bottom: 30%;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   PORTRAIT DOSSIER — illuminated frame with heraldic corners
+──────────────────────────────────────────────────────────────── */
+.portrait-slot {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 45%, rgba(232,160,48,.08) 0%, transparent 60%),
+    linear-gradient(180deg, #1a1024 0%, #0a0510 100%);
+  border: 1px solid var(--gold);
+  border-radius: var(--rs);
+  box-shadow:
+    0 0 24px -6px var(--gold-glow),
+    inset 0 0 32px -12px rgba(232,160,48,.24),
+    inset 0 0 0 1px rgba(232,160,48,.14);
+  transition: box-shadow .32s cubic-bezier(.2,.8,.2,1);
+}
+.portrait-slot:hover {
+  box-shadow:
+    0 0 32px -4px var(--gold-glow),
+    inset 0 0 40px -8px rgba(232,160,48,.36),
+    inset 0 0 0 1px rgba(232,160,48,.24);
+}
+.portrait-slot::before,
+.portrait-slot::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  pointer-events: none;
+  border: 2px solid var(--gold-hi);
+  filter: drop-shadow(0 0 4px var(--gold-glow));
+  z-index: 2;
+}
+.portrait-slot::before {
+  top: 4px; left: 4px;
+  border-right: 0; border-bottom: 0;
+}
+.portrait-slot::after {
+  bottom: 4px; right: 4px;
+  border-left: 0; border-top: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SIDEBAR — guild hall parchment feel
+──────────────────────────────────────────────────────────────── */
+.sidebar {
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, rgba(232,160,48,.06) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(12,7,20,.98) 0%, rgba(6,4,12,.98) 100%);
+  border-right: 1px solid rgba(200,130,40,.14);
+  box-shadow:
+    inset -1px 0 0 rgba(232,160,48,.14),
+    4px 0 32px -20px rgba(0,0,0,.9);
+  position: relative;
+}
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; right: -1px; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(232,160,48,.32) 20%,
+    rgba(232,160,48,.28) 50%,
+    rgba(232,160,48,.32) 80%,
+    transparent 100%);
+  filter: blur(.6px);
+  pointer-events: none;
+}
+
+.brand h1 {
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 60%, var(--gold2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 24px rgba(232,160,48,.55);
+  filter: drop-shadow(0 2px 4px rgba(200,50,10,.3));
+  letter-spacing: .04em;
+}
+
+.sidebar-section {
+  position: relative;
+  background:
+    radial-gradient(ellipse 100% 30% at 50% 0%, rgba(232,160,48,.06) 0%, transparent 60%),
+    rgba(232,160,48,.02);
+  border: 1px solid rgba(200,130,40,.14);
+  border-left: 2px solid rgba(232,160,48,.28);
+  transition: border-color .18s;
+}
+.sidebar-section:hover {
+  border-color: rgba(200,130,40,.3);
+  border-left-color: var(--gold);
+}
+.sidebar-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(232,160,48,.28) 50%,
+    transparent 100%);
+  pointer-events: none;
+}
+
+/* Section labels — refined tiny caps with left accent */
+.section-label {
+  position: relative;
+  padding-left: .8rem;
+  font-family: var(--F4);
+  font-size: .58rem;
+  letter-spacing: .24em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.section-label::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 20%; bottom: 20%;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--gold), transparent);
+  filter: drop-shadow(0 0 3px var(--gold-glow));
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CHARACTER TABS (SIDEBAR) — illuminated when active
+──────────────────────────────────────────────────────────────── */
+.character-tab {
+  position: relative;
+  overflow: hidden;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(200,130,40,.12);
+  border-left: 2px solid transparent;
+  border-radius: var(--rs);
+  padding: .55rem .7rem;
+  transition:
+    all .18s cubic-bezier(.2,.8,.2,1),
+    box-shadow .32s;
+}
+.character-tab:hover:not(.active) {
+  background: rgba(232,160,48,.05);
+  border-color: rgba(200,130,40,.22);
+  border-left-color: var(--gold);
+  transform: translateX(2px);
+  box-shadow: 0 0 12px -4px var(--gold-glow);
+}
+.character-tab.active {
+  background: linear-gradient(90deg,
+    rgba(232,160,48,.14) 0%,
+    rgba(0,0,0,.4) 100%);
+  border-color: rgba(232,160,48,.4);
+  border-left-color: var(--gold-hi);
+  box-shadow:
+    inset 0 0 24px -8px rgba(232,160,48,.24),
+    0 0 16px -4px var(--gold-glow);
+}
+.character-tab.active::after {
+  content: '';
+  position: absolute;
+  right: .5rem; top: 50%;
+  transform: translateY(-50%);
+  width: 6px; height: 6px;
+  background: var(--gold-hi);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--gold-hi), 0 0 4px #fff;
+}
+.character-tab.active strong {
+  background: linear-gradient(90deg, var(--gold-hi), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 6px var(--gold-glow));
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TOPBAR — heraldic band
+──────────────────────────────────────────────────────────────── */
+.topbar {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(20,12,32,.98) 0%, rgba(10,6,20,.98) 100%);
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg,
+    transparent 0%,
+    var(--ember2) 15%,
+    var(--gold) 40%,
+    var(--gold-hi) 50%,
+    var(--gold) 60%,
+    var(--ember2) 85%,
+    transparent 100%) 1;
+  box-shadow:
+    inset 0 1px 0 rgba(232,160,48,.24),
+    inset 0 -1px 0 rgba(232,160,48,.12),
+    0 4px 24px -14px rgba(0,0,0,.85);
+}
+.topbar::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg,
+    transparent, var(--gold-hi), transparent);
+  opacity: .5;
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.top-character-name {
+  background: linear-gradient(90deg, var(--gold-hi) 0%, var(--gold) 60%, var(--ember) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px var(--gold-glow));
+  letter-spacing: .06em;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   HP / MANA BARS — magical energy meters
+──────────────────────────────────────────────────────────────── */
+.hud-bar-track {
+  position: relative;
+  background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.5));
+  border: 1px solid rgba(200,130,40,.24);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 3px rgba(0,0,0,.65),
+    inset 0 0 12px -4px rgba(0,0,0,.5),
+    0 0 0 1px rgba(232,160,48,.06);
+  overflow: hidden;
+}
+.hud-bar-fill.hud-hp-fill {
+  background: linear-gradient(180deg,
+    var(--ember) 0%,
+    var(--ember2) 50%,
+    var(--ember) 100%);
+  box-shadow:
+    0 0 16px rgba(255,96,32,.5),
+    inset 0 1px 0 rgba(255,220,120,.28),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+}
+.hud-bar-fill.hud-mana-fill {
+  background: linear-gradient(180deg,
+    var(--mana) 0%,
+    var(--mana2) 50%,
+    var(--mana) 100%);
+  box-shadow:
+    0 0 16px var(--mana-glow),
+    inset 0 1px 0 rgba(232,180,255,.28),
+    inset 0 -1px 0 rgba(0,0,0,.35);
+}
+.hud-bar-value {
+  font-family: var(--F2);
+  font-weight: 700;
+  color: var(--gold-hi);
+  text-shadow: 0 0 8px var(--gold-glow);
+  letter-spacing: .02em;
+}
+.hud-bar-mana-value, .hud-mana-value {
+  color: var(--mana);
+  text-shadow: 0 0 8px var(--mana-glow);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ABILITY SCORES — rune-plate cards
+──────────────────────────────────────────────────────────────── */
+.stat-block, .stats-grid > * {
+  position: relative;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 100%, rgba(232,160,48,.05) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(20,12,32,.98) 0%, rgba(8,4,14,.98) 100%);
+  border: 1px solid rgba(200,130,40,.18);
+  border-radius: var(--rs);
+  transition:
+    border-color .18s cubic-bezier(.2,.8,.2,1),
+    box-shadow .24s,
+    transform .14s;
+  overflow: hidden;
+}
+.stat-block::before, .stats-grid > *::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,160,48,.35), transparent);
+  pointer-events: none;
+}
+.stat-block:hover, .stats-grid > *:hover {
+  border-color: var(--gold);
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 20px -12px rgba(0,0,0,.9),
+    0 0 16px -4px var(--gold-glow),
+    inset 0 0 24px -10px rgba(232,160,48,.24);
+}
+
+/* Rune-corner glyphs on stat cards */
+.stat-block::after, .stats-grid > *::after {
+  content: '';
+  position: absolute;
+  width: 8px; height: 8px;
+  right: 4px; bottom: 4px;
+  border-right: 1px solid rgba(232,160,48,.3);
+  border-bottom: 1px solid rgba(232,160,48,.3);
+  transition: border-color .18s;
+  pointer-events: none;
+}
+.stat-block:hover::after, .stats-grid > *:hover::after {
+  border-color: var(--gold);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ENCHANTED FIELDS — inputs, textareas, selects
+──────────────────────────────────────────────────────────────── */
+input, textarea, select {
+  transition:
+    border-color .16s cubic-bezier(.2,.8,.2,1),
+    box-shadow .22s cubic-bezier(.2,.8,.2,1),
+    background .16s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  border-color: var(--gold) !important;
+  background: rgba(0,0,0,.55) !important;
+  box-shadow:
+    0 0 0 2px rgba(232,160,48,.14),
+    inset 0 0 20px -6px rgba(232,160,48,.16),
+    0 0 24px -6px var(--gold-glow) !important;
+}
+
+/* Field labels — refined caps */
+.field label {
+  font-family: var(--F4);
+  font-size: .58rem;
+  letter-spacing: .18em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  display: block;
+  margin-bottom: .3rem;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TAB BAR — illuminated manuscript pages
+──────────────────────────────────────────────────────────────── */
+.tab-btn {
+  position: relative;
+  overflow: hidden;
+  transition:
+    all .16s cubic-bezier(.2,.8,.2,1),
+    box-shadow .24s;
+  font-family: var(--F2);
+}
+.tab-btn:hover:not(.active) {
+  color: var(--gold-hi);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -8px rgba(0,0,0,.8);
+}
+.tab-btn.active {
+  color: var(--gold-hi);
+  background: linear-gradient(180deg,
+    rgba(232,160,48,.14) 0%,
+    transparent 70%);
+  border-color: transparent;
+  text-shadow: 0 0 12px var(--gold-glow);
+}
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 12%; right: 12%; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--gold-hi) 30%,
+    var(--gold-hi) 70%,
+    transparent 100%);
+  box-shadow: 0 0 12px var(--gold-hi);
+  border-radius: 2px;
+}
+.tab-btn.active::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 50%;
+  transform: translateX(-50%);
+  width: 20%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, var(--gold), transparent);
+  opacity: .6;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BUTTONS — engraved gold with shimmer sweep
+──────────────────────────────────────────────────────────────── */
+.neo-btn {
+  position: relative;
+  overflow: hidden;
+  transition:
+    all .16s cubic-bezier(.2,.8,.2,1),
+    box-shadow .28s;
+}
+.neo-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg,
+    transparent 30%,
+    rgba(255,220,120,.14) 50%,
+    transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .55s cubic-bezier(.2,.8,.2,1);
+}
+.neo-btn:not(:disabled):hover::before { transform: translateX(120%); }
+.neo-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 14px -4px rgba(0,0,0,.7),
+    0 0 20px -6px var(--gold-glow);
+}
+.neo-btn:not(:disabled):active {
+  transform: translateY(0);
+  transition-duration: .06s;
+}
+.neo-btn.dm-btn:not(:disabled):hover {
+  box-shadow:
+    0 4px 14px -4px rgba(0,0,0,.7),
+    0 0 24px -6px rgba(255,96,32,.55);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   GUILD RANK BADGE — heraldic sigil upgrade
+──────────────────────────────────────────────────────────────── */
+.guild-rank-badge {
+  transition:
+    box-shadow .32s cubic-bezier(.2,.8,.2,1),
+    transform .18s;
+}
+.guild-rank-badge:hover {
+  transform: scale(1.06);
+  box-shadow:
+    inset 0 0 24px -6px var(--gold-glow),
+    0 0 24px -2px var(--gold-glow),
+    0 0 42px -8px var(--gold-glow);
+}
+
+/* Guild rank label — refined */
+.guild-rank-label {
+  background: linear-gradient(90deg, var(--gold), var(--gold-hi));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 4px var(--gold-glow));
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SCENE BANNER — proclamation scroll
+──────────────────────────────────────────────────────────────── */
+.scene-banner {
+  position: relative;
+  background:
+    radial-gradient(ellipse 60% 100% at 20% 50%, rgba(232,160,48,.14) 0%, transparent 60%),
+    linear-gradient(90deg,
+      rgba(20,12,32,.9) 0%,
+      rgba(10,6,20,.95) 40%,
+      rgba(10,6,20,.98) 100%);
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg,
+    var(--ember2) 0%, var(--gold) 30%, var(--gold-hi) 50%, var(--gold) 70%, var(--ember2) 100%) 1;
+  box-shadow:
+    inset 0 1px 0 rgba(232,160,48,.24),
+    0 6px 24px -14px rgba(0,0,0,.9);
+}
+.scb-icon {
+  box-shadow:
+    inset 0 0 12px -2px rgba(232,160,48,.32),
+    0 0 16px -3px var(--gold-glow);
+  transition: box-shadow .32s;
+}
+.scene-banner:hover .scb-icon {
+  box-shadow:
+    inset 0 0 16px -2px rgba(232,160,48,.5),
+    0 0 24px -3px var(--gold-glow);
+}
+.scb-name {
+  background: linear-gradient(90deg, var(--gold-hi) 0%, var(--gold) 60%, var(--ember) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px var(--gold-glow));
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TOOLTIP — enchanted parchment card
+──────────────────────────────────────────────────────────────── */
+.ft-tooltip {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(232,160,48,.08) 0%, transparent 60%),
+    linear-gradient(180deg, #1a0f24 0%, #0a0512 100%);
+  border: 1px solid var(--gold);
+  border-radius: var(--rs);
+  box-shadow:
+    0 12px 40px -8px rgba(0,0,0,.95),
+    0 0 32px -4px var(--gold-glow),
+    inset 0 1px 0 rgba(232,160,48,.32),
+    inset 0 -1px 0 rgba(232,160,48,.14);
+  font-family: var(--F3);
+}
+.ft-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 15%; right: 15%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,160,48,.6), transparent);
+  pointer-events: none;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   JOB CARDS — cork board with wax seals (upgraded)
+──────────────────────────────────────────────────────────────── */
+.job-card {
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 30% at 50% 0%, rgba(232,160,48,.05) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(20,12,32,.94), rgba(10,6,16,.94));
+  transition:
+    border-color .16s,
+    transform .16s,
+    box-shadow .24s;
+}
+.job-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 22px -10px rgba(0,0,0,.85),
+    0 0 20px -4px var(--gold-glow);
+}
+.job-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,160,48,.4), transparent);
+  pointer-events: none;
+}
+
+.job-rank {
+  position: relative;
+  box-shadow:
+    inset 0 -2px 6px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,220,120,.28),
+    0 0 16px -3px currentColor;
+}
+.job-rank::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.job-title {
+  background: linear-gradient(90deg, var(--gold-hi) 0%, var(--gold) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 6px var(--gold-glow));
+}
+
+.job-reward {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(232,160,48,.14) 0%, transparent 60%),
+    rgba(232,160,48,.06);
+  box-shadow:
+    inset 0 0 12px -4px var(--gold-glow),
+    0 0 8px -3px var(--gold-glow);
+}
+.jrw-jewels {
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.job-claim {
+  background: linear-gradient(180deg,
+    var(--ember) 0%,
+    var(--ember2) 100%);
+  box-shadow:
+    0 4px 14px -4px rgba(255,96,32,.6),
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -1px 0 rgba(0,0,0,.28);
+}
+.job-claim:not(:disabled):hover {
+  box-shadow:
+    0 6px 20px -4px rgba(255,96,32,.75),
+    0 0 24px -6px rgba(255,96,32,.5),
+    inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ELEMENTAL CELLS — rune inscription plates (upgraded)
+──────────────────────────────────────────────────────────────── */
+.elem-cell {
+  transition:
+    all .18s cubic-bezier(.2,.8,.2,1),
+    box-shadow .28s;
+}
+.elem-cell:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 18px -8px rgba(0,0,0,.85),
+    0 0 20px -6px var(--gold-glow),
+    inset 0 0 24px -12px rgba(232,160,48,.22);
+}
+
+.elem-cell.elem-res:hover {
+  box-shadow:
+    0 6px 18px -8px rgba(0,0,0,.85),
+    0 0 20px -4px rgba(74,222,128,.5),
+    inset 0 0 26px -10px rgba(74,222,128,.32);
+}
+.elem-cell.elem-vuln:hover {
+  box-shadow:
+    0 6px 18px -8px rgba(0,0,0,.85),
+    0 0 20px -4px rgba(251,191,36,.5),
+    inset 0 0 26px -10px rgba(251,191,36,.32);
+}
+.elem-cell.elem-imm:hover {
+  box-shadow:
+    0 6px 20px -8px rgba(0,0,0,.85),
+    0 0 26px -4px rgba(255,96,32,.6),
+    inset 0 0 30px -8px rgba(255,96,32,.4);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SKILLS MATRIX — group cards with rune borders
+──────────────────────────────────────────────────────────────── */
+.skill-group {
+  position: relative;
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, rgba(232,160,48,.06) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(20,12,32,.96), rgba(8,4,14,.96));
+  border: 1px solid rgba(200,130,40,.18);
+  border-radius: var(--rs);
+  transition: border-color .18s, box-shadow .24s;
+  overflow: hidden;
+}
+.skill-group::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,160,48,.35), transparent);
+  pointer-events: none;
+}
+.skill-group:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 20px -6px var(--gold-glow);
+}
+.skill-group-header {
+  background:
+    linear-gradient(90deg,
+      rgba(232,160,48,.16) 0%,
+      rgba(0,0,0,.4) 60%,
+      rgba(0,0,0,.5) 100%);
+  border-bottom: 1px solid var(--gold);
+  padding: .7rem .9rem;
+  position: relative;
+}
+.skill-group-header::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold), var(--ember));
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+.skill-group-header strong {
+  font-family: var(--F1);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  color: var(--gold-hi);
+  text-shadow: 0 0 12px var(--gold-glow);
+}
+.skill-group-header span {
+  font-family: var(--F4);
+  font-size: .58rem;
+  letter-spacing: .12em;
+  color: var(--muted);
+}
+
+.skill-row {
+  transition: background .13s, border-color .13s;
+  border-left: 2px solid transparent;
+}
+.skill-row:hover {
+  background: linear-gradient(90deg,
+    rgba(232,160,48,.06), transparent 80%);
+  border-left-color: var(--gold);
+}
+.prof-btn {
+  transition:
+    all .14s cubic-bezier(.2,.8,.2,1),
+    box-shadow .22s;
+}
+.prof-btn:hover {
+  transform: scale(1.15);
+}
+.prof-btn.active {
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px var(--gold-hi), 0 0 4px #fff;
+}
+.prof-btn.exp.active {
+  color: var(--mana);
+  text-shadow: 0 0 10px var(--mana), 0 0 4px #fff;
+}
+
+.skill-total {
+  font-family: var(--F1);
+  font-weight: 800;
+  padding: .2rem .55rem;
+  border-radius: var(--rs);
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,.4);
+  transition: all .14s;
+}
+.skill-total.pos {
+  color: var(--gold-hi);
+  text-shadow: 0 0 8px var(--gold-glow);
+  border-color: rgba(232,160,48,.3);
+}
+.skill-total.neg {
+  color: var(--danger);
+  text-shadow: 0 0 8px rgba(248,113,113,.4);
+}
+.skill-row:hover .skill-total {
+  border-color: var(--gold);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CUSTOM SCROLLBAR — gilded parchment edge
+──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track {
+  background: rgba(0,0,0,.55);
+  border-left: 1px solid rgba(232,160,48,.14);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg,
+    var(--gold) 0%,
+    var(--gold2) 50%,
+    var(--ember2) 100%);
+  border: 1px solid rgba(0,0,0,.5);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255,220,120,.28);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg,
+    var(--gold-hi) 0%,
+    var(--gold) 60%,
+    var(--ember) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,120,.4),
+    0 0 8px var(--gold-glow);
+}
+* { scrollbar-color: var(--gold) rgba(0,0,0,.55); scrollbar-width: thin; }
+
+/* ────────────────────────────────────────────────────────────────
+   TEXT SELECTION — gold shimmer
+──────────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(232,160,48,.42);
+  color: #fff;
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+::-moz-selection {
+  background: rgba(232,160,48,.42);
+  color: #fff;
+  text-shadow: 0 0 8px var(--gold-glow);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BROADCAST BANNER — enchanted proclamation scroll
+──────────────────────────────────────────────────────────────── */
+.broadcast-banner {
+  background:
+    radial-gradient(ellipse 60% 100% at 50% 0%, rgba(232,160,48,.24) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(20,12,32,.98) 0%, rgba(10,6,20,.98) 100%);
+  border: 2px solid var(--gold);
+  box-shadow:
+    0 12px 40px -8px rgba(0,0,0,.9),
+    0 0 40px -4px var(--gold-glow),
+    inset 0 0 24px -6px rgba(232,160,48,.24);
+}
+.broadcast-from {
+  background: linear-gradient(90deg, var(--gold-hi), var(--ember));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-family: var(--F1);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DEATH SAVE PIPS — magical wounds
+──────────────────────────────────────────────────────────────── */
+.ds-pip {
+  transition:
+    all .16s cubic-bezier(.2,.8,.2,1),
+    box-shadow .22s;
+}
+.ds-pip:hover {
+  transform: scale(1.15);
+}
+.ds-pip.pip-success {
+  background: radial-gradient(circle at 30% 30%, var(--safe), rgba(0,0,0,.6) 70%);
+  border-color: var(--safe);
+  box-shadow: 0 0 10px rgba(74,222,128,.5), inset 0 0 4px rgba(255,255,255,.14);
+}
+.ds-pip.pip-failure {
+  background: radial-gradient(circle at 30% 30%, var(--danger), rgba(0,0,0,.6) 70%);
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(248,113,113,.5), inset 0 0 4px rgba(255,255,255,.14);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MAGIC TYPE BANNER — enchanted proclamation
+──────────────────────────────────────────────────────────────── */
+.magic-type-banner {
+  position: relative;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(176,96,255,.14) 0%, transparent 60%),
+    linear-gradient(90deg, rgba(20,12,32,.9), rgba(10,6,20,.95));
+  border-top: 1px solid var(--mana);
+  border-bottom: 1px solid var(--mana);
+  box-shadow:
+    inset 0 0 24px -6px var(--mana-glow),
+    0 0 20px -6px var(--mana-glow);
+}
+.magic-type-banner::before,
+.magic-type-banner::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, var(--mana), transparent);
+  filter: blur(1px);
+  pointer-events: none;
+}
+.magic-type-banner::before { top: 0; }
+.magic-type-banner::after { bottom: 0; }
+
+/* ────────────────────────────────────────────────────────────────
+   SYNC DOT — magical status ember
+──────────────────────────────────────────────────────────────── */
+.sync-dot {
+  transition: background-color .3s, box-shadow .3s;
+}
+.sync-dot.synced {
+  background: radial-gradient(circle at 30% 30%, var(--safe), rgba(0,0,0,.4) 70%);
+  box-shadow: 0 0 12px rgba(74,222,128,.55), 0 0 3px #fff;
+}
+.sync-dot.syncing {
+  background: radial-gradient(circle at 30% 30%, var(--gold-hi), rgba(0,0,0,.4) 70%);
+  box-shadow: 0 0 12px var(--gold-glow), 0 0 3px #fff;
+}
+.sync-dot.warn {
+  background: radial-gradient(circle at 30% 30%, var(--warn), rgba(0,0,0,.4) 70%);
+  box-shadow: 0 0 12px rgba(251,191,36,.55);
+}
+.sync-dot.error {
+  background: radial-gradient(circle at 30% 30%, var(--danger), rgba(0,0,0,.4) 70%);
+  box-shadow: 0 0 12px rgba(248,113,113,.55);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MAIN CONTENT AURORA WASH — layered magical mist on the sheet
+──────────────────────────────────────────────────────────────── */
+.app {
+  position: relative;
+}
+.app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 40% 30% at 20% 20%, rgba(232,160,48,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 85% 40%, rgba(176,96,255,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 50% 90%, rgba(255,96,32,.03) 0%, transparent 60%);
+  z-index: 0;
+}
+.app > * { position: relative; z-index: 1; }
+
+/* ────────────────────────────────────────────────────────────────
+   PRESENCE BAR — glowing guild-hall roster
+──────────────────────────────────────────────────────────────── */
+.presence-bar {
+  background:
+    radial-gradient(ellipse 90% 100% at 50% 0%, rgba(232,160,48,.05) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(12,7,20,.7), rgba(12,7,20,.4));
+  border-bottom: 1px solid rgba(232,160,48,.12);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM OVERLAY — enchanted grimoire modal
+──────────────────────────────────────────────────────────────── */
+.dm-overlay {
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 20%, rgba(232,160,48,.06) 0%, transparent 60%),
+    rgba(0,0,0,.85);
+  backdrop-filter: blur(4px);
+}
+.dm-fullscreen, .dm-login {
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, rgba(232,160,48,.06) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(18,10,28,.99) 0%, rgba(8,4,14,.99) 100%);
+  border: 1px solid var(--gold);
+  box-shadow:
+    0 24px 60px -12px rgba(0,0,0,.95),
+    0 0 60px -8px var(--gold-glow),
+    inset 0 1px 0 rgba(232,160,48,.24);
+}
+.dm-nav-btn {
+  transition:
+    all .16s cubic-bezier(.2,.8,.2,1),
+    box-shadow .24s;
+  position: relative;
+}
+.dm-nav-btn:hover:not(.active) {
+  border-color: rgba(232,160,48,.3);
+  color: var(--gold-hi);
+  box-shadow: 0 0 12px -4px var(--gold-glow);
+}
+.dm-nav-btn.active {
+  color: var(--gold-hi);
+  background: linear-gradient(90deg,
+    rgba(232,160,48,.14),
+    rgba(0,0,0,.35));
+  border-color: var(--gold);
+  box-shadow:
+    inset 0 0 24px -8px var(--gold-glow),
+    0 0 12px -4px var(--gold-glow);
+  text-shadow: 0 0 10px var(--gold-glow);
+}
+
+.dm-card {
+  background:
+    radial-gradient(ellipse 100% 30% at 50% 0%, rgba(232,160,48,.04) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(18,10,26,.97), rgba(10,6,16,.97));
+  border: 1px solid rgba(200,130,40,.16);
+  border-radius: var(--rs);
+  transition: border-color .18s, box-shadow .22s;
+  position: relative;
+}
+.dm-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 6%; right: 6%; height: 1px;
+  background: linear-gradient(90deg,
+    transparent, rgba(232,160,48,.32), transparent);
+  pointer-events: none;
+}
+.dm-card:hover { border-color: rgba(232,160,48,.28); }
+.dm-card-title {
+  background: linear-gradient(90deg,
+    rgba(232,160,48,.14), transparent 70%);
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px var(--gold-glow);
+  font-family: var(--F1);
+  letter-spacing: .14em;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM JOB BOARD ROWS — subtle magical polish
+──────────────────────────────────────────────────────────────── */
+.dm-job-row:hover {
+  box-shadow: 0 0 12px -4px var(--gold-glow);
+}
+.dm-job-row.active {
+  box-shadow:
+    inset 0 0 20px -8px var(--gold-glow),
+    0 0 12px -4px var(--gold-glow);
+}
+.dm-job-rank {
+  box-shadow:
+    inset 0 -1px 3px rgba(0,0,0,.4),
+    0 0 8px -3px currentColor;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM LOCATIONS ROWS — polished
+──────────────────────────────────────────────────────────────── */
+.dm-loc-row:hover {
+  box-shadow: 0 0 12px -4px var(--gold-glow);
+}
+.dm-loc-row.active {
+  box-shadow:
+    inset 0 0 20px -8px var(--gold-glow),
+    0 0 12px -4px var(--gold-glow);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BACK LINK — subtle magical touch
+──────────────────────────────────────────────────────────────── */
+.back-link {
+  position: relative;
+  transition: all .18s;
+}
+.back-link:hover {
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px var(--gold-glow);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MICRO TEXT — refined
+──────────────────────────────────────────────────────────────── */
+.micro {
+  font-family: var(--F4);
+  color: var(--muted);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-size: .55rem;
+  font-weight: 700;
+  opacity: .8;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SMALL NOTE — italic footer text
+──────────────────────────────────────────────────────────────── */
+.small-note {
+  font-family: var(--F3);
+  color: var(--muted);
+  font-style: italic;
+  font-size: .82rem;
+  line-height: 1.55;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   RESPONSIVE — preserve magic on smaller screens
+──────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .panel::after { display: none; }  /* corners get too tight */
+  .elemental-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+}

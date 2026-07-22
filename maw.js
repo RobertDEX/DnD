@@ -151,7 +151,7 @@ const ITEM_CATEGORIES = ['Weapon','Armor','Tool','Consumable','Anomalous','Docum
 // Requisitions catalog categories + tier access
 const SHOP_CATEGORIES = ['Warding & Barriers','Tech & Detection','Combat','Containment','Protection','Medical','Utility','Anomalous Items'];
 const RANK_TO_TIER = { 'I':1, 'II':2, 'III':3, 'IV':4 };   // an agent of rank R can access all tiers <= R
-const TIER_LABEL = { 1:'TIER 1 · EMPLOYEE', 2:'TIER 2 · SUPERVISOR', 3:'TIER 3 · DEPUTY', 4:'TIER 4 · CHIEF' };
+const TIER_LABEL = { 1:'TIER 1 · PROBATE', 2:'TIER 2 · OPERATIVE', 3:'TIER 3 · CUSTODIAN', 4:'TIER 4 · OVERSEER' };
 const TIER_COLOR = { 1:'#7a8590', 2:'#9aa6b2', 3:'#c2b067', 4:'#d94f4f' };
 
 // ================================================================
@@ -165,6 +165,7 @@ const MY_PRESENCE_ID = localStorage.getItem('maw-pid') || (() => {
 let dmUnlocked = sessionStorage.getItem('maw-dm') === '1';
 let spectator  = sessionStorage.getItem('maw-spectator') === '1';
 let _lastAppliedRaw = null;
+let _firstSnapshotReceived = false;  // Firebase load-completed guard — see pushState
 let _welcomeShown = false;
 let _unsub = null;
 let _presenceUnsub = null;
@@ -212,7 +213,7 @@ let state = {
 const COMMENDATIONS = [
   { id:'first_contain', icon:'◈', name:'First Containment',   desc:'Successfully contained your first anomaly.' },
   { id:'survived_keter', icon:'☣', name:'Keter Survivor',     desc:'Survived direct contact with a Keter-class entity.' },
-  { id:'tier4',         icon:'★', name:'Ascension',           desc:'Reached Tier IV — Chief clearance.' },
+  { id:'tier4',         icon:'★', name:'Ascension',           desc:'Reached Tier IV — Overseer clearance.' },
   { id:'flawless',      icon:'✦', name:'Flawless Operation',  desc:'Completed a mission with no casualties or losses.' },
   { id:'scholar',       icon:'❖', name:'Field Scholar',       desc:'Documented 10+ anomalies in the log.' },
   { id:'big_game',      icon:'⬡', name:'Big Game',            desc:'Captured an A-grade or higher anomaly.' },
@@ -256,30 +257,35 @@ function normalize(raw){
   const m = { ...state, ...raw };
   if(!Array.isArray(m.characters)) m.characters = [];
   m.characters = m.characters.map((c,i)=>{
-    const b = blankChar(i);
-    const mc = { ...b, ...c };
-    mc.stats = { ...b.stats, ...(c.stats||{}) };
-    mc.hp = { ...b.hp, ...(c.hp||{}) };
-    mc.sanity = { ...b.sanity, ...(c.sanity||{}) };
-    mc.deathSaves = { ...b.deathSaves, ...(c.deathSaves||{}) };
-    mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
-    mc.weapons    = Array.isArray(c.weapons)?c.weapons:[];
-    mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
-    mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
-    mc.missions   = Array.isArray(c.missions)?c.missions:[];
-    // Damage-type arrays — signature paranormal defense/vulnerability
-    mc.resistances    = Array.isArray(c.resistances)    ? c.resistances.map(String)    : [];
-    mc.vulnerabilities= Array.isArray(c.vulnerabilities)? c.vulnerabilities.map(String): [];
-    mc.immunities     = Array.isArray(c.immunities)     ? c.immunities.map(String)     : [];
-    mc.abilities  = (Array.isArray(c.abilities)?c.abilities:[]).map(a=>({
-      name:a.name||'', type:a.type||'Talent', cost:a.cost||'', cooldown:a.cooldown||'', desc:a.desc||''
-    }));
-    mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
-    if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
-    if(!RANK_BY_ID[mc.rank]) mc.rank = 'I';
-    const blankSk = makeBlankSkills(); mc.skills = {};
-    Object.keys(blankSk).forEach(n=>{ mc.skills[n] = { ...blankSk[n], ...(c.skills?.[n]||{}) }; });
-    return mc;
+    try {
+      const b = blankChar(i);
+      const mc = { ...b, ...c };
+      mc.stats = { ...b.stats, ...(c.stats||{}) };
+      mc.hp = { ...b.hp, ...(c.hp||{}) };
+      mc.sanity = { ...b.sanity, ...(c.sanity||{}) };
+      mc.deathSaves = { ...b.deathSaves, ...(c.deathSaves||{}) };
+      mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
+      mc.weapons    = Array.isArray(c.weapons)?c.weapons:[];
+      mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
+      mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
+      mc.missions   = Array.isArray(c.missions)?c.missions:[];
+      // Damage-type arrays — signature paranormal defense/vulnerability
+      mc.resistances    = Array.isArray(c.resistances)    ? c.resistances.map(String)    : [];
+      mc.vulnerabilities= Array.isArray(c.vulnerabilities)? c.vulnerabilities.map(String): [];
+      mc.immunities     = Array.isArray(c.immunities)     ? c.immunities.map(String)     : [];
+      mc.abilities  = (Array.isArray(c.abilities)?c.abilities:[]).map(a=>({
+        name:a?.name||'', type:a?.type||'Talent', cost:a?.cost||'', cooldown:a?.cooldown||'', desc:a?.desc||''
+      }));
+      mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
+      if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
+      if(!RANK_BY_ID[mc.rank]) mc.rank = 'I';
+      const blankSk = makeBlankSkills(); mc.skills = {};
+      Object.keys(blankSk).forEach(n=>{ mc.skills[n] = { ...blankSk[n], ...(c.skills?.[n]||{}) }; });
+      return mc;
+    } catch(err) {
+      console.error(`Normalize failed for character ${i}, keeping raw:`, err, c);
+      return c || blankChar(i);
+    }
   });
   // Never force the roster back up to a fixed count — that re-spawned deleted agents.
   // Only guarantee at least one personnel file exists so the sheet can render.
@@ -397,12 +403,24 @@ function attackBonus(c){ return mod(c.stats[c.attackStat||'DEX']) + profBonus(c)
 function setSyncDot(s){
   const d = el('syncDot'); if(!d) return;
   d.className = 'sync-dot '+s;
-  d.title = {synced:'Synced',syncing:'Syncing…',error:'Offline — changes may not save'}[s]||s;
+  d.title = {synced:'Synced',syncing:'Syncing…',error:'Offline — changes may not save',warn:'Waiting for Firebase — writes paused for safety'}[s]||s;
 }
 
 let _pushDebounce = null;
 async function pushState(immediate=false){
   if(spectator) return;
+  // ────────────────────────────────────────────────────────────
+  // CRITICAL SAFETY: never push local state to Firebase until we
+  // have successfully RECEIVED at least one snapshot from Firebase.
+  // Without this guard, if the initial load fails silently, the
+  // default empty state would overwrite the real data on first
+  // interaction. This is what caused "everything is gone" issues.
+  // ────────────────────────────────────────────────────────────
+  if(!_firstSnapshotReceived){
+    console.warn('pushState blocked: no Firebase snapshot received yet. Will retry after load.');
+    setSyncDot('warn');
+    return;
+  }
   const hasData = state.characters.some(c=>c.name && c.name.trim());
   if(!hasData && !state.shop.length) return;
   if(immediate){
@@ -426,10 +444,16 @@ function flushPendingPush(){
 function startListener(){
   if(_unsub) _unsub();
   _unsub = onSnapshot(doc(db,'campaigns',DOC), snap=>{
-    if(!snap.exists()) return;
+    if(!snap.exists()){
+      // Doc doesn't exist — first-time campaign. Unlock pushes so the
+      // initial character setup can go into Firebase.
+      _firstSnapshotReceived = true;
+      setSyncDot('synced');
+      return;
+    }
     try {
       const raw = snap.data().data;
-      if(raw===_lastAppliedRaw){ setSyncDot('synced'); return; }
+      if(raw===_lastAppliedRaw){ setSyncDot('synced'); _firstSnapshotReceived = true; return; }
       _lastAppliedRaw = raw;
       const remote = normalize(JSON.parse(raw));
 
@@ -460,6 +484,7 @@ function startListener(){
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
+      _firstSnapshotReceived = true;   // Firebase data safely loaded — writes are now safe
       setSyncDot('synced');
 
       if(isTyping){
@@ -472,7 +497,12 @@ function startListener(){
       if(spectator) disableAllInputs();
       recheckWelcomeIfNeeded();
       if(!el('welcomeOverlay') && !_welcomeShown){ _welcomeShown=true; checkWelcome(); }
-    } catch(e){ console.error('Snapshot error:', e); }
+    } catch(e){
+      console.error('Snapshot error — Firebase load failed:', e);
+      setSyncDot('error');
+      // Do NOT flip _firstSnapshotReceived — writes stay blocked so
+      // we can't overwrite Firebase with local defaults.
+    }
   }, e=>{ console.error(e); setSyncDot('error'); });
 }
 

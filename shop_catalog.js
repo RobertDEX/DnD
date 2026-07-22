@@ -1,6 +1,6 @@
 // ============================================================
 // MAKE A WISH INCORPORATED — Default Requisitions Catalog
-// Tier 1 = Employee · Tier 2 = Supervisor · Tier 3 = Deputy · Tier 4 = Chief
+// Tier 1 = Probate · Tier 2 = Operative · Tier 3 = Custodian · Tier 4 = Overseer
 // Access is cumulative (higher tiers may purchase all lower-tier items).
 // ============================================================
 window.MAW_DEFAULT_SHOP = [
@@ -70,10 +70,10 @@ window.MAW_DEFAULT_SHOP = [
   {tier:3,category:'Tech & Detection',name:'Infrasound Emitter',price:7000,desc:'Directional infrasound causing disorientation and distress in most entities. Non-lethal, effective at range. Affects humans in range too — coordinate first.'},
   {tier:3,category:'Combat',name:'Compound-Charged Sidearm',price:10000,desc:'Pistol with compound-charged barrel/magazine. Rounds carry a suppression charge — effective against ballistic-immune entities. Charge depletes over ~40 rounds; needs a recharge kit.'},
   {tier:3,category:'Combat',name:'Suppression Rounds, Heavy (x20)',price:3000,desc:'High-density suppression-charged rounds for any compound-rated firearm. Higher yield per round than standard issue.'},
-  {tier:3,category:'Combat',name:'Binding Compound, Class 5 (x3)',price:4000,desc:'Resin compound that sets into a rigid suppression shell on contact. Restrains and disrupts anomaly functions up to Class 5. Sets in 4 seconds. Solvent: Deputy+ only.'},
+  {tier:3,category:'Combat',name:'Binding Compound, Class 5 (x3)',price:4000,desc:'Resin compound that sets into a rigid suppression shell on contact. Restrains and disrupts anomaly functions up to Class 5. Sets in 4 seconds. Solvent: Custodian+ only.'},
   {tier:3,category:'Combat',name:'Metaphysical Nullifier (x1)',price:6000,desc:'Injectable that suppresses anomalous properties in an entity or affected person 30–90 min. Brings active threats to manageable. Entity effects vary; human effects reversible.'},
   {tier:3,category:'Containment',name:'Containment Box, Large, Class 6 Rated',price:12000,desc:'Reusable heavy unit for Class 1–6 objects and small entities. Active suppression field, compound-sealed, rated for sustained metaphysical pressure. Two-person carry when loaded.'},
-  {tier:3,category:'Containment',name:'Mobile Anchor Seal',price:20000,desc:'Portable version of the fixed-site anchor. Deploys as a compound binding circle rated Class 7. Single use. Requires Chief sign-off before purchase processes.'},
+  {tier:3,category:'Containment',name:'Mobile Anchor Seal',price:20000,desc:'Portable version of the fixed-site anchor. Deploys as a compound binding circle rated Class 7. Single use. Requires Overseer sign-off before purchase processes.'},
   {tier:3,category:'Protection',name:'Compound Field Vest',price:12000,desc:'Reinforced vest with integrated compound warding. Light-body-armour protection plus passive deflection against entity attacks and directed anomalous effects.'},
   {tier:3,category:'Protection',name:'Cognitive Shield Implant',price:15000,desc:'Subcutaneous compound chip behind the ear. Permanent passive protection against memory wipe, psychic intrusion, compulsion, and false memory. Never expires. MAW medical implants it.'},
   {tier:3,category:'Anomalous Items',name:'Echo Stone',price:18000,desc:'Replicated MAW-OBJ-047. Replays the last 30 minutes of sound from its current location exactly as it occurred. 94% fidelity — the other 6% occasionally produces audio with no source. Log those.'},

@@ -276,6 +276,19 @@ function normalize(raw){
   if(!['normal','lockdown','uncontained'].includes(m.siteAlert)) m.siteAlert = 'normal';
   // Requisition requests
   if(!Array.isArray(m.requests)) m.requests = [];
+  // Anomaly catalog — DM-authored master list. Each anomaly has an id
+  // and a grantedTo:[charIds] array. Character sees it if their id is in there.
+  if(!Array.isArray(m.anomalyCatalog)) m.anomalyCatalog = [];
+  m.anomalyCatalog = m.anomalyCatalog.map((a,ix) => ({
+    id:        String(a?.id ?? ('anom-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    desig:     String(a?.desig ?? 'MAW-???'),
+    name:      String(a?.name ?? 'Unidentified'),
+    threat:    THREAT_BY_GRADE[a?.threat] ? a.threat : 'F',
+    class:     ANOMALY_CLASSES.includes(a?.class) ? a.class : 'Euclid',
+    desc:      String(a?.desc ?? ''),
+    redacted:  !!a?.redacted,   // DM classifies the description — players see █████
+    grantedTo: Array.isArray(a?.grantedTo) ? a.grantedTo.map(String) : []
+  }));
   return m;
 }
 
@@ -359,6 +372,7 @@ function startListener(){
       state.requests = remote.requests;
       state.theme = remote.theme;
       state.evidenceBoard = remote.evidenceBoard;
+      state.anomalyCatalog = remote.anomalyCatalog || [];
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
@@ -584,8 +598,8 @@ function renderMainFields(){
   // portrait
   const slot = el('portraitSlot');
   if(slot){
-    if(c.portrait) slot.style.backgroundImage = `url(${c.portrait})`;
-    else slot.style.backgroundImage = '';
+    if(c.portrait) slot.style.setProperty('--portrait-url', `url("${c.portrait}")`);
+    else slot.style.removeProperty('--portrait-url');
     slot.classList.toggle('has-img', !!c.portrait);
   }
   // rank select in profile
@@ -1032,49 +1046,132 @@ function addRelationship(){ const c=getChar(); if(!Array.isArray(c.relationships
 // ================================================================
 // ANOMALY LOG  (SCP-style bestiary)
 // ================================================================
+// ── ANOMALY LOG (player view) ──
+// Player sees TWO sections:
+//   1. FILED — anomalies granted to their character (view-only)
+//   2. AVAILABLE — catalog entries NOT yet granted, each with a purchase
+//      button that costs HALF the threat grade's bounty in Points.
 function renderAnomalies(){
   const c = getChar();
   const host = el('anomaliesList'); if(!host) return;
-  if(!Array.isArray(c.anomalies)) c.anomalies=[];
-  const cnt = el('anomalyCount'); if(cnt) cnt.textContent = `${c.anomalies.length} FILED`;
-  if(!c.anomalies.length){ host.innerHTML = `<div class="empty-note big">⬡<br>NO ANOMALIES DOCUMENTED<br><span>File the entities you encounter — their behavior, threat, and containment.</span></div>`; return; }
-  host.innerHTML = c.anomalies.map((a,i)=>{
+  const catalog = state.anomalyCatalog || [];
+  const mine = catalog.filter(a => (a.grantedTo || []).includes(c.id));
+  const available = catalog.filter(a => !(a.grantedTo || []).includes(c.id));
+  const cnt = el('anomalyCount'); if(cnt) cnt.textContent = `${mine.length} FILED`;
+
+  // Hide the old "File New Anomaly" button — creation is now DM-only
+  const addBtn = el('addAnomalyBtn');
+  if(addBtn) addBtn.style.display = 'none';
+
+  const renderCard = (a, opts = {}) => {
     const tg = THREAT_BY_GRADE[a.threat] || THREAT_BY_GRADE['F'];
-    const open = a._open!==false;
+    const priceHalf = Math.floor(tg.points / 2);
+    const canAfford = (Number(c.points) || 0) >= priceHalf;
     return `
-    <div class="anom-card ${open?'open':''}" style="--tg:${tg.color}">
-      <div class="anom-head" data-toggle="${i}">
-        <span class="anom-grade" style="background:${tg.color}">${a.threat||'F'}</span>
+    <div class="anom-card ${opts.available?'available':''}" style="--tg:${tg.color}">
+      <div class="anom-head">
+        <span class="anom-grade" style="background:${tg.color}" data-tt="Threat Grade ${a.threat} — ${tg.label}">${a.threat||'F'}</span>
         <span class="anom-desig">${esc(a.desig||'MAW-???')}</span>
         <span class="anom-name">${esc(a.name||'Unidentified')}</span>
-        <span class="anom-class">${esc(a.class||'Euclid')}</span>
-        <span class="anom-chev">▾</span>
+        <span class="anom-class" data-tt="Containment class: ${a.class}">${esc(a.class||'Euclid')}</span>
+        ${opts.available
+          ? `<button class="anom-buy ${canAfford?'':'disabled'}" data-buy="${esc(a.id)}"
+              data-tt="${canAfford ? 'Requisition this classified file — half the threat grade bounty' : 'Insufficient points'}">
+              REQUISITION · ${fmtPoints(priceHalf)} pts
+            </button>`
+          : `<span class="anom-chev">▾</span>`}
       </div>
       <div class="anom-body">
         <div class="anom-row">
-          <label><span>Designation</span><input class="anom-f" data-i="${i}" data-k="desig" value="${esc(a.desig||'')}" placeholder="MAW-001"></label>
-          <label><span>Name</span><input class="anom-f" data-i="${i}" data-k="name" value="${esc(a.name||'')}" placeholder="Entity name"></label>
+          <div class="anom-field"><span class="anom-field-lbl">Designation</span><div class="anom-field-val">${esc(a.desig||'—')}</div></div>
+          <div class="anom-field"><span class="anom-field-lbl">Name</span><div class="anom-field-val">${esc(a.name||'—')}</div></div>
         </div>
         <div class="anom-row">
-          <label><span>Threat</span><select class="anom-f" data-i="${i}" data-k="threat">${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label}</option>`).join('')}</select></label>
-          <label><span>Class</span><select class="anom-f" data-i="${i}" data-k="class">${ANOMALY_CLASSES.map(t=>`<option ${a.class===t?'selected':''}>${t}</option>`).join('')}</select></label>
+          <div class="anom-field"><span class="anom-field-lbl">Threat Grade</span><div class="anom-field-val">${a.threat||'F'} · ${tg.label}</div></div>
+          <div class="anom-field"><span class="anom-field-lbl">Containment</span><div class="anom-field-val">${esc(a.class||'Euclid')}</div></div>
         </div>
-        <textarea class="anom-f anom-desc" data-i="${i}" data-k="desc" placeholder="Description, behavior, containment procedures, weaknesses…">${esc(a.desc||'')}</textarea>
-        <div class="anom-actions"><button class="anom-del" data-i="${i}">DELETE FILE</button></div>
+        <div class="anom-field"><span class="anom-field-lbl">Field Notes</span>
+          <div class="anom-desc-view ${a.redacted?'redacted':''}">${a.redacted
+            ? '<span class="redact-block">██████ ██████████ ██████ ████ ██████████ ████████ ██ ██████ ████████ ██████ ██████████ ████ ██████ ██████ ████████ ██████ ██████████ ██████████ ██████████ ████████ ██████ ██████████ ██████████ ██████</span><div class="redact-stamp">▲ CLASSIFIED — CLEARANCE INSUFFICIENT ▲</div>'
+            : esc(a.desc||'(No description on file.)')
+          }</div>
+        </div>
       </div>
     </div>`;
-  }).join('');
-  host.querySelectorAll('.anom-head').forEach(h=> h.addEventListener('click', e=>{
-    if(e.target.closest('input,select,textarea')) return;
-    const i=+h.dataset.toggle; c.anomalies[i]._open = !(c.anomalies[i]._open!==false); renderAnomalies();
-  }));
-  host.querySelectorAll('.anom-f').forEach(inp=>{
-    const ev = inp.tagName==='SELECT'?'change':'input';
-    inp.addEventListener(ev, ()=>{ c.anomalies[+inp.dataset.i][inp.dataset.k]=inp.value; pushState(inp.tagName==='SELECT'); if(inp.dataset.k==='threat'||inp.dataset.k==='desig'||inp.dataset.k==='name'||inp.dataset.k==='class') renderAnomalies(); });
+  };
+
+  host.innerHTML = `
+    <section class="anom-section">
+      <header class="anom-section-head">
+        <span class="ash-icon">⬢</span>
+        <div class="ash-text">
+          <div class="ash-label">Filed to Your Clearance</div>
+          <div class="ash-hint">Anomaly files your DM has authorized you to access</div>
+        </div>
+        <span class="ash-count">${mine.length}</span>
+      </header>
+      <div class="anom-grid">
+        ${mine.length ? mine.map(a => renderCard(a)).join('')
+          : `<div class="empty-note">
+              <div class="empty-glyph">⬡</div>
+              <div>NO ANOMALIES ON YOUR RECORD</div>
+              <span>Your DM assigns files to your clearance. Additional files can be requisitioned below at half the threat grade bounty.</span>
+            </div>`}
+      </div>
+    </section>
+
+    <section class="anom-section">
+      <header class="anom-section-head available">
+        <span class="ash-icon amber">◈</span>
+        <div class="ash-text">
+          <div class="ash-label">Available for Requisition</div>
+          <div class="ash-hint">Pay half the threat grade bounty to add this file to your clearance</div>
+        </div>
+        <span class="ash-count amber">${available.length}</span>
+      </header>
+      <div class="anom-grid">
+        ${available.length ? available.map(a => renderCard(a, {available:true})).join('')
+          : `<div class="empty-note dim">
+              <div class="empty-glyph">◇</div>
+              <div>NO ADDITIONAL FILES IN CATALOG</div>
+              <span>Wait for your DM to publish more anomalies.</span>
+            </div>`}
+      </div>
+    </section>
+  `;
+
+  // Card expand/collapse via header click
+  host.querySelectorAll('.anom-head').forEach(h => {
+    h.addEventListener('click', e => {
+      if (e.target.closest('.anom-buy')) return;
+      h.parentElement.classList.toggle('open');
+    });
   });
-  host.querySelectorAll('.anom-del').forEach(b=> b.addEventListener('click',()=>{ if(confirm('Delete this anomaly file?')){ c.anomalies.splice(+b.dataset.i,1); pushState(true); renderAnomalies(); } }));
+
+  // Purchase handler
+  host.querySelectorAll('[data-buy]').forEach(b => {
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      if (b.classList.contains('disabled')) { showToast('Insufficient points', 'warn'); return; }
+      const id = b.dataset.buy;
+      const anom = state.anomalyCatalog.find(a => a.id === id); if(!anom) return;
+      const tg = THREAT_BY_GRADE[anom.threat] || THREAT_BY_GRADE['F'];
+      const price = Math.floor(tg.points / 2);
+      if ((Number(c.points) || 0) < price) { showToast('Insufficient points', 'warn'); return; }
+      if (!confirm(`Requisition file ${anom.desig} (${anom.name}) for ${fmtPoints(price)} points?`)) return;
+      c.points -= price;
+      if (!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
+      if (!anom.grantedTo.includes(c.id)) anom.grantedTo.push(c.id);
+      pushState(true); render();
+      showToast(`Filed: ${anom.desig}`, 'success');
+    });
+  });
 }
-function addAnomaly(){ const c=getChar(); if(!Array.isArray(c.anomalies))c.anomalies=[]; c.anomalies.unshift({desig:'MAW-',name:'',threat:'F',class:'Euclid',desc:'',_open:true}); pushState(true); renderAnomalies(); }
+
+// Legacy no-op — creation is now DM-only via the catalog manager
+function addAnomaly(){
+  showToast('Anomaly files are now authored by your DM. Requisition available files from the log.', 'info');
+}
 
 // ================================================================
 // ABILITIES / TALENTS
@@ -1204,6 +1301,133 @@ function renderDmPanel(){
   try{ renderDmRequests(); }catch(e){}
   try{ renderEvidenceBoard(); }catch(e){}
   try{ syncSiteAlertButtons(); }catch(e){}
+  try{ renderDmAnomalyCatalog(); }catch(e){}
+  el('dmAddAnomBtn')?.addEventListener('click', addAnomalyToCatalog);
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM ANOMALY CATALOG — master list, grants access to specific agents
+// Players see granted files in their Anomaly Log tab, and can purchase
+// ungranted ones at half the threat grade's bounty.
+// ═════════════════════════════════════════════════════════════════
+function addAnomalyToCatalog(){
+  if(!Array.isArray(state.anomalyCatalog)) state.anomalyCatalog = [];
+  state.anomalyCatalog.unshift({
+    id:        'anom-' + Date.now() + '-' + Math.random().toString(16).slice(2,5),
+    desig:     'MAW-',
+    name:      '',
+    threat:    'F',
+    class:     'Euclid',
+    desc:      '',
+    grantedTo: []
+  });
+  pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
+}
+function renderDmAnomalyCatalog(){
+  const host = el('dmAnomalyCatalog'); if(!host) return;
+  const catalog = state.anomalyCatalog || [];
+  if (!catalog.length) {
+    host.innerHTML = `<div class="dm-empty" style="padding:1.5rem;text-align:center">No anomalies authored yet. Click <strong>Author New Anomaly</strong> to publish your first file.</div>`;
+    return;
+  }
+  host.innerHTML = catalog.map((a, i) => {
+    const tg = THREAT_BY_GRADE[a.threat] || THREAT_BY_GRADE['F'];
+    const half = Math.floor(tg.points / 2);
+    return `
+    <div class="dm-anom-card" style="--tg:${tg.color}" data-anomid="${esc(a.id)}">
+      <div class="dm-anom-head">
+        <span class="anom-grade" style="background:${tg.color}">${a.threat}</span>
+        <input class="dm-anom-desig" data-i="${i}" data-k="desig" value="${esc(a.desig)}" placeholder="MAW-001">
+        <input class="dm-anom-name" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="Entity name">
+        <div class="dm-anom-price"><span>Requisition Cost:</span> <b>${fmtPoints(half)}</b></div>
+        <button class="dm-anom-del" data-del="${i}" data-tt="Delete this anomaly permanently">🗑</button>
+      </div>
+      <div class="dm-anom-body">
+        <div class="dm-anom-row">
+          <label><span>Threat Grade</span>
+            <select class="dm-anom-f" data-i="${i}" data-k="threat">
+              ${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label} (${fmtPoints(t.points)} bounty)</option>`).join('')}
+            </select>
+          </label>
+          <label><span>Containment Class</span>
+            <select class="dm-anom-f" data-i="${i}" data-k="class">
+              ${ANOMALY_CLASSES.map(cn=>`<option ${a.class===cn?'selected':''}>${cn}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <label><span>Description · Behavior · Containment Notes</span>
+          <textarea class="dm-anom-f dm-anom-desc" data-i="${i}" data-k="desc" placeholder="Describe the anomaly. Its behavior. How it's contained. What the party should know.">${esc(a.desc)}</textarea>
+        </label>
+        <label class="dm-anom-redact ${a.redacted?'on':''}" data-tt="When classified, players see black bars instead of the description. Toggle off to reveal.">
+          <input type="checkbox" data-redact="${i}" ${a.redacted?'checked':''}>
+          <span class="dm-anom-redact-icon">▲</span>
+          <span class="dm-anom-redact-text">
+            <b>Classify description</b>
+            <em>Players see redaction bars until you clear it</em>
+          </span>
+        </label>
+        <div class="dm-anom-grants">
+          <div class="dm-anom-grants-label">Grant clearance to:</div>
+          <div class="dm-anom-grants-list">
+            ${state.characters.filter(cc => cc.state !== 'dead').map(cc => {
+              const on = (a.grantedTo || []).includes(cc.id);
+              return `<label class="dm-anom-grant ${on?'on':''}">
+                <input type="checkbox" data-grant="${i}" data-cid="${esc(cc.id)}" ${on?'checked':''}>
+                <span>${esc(cc.name || 'Unnamed')}</span>
+              </label>`;
+            }).join('')}
+            <button class="dm-anom-grant-all" data-grantall="${i}">All</button>
+            <button class="dm-anom-grant-none" data-grantnone="${i}">None</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Wire text fields
+  host.querySelectorAll('.dm-anom-f, .dm-anom-desig, .dm-anom-name').forEach(inp => {
+    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
+    inp.addEventListener(ev, () => {
+      const i = +inp.dataset.i, k = inp.dataset.k;
+      state.anomalyCatalog[i][k] = inp.value;
+      pushState(inp.tagName === 'SELECT');
+      if (k === 'threat' || k === 'desig' || k === 'name') { renderDmAnomalyCatalog(); renderAnomalies(); }
+    });
+  });
+  // Grant checkboxes
+  host.querySelectorAll('[data-grant]').forEach(cb => cb.addEventListener('change', e => {
+    const i = +e.target.dataset.grant;
+    const cid = e.target.dataset.cid;
+    const anom = state.anomalyCatalog[i]; if(!anom) return;
+    if(!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
+    if (e.target.checked && !anom.grantedTo.includes(cid)) anom.grantedTo.push(cid);
+    if (!e.target.checked) anom.grantedTo = anom.grantedTo.filter(x => x !== cid);
+    e.target.closest('.dm-anom-grant').classList.toggle('on', e.target.checked);
+    pushState(true); renderAnomalies();
+  }));
+  host.querySelectorAll('[data-grantall]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.grantall;
+    state.anomalyCatalog[i].grantedTo = state.characters.map(x => x.id);
+    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
+  }));
+  host.querySelectorAll('[data-grantnone]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.grantnone;
+    state.anomalyCatalog[i].grantedTo = [];
+    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
+  }));
+  host.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.del;
+    const anom = state.anomalyCatalog[i]; if(!anom) return;
+    if (!confirm(`Delete ${anom.desig} (${anom.name || 'unnamed'}) from the catalog? Everyone currently granted will lose it.`)) return;
+    state.anomalyCatalog.splice(i, 1);
+    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
+  }));
+  host.querySelectorAll('[data-redact]').forEach(cb => cb.addEventListener('change', e => {
+    const i = +e.target.dataset.redact;
+    state.anomalyCatalog[i].redacted = e.target.checked;
+    e.target.closest('.dm-anom-redact').classList.toggle('on', e.target.checked);
+    pushState(true); renderAnomalies();
+  }));
 }
 function syncSiteAlertButtons(){
   document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=>{

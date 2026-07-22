@@ -349,6 +349,9 @@
 
           <div class="dm-nav-group">
             <div class="dm-nav-section">Intelligence</div>
+            <button class="dm-nav-btn" data-dm="anomalies">
+              <span class="dm-nav-icon">⬡</span><span class="dm-nav-lbl">Anomaly Catalog</span>
+            </button>
             <button class="dm-nav-btn" data-dm="evidence">
               <span class="dm-nav-icon">🔍</span><span class="dm-nav-lbl">Evidence Board</span>
             </button>
@@ -483,6 +486,18 @@
             <label class="dm-mini" style="max-width:280px;margin-bottom:.9rem"><span>Recipient</span><select id="dmCommendTarget"></select></label>
             <p class="dm-broadcast-note">Click a commendation to grant it to the selected agent. Click again to revoke. Awarded badges appear on the agent's Talents tab.</p>
             <div id="dmCommendList" class="dm-commend-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-section" data-dm="anomalies">
+        <div class="dm-section-title">Anomaly Catalog — Author &amp; Grant Access</div>
+        <div class="dm-card">
+          <div class="dm-card-title">⬡ Master Catalog</div>
+          <div class="dm-card-body">
+            <p class="dm-broadcast-note">Author every anomaly the party will encounter. Grant access to specific agents to authorize their clearance. Agents can also requisition ungranted files at <strong>half the threat grade's bounty</strong> — F: 50 · D: 250 · C: 500 · B: 2,500 · A: 5,000 · S: 25,000.</p>
+            <button id="dmAddAnomBtn" class="maw-btn" style="margin-bottom:.9rem">+ Author New Anomaly</button>
+            <div id="dmAnomalyCatalog" class="dm-anom-catalog"></div>
           </div>
         </div>
       </div>

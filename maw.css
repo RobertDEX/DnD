@@ -1899,3 +1899,383 @@ input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
   border:1px solid var(--line2);
   min-width:60px;text-align:center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PARANORMAL INVESTIGATION UI (2026-07-21)
+   Grouped skills matrix · SCP tooltip · darker, more menacing polish
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   SKILL MATRIX — grouped by governing stat (RWBY-style)
+──────────────────────────────────────────────────────────────── */
+
+/* The skills matrix container becomes a responsive 2-column grid of
+   stat groups. Each group is its own dossier card. */
+#skillsMatrix{
+  display:grid;grid-template-columns:1fr 1fr;gap:.85rem;
+  padding:0;background:none;border:0;
+}
+@media(max-width:900px){#skillsMatrix{grid-template-columns:1fr}}
+
+/* Each stat's group — a dossier card */
+.skill-group{
+  position:relative;
+  background:
+    linear-gradient(180deg, rgba(20,24,30,.98) 0%, rgba(8,10,14,.98) 100%);
+  border:1px solid var(--line2);
+  overflow:hidden;
+  transition:border-color .18s;
+}
+.skill-group::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg, transparent 5%, rgba(217,79,79,.35) 50%, transparent 95%);
+}
+.skill-group:hover{border-color:var(--steel)}
+
+/* Group header — STAT abbrev · full name · modifier */
+.skill-group-head{
+  display:grid;grid-template-columns:auto 1fr auto;gap:.6rem;align-items:center;
+  padding:.7rem .9rem;
+  background:linear-gradient(90deg, rgba(217,79,79,.14) 0%, rgba(0,0,0,.4) 55%, rgba(0,0,0,.55) 100%);
+  border-bottom:1px solid var(--accent);
+  position:relative;
+}
+.skill-group-head::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--accent);
+  box-shadow:0 0 8px rgba(217,79,79,.6);
+}
+.sgh-stat{
+  font-family:var(--F1);font-size:1.05rem;font-weight:900;letter-spacing:.14em;
+  color:#fff;text-transform:uppercase;
+  text-shadow:0 0 12px rgba(217,79,79,.55);
+  padding-left:.25rem;
+  cursor:help;
+}
+.sgh-name{
+  font-family:var(--F4);font-size:.6rem;letter-spacing:.18em;
+  color:var(--text-dim);text-transform:uppercase;font-weight:600;
+  padding-top:.15rem;
+}
+.sgh-mod{
+  font-family:var(--F1);font-size:1rem;font-weight:800;letter-spacing:.03em;
+  padding:.15rem .55rem;
+  background:rgba(0,0,0,.55);
+  border:1px solid var(--line2);
+  min-width:46px;text-align:center;
+}
+.sgh-mod.pos{color:#7ec9a0;border-color:rgba(90,154,120,.4);
+  text-shadow:0 0 8px rgba(90,154,120,.28)}
+.sgh-mod.neg{color:#e07070;border-color:rgba(217,79,79,.4);
+  text-shadow:0 0 8px rgba(217,79,79,.28)}
+
+.skill-group-body{
+  display:flex;flex-direction:column;
+  padding:.3rem 0;
+}
+
+/* Individual skill row inside the group */
+.skill-row{
+  display:grid;grid-template-columns:auto 1fr auto;gap:.7rem;align-items:center;
+  padding:.42rem .9rem;
+  border-left:2px solid transparent;
+  transition:background .12s, border-left-color .12s;
+  cursor:help;
+  position:relative;
+}
+.skill-row + .skill-row{border-top:1px solid rgba(174,185,196,.05)}
+.skill-row:hover{
+  background:linear-gradient(90deg, rgba(217,79,79,.08), transparent 70%);
+  border-left-color:var(--accent);
+}
+
+/* Save row — heavier treatment, always at the top of each group */
+.skill-row.save-row{
+  background:linear-gradient(90deg, rgba(217,79,79,.06), transparent 80%);
+  border-left-color:rgba(217,79,79,.5);
+}
+.skill-row.save-row:hover{
+  background:linear-gradient(90deg, rgba(217,79,79,.16), transparent 80%);
+  border-left-color:var(--accent);
+}
+.skill-row.save-row .skill-name{
+  font-weight:700;letter-spacing:.08em;color:var(--text);
+  text-transform:uppercase;font-size:.7rem;
+}
+
+/* Sensitivity — thematic amber accent (paranormal sixth sense) */
+.skill-row.sense-row{
+  background:linear-gradient(90deg, rgba(194,162,58,.08), transparent 70%);
+}
+.skill-row.sense-row:hover{
+  background:linear-gradient(90deg, rgba(194,162,58,.16), transparent 70%);
+  border-left-color:var(--amber);
+}
+.skill-row.sense-row .skill-name{color:var(--amber)}
+.sense-tag{
+  color:var(--amber);font-size:.72rem;margin-left:.28rem;
+  text-shadow:0 0 6px rgba(194,162,58,.5);
+  cursor:help;
+}
+
+.skill-prof{display:flex;gap:.3rem;align-items:center}
+.prof-dot{
+  width:14px;height:14px;padding:0;border-radius:50%;
+  background:transparent;border:1.5px solid var(--line2);
+  cursor:pointer;
+  transition:all .13s cubic-bezier(.2,.8,.2,1);
+}
+.prof-dot:hover{border-color:var(--steel);transform:scale(1.12)}
+.prof-dot.on{
+  background:var(--steel-hi);border-color:var(--steel-hi);
+  box-shadow:0 0 8px rgba(174,185,196,.4), inset 0 0 3px rgba(255,255,255,.4);
+}
+.prof-dot.expert.on{
+  background:var(--accent);border-color:var(--accent);
+  box-shadow:0 0 10px rgba(217,79,79,.5), inset 0 0 3px rgba(255,255,255,.4);
+}
+
+.skill-name{
+  font-family:var(--F2);font-size:.75rem;font-weight:500;letter-spacing:.02em;
+  color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+.skill-total{
+  font-family:var(--F1);font-size:.82rem;font-weight:800;letter-spacing:.02em;
+  color:var(--text);
+  padding:.15rem .5rem;
+  background:rgba(0,0,0,.5);
+  border:1px solid var(--line2);
+  min-width:38px;text-align:center;
+  transition:all .13s;
+}
+.skill-row:hover .skill-total{border-color:var(--steel);color:#fff}
+.skill-row.save-row .skill-total{
+  background:rgba(217,79,79,.14);
+  color:#ffb0b0;
+  border-color:rgba(217,79,79,.35);
+}
+.skill-row.sense-row .skill-total{
+  background:rgba(194,162,58,.12);
+  color:var(--amber);
+  border-color:rgba(194,162,58,.35);
+}
+
+/* Skills header legend (Trained / Specialist / Sensitivity) — richer */
+.skills-legend{
+  display:flex;gap:1.2rem;flex-wrap:wrap;align-items:center;
+  padding:.55rem .8rem;margin-bottom:.7rem;
+  background:linear-gradient(90deg, rgba(217,79,79,.06), transparent 70%);
+  border:1px solid var(--line);
+  border-left:2px solid var(--accent);
+  font-family:var(--F4);font-size:.58rem;letter-spacing:.14em;
+  color:var(--text-dim);text-transform:uppercase;font-weight:500;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TOOLTIP — floating SCP terminal panel
+──────────────────────────────────────────────────────────────── */
+.maw-tooltip{
+  position:fixed;pointer-events:none;
+  max-width:280px;padding:.55rem .75rem;
+  z-index:99999;
+  background:linear-gradient(180deg, #14181f 0%, #0a0c10 100%);
+  border:1px solid var(--accent);
+  border-top-width:2px;
+  color:var(--steel-hi);
+  font-family:var(--F2);font-size:.75rem;font-weight:500;line-height:1.45;
+  letter-spacing:.02em;
+  box-shadow:
+    0 12px 32px -8px rgba(0,0,0,.9),
+    0 0 20px -4px rgba(217,79,79,.35),
+    inset 0 1px 0 rgba(217,79,79,.2);
+  opacity:0;visibility:hidden;
+  transform:translateY(-4px);
+  transition:opacity .16s cubic-bezier(.2,.8,.2,1),
+             transform .16s cubic-bezier(.2,.8,.2,1),
+             visibility 0s .16s;
+}
+.maw-tooltip.show{
+  opacity:1;visibility:visible;transform:translateY(0);
+  transition:opacity .16s cubic-bezier(.2,.8,.2,1),
+             transform .16s cubic-bezier(.2,.8,.2,1),
+             visibility 0s;
+}
+/* Small pointer notch depending on placement */
+.maw-tooltip::before{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);
+  width:0;height:0;pointer-events:none;
+}
+.maw-tooltip[data-side="top"]::before{
+  bottom:-6px;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:6px solid var(--accent);
+}
+.maw-tooltip[data-side="bottom"]::before{
+  top:-6px;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-bottom:6px solid var(--accent);
+}
+/* Tooltip corner glyphs — subtle SCP flair */
+.maw-tooltip::after{
+  content:'';position:absolute;top:3px;right:3px;
+  width:7px;height:7px;pointer-events:none;
+  border-top:1px solid rgba(217,79,79,.5);
+  border-right:1px solid rgba(217,79,79,.5);
+}
+
+/* Elements with data-tt get help cursor */
+[data-tt]{cursor:help}
+button[data-tt], a[data-tt]{cursor:pointer}
+.prof-dot[data-tt]{cursor:pointer}
+
+/* ────────────────────────────────────────────────────────────────
+   DARKER, EVILER PALETTE PUSH
+   Deepen backgrounds, more blood-red bleed, sharper edges
+──────────────────────────────────────────────────────────────── */
+
+/* Root color deepening — subtle push, not a full re-theme */
+:root{
+  --bg:  #050608;
+  --bg2: #0a0c10;
+}
+
+/* Body — deeper void with a static vignette */
+body{
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(217,79,79,.06) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(0,0,0,.6) 0%, transparent 60%),
+    var(--bg);
+}
+
+/* Main content area — subtle grid backdrop for terminal feel */
+.sheet-columns{
+  background:
+    linear-gradient(rgba(174,185,196,.02) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, rgba(174,185,196,.015) 1px, transparent 1px) 0 0 / 32px 100%,
+    linear-gradient(180deg, transparent 0%, rgba(0,0,0,.3) 100%);
+  position:relative;
+}
+.sheet-columns::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 40% at 50% 0%, rgba(217,79,79,.03), transparent 70%);
+}
+
+/* All panels — richer void feel */
+.panel{
+  background:
+    linear-gradient(180deg, rgba(20,24,30,.98) 0%, rgba(10,12,15,.98) 100%);
+  border:1px solid var(--line2);
+  box-shadow:
+    0 4px 20px -12px rgba(0,0,0,.9),
+    inset 0 0 40px -20px rgba(217,79,79,.06);
+}
+.panel:hover{
+  box-shadow:
+    0 4px 20px -12px rgba(0,0,0,.9),
+    inset 0 0 40px -14px rgba(217,79,79,.14);
+}
+
+/* Menacing corner accents on main panels */
+.panel > .panel-title::after{
+  content:'';position:absolute;top:0;right:0;
+  width:14px;height:14px;pointer-events:none;
+  border-top:1px solid rgba(217,79,79,.35);
+  border-right:1px solid rgba(217,79,79,.35);
+}
+
+/* Topbar — deeper, sharper edge */
+.topbar{
+  background:
+    linear-gradient(180deg, rgba(15,17,20,.98) 0%, rgba(6,8,10,.98) 100%);
+  border-top:2px solid var(--accent);
+  border-bottom:1px solid var(--line2);
+  box-shadow:
+    inset 0 1px 0 rgba(217,79,79,.3),
+    inset 0 -1px 0 rgba(217,79,79,.14),
+    0 8px 24px -12px rgba(0,0,0,.95);
+}
+
+/* Sidebar — deeper void */
+.sidebar{
+  background:
+    linear-gradient(180deg, rgba(10,12,15,.98) 0%, rgba(4,5,7,.98) 100%);
+  border-right:1px solid var(--line2);
+  box-shadow:
+    inset -1px 0 0 rgba(217,79,79,.14),
+    4px 0 24px -12px rgba(0,0,0,.9);
+}
+
+/* Sidebar section — richer institutional card */
+.sidebar-section{
+  background:
+    linear-gradient(180deg, rgba(217,79,79,.03) 0%, rgba(0,0,0,.28) 100%);
+  border:1px solid var(--line);
+  box-shadow:inset 0 0 30px -14px rgba(217,79,79,.14);
+}
+
+/* DM Console — deeper still */
+.dm-modal:has(.dm-full:not(.hidden)){
+  background:
+    linear-gradient(180deg, rgba(10,12,15,.99) 0%, rgba(5,6,8,.99) 100%);
+  box-shadow:
+    0 24px 60px -12px rgba(0,0,0,.95),
+    0 0 40px -8px rgba(217,79,79,.24);
+}
+.dm-console-nav{
+  background:
+    linear-gradient(180deg, rgba(10,12,15,.99) 0%, rgba(4,5,7,.99) 100%);
+}
+.dm-console-content{
+  background:
+    linear-gradient(180deg, rgba(6,8,10,.99) 0%, rgba(4,5,7,.99) 100%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SCROLLBAR — institutional dark treatment
+──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:rgba(0,0,0,.6)}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg, rgba(217,79,79,.35), rgba(70,25,25,.4));
+  border:1px solid rgba(0,0,0,.6);
+}
+::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg, var(--accent), rgba(120,40,40,.55));
+}
+
+/* Firefox */
+* { scrollbar-color: rgba(217,79,79,.35) rgba(0,0,0,.6); scrollbar-width: thin; }
+
+/* ────────────────────────────────────────────────────────────────
+   STAT BLOCKS — deeper voids
+──────────────────────────────────────────────────────────────── */
+.stat-block{
+  background:linear-gradient(180deg, #10141a 0%, #06080b 100%);
+  box-shadow:inset 0 0 24px -12px rgba(217,79,79,.14);
+}
+.stat-block:hover{
+  box-shadow:
+    inset 0 0 32px -8px rgba(217,79,79,.24),
+    0 8px 20px -12px rgba(0,0,0,.95);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CLASSIFIED WATERMARK — subtle static texture behind main sheet
+──────────────────────────────────────────────────────────────── */
+.sheet-columns::after{
+  content:'CLASSIFIED';
+  position:absolute;
+  bottom:.75rem;right:.75rem;
+  font-family:var(--F1);font-size:5rem;font-weight:900;letter-spacing:.4em;
+  color:rgba(217,79,79,.024);
+  pointer-events:none;
+  transform:rotate(-8deg);
+  transform-origin:right bottom;
+  user-select:none;
+  z-index:0;
+}
+.sheet-columns > *{position:relative;z-index:1}

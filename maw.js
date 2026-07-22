@@ -52,6 +52,53 @@ const SKILL_DEFS = [
   {name:'Deception',       stat:'CHA'}
 ];
 
+// Full stat names for the grouped skills matrix header — falls back
+// to STAT_LABELS which is the canonical map, but this const stays
+// available in case we want to swap it for grimmer flavor later.
+const STAT_FULL = STAT_LABELS;
+
+// Skill descriptions — paranormal investigation flavor. Kept tight
+// and specific so the tooltip fires as clean tactical guidance.
+const SKILL_DESCS = {
+  // Saves — resistance rolls against being acted on
+  'STR Save': 'Resist being moved, held, restrained, or crushed against your will.',
+  'DEX Save': 'Dodge blasts, react in time, evade grasping appendages and traps.',
+  'CON Save': 'Resist poison, disease, exhaustion, and exposure to anomalous effects.',
+  'INT Save': 'Resist mental compulsion, forced recall, and memetic hazards.',
+  'WIS Save': 'Resist fear, corruption, madness, and being turned against your team.',
+  'CHA Save': 'Resist domination — refuse to have your voice, identity, or will overridden.',
+
+  // STR
+  'Athletics': 'Climb, swim, run, jump. Physical endurance in the field.',
+  'Force':     'Break, bend, push through, or brute-strength something back.',
+
+  // DEX
+  'Acrobatics':      'Balance, tumble, escape restraints, land safely from falls.',
+  'Stealth':         'Move silently. Blend into shadows. Avoid being seen.',
+  'Sleight of Hand': 'Pick pockets, palm items, quietly disable small devices.',
+
+  // CON
+  'Containment': 'Improvise a seal. Hold a breach. Keep the anomaly at bay long enough.',
+
+  // INT
+  'Investigation': 'Search a room. Reconstruct events. Deduce what happened here.',
+  'Anomaly Lore':  'What you know about known SCPs, cryptids, and paranormal precedent.',
+  'Technology':    'Hack, repair, jury-rig. Understand technical and electronic systems.',
+  'Medicine':      'Stabilize the wounded. Diagnose. Identify what is wrong with them.',
+
+  // WIS
+  'Sensitivity': 'Paranormal perception. Feel presences. Catch what should not be there.',
+  'Perception':  'Notice sounds, movements, hidden details — mundane awareness.',
+  'Insight':     'Read people. Detect lies. Sense hidden motives and intentions.',
+  'Survival':    'Track, navigate unfamiliar terrain, endure the elements, find shelter.',
+
+  // CHA
+  'Interrogation': 'Extract information under pressure. Break down interview defenses.',
+  'Persuasion':    'Convince, negotiate, win over. Get civilians to comply.',
+  'Intimidation':  'Threaten. Coerce. Dominate through fear.',
+  'Deception':     'Lie convincingly. Maintain cover. Misdirect.'
+};
+
 // Corporate ranks (Tiers)
 const RANKS = [
   { id:'I',   tier:'TIER 1', title:'EMPLOYEE',   color:'#7a8590' },
@@ -585,25 +632,56 @@ function renderStats(){
   });
 }
 
-// ── SKILLS MATRIX ──
+// ── SKILLS MATRIX — grouped by stat, tooltip on hover ──
 function renderSkillsMatrix(){
   const c = getChar();
   const host = el('skillsMatrix'); if(!host) return;
-  host.innerHTML = SKILL_DEFS.map(def=>{
-    const sk = c.skills[def.name] || {prof:false,expert:false,misc:0};
-    const total = skillTotal(c, def.name);
-    const isSense = def.name==='Sensitivity';
+
+  // Group skills by their governing stat
+  const groups = {};
+  SKILL_DEFS.forEach(def => {
+    if (!groups[def.stat]) groups[def.stat] = [];
+    groups[def.stat].push(def);
+  });
+
+  // Preserve stat order (STR → CHA)
+  const statOrder = ['STR','DEX','CON','INT','WIS','CHA'];
+
+  host.innerHTML = statOrder.map(stat => {
+    const skills = groups[stat] || [];
+    const statMod = mod(c.stats[stat] || 10);
+    // Sort: save first, then everything else in declaration order
+    const sorted = skills.slice().sort((a, b) => (b.isSave?1:0) - (a.isSave?1:0));
+
     return `
-    <div class="skill-row${def.isSave?' save-row':''}${isSense?' sense-row':''}" data-skill="${esc(def.name)}">
-      <div class="skill-prof">
-        <button class="prof-dot ${sk.prof?'on':''}" data-skill="${esc(def.name)}" data-kind="prof" title="Trained"></button>
-        <button class="prof-dot expert ${sk.expert?'on':''}" data-skill="${esc(def.name)}" data-kind="expert" title="Specialist (x2)"></button>
+    <div class="skill-group" data-stat="${stat}">
+      <div class="skill-group-head">
+        <span class="sgh-stat" data-tt="Governs the skills below. Modifier is added to every roll in this group.">${stat}</span>
+        <span class="sgh-name">${esc(STAT_FULL[stat] || stat)}</span>
+        <span class="sgh-mod ${statMod>=0?'pos':'neg'}">${fmtMod(statMod)}</span>
       </div>
-      <div class="skill-name">${esc(def.name)}${isSense?' <span class="sense-tag">◈</span>':''}</div>
-      <div class="skill-stat">${def.stat}</div>
-      <div class="skill-total">${fmtMod(total)}</div>
+      <div class="skill-group-body">
+        ${sorted.map(def => {
+          const sk = c.skills[def.name] || {prof:false,expert:false,misc:0};
+          const total = skillTotal(c, def.name);
+          const isSense = def.name === 'Sensitivity';
+          const desc = SKILL_DESCS[def.name] || '';
+          return `
+          <div class="skill-row${def.isSave?' save-row':''}${isSense?' sense-row':''}"
+               data-skill="${esc(def.name)}"
+               data-tt="${esc(desc)}">
+            <div class="skill-prof">
+              <button class="prof-dot ${sk.prof?'on':''}" data-skill="${esc(def.name)}" data-kind="prof" data-tt="Trained — proficient in this skill (+ prof bonus)"></button>
+              <button class="prof-dot expert ${sk.expert?'on':''}" data-skill="${esc(def.name)}" data-kind="expert" data-tt="Specialist — expertise in this skill (×2 prof bonus)"></button>
+            </div>
+            <div class="skill-name">${esc(def.name)}${isSense?' <span class="sense-tag" data-tt="Paranormal perception — the sixth sense of an investigator">◈</span>':''}</div>
+            <div class="skill-total">${fmtMod(total)}</div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }).join('');
+
   host.querySelectorAll('.prof-dot').forEach(dot=>{
     dot.addEventListener('click', ()=>{
       const name = dot.dataset.skill, kind = dot.dataset.kind;
@@ -2185,3 +2263,67 @@ applySiteAlert();
 resetIdle();
 document.addEventListener('click', ()=>{ _ac(); if(_sfxEnabled) startAmbient(); }, { once:true });
 startKnockListener();
+
+// ═══════════════════════════════════════════════════════════════════
+// TOOLTIP SYSTEM — global, delegated, on-brand SCP-terminal styling
+// Any element with data-tt="text" gets a floating tooltip on hover.
+// ═══════════════════════════════════════════════════════════════════
+(function initTooltips(){
+  const tt = document.createElement('div');
+  tt.className = 'maw-tooltip';
+  tt.setAttribute('aria-hidden','true');
+  document.body.appendChild(tt);
+
+  let showTimer = null;
+  let currentTarget = null;
+
+  function position(target){
+    const r = target.getBoundingClientRect();
+    // Prefer above the target, centered
+    const ttR = tt.getBoundingClientRect();
+    let left = r.left + r.width/2 - ttR.width/2;
+    let top  = r.top - ttR.height - 10;
+    let side = 'top';
+    // Flip below if there isn't room above
+    if (top < 8) {
+      top = r.bottom + 10;
+      side = 'bottom';
+    }
+    // Clamp horizontally
+    const pad = 10;
+    if (left < pad) left = pad;
+    if (left + ttR.width > window.innerWidth - pad) left = window.innerWidth - pad - ttR.width;
+    tt.style.left = left + 'px';
+    tt.style.top  = top + 'px';
+    tt.dataset.side = side;
+  }
+
+  document.addEventListener('mouseover', e => {
+    const target = e.target.closest?.('[data-tt]');
+    if (!target || target === currentTarget) return;
+    const text = target.dataset.tt;
+    if (!text) return;
+    currentTarget = target;
+    clearTimeout(showTimer);
+    showTimer = setTimeout(() => {
+      tt.textContent = text;
+      tt.classList.add('show');
+      // Position AFTER text is set so the size is correct
+      requestAnimationFrame(() => position(target));
+    }, 320);
+  });
+
+  document.addEventListener('mouseout', e => {
+    const target = e.target.closest?.('[data-tt]');
+    if (!target || target !== currentTarget) return;
+    // Only hide if we're leaving the tooltip-owner element entirely
+    if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+    clearTimeout(showTimer);
+    currentTarget = null;
+    tt.classList.remove('show');
+  });
+
+  // Hide on scroll or click (prevents stale tooltips)
+  document.addEventListener('scroll', () => { tt.classList.remove('show'); currentTarget = null; }, {capture:true, passive:true});
+  document.addEventListener('mousedown', () => { tt.classList.remove('show'); currentTarget = null; });
+})();

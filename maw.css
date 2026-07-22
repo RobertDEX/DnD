@@ -383,28 +383,23 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .shop-buy-btn.cant{opacity:.4;cursor:not-allowed;border-color:var(--muted);color:var(--muted);background:transparent}
 .shop-out-tag{font-family:var(--F4);font-size:.56rem;color:var(--muted)}
 
-/* ── DM OVERLAY ── */
-.dm-overlay{position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.85);display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;backdrop-filter:blur(3px)}
+/* ── DM OVERLAY (base) ─────────────────────────────────────
+   Modal shell + login screen only. All console-page rules
+   (head/body/nav/cards/sections) live in the Visual
+   Enhancement Pass below and override this block.
+──────────────────────────────────────────────────────────── */
+.dm-overlay{position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.85);display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto;backdrop-filter:blur(3px)}
 .dm-overlay.hidden{display:none}
-.dm-modal{background:var(--panel);border:1px solid var(--line2);border-top:2px solid var(--accent);max-width:840px;width:100%;position:relative;padding:1.6rem}
-.dm-x{position:absolute;top:.8rem;right:.8rem;background:transparent;border:1px solid var(--line2);color:var(--text-dim);width:28px;height:28px;cursor:pointer}
+.dm-modal{background:var(--panel);border:1px solid var(--line2);border-top:2px solid var(--accent);max-width:840px;width:100%;position:relative}
+.dm-x{position:absolute;top:.8rem;right:.8rem;background:transparent;border:1px solid var(--line2);color:var(--text-dim);width:28px;height:28px;cursor:pointer;z-index:5}
 .dm-x:hover{border-color:var(--accent);color:var(--accent)}
-.dm-login{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:1.6rem}
+.dm-login{display:flex;flex-direction:column;align-items:center;gap:.8rem;padding:2.4rem 1.6rem}
 .dm-login-mark{font-size:2.4rem;color:var(--accent);filter:drop-shadow(0 0 12px rgba(217,79,79,.4))}
 .dm-login-title{font-family:var(--F1);font-size:1rem;font-weight:900;letter-spacing:.16em;color:#fff}
 .dm-login-sub{font-family:var(--F4);font-size:.56rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
 .dm-login input{max-width:280px;text-align:center;letter-spacing:.2em}
-.dm-full-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;border-bottom:1px solid var(--line);padding-bottom:.8rem}
-.dm-full-title{font-family:var(--F1);font-size:.85rem;font-weight:700;letter-spacing:.1em;color:#fff;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
-.dm-sel{font-family:var(--F4);font-size:.6rem;color:var(--text-dim);letter-spacing:.04em}
-.dm-sel strong{color:var(--accent)}
-.dm-nav{display:flex;gap:.3rem;margin-bottom:1.1rem;flex-wrap:wrap}
-.dm-nav-btn{font-family:var(--F2);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:.45rem .8rem;background:transparent;border:1px solid var(--line2);color:var(--text-dim);cursor:pointer}
-.dm-nav-btn.active{background:var(--panel2);color:#fff;border-bottom:2px solid var(--accent)}
 .dm-section{display:none}
 .dm-section.active{display:block}
-.dm-section-title{font-family:var(--F4);font-size:.6rem;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase;margin-bottom:.8rem}
-.dm-section-subtitle{font-family:var(--F4);font-size:.54rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin:1rem 0 .6rem}
 
 /* DM ROSTER */
 .dm-roster{display:flex;flex-direction:column;gap:.6rem}
@@ -1148,14 +1143,29 @@ body.heartbeat-active .topbar-rank-badge{animation:hb-badge 1s ease-in-out infin
    DM CONSOLE — sidebar nav + cards (RWBY-style layout, MaW palette)
 ──────────────────────────────────────────────────────────────── */
 
-/* Console shell — grow the modal to accommodate the new layout */
-.dm-full{
+/* Console shell — the modal expands ONLY when the full panel is open.
+   Login screen keeps the compact 840px x auto default. */
+.dm-full{background:var(--bg)}
+.dm-full:not(.hidden){
   display:flex;flex-direction:column;height:100%;
-  background:var(--bg);
 }
-.dm-modal{
-  max-width:1200px !important;
-  height:min(90vh, 850px) !important;
+.dm-full.hidden{display:none}
+.dm-login.hidden{display:none}
+
+/* When the full panel is showing, blow the modal out edge-to-edge
+   with fixed dimensions so the sidebar + content grid can breathe. */
+.dm-modal:has(.dm-full:not(.hidden)){
+  max-width:1200px;
+  width:100%;
+  height:min(90vh, 850px);
+  padding:0;
+  display:flex;flex-direction:column;
+  overflow:hidden;   /* the console body scrolls internally */
+}
+/* Close ✕ needs a higher z so it floats above the console head */
+.dm-modal:has(.dm-full:not(.hidden)) .dm-x{
+  top:.5rem;right:.5rem;z-index:10;
+  background:rgba(0,0,0,.55);
 }
 
 /* ── CONSOLE HEAD — brand + target picker + lock ── */
@@ -1471,4 +1481,421 @@ input:focus, textarea:focus, select:focus{
   .dm-console-head{grid-template-columns:1fr;gap:.55rem;padding:.85rem 1rem}
   .dch-target{min-width:0}
   .dm-modal{height:100vh !important;max-width:100vw !important}
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENHANCED UI POLISH v2 (2026-07-21)
+   Deeper personnel-file feel across the whole site.
+   Corner brackets, corporate insignia treatment, segmented vitals,
+   institutional field inputs, richer panel corners.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   PORTRAIT DOSSIER SLOT — corner brackets, vignette, better empty
+──────────────────────────────────────────────────────────────── */
+.portrait-slot{
+  position:relative;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 45%, rgba(217,79,79,.04) 0%, transparent 60%),
+    linear-gradient(180deg, #1a1e24 0%, #0e1114 100%);
+  border:1px solid var(--line2);
+  transition:border-color .18s cubic-bezier(.2,.8,.2,1),
+             box-shadow .22s;
+  overflow:hidden;
+}
+.portrait-slot::before,
+.portrait-slot::after{
+  content:'';position:absolute;width:12px;height:12px;pointer-events:none;
+  border:1.5px solid var(--accent);
+  opacity:.55;transition:opacity .18s;
+  z-index:2;
+}
+.portrait-slot::before{
+  top:4px;left:4px;border-right:0;border-bottom:0;
+}
+.portrait-slot::after{
+  bottom:4px;right:4px;border-left:0;border-top:0;
+}
+.portrait-slot:hover{
+  border-color:var(--steel);
+  box-shadow:0 0 0 1px rgba(217,79,79,.16),
+             inset 0 0 32px -8px rgba(217,79,79,.14);
+}
+.portrait-slot:hover::before,
+.portrait-slot:hover::after{opacity:1}
+/* Empty state — stylized silhouette placeholder */
+.portrait-slot:empty::after{content:none}
+.portrait-slot:empty{
+  background:
+    radial-gradient(ellipse 26% 20% at 50% 76%, rgba(217,79,79,.08), transparent 55%),
+    radial-gradient(circle 18% at 50% 34%, rgba(217,79,79,.12), transparent 55%),
+    linear-gradient(180deg, #1a1e24 0%, #0e1114 100%);
+}
+.portrait-slot:empty::before{opacity:.9}
+.portrait-hint{
+  position:absolute;bottom:.35rem;left:0;right:0;text-align:center;
+  font-family:var(--F4);font-size:.5rem;letter-spacing:.24em;
+  color:var(--muted);text-transform:uppercase;font-weight:700;
+  pointer-events:none;
+  text-shadow:0 0 6px rgba(0,0,0,.8);
+}
+.portrait-label:hover .portrait-hint{color:var(--accent)}
+
+/* ────────────────────────────────────────────────────────────────
+   TOPBAR ID BLOCK — corporate personnel-header treatment
+──────────────────────────────────────────────────────────────── */
+.topbar-id{
+  display:flex;align-items:center;gap:.9rem;
+  padding-right:1rem;border-right:1px solid var(--line);
+  position:relative;
+}
+.topbar-rank-badge{
+  position:relative;
+  width:56px;height:56px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--F1);font-size:1.15rem;font-weight:900;letter-spacing:.02em;
+  color:var(--accent);
+  border:1px solid var(--accent);
+  background:
+    linear-gradient(180deg, rgba(217,79,79,.16) 0%, rgba(0,0,0,.6) 100%);
+  text-shadow:0 0 12px rgba(217,79,79,.5);
+  box-shadow:
+    inset 0 0 20px -6px rgba(217,79,79,.4),
+    0 0 16px -4px rgba(217,79,79,.28);
+}
+/* Corporate tier stripes below the rank badge (visual chevron feel) */
+.topbar-rank-badge::before,
+.topbar-rank-badge::after{
+  content:'';position:absolute;pointer-events:none;
+  border:1px solid var(--accent);
+}
+.topbar-rank-badge::before{
+  top:-3px;left:-3px;width:8px;height:8px;
+  border-right:0;border-bottom:0;
+}
+.topbar-rank-badge::after{
+  bottom:-3px;right:-3px;width:8px;height:8px;
+  border-left:0;border-top:0;
+}
+.topbar-id-text{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.topbar-name{
+  font-family:var(--F1);font-size:1.15rem;font-weight:700;letter-spacing:.06em;
+  color:#fff;line-height:1;
+  text-shadow:0 0 12px rgba(174,185,196,.14);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.topbar-role{
+  font-family:var(--F4);font-size:.58rem;letter-spacing:.18em;
+  color:var(--text-dim);text-transform:uppercase;font-weight:600;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SEGMENTED HP / SANITY BARS — tactical cell readout
+   No idle animation; segment color follows fill percentage
+──────────────────────────────────────────────────────────────── */
+.hud-bar-track{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg, rgba(0,0,0,.7), rgba(0,0,0,.55));
+  border:1px solid var(--line2);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.6);
+}
+.hud-bar-track::after{
+  /* Overlay of vertical segment dividers — pure static */
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(90deg,
+      transparent calc(10% - .5px), rgba(0,0,0,.55) 10%, transparent calc(10% + .5px),
+      transparent calc(20% - .5px), rgba(0,0,0,.55) 20%, transparent calc(20% + .5px),
+      transparent calc(30% - .5px), rgba(0,0,0,.55) 30%, transparent calc(30% + .5px),
+      transparent calc(40% - .5px), rgba(0,0,0,.55) 40%, transparent calc(40% + .5px),
+      transparent calc(50% - .5px), rgba(0,0,0,.55) 50%, transparent calc(50% + .5px),
+      transparent calc(60% - .5px), rgba(0,0,0,.55) 60%, transparent calc(60% + .5px),
+      transparent calc(70% - .5px), rgba(0,0,0,.55) 70%, transparent calc(70% + .5px),
+      transparent calc(80% - .5px), rgba(0,0,0,.55) 80%, transparent calc(80% + .5px),
+      transparent calc(90% - .5px), rgba(0,0,0,.55) 90%, transparent calc(90% + .5px)
+    );
+  z-index:2;
+}
+.hud-bar-fill{
+  transition:width .32s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 10px -2px currentColor, inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   PANEL TITLES — accent bar + underline gradient across all panels
+──────────────────────────────────────────────────────────────── */
+.panel-title{
+  position:relative;padding:0 0 .55rem .9rem;margin-bottom:.85rem;
+  font-family:var(--F1);font-size:.72rem;font-weight:700;letter-spacing:.18em;
+  color:var(--steel-hi);text-transform:uppercase;
+  text-shadow:0 0 10px rgba(174,185,196,.14);
+  background:linear-gradient(90deg, rgba(217,79,79,.22), rgba(217,79,79,.02) 45%, transparent 90%) bottom / 100% 1px no-repeat;
+}
+.panel-title::before{
+  content:'';position:absolute;left:0;top:8%;bottom:34%;width:3px;
+  background:linear-gradient(180deg, transparent, var(--accent), transparent);
+  box-shadow:0 0 8px rgba(217,79,79,.5);
+}
+/* Small utility inline text (e.g. Passive Perception in Combat title) */
+.passive-perc{
+  float:right;
+  font-family:var(--F4);font-size:.56rem;letter-spacing:.14em;
+  color:var(--text-dim);text-transform:uppercase;font-weight:500;
+  padding:.15rem .5rem;
+  background:rgba(0,0,0,.4);border:1px solid var(--line2);
+  text-shadow:none;
+}
+.passive-perc strong{color:var(--accent);font-family:var(--F1);font-weight:800;letter-spacing:0}
+
+/* ────────────────────────────────────────────────────────────────
+   PANEL CORNER GLYPHS — subtle SCP-terminal marks on main panels
+──────────────────────────────────────────────────────────────── */
+.panel{
+  position:relative;
+  background:linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+  border:1px solid var(--line2);
+}
+.panel::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg, transparent 5%, rgba(174,185,196,.24) 50%, transparent 95%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SHEET TAB BAR — refined active indicator
+──────────────────────────────────────────────────────────────── */
+.tab-btn{
+  position:relative;overflow:hidden;
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+}
+.tab-btn:hover{color:var(--steel-hi);border-color:var(--line2)}
+.tab-btn.active{
+  color:var(--accent);
+  background:linear-gradient(180deg, rgba(217,79,79,.14) 0%, transparent 60%);
+  border-color:transparent;
+  text-shadow:0 0 8px rgba(217,79,79,.4);
+}
+.tab-btn.active::after{
+  content:'';position:absolute;left:15%;right:15%;bottom:-1px;height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  box-shadow:0 0 6px rgba(217,79,79,.5);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SIDEBAR CHARACTER TABS — proper personnel-file rows
+──────────────────────────────────────────────────────────────── */
+.character-tab{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.55rem .7rem;
+  background:transparent;color:var(--text-dim);
+  border:1px solid transparent;
+  border-left:2px solid transparent;
+  cursor:pointer;
+  font-family:var(--F2);font-size:.72rem;font-weight:500;letter-spacing:.03em;
+  transition:all .13s cubic-bezier(.2,.8,.2,1);
+  position:relative;overflow:hidden;
+  text-align:left;
+}
+.character-tab:hover{
+  background:var(--panel);
+  color:var(--text);
+  border-color:var(--line2);
+  border-left-color:var(--steel);
+  transform:translateX(2px);
+}
+.character-tab.active{
+  background:linear-gradient(90deg, rgba(217,79,79,.14) 0%, rgba(0,0,0,.35) 100%);
+  color:#fff;
+  border-color:rgba(217,79,79,.32);
+  border-left-color:var(--accent);
+  box-shadow:inset 0 0 24px -8px rgba(217,79,79,.28);
+}
+.character-tab.active::after{
+  content:'';position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+  width:5px;height:5px;background:var(--accent);border-radius:50%;
+  box-shadow:0 0 8px var(--accent);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   FIELD INPUTS — SCP terminal treatment
+──────────────────────────────────────────────────────────────── */
+.field input, .field textarea, .field select,
+input[type=text], input[type=number], textarea, select{
+  transition:border-color .13s, box-shadow .16s, background .13s;
+}
+.field input:focus, .field textarea:focus, .field select:focus,
+input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
+  outline:none;
+  border-color:var(--accent);
+  background:rgba(0,0,0,.55);
+  box-shadow:
+    0 0 0 2px rgba(217,79,79,.12),
+    inset 0 0 20px -6px rgba(217,79,79,.08);
+}
+
+/* Field labels — richer institutional treatment */
+.field label,
+.field-label{
+  font-family:var(--F4);font-size:.55rem;letter-spacing:.2em;
+  color:var(--text-dim);text-transform:uppercase;font-weight:700;
+  margin-bottom:.28rem;
+  display:block;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BADGES & METADATA CHIPS — consistent institutional style
+──────────────────────────────────────────────────────────────── */
+.topbar-meta > *{
+  padding:.35rem .55rem;
+  background:rgba(0,0,0,.4);
+  border:1px solid var(--line2);
+  font-family:var(--F4);font-size:.62rem;letter-spacing:.1em;
+  color:var(--text-dim);text-transform:uppercase;
+  position:relative;
+  transition:border-color .14s;
+}
+.topbar-meta > *:hover{border-color:var(--steel)}
+
+/* ────────────────────────────────────────────────────────────────
+   HEADER OF THE APP — richer institutional band
+──────────────────────────────────────────────────────────────── */
+.topbar{
+  background:
+    linear-gradient(180deg, var(--panel) 0%, rgba(15,17,20,.98) 100%);
+  border-top:2px solid var(--accent);
+  border-bottom:1px solid var(--line);
+  box-shadow:
+    inset 0 1px 0 rgba(217,79,79,.2),
+    0 4px 20px -12px rgba(0,0,0,.8);
+  position:relative;
+}
+.topbar::before{
+  content:'';position:absolute;top:-2px;left:0;right:0;height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity:.4;filter:blur(1px);
+  pointer-events:none;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SIDEBAR — richer institutional band
+──────────────────────────────────────────────────────────────── */
+.sidebar{
+  background:
+    linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+  border-right:1px solid var(--line2);
+  box-shadow:inset -1px 0 0 rgba(217,79,79,.1);
+}
+.sidebar-section{
+  position:relative;
+  padding:.75rem .8rem;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(217,79,79,.02) 0%, rgba(0,0,0,.14) 100%);
+  transition:border-color .18s;
+}
+.sidebar-section:hover{border-color:var(--line2)}
+.sidebar-section::before{
+  content:'';position:absolute;top:0;left:.5rem;right:.5rem;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(174,185,196,.2), transparent);
+}
+.sidebar-foot{
+  padding:.65rem .8rem;
+  font-family:var(--F4);font-size:.5rem;letter-spacing:.18em;
+  color:var(--muted);text-transform:uppercase;font-weight:500;line-height:1.5;
+  text-align:center;
+  border-top:1px solid var(--line);
+  background:rgba(217,79,79,.04);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM ROSTER ITEM POLISH — proper personnel rows in the console
+──────────────────────────────────────────────────────────────── */
+.dm-agent{
+  position:relative;
+  transition:border-color .16s cubic-bezier(.2,.8,.2,1),
+             box-shadow .2s,
+             transform .12s;
+}
+.dm-agent:hover{
+  border-color:var(--steel);
+  box-shadow:0 4px 14px -8px rgba(0,0,0,.7);
+  transform:translateY(-1px);
+}
+.dm-agent::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(174,185,196,.24), transparent);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SITE ALERT BUTTONS — heavier institutional weight
+──────────────────────────────────────────────────────────────── */
+.site-alert-btn{
+  position:relative;overflow:hidden;
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+}
+.site-alert-btn::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(120deg,
+    transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
+  transform:translateX(-100%);
+  transition:transform .5s cubic-bezier(.2,.8,.2,1);
+}
+.site-alert-btn:hover::before{transform:translateX(100%)}
+.site-alert-btn:hover{transform:translateY(-1px)}
+
+/* ────────────────────────────────────────────────────────────────
+   THREAT GRADE BUTTONS — consistency + institutional finish
+──────────────────────────────────────────────────────────────── */
+.dm-award-grade{
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+}
+.dm-award-grade:hover{
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px -6px currentColor;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   COMMENDATION GRID — hover polish
+──────────────────────────────────────────────────────────────── */
+.commend-slot{
+  position:relative;
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+}
+.commend-slot:hover{
+  border-color:var(--amber);
+  box-shadow:0 4px 14px -6px rgba(194,162,58,.4);
+  transform:translateY(-1px);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BULK ACTION BUTTONS — richer feedback
+──────────────────────────────────────────────────────────────── */
+.bulk-btn{
+  transition:all .16s cubic-bezier(.2,.8,.2,1);
+}
+.bulk-btn:hover{transform:translateY(-1px)}
+.bulk-btn.dmg:hover{box-shadow:0 4px 12px -4px rgba(217,79,79,.4)}
+.bulk-btn.heal:hover{box-shadow:0 4px 12px -4px rgba(90,154,120,.4)}
+.bulk-btn.full:hover{box-shadow:0 4px 12px -4px rgba(174,185,196,.28)}
+
+/* ────────────────────────────────────────────────────────────────
+   EVIDENCE BOARD — richer container
+──────────────────────────────────────────────────────────────── */
+.evidence-board{
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(217,79,79,.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 80%, rgba(174,185,196,.04) 0%, transparent 40%),
+    var(--bg);
+  border:1px solid var(--line2);
+  box-shadow:inset 0 0 40px -12px rgba(0,0,0,.7);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MINI-METRIC DISPLAYS (topSanityMini etc.) — cleaner
+──────────────────────────────────────────────────────────────── */
+.hud-bar-metric{
+  font-family:var(--F1);font-size:.7rem;font-weight:800;letter-spacing:.02em;
+  color:var(--text);
+  padding:.15rem .4rem;
+  background:rgba(0,0,0,.4);
+  border:1px solid var(--line2);
+  min-width:60px;text-align:center;
 }

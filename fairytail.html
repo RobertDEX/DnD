@@ -110,65 +110,192 @@
   <!-- MAGIC TYPE BANNER -->
   <div id="magicTypeBanner" class="magic-type-banner" style="display:none"></div>
 
-  <!-- ══ TWO-COLUMN SHEET ══ -->
-  <div class="sheet-columns">
+  <!-- ══ DASHBOARD SHEET LAYOUT ══ -->
+  <div class="sheet-dashboard">
 
-    <!-- ▌LEFT COLUMN -->
-    <div class="left-col">
-
-      <!-- HERO BANNER — guild ID card, full-width at the top -->
-      <section class="hero-banner">
-        <div class="hero-portrait-wrap">
-          <div class="portrait-slot hero-portrait">
-            <img id="portraitImg" class="portrait-img" src="" alt="" style="display:none">
-            <label class="portrait-upload" id="portraitLabel" for="portraitUpload"><span>Upload</span></label>
-            <label class="portrait-edit-overlay" for="portraitUpload" title="Change portrait">✎</label>
-            <input id="portraitUpload" type="file" accept="image/*" style="display:none">
+    <!-- ═════ ROW 1: HERO BANNER (full width) ═════ -->
+    <section class="hero-banner">
+      <div class="hero-portrait-wrap">
+        <div class="portrait-slot hero-portrait">
+          <img id="portraitImg" class="portrait-img" src="" alt="" style="display:none">
+          <label class="portrait-upload" id="portraitLabel" for="portraitUpload"><span>Upload</span></label>
+          <label class="portrait-edit-overlay" for="portraitUpload" title="Change portrait">✎</label>
+          <input id="portraitUpload" type="file" accept="image/*" style="display:none">
+        </div>
+      </div>
+      <div class="hero-info">
+        <div class="hero-tag" id="heroTag">Mage of Fairy Tail</div>
+        <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
+        <div class="hero-subtitle">
+          <input id="charRace"       class="hero-inline" type="text" placeholder="Race">
+          <span class="hero-sep">·</span>
+          <input id="charClass"      class="hero-inline" type="text" placeholder="Class">
+          <span class="hero-sep">·</span>
+          <span class="hero-lvl-block"><span class="hero-lvl-lbl">LV</span><input id="charLevel" class="hero-lvl-input" type="number" min="1" value="1"></span>
+        </div>
+        <div class="hero-magic-line" id="heroMagicLine">
+          <span class="hero-magic-icon">✦</span>
+          <input id="charMagicType" class="hero-magic-input" type="text" placeholder="Primary Magic — e.g. Fire Dragon Slayer">
+        </div>
+        <div class="hero-conditions-strip" id="heroConditionsStrip"></div>
+      </div>
+      <div class="hero-vitals">
+        <div class="hero-rank">
+          <div class="guild-rank-badge hero-rank-badge" id="guildRankBadge" data-tt="Guild rank">D</div>
+          <div class="guild-rank-label hero-rank-label" id="guildRankLabel">D-Rank · Novice</div>
+        </div>
+        <div class="hero-bars">
+          <div class="hero-bar hp-bar-large">
+            <div class="hbl-head"><span>HP</span><strong id="heroHpText">0 / 0</strong></div>
+            <div class="hbl-track"><div id="heroHpBar" class="hbl-fill hp"></div></div>
+          </div>
+          <div class="hero-bar mana-bar-large">
+            <div class="hbl-head"><span>Mana</span><strong id="heroManaText">0 / 0</strong></div>
+            <div class="hbl-track"><div id="heroManaBar" class="hbl-fill mana"></div></div>
           </div>
         </div>
-        <div class="hero-info">
-          <div class="hero-tag" id="heroTag">Mage of Fairy Tail</div>
-          <input id="charName" class="hero-name-input" type="text" placeholder="Character Name">
-          <div class="hero-subtitle">
-            <input id="charRace"       class="hero-inline" type="text" placeholder="Race">
-            <span class="hero-sep">·</span>
-            <input id="charClass"      class="hero-inline" type="text" placeholder="Class">
-            <span class="hero-sep">·</span>
-            <span class="hero-lvl-block"><span class="hero-lvl-lbl">LV</span><input id="charLevel" class="hero-lvl-input" type="number" min="1" value="1"></span>
-          </div>
-          <div class="hero-magic-line" id="heroMagicLine">
-            <span class="hero-magic-icon">✦</span>
-            <input id="charMagicType" class="hero-magic-input" type="text" placeholder="Primary Magic — e.g. Fire Dragon Slayer">
-          </div>
-          <div class="hero-conditions-strip" id="heroConditionsStrip"></div>
+      </div>
+    </section>
+
+    <!-- ═════ ROW 2: HP & MANA MANAGEMENT (2-column) ═════ -->
+    <div class="dash-row dash-row-2">
+      <section class="panel resource-card">
+        <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
         </div>
-        <div class="hero-vitals">
-          <div class="hero-rank">
-            <div class="guild-rank-badge hero-rank-badge" id="guildRankBadge" data-tt="Guild rank">D</div>
-            <div class="guild-rank-label hero-rank-label" id="guildRankLabel">D-Rank · Novice</div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="hp" data-amt="-10">−10</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
+          <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
+          <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
+        </div>
+        <div class="damage-block">
+          <div class="damage-title">Take Damage</div>
+          <div class="damage-row">
+            <div class="field"><label>Damage Amount</label><input id="damageTaken" type="number" min="1" placeholder="e.g. 12" oninput="previewDamage()"></div>
+            <button type="button" class="neo-btn small dmg-confirm-btn" onclick="applyDamage()">Apply</button>
           </div>
-          <div class="hero-bars">
-            <div class="hero-bar hp-bar-large">
-              <div class="hbl-head"><span>HP</span><strong id="heroHpText">0 / 0</strong></div>
-              <div class="hbl-track"><div id="heroHpBar" class="hbl-fill hp"></div></div>
-            </div>
-            <div class="hero-bar mana-bar-large">
-              <div class="hbl-head"><span>Mana</span><strong id="heroManaText">0 / 0</strong></div>
-              <div class="hbl-track"><div id="heroManaBar" class="hbl-fill mana"></div></div>
-            </div>
-          </div>
+          <div id="damagePreview" class="damage-preview"></div>
         </div>
       </section>
 
-      <!-- FULL CHARACTER FILE (collapsible, hidden by default now that Hero Banner is up top) -->
-      <section class="panel collapsible" data-collapse-key="identity">
+      <section class="panel resource-card">
+        <div class="resource-head"><span>Mana</span><strong id="manaDisplay" class="mana-val">0 / 0</strong></div>
+        <div class="bar-track"><div id="manaBar" class="bar-fill mana-fill"></div></div>
+        <div class="resource-inputs">
+          <div class="field"><label>Current</label><input id="currentMana" type="number" min="0"></div>
+          <div class="field"><label>Max</label><input id="maxMana" type="number" min="0"></div>
+        </div>
+        <div class="quick-adj">
+          <button class="adj-btn" data-resource="mana" data-amt="-10">−10</button>
+          <button class="adj-btn" data-resource="mana" data-amt="-5">−5</button>
+          <button class="adj-btn" data-resource="mana" data-amt="-1">−1</button>
+          <button class="adj-btn pos" data-resource="mana" data-amt="1">+1</button>
+          <button class="adj-btn pos" data-resource="mana" data-amt="5">+5</button>
+          <button class="adj-btn pos" data-resource="mana" data-amt="10">+10</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═════ ROW 3: QUICK-ACCESS STRIP (3 cards) ═════ -->
+    <div class="dash-row dash-row-3">
+      <section class="panel collapsible stats-panel" data-collapse-key="stats">
         <button type="button" class="panel-summary">
           <span class="chevron">▸</span>
-          <span class="summary-title">Character Details</span>
-          <span class="summary-meta" id="identityMeta"></span>
+          <span class="summary-title">Ability Scores</span>
+          <span class="summary-meta" id="statsMeta"></span>
         </button>
         <div class="panel-body">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+          <div id="statsGrid" class="stats-grid"></div>
+        </div>
+      </section>
+
+      <section class="panel collapsible combat-card" data-collapse-key="combat">
+        <button type="button" class="panel-summary">
+          <span class="chevron">▸</span>
+          <span class="summary-title">Combat &amp; Vitals</span>
+          <span class="summary-meta"><span id="combatMetaAC">AC —</span> · <span id="combatMetaSpd">— ft</span></span>
+        </button>
+        <div class="panel-body combat-body">
+          <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
+          <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
+          <div class="death-saves-block" style="grid-column:1/-1">
+            <div class="death-saves-title">Death Saves</div>
+            <div class="death-saves-row">
+              <span class="ds-label success">Successes</span>
+              <div class="ds-pips" id="deathSuccesses"></div>
+              <span class="ds-label failure">Failures</span>
+              <div class="ds-pips" id="deathFailures"></div>
+              <button id="stableBtn" type="button" class="neo-btn small">Stable</button>
+              <button id="resetDeathBtn" type="button" class="neo-btn small ghost">Reset</button>
+            </div>
+          </div>
+          <div class="field"><label>Magic Power Rank</label>
+            <select id="magicRank">
+              <option value="">— Rank —</option>
+              <option>D-Rank</option><option>C-Rank</option><option>B-Rank</option>
+              <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
+            </select>
+          </div>
+          <div class="field" data-tt="Formal guild classification — gates which jobs you can accept from the board">
+            <label>Guild Rank <span class="field-hint">— gates job board</span></label>
+            <select id="guildRankSelect"></select>
+          </div>
+          <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
+        </div>
+      </section>
+
+      <section class="panel collapsible" data-collapse-key="affinities">
+        <button type="button" class="panel-summary">
+          <span class="chevron">▸</span>
+          <span class="summary-title">Elemental Affinities</span>
+          <span class="summary-meta"><span class="elem-dot res"></span>Res <span class="elem-dot vuln"></span>Vuln <span class="elem-dot imm"></span>Imm</span>
+        </button>
+        <div class="panel-body">
+          <div id="elementalGrid" class="elemental-grid"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═════ ROW 4: CONDITIONS BAR (full width) ═════ -->
+    <section class="panel collapsible" data-collapse-key="conditions">
+      <button type="button" class="panel-summary">
+        <span class="chevron">▸</span>
+        <span class="summary-title">Status Conditions</span>
+        <span class="summary-meta" id="conditionsMeta">None active</span>
+      </button>
+      <div class="panel-body">
+        <p class="small-note" style="margin-bottom:.75rem;opacity:.75">Click any condition to toggle it. Active conditions show in your Hero Banner and glow gold.</p>
+        <div id="conditionsGrid" class="conditions-grid"></div>
+      </div>
+    </section>
+
+    <!-- ═════ ROW 5: MAGIC CALCULATIONS (full width, compact) ═════ -->
+    <section class="panel collapsible calc-panel" data-collapse-key="calc">
+      <button type="button" class="panel-summary">
+        <span class="chevron">▸</span>
+        <span class="summary-title">Magic Calculations</span>
+        <span class="summary-meta" id="calcMeta"></span>
+      </button>
+      <div class="panel-body">
+        <div id="calcPanel"></div>
+      </div>
+    </section>
+
+    <!-- ═════ ROW 6: CHARACTER DETAILS (full width, collapsed by default) ═════ -->
+    <section class="panel collapsible" data-collapse-key="identity">
+      <button type="button" class="panel-summary">
+        <span class="chevron">▸</span>
+        <span class="summary-title">Character Details</span>
+        <span class="summary-meta" id="identityMeta"></span>
+      </button>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem">
           <div class="field"><label>Age</label><input id="charAge" type="text"></div>
           <div class="field"><label>Background</label><input id="charBackground" type="text"></div>
           <div class="field"><label>Magic Category</label>
@@ -186,154 +313,14 @@
           <div class="field"><label>Guild Mark</label><input id="charGuildMark" type="text" placeholder="Location · Color"></div>
           <div class="field"><label>Religion</label><input id="charReligion" type="text" placeholder="Faith / beliefs"></div>
         </div>
-        </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- STATUS CONDITIONS -->
-      <section class="panel collapsible" data-collapse-key="conditions">
-        <button type="button" class="panel-summary">
-          <span class="chevron">▸</span>
-          <span class="summary-title">Status Conditions</span>
-          <span class="summary-meta" id="conditionsMeta">None active</span>
-        </button>
-        <div class="panel-body">
-          <p class="small-note" style="margin-bottom:.75rem;opacity:.75">Click any condition to toggle it. Active conditions show in your Hero Banner and glow gold.</p>
-          <div id="conditionsGrid" class="conditions-grid"></div>
-        </div>
-      </section>
-
-      <!-- HP & MANA side-by-side -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
-
-        <!-- HP -->
-        <section class="panel resource-card">
-          <div class="resource-head"><span>Hit Points</span><strong id="hpDisplay" class="hp-val">0 / 0</strong></div>
-          <div class="bar-track"><div id="hpBar" class="bar-fill hp-fill"></div></div>
-          <div class="resource-inputs">
-            <div class="field"><label>Current</label><input id="currentHp" type="number" min="0"></div>
-            <div class="field"><label>Max</label><input id="maxHp" type="number" min="0"></div>
-          </div>
-          <div class="quick-adj">
-            <button class="adj-btn" data-resource="hp" data-amt="-10">−10</button>
-            <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
-            <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
-            <button class="adj-btn pos" data-resource="hp" data-amt="1">+1</button>
-            <button class="adj-btn pos" data-resource="hp" data-amt="5">+5</button>
-            <button class="adj-btn pos" data-resource="hp" data-amt="10">+10</button>
-          </div>
-          <!-- Damage taken calculator -->
-          <div class="damage-block">
-            <div class="damage-title">Take Damage</div>
-            <div class="damage-row">
-              <div class="field"><label>Damage Amount</label><input id="damageTaken" type="number" min="1" placeholder="e.g. 12" oninput="previewDamage()"></div>
-              <button type="button" class="neo-btn small dmg-confirm-btn" onclick="applyDamage()">Apply</button>
-            </div>
-            <div id="damagePreview" class="damage-preview"></div>
-          </div>
-        </section>
-
-        <!-- MANA -->
-        <section class="panel resource-card">
-          <div class="resource-head"><span>Mana</span><strong id="manaDisplay" class="mana-val">0 / 0</strong></div>
-          <div class="bar-track"><div id="manaBar" class="bar-fill mana-fill"></div></div>
-          <div class="resource-inputs">
-            <div class="field"><label>Current</label><input id="currentMana" type="number" min="0"></div>
-            <div class="field"><label>Max</label><input id="maxMana" type="number" min="0"></div>
-          </div>
-          <div class="quick-adj">
-            <button class="adj-btn" data-resource="mana" data-amt="-10">−10</button>
-            <button class="adj-btn" data-resource="mana" data-amt="-5">−5</button>
-            <button class="adj-btn" data-resource="mana" data-amt="-1">−1</button>
-            <button class="adj-btn pos" data-resource="mana" data-amt="1">+1</button>
-            <button class="adj-btn pos" data-resource="mana" data-amt="5">+5</button>
-            <button class="adj-btn pos" data-resource="mana" data-amt="10">+10</button>
-          </div>
-        </section>
-
-      </div><!-- /hp+mana row -->
-
-      <!-- COMBAT STATS -->
-      <section class="panel collapsible combat-card" data-collapse-key="combat">
-        <button type="button" class="panel-summary">
-          <span class="chevron">▸</span>
-          <span class="summary-title">Combat &amp; Vitals</span>
-          <span class="summary-meta"><span id="combatMetaAC">AC —</span> · <span id="combatMetaSpd">— ft</span></span>
-        </button>
-        <div class="panel-body combat-body">
-        <div class="field"><label>Armor Class</label><input id="armor" type="number"></div>
-        <div class="field"><label>Speed</label><input id="speed" type="text" placeholder="30 ft"></div>
-        <div class="death-saves-block" style="grid-column:1/-1">
-          <div class="death-saves-title">Death Saves</div>
-          <div class="death-saves-row">
-            <span class="ds-label success">Successes</span>
-            <div class="ds-pips" id="deathSuccesses"></div>
-            <span class="ds-label failure">Failures</span>
-            <div class="ds-pips" id="deathFailures"></div>
-            <button id="stableBtn" type="button" class="neo-btn small">Stable</button>
-            <button id="resetDeathBtn" type="button" class="neo-btn small ghost">Reset</button>
-          </div>
-        </div>
-        <div class="field"><label>Magic Power Rank</label>
-          <select id="magicRank">
-            <option value="">— Rank —</option>
-            <option>D-Rank</option><option>C-Rank</option><option>B-Rank</option>
-            <option>A-Rank</option><option>S-Rank</option><option>SS-Rank</option><option>Ten Wizard Saint</option>
-          </select>
-        </div>
-        <div class="field" data-tt="Formal guild classification — gates which jobs you can accept from the board">
-          <label>Guild Rank <span class="field-hint">— gates job board</span></label>
-          <select id="guildRankSelect"></select>
-        </div>
-        <div class="field"><label>Initiative (auto)</label><input id="initiativeDisplay" type="text" readonly placeholder="auto-calc"></div>
-        </div>
-      </section>
-
-      <!-- ELEMENTAL AFFINITIES -->
-      <section class="panel collapsible" data-collapse-key="affinities">
-        <button type="button" class="panel-summary">
-          <span class="chevron">▸</span>
-          <span class="summary-title">Elemental Affinities</span>
-          <span class="summary-meta"><span class="elem-dot res"></span>Resist <span class="elem-dot vuln"></span>Vulnerable <span class="elem-dot imm"></span>Immune</span>
-        </button>
-        <div class="panel-body">
-          <div id="elementalGrid" class="elemental-grid"></div>
-        </div>
-      </section>
-
-      <!-- ABILITY SCORES -->
-      <section class="panel collapsible stats-panel" data-collapse-key="stats">
-        <button type="button" class="panel-summary">
-          <span class="chevron">▸</span>
-          <span class="summary-title">Ability Scores</span>
-          <span class="summary-meta" id="statsMeta"></span>
-        </button>
-        <div class="panel-body">
-          <div id="statsGrid" class="stats-grid"></div>
-        </div>
-      </section>
-
-    </div><!-- /left-col -->
-
-    <!-- ▌RIGHT COLUMN -->
-    <div class="right-col">
-
-      <!-- CALC PANEL -->
-      <section class="panel collapsible calc-panel" data-collapse-key="calc">
-        <button type="button" class="panel-summary">
-          <span class="chevron">▸</span>
-          <span class="summary-title">Magic Calculations</span>
-          <span class="summary-meta" id="calcMeta"></span>
-        </button>
-        <div class="panel-body">
-          <div id="calcPanel"></div>
-        </div>
-      </section>
-
-      <!-- TABS -->
-      <div class="tab-bar">
-        <button class="tab-btn active" data-tab="skills">Skills</button>
-        <button class="tab-btn" data-tab="magic">Spells</button>
-        <button class="tab-btn" data-tab="jobs">Job Board</button>
+    <!-- ═════ ROW 7: TABS (full width) ═════ -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="skills">Skills</button>
+      <button class="tab-btn" data-tab="magic">Spells</button>
+      <button class="tab-btn" data-tab="jobs">Job Board</button>
         <button class="tab-btn" data-tab="loadout">Loadout</button>
         <button class="tab-btn" data-tab="shop">Shop</button>
         <button class="tab-btn" data-tab="relations">Relations</button>
@@ -490,8 +477,7 @@
         <div id="archiveList" class="archive-list"></div>
       </div>
 
-    </div><!-- /right-col -->
-  </div><!-- /sheet-columns -->
+  </div><!-- /sheet-dashboard -->
 </main>
 </div><!-- /app -->
 

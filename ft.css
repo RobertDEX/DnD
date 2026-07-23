@@ -6680,3 +6680,303 @@ html body::after {
   text-shadow: 0 0 10px var(--gold-hi) !important;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   DASHBOARD LAYOUT v12 (2026-07-23) — HTML STRUCTURE CHANGED
+   The old two-column split is GONE. New flat dashboard layout.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Kill any leftover column styles */
+.sheet-columns,
+.left-col,
+.right-col {
+  display: contents !important;
+}
+
+/* NEW: Dashboard container — vertical flow, everything is full-width */
+.sheet-dashboard {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+  width: 100% !important;
+  padding: 20px 24px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Multi-column rows within the dashboard */
+.sheet-dashboard .dash-row {
+  display: grid !important;
+  gap: 18px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* 2-column row (HP + Mana management) */
+.sheet-dashboard .dash-row-2 {
+  grid-template-columns: 1fr 1fr !important;
+}
+
+/* 3-column row (Stats | Combat | Affinities quick strip) */
+.sheet-dashboard .dash-row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+/* Row items should never break out of their column */
+.sheet-dashboard .dash-row > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Hero banner stays full-width, no changes needed to its internals */
+.sheet-dashboard > .hero-banner {
+  margin-bottom: 0 !important;
+  width: 100% !important;
+}
+
+/* Tab bar in dashboard context — full width, prominent */
+.sheet-dashboard > .tab-bar {
+  width: 100% !important;
+  margin: 8px 0 0 0 !important;
+}
+
+/* Tab content wrappers — FULL WIDTH (this is the whole point of the redesign) */
+.sheet-dashboard > .tab-content,
+.sheet-dashboard > [data-tab] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   RESPONSIVE: collapse 3-col → 1-col on narrow, 2-col on medium
+──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .sheet-dashboard .dash-row-3 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* First column (Ability Scores) spans full width above the pair */
+  .sheet-dashboard .dash-row-3 > *:first-child {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .sheet-dashboard {
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+  .sheet-dashboard .dash-row-2,
+  .sheet-dashboard .dash-row-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .sheet-dashboard .dash-row-3 > *:first-child {
+    grid-column: auto !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   3-COL QUICK STRIP: make cards feel like a related unit
+──────────────────────────────────────────────────────────────── */
+
+.dash-row-3 > .panel {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Ability Scores grid inside its card — tighter for narrow column */
+.dash-row-3 .stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+}
+
+/* Elemental affinities inside its card — tighter grid */
+.dash-row-3 .elemental-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+}
+
+/* Combat body inside its card — single column */
+.dash-row-3 .combat-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+.dash-row-3 .combat-body > .field {
+  min-width: 0 !important;
+}
+
+/* Death saves get their own row inside combat card */
+.dash-row-3 .death-saves-block {
+  grid-column: auto !important;
+  margin-top: 4px !important;
+}
+.dash-row-3 .death-saves-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TAB CONTENT PANEL — now uses full dashboard width
+──────────────────────────────────────────────────────────────── */
+
+.sheet-dashboard .tab-content.panel,
+.sheet-dashboard .tab-panel {
+  padding: 20px 24px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Grid layouts inside tabs (spell list, jobs, etc.) get more room */
+.sheet-dashboard .spell-list,
+.sheet-dashboard .job-board-list,
+.sheet-dashboard .weapon-list,
+.sheet-dashboard .inventory-list {
+  width: 100% !important;
+}
+
+/* Skills matrix inside its tab — 2-column at wide widths for readability */
+@media (min-width: 1000px) {
+  .sheet-dashboard .skills-matrix {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+    align-items: start !important;
+  }
+}
+
+/* Relations / notes / archive tabs use full width */
+.sheet-dashboard .tab-content.panel textarea {
+  width: 100% !important;
+  min-height: 200px !important;
+}
+
+/* Job board grid on wide screens — 2 cols */
+@media (min-width: 1000px) {
+  .sheet-dashboard .job-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   RESOURCE CARDS (HP & Mana row) — cleaner in 2-col layout
+──────────────────────────────────────────────────────────────── */
+
+.dash-row-2 > .resource-card {
+  padding: 16px 20px !important;
+  min-width: 0 !important;
+}
+
+/* Quick-adjustment button row */
+.quick-adj {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: 4px !important;
+  margin-top: 10px !important;
+}
+
+.adj-btn {
+  padding: 6px 4px !important;
+  font-family: var(--F1) !important;
+  font-size: .75rem !important;
+  font-weight: 700 !important;
+  background: rgba(0, 0, 0, .5) !important;
+  border: 1px solid rgba(200, 130, 40, .18) !important;
+  border-radius: 3px !important;
+  color: var(--text) !important;
+  cursor: pointer !important;
+  transition: all 130ms cubic-bezier(.2, .8, .2, 1) !important;
+}
+.adj-btn:hover:not(:disabled) {
+  border-color: var(--gold) !important;
+  background: rgba(232, 160, 48, .1) !important;
+  color: var(--gold-hi) !important;
+}
+.adj-btn.pos {
+  color: var(--safe) !important;
+  border-color: rgba(74, 222, 128, .25) !important;
+}
+.adj-btn.pos:hover:not(:disabled) {
+  border-color: var(--safe) !important;
+  background: rgba(74, 222, 128, .12) !important;
+}
+
+/* Damage block */
+.damage-block {
+  margin-top: 12px !important;
+  padding: 10px 12px !important;
+  background: rgba(180, 30, 10, .06) !important;
+  border: 1px solid rgba(180, 30, 10, .22) !important;
+  border-left: 3px solid var(--danger) !important;
+  border-radius: 4px !important;
+}
+.damage-title {
+  font-family: var(--F4) !important;
+  font-size: .6rem !important;
+  letter-spacing: .2em !important;
+  color: var(--danger) !important;
+  text-transform: uppercase !important;
+  font-weight: 800 !important;
+  margin-bottom: 6px !important;
+  text-shadow: 0 0 6px rgba(248, 113, 113, .35) !important;
+}
+.damage-row {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: end !important;
+}
+.damage-row .field {
+  flex: 1 !important;
+}
+.dmg-confirm-btn {
+  background: linear-gradient(180deg, var(--danger), #7a1220) !important;
+  border-color: var(--danger) !important;
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .6) !important;
+}
+.damage-preview {
+  margin-top: 6px !important;
+  font-family: var(--F3) !important;
+  font-size: .8rem !important;
+  color: var(--muted) !important;
+  min-height: 1em !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MAKE THE MAIN CONTAINER FLEX-EXPAND — no wasted right margin
+──────────────────────────────────────────────────────────────── */
+
+.main {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* The app-level grid — sidebar + main, main flex-grows */
+.app {
+  display: grid !important;
+  grid-template-columns: 240px 1fr !important;
+  min-height: 100vh !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr !important;
+  }
+  .sidebar {
+    position: relative !important;
+    width: 100% !important;
+  }
+}
+

@@ -3920,9 +3920,10 @@ input:focus, textarea:focus, select:focus {
 ──────────────────────────────────────────────────────────────── */
 .hero-banner {
   position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1.3rem;
   padding: 1.3rem 1.5rem;
   margin-bottom: 1.2rem;
   background:
@@ -3970,10 +3971,12 @@ input:focus, textarea:focus, select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;   /* never shrink or grow */
 }
 .portrait-slot.hero-portrait {
   width: 140px;
   height: 140px;
+  flex-shrink: 0;
   border: 2px solid var(--gold);
   border-radius: 6px;
   box-shadow:
@@ -3992,6 +3995,8 @@ input:focus, textarea:focus, select:focus {
   flex-direction: column;
   justify-content: center;
   gap: .5rem;
+  flex: 1 1 320px;   /* grow, shrink OK, min 320px basis — never collapses below */
+  min-width: 0;      /* let inner text ellipsize instead of forcing overflow */
   min-width: 0;
 }
 .hero-tag {
@@ -4008,7 +4013,7 @@ input:focus, textarea:focus, select:focus {
 /* Character name — huge illuminated title */
 .hero-banner .hero-name-input {
   font-family: var(--F1);
-  font-size: 2.4rem;
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
   font-weight: 700;
   letter-spacing: .04em;
   padding: 0 !important;
@@ -4019,10 +4024,13 @@ input:focus, textarea:focus, select:focus {
   text-shadow:
     0 0 24px var(--gold-glow),
     0 2px 4px rgba(0,0,0,.6);
-  line-height: 1.1;
+  line-height: 1.15;
   outline: none !important;
   box-shadow: none !important;
   margin: 0 !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 .hero-banner .hero-name-input:focus {
   outline: none !important;
@@ -4048,9 +4056,11 @@ input:focus, textarea:focus, select:focus {
   border-radius: 3px !important;
   color: var(--text) !important;
   font-family: var(--F3);
-  font-size: .95rem;
+  font-size: .92rem;
   font-style: italic;
-  min-width: 100px;
+  min-width: 0;
+  max-width: 160px;
+  flex: 0 1 auto;
   transition: all .16s;
 }
 .hero-inline:hover:not(:focus) {
@@ -4176,9 +4186,12 @@ input:focus, textarea:focus, select:focus {
 .hero-vitals {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: .85rem;
-  min-width: 240px;
+  align-items: stretch;
+  gap: .75rem;
+  flex: 1 1 260px;   /* grow, shrink OK, base 260px — wraps below at small widths */
+  min-width: 260px;
+  max-width: 340px;
+  margin-left: auto;  /* push right when we're on the same row */
 }
 .hero-rank {
   display: flex;
@@ -4202,7 +4215,7 @@ input:focus, textarea:focus, select:focus {
   flex-direction: column;
   gap: .5rem;
   width: 100%;
-  min-width: 240px;
+  min-width: 0;
 }
 .hero-bar {
   display: flex;
@@ -4735,21 +4748,21 @@ input:focus, textarea:focus, select:focus {
 
 /* ────────────────────────────────────────────────────────────────
    RESPONSIVE — hero banner + widgets
+   With flex-wrap the banner naturally wraps vitals below at narrow
+   widths. This just fine-tunes the tight cases.
 ──────────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .hero-banner {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 1rem;
     padding: 1rem;
+    gap: 1rem;
   }
-  .hero-portrait-wrap { justify-content: flex-start; }
   .portrait-slot.hero-portrait { width: 110px; height: 110px; }
   .hero-vitals {
-    align-items: stretch;
-    min-width: 0;
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
   }
-  .hero-banner .hero-name-input { font-size: 1.8rem; }
+  .hero-info { flex-basis: 200px; }
   .dice-roller {
     width: calc(100vw - 2rem);
     right: 1rem;

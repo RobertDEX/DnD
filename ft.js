@@ -199,11 +199,12 @@ function blankChar(i) {
     resistances:[], vulnerabilities:[], immunities:[],
     weaponsText:'',abilitiesText:'',inventoryText:'',notesText:'',
     relationships:[],
-    spells:[],lostMagic:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[],
-    claimedJobs:[]  // Job IDs the character has claimed from the guild board
+    spells:[],magics:[],weapons:[],inventory:[],archive:[],bestiary:[],
+    claimedJobs:[],  // Job IDs the character has claimed from the guild board
+    conditions:[]    // Active status conditions on the character
   };
 }
-const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},shop:[],characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)],jobBoard:[],locations:[],initiative:{active:false,round:1,turnIdx:0,entries:[]}};
+const DEF_STATE = {selectedCharacter:0,activeTab:'skills',showReserve:false,showDead:false,theme:{...DEF_THEME},shop:[],characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)],jobBoard:[],locations:[],npcs:[],initiative:{active:false,round:1,turnIdx:0,entries:[]}};
 
 let state  = structuredClone(DEF_STATE);
 let _unsub = null;
@@ -365,6 +366,7 @@ function startListener(){
       state.shop=remote.shop;
       state.jobBoard   = remote.jobBoard   || [];
       state.locations  = remote.locations  || [];
+      state.npcs       = remote.npcs       || [];
       state.initiative = remote.initiative || { active:false, round:1, turnIdx:0, entries:[] };
       _firstSnapshotReceived = true;   // Firebase data safely loaded — writes now safe
       setSyncDot('synced');
@@ -386,7 +388,6 @@ function startListener(){
       try{renderStats();}catch(e){}
       try{renderSkillsMatrix();}catch(e){}
       try{renderSpells();}catch(e){}
-      try{renderLostMagic();}catch(e){}
       try{renderMagicBanner();}catch(e){}
       try{renderMagicsKnown();}catch(e){}
       try{renderArchive();}catch(e){}
@@ -423,7 +424,7 @@ function normalize(raw){
     try {
       const b=blankChar(i);const mc={...b,...c};
       mc.stats={...b.stats,...(c.stats||{})};mc.hp={...b.hp,...(c.hp||{})};mc.mana={...b.mana,...(c.mana||{})};
-      mc.spells=Array.isArray(c.spells)?c.spells:[];mc.lostMagic=Array.isArray(c.lostMagic)?c.lostMagic:[];
+      mc.spells=Array.isArray(c.spells)?c.spells:[];
       mc.magics=Array.isArray(c.magics)?c.magics:[];mc.relationships=Array.isArray(c.relationships)?c.relationships:[];mc.weapons=Array.isArray(c.weapons)?c.weapons:[];mc.inventory=Array.isArray(c.inventory)?c.inventory:[];mc.archive=Array.isArray(c.archive)?c.archive:[];mc.bestiary=Array.isArray(c.bestiary)?c.bestiary:[];mc.archiveFolders=Array.isArray(c.archiveFolders)?c.archiveFolders:[];mc.bestiaryFolders=Array.isArray(c.bestiaryFolders)?c.bestiaryFolders:[];
       mc.money=Number(c.money)||0;
       // Guild rank + elemental affinities (new)
@@ -432,6 +433,7 @@ function normalize(raw){
       mc.vulnerabilities = Array.isArray(c.vulnerabilities) ? c.vulnerabilities.map(String) : [];
       mc.immunities      = Array.isArray(c.immunities)      ? c.immunities.map(String)      : [];
       mc.claimedJobs     = Array.isArray(c.claimedJobs)     ? c.claimedJobs.map(String)     : [];
+    mc.conditions      = Array.isArray(c.conditions)      ? c.conditions.map(String)      : [];
       const blankSk=makeBlankSkills();mc.skills={};
       Object.keys(blankSk).forEach(n=>{mc.skills[n]={...blankSk[n],...(c.skills?.[n]||{})};});
       return mc;
@@ -482,6 +484,19 @@ function normalize(raw){
     let found = false;
     m.locations.forEach(s=>{ if(s.current){ if(found) s.current = false; else found = true; }});
   }
+
+  // NPC Roster — DM-tracked recurring characters
+  if(!Array.isArray(m.npcs))m.npcs=[];
+  m.npcs = m.npcs.map((n,ix)=>({
+    id:         String(n?.id ?? ('npc-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    name:       String(n?.name ?? 'Unnamed'),
+    role:       String(n?.role ?? ''),
+    location:   String(n?.location ?? ''),
+    disposition:['ally','friendly','neutral','hostile','enemy','unknown'].includes(n?.disposition) ? n.disposition : 'neutral',
+    notes:      String(n?.notes ?? ''),
+    portrait:   String(n?.portrait ?? ''),
+    knownTo:    Array.isArray(n?.knownTo) ? n.knownTo.map(String) : []  // char IDs who have met this NPC
+  }));
 
   // Initiative Tracker
   if(!m.initiative || typeof m.initiative !== 'object') m.initiative = { active:false, round:1, turnIdx:0, entries:[] };
@@ -691,7 +706,7 @@ function renderCalcPanel(){
       </div>
 
       <div class="magic-restrictions">
-        <div class="magic-rule-line warn">⚠ Ancient / Lost Magic not allowed as starting magic.</div>
+        <div class="magic-rule-line warn">⚠ Ancient magic not allowed as starting magic.</div>
       </div>
 
       <div class="magic-spell-budget">
@@ -1103,6 +1118,283 @@ function renderJobBoard(){
     pushState(true); renderJobBoard();
   }));
 }
+
+// ═════════════════════════════════════════════════════════════════
+// STATUS CONDITIONS — click chips to toggle
+// ═════════════════════════════════════════════════════════════════
+const CONDITIONS = [
+  { id:'blessed',       icon:'✨', label:'Blessed',       desc:'Blessed by holy magic. Bonus dice on saves.' },
+  { id:'inspired',      icon:'♪', label:'Inspired',       desc:'Bardic or motivational inspiration granted.' },
+  { id:'concentrating', icon:'⊙', label:'Concentrating',  desc:'Maintaining a spell. Take damage → CON save or drop it.' },
+  { id:'hasted',        icon:'⚡', label:'Hasted',         desc:'Speed doubled. +2 AC. Extra action.' },
+  { id:'invisible',     icon:'○', label:'Invisible',      desc:'Cannot be seen. Attacks against you have disadvantage.' },
+  { id:'blinded',       icon:'👁', label:'Blinded',        desc:'Cannot see. Auto-fail sight checks. Attacks have disadvantage.' },
+  { id:'charmed',       icon:'♥', label:'Charmed',        desc:'Cannot attack the charmer. Charmer has advantage on social checks.' },
+  { id:'deafened',      icon:'🔇', label:'Deafened',       desc:'Cannot hear. Auto-fail hearing checks.' },
+  { id:'exhausted',     icon:'😴', label:'Exhausted',      desc:'Disadvantage on ability checks. Stacks — 6 = death.' },
+  { id:'frightened',    icon:'😱', label:'Frightened',     desc:'Disadvantage while source is in sight. Cannot willingly move closer.' },
+  { id:'grappled',      icon:'🤝', label:'Grappled',       desc:'Speed 0. Ends if grappler is incapacitated.' },
+  { id:'incapacitated', icon:'💫', label:'Incapacitated',  desc:'Cannot take actions or reactions.' },
+  { id:'paralyzed',     icon:'⚡', label:'Paralyzed',      desc:'Incapacitated. Auto-fail STR/DEX saves. Attacks against auto-crit within 5 ft.' },
+  { id:'petrified',     icon:'🗿', label:'Petrified',      desc:'Turned to stone. Incapacitated, resistance to all damage.' },
+  { id:'poisoned',      icon:'☠', label:'Poisoned',       desc:'Disadvantage on attack rolls and ability checks.' },
+  { id:'prone',         icon:'⤓', label:'Prone',          desc:'Attacks against have advantage within 5 ft. Costs half speed to stand.' },
+  { id:'restrained',    icon:'⛓', label:'Restrained',     desc:'Speed 0. Attacks against have advantage. Disadvantage on DEX saves.' },
+  { id:'silenced',      icon:'🔕', label:'Silenced',       desc:'Cannot cast spells with verbal components. Cannot speak.' },
+  { id:'stunned',       icon:'💫', label:'Stunned',        desc:'Incapacitated. Auto-fail STR/DEX saves. Attacks against have advantage.' },
+  { id:'unconscious',   icon:'💤', label:'Unconscious',    desc:'Incapacitated, prone, drops everything. Attacks within 5 ft auto-crit.' }
+];
+const CONDITION_BY_ID = Object.fromEntries(CONDITIONS.map(c=>[c.id,c]));
+
+function renderConditions(){
+  const c = getChar(); if(!c) return;
+  const host = document.getElementById('conditionsGrid'); if(!host) return;
+  const active = new Set(c.conditions || []);
+  host.innerHTML = CONDITIONS.map(cd => {
+    const on = active.has(cd.id);
+    return `<button type="button" class="cond-cell ${on?'active':''}" data-cond="${cd.id}"
+      data-tt="${esc(cd.desc)}">
+      <span class="cond-icon">${cd.icon}</span>
+      <span class="cond-name">${cd.label}</span>
+    </button>`;
+  }).join('');
+  host.querySelectorAll('[data-cond]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.cond;
+    if (!Array.isArray(c.conditions)) c.conditions = [];
+    if (c.conditions.includes(id)) c.conditions = c.conditions.filter(x=>x!==id);
+    else c.conditions.push(id);
+    pushState(true); renderConditions(); renderHeroBanner();
+  }));
+  const meta = document.getElementById('conditionsMeta');
+  if (meta) {
+    const list = (c.conditions||[]).map(id => CONDITION_BY_ID[id]?.label).filter(Boolean);
+    meta.textContent = list.length ? `${list.length} active: ${list.slice(0,3).join(', ')}${list.length>3?'…':''}` : 'None active';
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// HERO BANNER — guild ID card at the top of the sheet
+// ═════════════════════════════════════════════════════════════════
+function renderHeroBanner(){
+  const c = getChar(); if(!c) return;
+
+  const tag = document.getElementById('heroTag');
+  if (tag) {
+    const guild = c.guild ? `Mage of ${c.guild}` : (c.className ? c.className : 'Unaffiliated Wizard');
+    tag.textContent = guild;
+  }
+
+  const hpText = document.getElementById('heroHpText');
+  const hpBar  = document.getElementById('heroHpBar');
+  if (hpText) hpText.textContent = `${c.hp.current} / ${c.hp.max}`;
+  if (hpBar) {
+    const pct = c.hp.max > 0 ? Math.max(0, Math.min(100, (c.hp.current / c.hp.max) * 100)) : 0;
+    hpBar.style.width = pct + '%';
+  }
+
+  const mnText = document.getElementById('heroManaText');
+  const mnBar  = document.getElementById('heroManaBar');
+  if (mnText) mnText.textContent = `${c.mana.current} / ${c.mana.max}`;
+  if (mnBar) {
+    const pct = c.mana.max > 0 ? Math.max(0, Math.min(100, (c.mana.current / c.mana.max) * 100)) : 0;
+    mnBar.style.width = pct + '%';
+  }
+
+  const strip = document.getElementById('heroConditionsStrip');
+  if (strip) {
+    const active = (c.conditions || []).map(id => CONDITION_BY_ID[id]).filter(Boolean);
+    strip.innerHTML = active.length
+      ? active.map(cd => `<span class="cond-chip" data-tt="${esc(cd.desc)}">${cd.icon} ${cd.label}</span>`).join('')
+      : '';
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DICE ROLLER — floating widget with common rolls
+// ═════════════════════════════════════════════════════════════════
+let _diceHistory = [];
+function rollDie(sides){ return 1 + Math.floor(Math.random() * sides); }
+function parseAndRoll(expr){
+  const s = String(expr).replace(/\s+/g,'').toLowerCase();
+  if (!s) return null;
+  const m = s.match(/^(\d+)?d(\d+)((?:[+\-]\d+)*)?$/i);
+  if (!m) return null;
+  const n = parseInt(m[1]||'1', 10);
+  const sides = parseInt(m[2], 10);
+  const bonuses = (m[3]||'').match(/[+\-]\d+/g) || [];
+  const bonus = bonuses.reduce((a,b) => a + parseInt(b,10), 0);
+  if (n < 1 || n > 20 || sides < 2 || sides > 1000) return null;
+  const rolls = [];
+  for (let i = 0; i < n; i++) rolls.push(rollDie(sides));
+  const sum = rolls.reduce((a,b)=>a+b, 0) + bonus;
+  return { expr: `${n}d${sides}${bonus?(bonus>0?'+':'')+bonus:''}`, rolls, bonus, total: sum };
+}
+function pushDiceResult(result){
+  if (!result) return;
+  const resultEl  = document.getElementById('diceResult');
+  const historyEl = document.getElementById('diceHistory');
+  if (resultEl) {
+    const isCrit  = typeof result.total === 'number' && result.rolls.length === 1 && result.rolls[0] === Math.max(...result.rolls) && result.expr.startsWith('1d20') && result.rolls[0] === 20;
+    const isFumble= typeof result.total === 'number' && result.rolls.length === 1 && result.expr.startsWith('1d20') && result.rolls[0] === 1;
+    resultEl.innerHTML = `
+      <div class="dr-result-value ${isCrit?'crit':isFumble?'fumble':''}">${result.total}</div>
+      <div class="dr-result-label">${result.expr} · [${result.rolls.join(', ')}]${result.bonus ? (result.bonus>0?' +':' ')+result.bonus : ''}</div>
+    `;
+    resultEl.classList.remove('roll-anim');
+    void resultEl.offsetWidth;
+    resultEl.classList.add('roll-anim');
+  }
+  _diceHistory.unshift(result);
+  if (_diceHistory.length > 8) _diceHistory.length = 8;
+  if (historyEl) {
+    historyEl.innerHTML = _diceHistory.map(r =>
+      `<div class="dr-history-row"><span class="drh-expr">${r.expr}</span><span class="drh-total">${r.total}</span></div>`
+    ).join('');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const roller = document.getElementById('diceRoller');
+  const openBtn = document.getElementById('diceRollerBtn');
+  const closeBtn = document.getElementById('diceRollerClose');
+  if (openBtn && roller) {
+    openBtn.addEventListener('click', () => roller.classList.toggle('hidden'));
+  }
+  if (closeBtn && roller) {
+    closeBtn.addEventListener('click', () => roller.classList.add('hidden'));
+  }
+  document.querySelectorAll('.dr-die').forEach(b => b.addEventListener('click', () => {
+    const sides = Number(b.dataset.die);
+    pushDiceResult(parseAndRoll(`1d${sides}`));
+  }));
+  const rollBtn = document.getElementById('diceRollBtn');
+  const exprIn = document.getElementById('diceExpr');
+  if (rollBtn && exprIn) {
+    const doRoll = () => {
+      const r = parseAndRoll(exprIn.value.trim());
+      if (r) pushDiceResult(r);
+    };
+    rollBtn.addEventListener('click', doRoll);
+    exprIn.addEventListener('keydown', e => { if (e.key === 'Enter') doRoll(); });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════
+// DM · NPC ROSTER
+// ═════════════════════════════════════════════════════════════════
+let _dmNpcSelectedId = null;
+let _dmNpcSearchTerm = '';
+let _dmNpcDispFilter = '';
+function dmActiveNpc(){
+  const list = state.npcs || []; if(!list.length) return null;
+  let n = list.find(x => x.id === _dmNpcSelectedId);
+  if (!n) { n = list[0]; _dmNpcSelectedId = n.id; }
+  return n;
+}
+function addNpc(){
+  if (!Array.isArray(state.npcs)) state.npcs = [];
+  const n = {
+    id: 'npc-' + Date.now(),
+    name: 'New NPC', role: '', location: '',
+    disposition: 'neutral', notes: '', portrait: '', knownTo: []
+  };
+  state.npcs.unshift(n);
+  _dmNpcSelectedId = n.id;
+  pushState(true); renderDmNpcs();
+}
+function renderDmNpcs(){
+  const host = document.getElementById('dmNpcRoot'); if(!host) return;
+  let list = state.npcs || [];
+  if (_dmNpcSearchTerm) {
+    const q = _dmNpcSearchTerm.toLowerCase();
+    list = list.filter(n =>
+      (n.name||'').toLowerCase().includes(q) ||
+      (n.role||'').toLowerCase().includes(q) ||
+      (n.location||'').toLowerCase().includes(q));
+  }
+  if (_dmNpcDispFilter) {
+    list = list.filter(n => n.disposition === _dmNpcDispFilter);
+  }
+  const cur = dmActiveNpc();
+
+  host.innerHTML = `
+    <div class="dm-npc-shell">
+      <aside class="dm-npc-side">
+        ${list.length ? list.map(n => {
+          const on = cur && n.id === cur.id;
+          const dispColor = {ally:'#4ade80',friendly:'#e8a030',neutral:'#c4b0a0',hostile:'#ff6020',enemy:'#f87171',unknown:'#8a7a99'}[n.disposition] || '#8a7a99';
+          return `<button type="button" class="dm-npc-row ${on?'active':''}" data-npcid="${esc(n.id)}" style="--dcol:${dispColor}">
+            <span class="dm-npc-dot"></span>
+            <div class="dm-npc-info">
+              <div class="dm-npc-name">${esc(n.name)}</div>
+              <div class="dm-npc-sub">${esc(n.role || 'Unknown')} ${n.location ? '· '+esc(n.location):''}</div>
+            </div>
+            <span class="dm-npc-disp">${n.disposition.toUpperCase().slice(0,3)}</span>
+          </button>`;
+        }).join('') : '<div class="dm-empty" style="padding:1.4rem;text-align:center">No NPCs match your filters.</div>'}
+      </aside>
+      <div class="dm-npc-main">
+        ${cur ? `
+          <div class="dm-npc-head">
+            <input type="text" id="dmNpcName" value="${esc(cur.name)}" class="dm-npc-name-in" placeholder="NPC name">
+            <select id="dmNpcDisp" class="dm-npc-disp-sel">
+              <option value="ally"     ${cur.disposition==='ally'?'selected':''}>💚 Ally</option>
+              <option value="friendly" ${cur.disposition==='friendly'?'selected':''}>😊 Friendly</option>
+              <option value="neutral"  ${cur.disposition==='neutral'?'selected':''}>😐 Neutral</option>
+              <option value="hostile"  ${cur.disposition==='hostile'?'selected':''}>😠 Hostile</option>
+              <option value="enemy"    ${cur.disposition==='enemy'?'selected':''}>💀 Enemy</option>
+              <option value="unknown"  ${cur.disposition==='unknown'?'selected':''}>❓ Unknown</option>
+            </select>
+            <button class="neo-btn ghost small" id="dmNpcDel">🗑</button>
+          </div>
+          <div class="dm-npc-row2">
+            <label class="dm-npc-field" style="flex:1"><span>Role / Position</span>
+              <input type="text" id="dmNpcRole" value="${esc(cur.role)}" placeholder="e.g. Council Member, Bar Owner, Dark Mage">
+            </label>
+            <label class="dm-npc-field" style="flex:1"><span>Location</span>
+              <input type="text" id="dmNpcLocation" value="${esc(cur.location)}" placeholder="e.g. Magnolia, Fairy Tail Hall">
+            </label>
+          </div>
+          <label class="dm-npc-field">
+            <span>Notes (DM only — plot hooks, secrets, personality)</span>
+            <textarea id="dmNpcNotes" placeholder="Everything the party doesn't know about them.">${esc(cur.notes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem">Add an NPC to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  host.querySelectorAll('.dm-npc-row').forEach(r => r.addEventListener('click', () => {
+    _dmNpcSelectedId = r.dataset.npcid; renderDmNpcs();
+  }));
+  const bind = (id, field) => document.getElementById(id)?.addEventListener('input', e => {
+    const c = dmActiveNpc(); if(!c) return;
+    c[field] = e.target.value; pushState();
+    if (['name','role','location'].includes(field)) renderDmNpcs();
+  });
+  bind('dmNpcName','name'); bind('dmNpcRole','role');
+  bind('dmNpcLocation','location'); bind('dmNpcNotes','notes');
+  document.getElementById('dmNpcDisp')?.addEventListener('change', e => {
+    const c = dmActiveNpc(); if(!c) return;
+    c.disposition = e.target.value;
+    pushState(true); renderDmNpcs();
+  });
+  document.getElementById('dmNpcDel')?.addEventListener('click', () => {
+    const c = dmActiveNpc(); if(!c) return;
+    if (!confirm(`Delete NPC "${c.name}"?`)) return;
+    state.npcs = state.npcs.filter(x => x.id !== c.id);
+    _dmNpcSelectedId = null;
+    pushState(true); renderDmNpcs();
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('dmAddNpcBtn')?.addEventListener('click', addNpc);
+  document.getElementById('dmNpcSearch')?.addEventListener('input', e => {
+    _dmNpcSearchTerm = e.target.value; renderDmNpcs();
+  });
+  document.getElementById('dmNpcFilterDisp')?.addEventListener('change', e => {
+    _dmNpcDispFilter = e.target.value; renderDmNpcs();
+  });
+});
 
 // ═════════════════════════════════════════════════════════════════
 // DM · JOB BOARD MANAGER
@@ -1843,53 +2135,8 @@ function openEditSpell(id){
   state.activeTab='magic';renderTabs();el('spellName')?.focus();el('spellName')?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
-// ================================================================
-// LOST MAGIC
-// ================================================================
-function renderLostMagic(){
-  const c=getChar();const cont=el('lostMagicList');if(!cont)return;cont.innerHTML='';
-  if(!c.lostMagic.length){cont.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No Lost Magic yet. DM grants via the DM panel.</div>`;return;}
-  c.lostMagic.forEach(lm=>{
-    const card=document.createElement('div');card.className='spell-card lm-card collapse-block';
-    card.innerHTML=`<details><summary class="collapse-summary"><div class="spell-card-header"><span class="spell-name">🐲 ${esc(lm.name)}</span><div class="spell-meta">${lm.manaCost>0?`<span class="mana-pill">−${lm.manaCost} Mana</span>`:''}<span class="type-pill" style="border-color:rgba(232,160,48,.3);color:var(--accent)">DM Granted</span></div></div></summary><div class="collapse-body"><div class="small-note">${esc(lm.description)}</div>${lm.manaCost>0?`<div class="spell-actions"><button type="button" class="neo-btn small cast-btn use-lm" data-id="${lm.id}">Use (−${lm.manaCost} Mana)</button></div>`:''}</div></details>`;
-    cont.appendChild(card);
-  });
-  cont.querySelectorAll('.use-lm').forEach(btn=>btn.addEventListener('click',()=>useLostMagic(btn.dataset.id)));
-}
-function renderDmLostMagic(){
-  renderLMAssignList();
-  const container=el('dmLostMagicList');if(!container)return;container.innerHTML='';
-  let any=false;
-  state.characters.forEach(c=>{
-    if(!c.lostMagic.length)return;any=true;
-    const hdr=document.createElement('div');
-    hdr.style.cssText='font-family:var(--font-mono);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:.6rem 0 .35rem;padding:.35rem .6rem;background:rgba(232,160,48,.06);border-radius:6px;border-left:2px solid var(--accent)';
-    hdr.textContent=c.name||'Player';container.appendChild(hdr);
-    c.lostMagic.forEach(lm=>{
-      const card=document.createElement('div');card.className='collapse-block';
-      card.innerHTML=`<details><summary class="collapse-summary"><div style="display:flex;justify-content:space-between;align-items:center;width:100%"><span>${esc(lm.name)}</span>${lm.manaCost>0?`<span class="mana-pill">−${lm.manaCost} Mana</span>`:''}</div></summary><div class="collapse-body"><div class="field"><label>Name</label><input type="text" data-lm="${lm.id}" data-cid="${c.id}" data-f="name" value="${esc(lm.name)}"></div><div class="field" style="margin-top:.55rem"><label>Mana Cost</label><input type="number" min="0" data-lm="${lm.id}" data-cid="${c.id}" data-f="manaCost" value="${lm.manaCost}"></div><div class="field" style="margin-top:.55rem"><label>Description</label><textarea class="small-textarea" data-lm="${lm.id}" data-cid="${c.id}" data-f="description">${esc(lm.description)}</textarea></div><div class="dm-tech-actions"><button type="button" class="neo-btn small ghost" data-del-lm="${lm.id}" data-del-cid="${c.id}">Delete</button></div></div></details>`;
-      container.appendChild(card);
-    });
-  });
-  if(!any)container.innerHTML=`<div style="padding:.9rem;color:var(--muted)">No Lost Magic assigned yet.</div>`;
-  container.querySelectorAll('[data-lm]').forEach(inp=>{
-    inp.addEventListener('input',e=>{
-      const ch=state.characters.find(c=>c.id===e.target.dataset.cid);
-      const lm=ch?.lostMagic.find(l=>l.id===e.target.dataset.lm);if(!lm)return;
-      const f=e.target.dataset.f;lm[f]=f==='manaCost'?Math.max(0,Number(e.target.value)||0):e.target.value;
-      pushState();renderLostMagic();
-    });
-  });
-  container.querySelectorAll('[data-del-lm]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const ch=state.characters.find(c=>c.id===btn.dataset.delCid);
-      if(ch)ch.lostMagic=ch.lostMagic.filter(l=>l.id!==btn.dataset.delLm);
-      pushState(true);render();
-    });
-  });
-}
 function renderDmTargetSelect(){
-  const sel=el('dmLMTarget');if(!sel)return;
+  const sel=el('dmCharTarget');if(!sel)return;
   sel.innerHTML=state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
 }
 function hasArchiveMagic(){
@@ -1919,7 +2166,6 @@ function renderTabs(){
       case 'magic':     renderSpells?.(); renderMagicsKnown?.(); break;
       case 'loadout':   renderWeapons?.(); renderInventory?.(); break;
       case 'shop':      renderShop?.(); break;
-      case 'lostmagic': renderLostMagic?.(); break;
     }
   } catch(e) {}
 }
@@ -1954,14 +2200,15 @@ function render(){
   try{renderStats();}catch(e){}
   try{renderSkillsMatrix();}catch(e){}
   try{renderElementalAffinities();}catch(e){}
+  try{renderConditions();}catch(e){}
+  try{renderHeroBanner();}catch(e){}
   try{renderGuildRankDisplay();}catch(e){}
   try{renderSceneBanner();}catch(e){}
   try{renderJobBoard();}catch(e){}
   try{renderDmJobBoard();}catch(e){}
   try{renderDmLocations();}catch(e){}
+  try{renderDmNpcs();}catch(e){}
   try{renderSpells();}catch(e){}
-  try{renderLostMagic();}catch(e){}
-  try{renderDmLostMagic();}catch(e){}
   try{renderDmTargetSelect();}catch(e){}
   try{renderGrantTargetSelect();}catch(e){}
   try{renderThemeFields();}catch(e){}
@@ -1984,11 +2231,6 @@ function castSpell(id){
   if(sp.manaCost>0&&c.mana.current<sp.manaCost){alert(`Not enough Mana! Need ${sp.manaCost}, have ${c.mana.current}.`);return;}
   if(sp.manaCost>0){c.mana.current-=sp.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
 }
-function useLostMagic(id){
-  const c=getChar();const lm=c.lostMagic.find(l=>l.id===id);if(!lm)return;
-  if(lm.manaCost>0&&c.mana.current<lm.manaCost){alert(`Not enough Mana! Need ${lm.manaCost}, have ${c.mana.current}.`);return;}
-  if(lm.manaCost>0){c.mana.current-=lm.manaCost;ensureClamp(c);pushState();renderHeader();renderMainFields();}
-}
 function addSpell(){
   const c=getChar();const name=el('spellName')?.value.trim();const rank=el('spellRank')?.value||'D';
   const manaCost=Math.max(0,Number(el('spellManaCost')?.value)||0);const type=el('spellType')?.value||'Offensive';
@@ -1999,30 +2241,6 @@ function addSpell(){
   else{c.spells.push({id:`spell-${Date.now()}`,name,rank,manaCost,type,description});}
   ['spellName','spellManaCost','spellDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
   pushState();renderSpells();renderHeader();
-}
-function renderLMAssignList(){
-  const cont=el('dmLMAssignList');if(!cont)return;
-  const active=state.characters.filter(c=>c.state!=='dead');
-  cont.innerHTML=`
-    <label class="dm-assign-pill all"><input type="checkbox" id="lmAssignAll"> <span>✦ All Players</span></label>
-    ${active.map(c=>{const realIdx=state.characters.indexOf(c);return `<label class="dm-assign-pill"><input type="checkbox" class="lm-assign-cb" data-idx="${realIdx}"> <span>${esc(c.name||`Player ${realIdx+1}`)}</span></label>`;}).join('')}`;
-  el('lmAssignAll')?.addEventListener('change',e=>{cont.querySelectorAll('.lm-assign-cb').forEach(cb=>cb.checked=e.target.checked);});
-}
-function addLostMagic(){
-  const name=el('dmLMName')?.value.trim();const cost=Math.max(0,Number(el('dmLMCost')?.value)||0);
-  const desc=el('dmLMDescription')?.value.trim();
-  if(!name||!desc){alert('Fill out the Lost Magic name and description.');return;}
-  const checked=[...document.querySelectorAll('.lm-assign-cb:checked')].map(cb=>Number(cb.dataset.idx));
-  if(!checked.length){alert('Select at least one player.');return;}
-  const baseId=Date.now();
-  checked.forEach((idx,n)=>{
-    const target=state.characters[idx];
-    if(target){if(!Array.isArray(target.lostMagic))target.lostMagic=[];target.lostMagic.push({id:`lm-${baseId}-${n}`,name,manaCost:cost,description:desc});}
-  });
-  ['dmLMName','dmLMCost','dmLMDescription'].forEach(id=>{const e=el(id);if(e)e.value='';});
-  document.querySelectorAll('.lm-assign-cb, #lmAssignAll').forEach(cb=>cb.checked=false);
-  pushState(true);render();renderDmLostMagic();
-  showToast(`"${name}" granted to ${checked.length} player${checked.length>1?'s':''}`,'success',4000);
 }
 function rollHp(){
   const c=getChar();const conM=mod(c.stats.CON);
@@ -2050,7 +2268,7 @@ function saveCharState(){
 function openDmOverlay(){
   el('dmOverlay')?.classList.remove('hidden');
   if(!dmUnlocked){el('dmLoginPanel')?.classList.remove('hidden');el('dmFullscreenPanel')?.classList.add('hidden');const p=el('dmPasswordInput');if(p){p.value='';p.focus();}}
-  else{el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');activatePlayersTab();renderDmLostMagic();renderDmTargetSelect();renderThemeFields();}
+  else{el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');activatePlayersTab();renderDmTargetSelect();renderThemeFields();}
 }
 function activatePlayersTab(){
   document.querySelectorAll('.dm-nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2064,7 +2282,7 @@ function unlockDm(){
   if(el('dmPasswordInput')?.value!==DM_PASS){alert('Wrong password.');return;}
   dmUnlocked=true;sessionStorage.setItem('ft-dm','1');
   el('dmLoginPanel')?.classList.add('hidden');el('dmFullscreenPanel')?.classList.remove('hidden');
-  activatePlayersTab();renderDmLostMagic();renderDmTargetSelect();renderThemeFields();
+  activatePlayersTab();renderDmTargetSelect();renderThemeFields();
 }
 
 // ================================================================
@@ -2110,7 +2328,6 @@ function bindAll(){
   el('toggleReserveBtn')?.addEventListener('click',()=>{state.showReserve=!state.showReserve;pushState(true);render();});
   el('toggleDeadBtn')?.addEventListener('click',()=>{state.showDead=!state.showDead;pushState(true);render();});
   el('addSpellBtn')?.addEventListener('click',addSpell);
-  el('addLostMagicBtn')?.addEventListener('click',addLostMagic);
   el('saveCharacterStateBtn')?.addEventListener('click',saveCharState);
   el('deleteCharacterBtn')?.addEventListener('click',()=>{if(state.characters.length<=1){alert('Keep at least one.');return;}if(!confirm(`Delete ${getChar().name||'this character'}?`))return;state.characters.splice(state.selectedCharacter,1);if(state.selectedCharacter>=state.characters.length)state.selectedCharacter=state.characters.length-1;pushState(true);render();});
   el('openDmOverlayBtn')?.addEventListener('click',openDmOverlay);
@@ -2128,7 +2345,6 @@ function bindAll(){
       document.querySelectorAll('.dm-tab').forEach(t=>t.classList.remove('active'));
       btn.classList.add('active');
       document.querySelector(`.dm-tab[data-dm-tab="${tab}"]`)?.classList.add('active');
-      if(tab==='magic'){renderDmLostMagic();}
     });
   });
   const readTheme=()=>({bg:el('themeBgColor')?.value||DEF_THEME.bg,panel:el('themePanelColor')?.value||DEF_THEME.panel,accent:el('themeAccentColor')?.value||DEF_THEME.accent,accentTwo:el('themeAccentTwoColor')?.value||DEF_THEME.accentTwo,mana:el('themeManaColor')?.value||DEF_THEME.mana,text:el('themeTextColor')?.value||DEF_THEME.text});
@@ -2696,3 +2912,89 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dmAddJobBtn')?.addEventListener('click', addJob);
   document.getElementById('dmAddLocationBtn')?.addEventListener('click', addLocation);
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// COLLAPSIBLE PANELS — click summary to open/close, state persisted
+// ═══════════════════════════════════════════════════════════════════
+(function initCollapsibles(){
+  document.querySelectorAll('.panel.collapsible[data-collapse-key]').forEach(panel => {
+    const key = 'ft-collapse-' + panel.dataset.collapseKey;
+    const stored = localStorage.getItem(key);
+    if (stored === '1') panel.classList.add('collapsed');
+    const summary = panel.querySelector('.panel-summary');
+    if (!summary) return;
+    summary.addEventListener('click', e => {
+      e.preventDefault();
+      panel.classList.toggle('collapsed');
+      localStorage.setItem(key, panel.classList.contains('collapsed') ? '1' : '0');
+    });
+  });
+
+  // Collapse All / Expand All toggle
+  const btn = document.getElementById('collapseAllBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const panels = document.querySelectorAll('.panel.collapsible[data-collapse-key]');
+      const anyOpen = Array.from(panels).some(p => !p.classList.contains('collapsed'));
+      panels.forEach(panel => {
+        const key = 'ft-collapse-' + panel.dataset.collapseKey;
+        if (anyOpen) {
+          panel.classList.add('collapsed');
+          localStorage.setItem(key, '1');
+        } else {
+          panel.classList.remove('collapsed');
+          localStorage.setItem(key, '0');
+        }
+      });
+      btn.textContent = anyOpen ? '◆ Expand Sheet' : '◇ Collapse Sheet';
+    });
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// SUMMARY META LABELS — show at-a-glance info in collapsed headers
+// so you know what's inside without opening
+// ═══════════════════════════════════════════════════════════════════
+function renderSummaryMeta(){
+  try {
+    const c = getChar(); if (!c) return;
+
+    const iMeta = document.getElementById('identityMeta');
+    if (iMeta) {
+      const bits = [];
+      if (c.race) bits.push(c.race);
+      if (c.className) bits.push(c.className);
+      if (c.level) bits.push('Lv ' + c.level);
+      iMeta.textContent = bits.join(' · ');
+    }
+
+    const cbAC  = document.getElementById('combatMetaAC');
+    const cbSpd = document.getElementById('combatMetaSpd');
+    if (cbAC)  cbAC.textContent  = 'AC ' + (c.armor || '—');
+    if (cbSpd) cbSpd.textContent = c.speed || '30 ft';
+
+    const sMeta = document.getElementById('statsMeta');
+    if (sMeta) {
+      const highest = ['STR','DEX','CON','INT','WIS','CHA'].reduce((best, s) => {
+        const v = c.stats?.[s] || 10;
+        return v > best.v ? {s, v} : best;
+      }, {s:'STR', v:0});
+      sMeta.textContent = highest.s + ' ' + fmtMod(mod(highest.v)) + ' (top)';
+    }
+
+    const calcM = document.getElementById('calcMeta');
+    if (calcM) {
+      calcM.textContent = 'Spell Atk ' + fmtMod(spellAtkBonus(c)) + ' · DC ' + spellSaveDC(c);
+    }
+  } catch(e) {}
+}
+// Hook summary meta into main render
+const _origRender = typeof render === 'function' ? render : null;
+if (_origRender) {
+  // Wrap render to also update summary metas after normal render completes
+  window.render = function(...args){
+    _origRender.apply(this, args);
+    renderSummaryMeta();
+  };
+}
+document.addEventListener('DOMContentLoaded', renderSummaryMeta);

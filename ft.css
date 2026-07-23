@@ -5677,3 +5677,1006 @@ input, textarea {
 .hidden {
   display: none !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   BOLD VISUAL REFRESH v11 (2026-07-23)
+   Dramatic, visible changes. No more subtle polish.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   NEW COLOR PALETTE — introduce prismatic accents
+──────────────────────────────────────────────────────────────── */
+
+:root {
+  --accent-crimson: #ff3355;
+  --accent-crimson-glow: rgba(255, 51, 85, .5);
+  --accent-teal: #4de6ff;
+  --accent-teal-glow: rgba(77, 230, 255, .5);
+  --accent-violet: #b464ff;
+  --accent-violet-glow: rgba(180, 100, 255, .5);
+  --accent-gold-bright: #ffdc60;
+  --deep-shadow: rgba(0, 0, 0, .85);
+  --parchment-tint: rgba(60, 40, 20, .12);
+  --arcane-edge: rgba(232, 160, 48, .45);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   NEW BACKGROUND — layered arcane depth
+──────────────────────────────────────────────────────────────── */
+
+html body {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% -20%, rgba(232, 160, 48, .28) 0%, transparent 55%) !important,
+    radial-gradient(ellipse 70% 50% at 0% 30%, rgba(255, 51, 85, .16) 0%, transparent 55%) !important,
+    radial-gradient(ellipse 70% 50% at 100% 20%, rgba(180, 100, 255, .18) 0%, transparent 55%) !important,
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(77, 230, 255, .10) 0%, transparent 60%) !important,
+    #030105 !important;
+  background-attachment: fixed !important;
+}
+
+/* Subtle animated shimmer overlay */
+html body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle 3px at 12% 18%, rgba(255, 220, 96, .5), transparent 100%),
+    radial-gradient(circle 2px at 84% 32%, rgba(180, 100, 255, .5), transparent 100%),
+    radial-gradient(circle 2px at 43% 68%, rgba(77, 230, 255, .4), transparent 100%),
+    radial-gradient(circle 3px at 76% 82%, rgba(255, 96, 32, .45), transparent 100%),
+    radial-gradient(circle 2px at 21% 88%, rgba(255, 220, 96, .5), transparent 100%),
+    radial-gradient(circle 2px at 58% 15%, rgba(232, 160, 48, .4), transparent 100%),
+    radial-gradient(circle 1.5px at 92% 55%, rgba(255, 220, 96, .5), transparent 100%),
+    radial-gradient(circle 1.5px at 8% 62%, rgba(180, 100, 255, .5), transparent 100%);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DRAMATIC HERO BANNER — full redesign with heraldic frame
+──────────────────────────────────────────────────────────────── */
+
+.hero-banner {
+  padding: 24px 28px !important;
+  background:
+    linear-gradient(135deg, rgba(255, 51, 85, .10) 0%, transparent 40%),
+    linear-gradient(-135deg, rgba(180, 100, 255, .10) 0%, transparent 40%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(232, 160, 48, .18) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(24, 14, 40, .98) 0%, rgba(8, 4, 16, .98) 100%) !important;
+  border: 2px solid rgba(232, 160, 48, .5) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 20px 60px -18px rgba(0, 0, 0, .95),
+    0 0 60px -10px var(--gold-glow),
+    inset 0 2px 0 rgba(255, 220, 96, .35),
+    inset 0 -2px 0 rgba(255, 96, 32, .25),
+    inset 0 0 80px -20px rgba(180, 100, 255, .12) !important;
+  position: relative !important;
+}
+
+/* Ornate corner marks — visible, dramatic */
+.hero-banner::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 8px !important;
+  left: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-top: 3px solid var(--accent-gold-bright) !important;
+  border-left: 3px solid var(--accent-gold-bright) !important;
+  filter: drop-shadow(0 0 8px var(--gold-glow)) !important;
+  pointer-events: none !important;
+  background: none !important;
+  right: auto !important;
+  bottom: auto !important;
+  height: 32px !important;
+}
+
+.hero-banner::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 8px !important;
+  right: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-bottom: 3px solid var(--accent-gold-bright) !important;
+  border-right: 3px solid var(--accent-gold-bright) !important;
+  filter: drop-shadow(0 0 8px var(--gold-glow)) !important;
+  pointer-events: none !important;
+  background: none !important;
+  left: auto !important;
+  top: auto !important;
+  height: 32px !important;
+}
+
+/* Hero name — bigger, bolder, more presence */
+.hero-banner .hero-name-input {
+  font-size: clamp(1.8rem, 5vw, 2.8rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  background:
+    linear-gradient(180deg, var(--accent-gold-bright) 0%, var(--gold) 50%, var(--ember) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  filter:
+    drop-shadow(0 0 20px var(--gold-glow))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, .8)) !important;
+  text-shadow: none !important;
+}
+
+.hero-banner .hero-name-input::placeholder {
+  -webkit-text-fill-color: rgba(232, 160, 48, .35) !important;
+  filter: none !important;
+}
+
+/* Portrait — dramatic ornate frame */
+.portrait-slot.hero-portrait {
+  width: 156px !important;
+  height: 156px !important;
+  border: 3px solid var(--gold) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 0 40px -6px var(--gold-glow),
+    0 0 80px -20px var(--accent-violet-glow),
+    inset 0 0 40px -14px rgba(232, 160, 48, .35),
+    inset 0 0 0 2px rgba(255, 220, 96, .3),
+    inset 0 0 0 4px rgba(0, 0, 0, .5) !important;
+}
+
+.portrait-slot.hero-portrait::before,
+.portrait-slot.hero-portrait::after {
+  width: 22px !important;
+  height: 22px !important;
+  border-width: 3px !important;
+  filter: drop-shadow(0 0 6px var(--gold-glow)) !important;
+}
+
+/* HP/Mana bars — larger, more prominent */
+.hbl-track {
+  height: 14px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(232, 160, 48, .35) !important;
+}
+
+.hbl-fill.hp {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 220, 96, .3) 0%,
+      var(--ember) 15%,
+      var(--ember2) 60%,
+      rgba(180, 30, 10, 1) 100%) !important;
+  box-shadow:
+    0 0 20px rgba(255, 96, 32, .7),
+    inset 0 2px 0 rgba(255, 220, 96, .5),
+    inset 0 -1px 0 rgba(0, 0, 0, .4) !important;
+}
+
+.hbl-fill.mana {
+  background:
+    linear-gradient(180deg,
+      rgba(230, 180, 255, .3) 0%,
+      var(--mana) 15%,
+      var(--mana2) 60%,
+      rgba(90, 40, 140, 1) 100%) !important;
+  box-shadow:
+    0 0 20px var(--mana-glow),
+    inset 0 2px 0 rgba(230, 180, 255, .5),
+    inset 0 -1px 0 rgba(0, 0, 0, .4) !important;
+}
+
+.hbl-head strong {
+  font-size: 1.05rem !important;
+  font-weight: 900 !important;
+}
+
+/* Guild rank badge in hero banner — dramatic sigil */
+.hero-rank {
+  padding: 8px 12px !important;
+  background: linear-gradient(180deg, rgba(232, 160, 48, .2), rgba(0, 0, 0, .5)) !important;
+  border: 1.5px solid var(--gold) !important;
+  border-radius: 4px !important;
+  box-shadow:
+    inset 0 0 16px -4px var(--gold-glow),
+    0 0 20px -6px var(--gold-glow) !important;
+}
+
+.hero-rank-badge {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 1.1rem !important;
+  border-width: 2.5px !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DRAMATIC PANEL REDESIGN — sharper, deeper, more presence
+──────────────────────────────────────────────────────────────── */
+
+.panel {
+  background:
+    linear-gradient(180deg,
+      rgba(30, 18, 48, .96) 0%,
+      rgba(14, 8, 24, .96) 100%) !important;
+  border: 1.5px solid rgba(232, 160, 48, .28) !important;
+  border-radius: 6px !important;
+  box-shadow:
+    0 8px 32px -18px rgba(0, 0, 0, .95),
+    0 0 0 1px rgba(0, 0, 0, .3),
+    inset 0 1px 0 rgba(255, 220, 96, .18),
+    inset 0 -1px 0 rgba(232, 160, 48, .08) !important;
+}
+
+.panel:hover {
+  border-color: rgba(232, 160, 48, .5) !important;
+  box-shadow:
+    0 12px 40px -18px rgba(0, 0, 0, .95),
+    0 0 24px -8px var(--gold-glow),
+    inset 0 1px 0 rgba(255, 220, 96, .3),
+    inset 0 -1px 0 rgba(232, 160, 48, .12) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD COLLAPSIBLE SUMMARIES — clear, dramatic headers
+──────────────────────────────────────────────────────────────── */
+
+.panel.collapsible > .panel-summary {
+  padding: 16px 20px !important;
+  background:
+    linear-gradient(90deg,
+      rgba(232, 160, 48, .22) 0%,
+      rgba(0, 0, 0, .1) 40%,
+      rgba(0, 0, 0, .3) 100%) !important;
+  border-bottom: 2px solid rgba(232, 160, 48, .35) !important;
+  font-family: var(--F1) !important;
+  font-size: .9rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .16em !important;
+  color: var(--accent-gold-bright) !important;
+  text-transform: uppercase !important;
+  text-shadow:
+    0 0 12px var(--gold-glow),
+    0 1px 0 rgba(0, 0, 0, .6) !important;
+}
+
+.panel.collapsible > .panel-summary::before {
+  width: 4px !important;
+  background: linear-gradient(180deg,
+    var(--accent-gold-bright) 0%,
+    var(--gold) 40%,
+    var(--ember) 80%,
+    var(--accent-crimson) 100%) !important;
+  box-shadow:
+    0 0 12px var(--gold-glow),
+    0 0 24px -4px var(--ember) !important;
+}
+
+.panel.collapsible > .panel-summary:hover {
+  background:
+    linear-gradient(90deg,
+      rgba(232, 160, 48, .35) 0%,
+      rgba(0, 0, 0, .1) 40%,
+      rgba(0, 0, 0, .3) 100%) !important;
+  color: #fff !important;
+}
+
+.panel.collapsible.collapsed > .panel-summary {
+  border-bottom-color: transparent !important;
+}
+
+.panel.collapsible .chevron {
+  font-size: 1rem !important;
+  color: var(--accent-gold-bright) !important;
+  text-shadow: 0 0 8px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   NEW TAB BAR — completely different, bold underline style
+──────────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid rgba(232, 160, 48, .28) !important;
+  border-radius: 0 !important;
+  gap: 4px !important;
+  margin-bottom: 20px !important;
+  position: relative !important;
+}
+
+.tab-btn {
+  padding: 12px 20px !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+  border-radius: 0 !important;
+  font-family: var(--F2) !important;
+  font-size: .82rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase !important;
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  transition: all 180ms cubic-bezier(.2, .8, .2, 1) !important;
+  position: relative !important;
+  margin-bottom: -2px !important;
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--gold-hi) !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(232, 160, 48, .08) 100%) !important;
+}
+
+.tab-btn.active {
+  color: var(--accent-gold-bright) !important;
+  border-bottom-color: var(--accent-gold-bright) !important;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(232, 160, 48, .14) 100%) !important;
+  text-shadow: 0 0 12px var(--gold-glow) !important;
+  box-shadow: 0 4px 12px -6px var(--gold-glow) !important;
+}
+
+.tab-btn.active::before,
+.tab-btn.active::after {
+  display: none !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD NEW BUTTONS — premium engraved gold feel
+──────────────────────────────────────────────────────────────── */
+
+.neo-btn {
+  padding: 10px 20px !important;
+  background:
+    linear-gradient(180deg,
+      rgba(232, 160, 48, .3) 0%,
+      rgba(0, 0, 0, .4) 100%) !important;
+  border: 1.5px solid var(--gold) !important;
+  border-radius: 4px !important;
+  color: var(--accent-gold-bright) !important;
+  font-family: var(--F2) !important;
+  font-size: .76rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+  text-shadow:
+    0 0 8px var(--gold-glow),
+    0 1px 0 rgba(0, 0, 0, .5) !important;
+  cursor: pointer !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 96, .3),
+    inset 0 -1px 0 rgba(0, 0, 0, .35),
+    0 3px 8px -3px rgba(0, 0, 0, .6) !important;
+  transition: all 160ms cubic-bezier(.2, .8, .2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.neo-btn::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(120deg,
+    transparent 25%,
+    rgba(255, 220, 96, .22) 50%,
+    transparent 75%) !important;
+  transform: translateX(-120%) !important;
+  transition: transform 550ms cubic-bezier(.2, .8, .2, 1) !important;
+  pointer-events: none !important;
+}
+
+.neo-btn:hover:not(:disabled)::before {
+  transform: translateX(120%) !important;
+}
+
+.neo-btn:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg,
+      rgba(232, 160, 48, .5) 0%,
+      rgba(232, 160, 48, .15) 100%) !important;
+  border-color: var(--accent-gold-bright) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 96, .5),
+    inset 0 -1px 0 rgba(0, 0, 0, .35),
+    0 6px 16px -4px rgba(0, 0, 0, .7),
+    0 0 24px -6px var(--gold-glow) !important;
+  transform: translateY(-1px) !important;
+}
+
+.neo-btn:not(:disabled):active {
+  transform: translateY(1px) !important;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, .4),
+    0 0 12px -4px var(--gold-glow) !important;
+  transition-duration: 60ms !important;
+}
+
+.neo-btn.ghost {
+  background: rgba(0, 0, 0, .35) !important;
+  border-color: rgba(200, 130, 40, .35) !important;
+  color: var(--muted) !important;
+  text-shadow: none !important;
+  box-shadow:
+    inset 0 1px 0 rgba(232, 160, 48, .08),
+    0 2px 6px -3px rgba(0, 0, 0, .5) !important;
+}
+
+.neo-btn.ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, .55) !important;
+  border-color: var(--gold) !important;
+  color: var(--gold-hi) !important;
+  text-shadow: 0 0 8px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD NEW ELEMENTAL AFFINITIES — dramatic state visualization
+──────────────────────────────────────────────────────────────── */
+
+.elem-cell {
+  padding: 14px 8px 10px !important;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 100%, rgba(0, 0, 0, .55) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(30, 18, 48, .8) 0%, rgba(10, 6, 18, .9) 100%) !important;
+  border: 1.5px solid rgba(200, 130, 40, .2) !important;
+  border-radius: 5px !important;
+  gap: 4px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.elem-icon {
+  font-size: 1.4rem !important;
+  line-height: 1 !important;
+  filter: drop-shadow(0 0 4px currentColor) !important;
+}
+
+.elem-name {
+  font-size: .55rem !important;
+  letter-spacing: .16em !important;
+  font-weight: 700 !important;
+}
+
+.elem-cell::before {
+  height: 4px !important;
+}
+
+.elem-cell.elem-res {
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(74, 222, 128, .28) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(30, 18, 48, .8) 0%, rgba(10, 6, 18, .9) 100%) !important;
+  border-color: rgba(74, 222, 128, .55) !important;
+  box-shadow:
+    inset 0 0 24px -8px rgba(74, 222, 128, .4),
+    0 0 16px -6px rgba(74, 222, 128, .4) !important;
+}
+
+.elem-cell.elem-vuln {
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(251, 191, 36, .32) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(30, 18, 48, .8) 0%, rgba(10, 6, 18, .9) 100%) !important;
+  border-color: rgba(251, 191, 36, .6) !important;
+  box-shadow:
+    inset 0 0 24px -8px rgba(251, 191, 36, .5),
+    0 0 16px -6px rgba(251, 191, 36, .4) !important;
+}
+
+.elem-cell.elem-imm {
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 100%, rgba(255, 96, 32, .4) 0%, transparent 65%),
+    linear-gradient(180deg, rgba(40, 20, 30, .9) 0%, rgba(15, 6, 8, .95) 100%) !important;
+  border-color: var(--ember) !important;
+  box-shadow:
+    inset 0 0 32px -8px rgba(255, 96, 32, .55),
+    0 0 24px -6px rgba(255, 96, 32, .55) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD NEW CONDITIONS GRID — clearer active state
+──────────────────────────────────────────────────────────────── */
+
+.cond-cell {
+  padding: 10px 14px !important;
+  background: linear-gradient(180deg, rgba(30, 18, 48, .75), rgba(10, 6, 18, .85)) !important;
+  border: 1.5px solid rgba(200, 130, 40, .18) !important;
+  border-radius: 4px !important;
+  gap: 8px !important;
+}
+
+.cond-icon { font-size: 1.15rem !important; }
+.cond-name { font-size: .78rem !important; font-weight: 600 !important; }
+
+.cond-cell.active {
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 100%, rgba(232, 160, 48, .3) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(40, 25, 55, .95), rgba(15, 8, 22, .95)) !important;
+  border-color: var(--accent-gold-bright) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 0 28px -8px var(--gold-glow),
+    0 0 20px -6px var(--gold-glow) !important;
+  text-shadow: 0 0 10px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD NEW ABILITY SCORE CARDS
+──────────────────────────────────────────────────────────────── */
+
+.stat-block,
+.stats-grid > * {
+  padding: 14px 12px !important;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(232, 160, 48, .1) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(30, 18, 48, .95) 0%, rgba(8, 4, 14, .95) 100%) !important;
+  border: 1.5px solid rgba(200, 130, 40, .22) !important;
+  border-radius: 5px !important;
+  box-shadow:
+    0 4px 12px -8px rgba(0, 0, 0, .8),
+    inset 0 1px 0 rgba(232, 160, 48, .15) !important;
+}
+
+.stat-block:hover, .stats-grid > *:hover {
+  border-color: var(--accent-gold-bright) !important;
+  transform: translateY(-2px) !important;
+  box-shadow:
+    0 8px 20px -8px rgba(0, 0, 0, .85),
+    0 0 24px -6px var(--gold-glow),
+    inset 0 1px 0 rgba(232, 160, 48, .3) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   NEW SIDEBAR TREATMENT — cleaner, more premium
+──────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  background:
+    linear-gradient(180deg,
+      rgba(20, 12, 32, .96) 0%,
+      rgba(8, 4, 16, .96) 100%) !important;
+  border-right: 2px solid rgba(232, 160, 48, .22) !important;
+  box-shadow:
+    4px 0 32px -18px rgba(0, 0, 0, .85),
+    inset -3px 0 12px -8px var(--gold-glow) !important;
+}
+
+.brand h1 {
+  font-family: var(--F1) !important;
+  font-size: 1.4rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .08em !important;
+  background: linear-gradient(180deg, var(--accent-gold-bright) 0%, var(--gold) 60%, var(--ember) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 0 12px var(--gold-glow)) drop-shadow(0 2px 3px rgba(0, 0, 0, .7)) !important;
+}
+
+.sidebar-section {
+  background:
+    linear-gradient(180deg, rgba(232, 160, 48, .06) 0%, rgba(0, 0, 0, .15) 100%) !important;
+  border: 1px solid rgba(200, 130, 40, .16) !important;
+  border-left: 3px solid rgba(232, 160, 48, .35) !important;
+  border-radius: 4px !important;
+  padding: 12px !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD CHARACTER TABS in sidebar
+──────────────────────────────────────────────────────────────── */
+
+.character-tab {
+  padding: 10px 14px !important;
+  background: rgba(0, 0, 0, .4) !important;
+  border: 1px solid rgba(200, 130, 40, .12) !important;
+  border-left: 3px solid transparent !important;
+  border-radius: 4px !important;
+  transition: all 160ms cubic-bezier(.2, .8, .2, 1) !important;
+}
+
+.character-tab:hover:not(.active) {
+  background: rgba(232, 160, 48, .1) !important;
+  border-left-color: var(--gold) !important;
+  transform: translateX(3px) !important;
+}
+
+.character-tab.active {
+  background:
+    linear-gradient(90deg,
+      rgba(232, 160, 48, .28) 0%,
+      rgba(0, 0, 0, .4) 100%) !important;
+  border-color: var(--gold) !important;
+  border-left: 4px solid var(--accent-gold-bright) !important;
+  box-shadow:
+    inset 0 0 32px -10px var(--gold-glow),
+    0 0 20px -6px var(--gold-glow) !important;
+}
+
+.character-tab.active strong {
+  color: var(--accent-gold-bright) !important;
+  text-shadow: 0 0 10px var(--gold-glow) !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD SKILL MATRIX — cleaner + more premium
+──────────────────────────────────────────────────────────────── */
+
+.skill-group {
+  background: linear-gradient(180deg, rgba(30, 18, 48, .95), rgba(8, 4, 14, .95)) !important;
+  border: 1.5px solid rgba(200, 130, 40, .22) !important;
+  border-radius: 5px !important;
+  overflow: hidden !important;
+}
+
+.skill-group-header {
+  padding: 12px 16px !important;
+  background:
+    linear-gradient(90deg,
+      rgba(232, 160, 48, .28) 0%,
+      rgba(0, 0, 0, .3) 60%,
+      rgba(0, 0, 0, .4) 100%) !important;
+  border-bottom: 2px solid rgba(232, 160, 48, .4) !important;
+  position: relative !important;
+}
+
+.skill-group-header strong {
+  font-size: 1rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .16em !important;
+  color: var(--accent-gold-bright) !important;
+  text-shadow: 0 0 14px var(--gold-glow) !important;
+}
+
+.skill-row {
+  padding: 8px 16px !important;
+  border-left: 3px solid transparent !important;
+}
+
+.skill-row:hover {
+  background: linear-gradient(90deg, rgba(232, 160, 48, .08), transparent 80%) !important;
+  border-left-color: var(--accent-gold-bright) !important;
+}
+
+.skill-total {
+  min-width: 44px !important;
+  padding: 4px 8px !important;
+  font-family: var(--F1) !important;
+  font-size: .95rem !important;
+  font-weight: 800 !important;
+  border-radius: 4px !important;
+  border: 1.5px solid rgba(200, 130, 40, .3) !important;
+  background: rgba(0, 0, 0, .5) !important;
+  text-align: center !important;
+}
+
+.skill-total.pos {
+  color: var(--accent-gold-bright) !important;
+  border-color: rgba(232, 160, 48, .5) !important;
+  text-shadow: 0 0 10px var(--gold-glow) !important;
+  box-shadow: inset 0 0 8px -2px rgba(232, 160, 48, .3) !important;
+}
+
+.skill-total.neg {
+  color: var(--accent-crimson) !important;
+  border-color: rgba(255, 51, 85, .4) !important;
+  text-shadow: 0 0 10px var(--accent-crimson-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD FIELDS — inputs feel enchanted
+──────────────────────────────────────────────────────────────── */
+
+.field label {
+  font-size: .6rem !important;
+  letter-spacing: .22em !important;
+  font-weight: 800 !important;
+  color: rgba(232, 160, 48, .7) !important;
+  text-transform: uppercase !important;
+  margin-bottom: 6px !important;
+}
+
+.field input, .field textarea, .field select {
+  padding: 10px 14px !important;
+  background: rgba(0, 0, 0, .55) !important;
+  border: 1.5px solid rgba(200, 130, 40, .18) !important;
+  border-radius: 4px !important;
+  font-family: var(--F3) !important;
+  font-size: .92rem !important;
+  color: var(--text) !important;
+  transition: all 160ms cubic-bezier(.2, .8, .2, 1) !important;
+}
+
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: var(--accent-gold-bright) !important;
+  background: rgba(20, 12, 32, .75) !important;
+  box-shadow:
+    0 0 0 3px rgba(232, 160, 48, .18),
+    0 0 20px -6px var(--gold-glow),
+    inset 0 0 16px -8px var(--gold-glow) !important;
+  outline: none !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD SECTION TITLES
+──────────────────────────────────────────────────────────────── */
+
+.section-title {
+  padding: 4px 0 12px 20px !important;
+  font-family: var(--F1) !important;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  color: var(--accent-gold-bright) !important;
+  text-shadow: 0 0 14px var(--gold-glow) !important;
+  border-bottom: 2px solid transparent !important;
+  border-image: linear-gradient(90deg,
+    rgba(232, 160, 48, .6) 0%,
+    rgba(232, 160, 48, .15) 40%,
+    transparent 100%) 1 !important;
+  margin-bottom: 14px !important;
+  position: relative !important;
+}
+
+.section-title::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 10% !important;
+  bottom: 30% !important;
+  width: 4px !important;
+  background: linear-gradient(180deg,
+    var(--accent-gold-bright) 0%,
+    var(--gold) 50%,
+    var(--ember) 100%) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 12px var(--gold-glow), 0 0 24px -4px var(--ember) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD DM CONSOLE
+──────────────────────────────────────────────────────────────── */
+
+.dm-fullscreen {
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, rgba(232, 160, 48, .12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(180, 100, 255, .08) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(20, 10, 32, .99) 0%, rgba(6, 4, 12, .99) 100%) !important;
+  border: 2px solid rgba(232, 160, 48, .4) !important;
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, .95),
+    0 0 80px -10px var(--gold-glow),
+    inset 0 2px 0 rgba(255, 220, 96, .28) !important;
+}
+
+.dm-nav {
+  padding: 4px !important;
+  background: rgba(0, 0, 0, .35) !important;
+  border: 1px solid rgba(200, 130, 40, .18) !important;
+  border-radius: 6px !important;
+  gap: 2px !important;
+}
+
+.dm-nav-btn {
+  padding: 10px 14px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px !important;
+  color: var(--muted) !important;
+  font-family: var(--F2) !important;
+  font-size: .72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: .1em !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  transition: all 160ms cubic-bezier(.2, .8, .2, 1) !important;
+}
+
+.dm-nav-btn:hover:not(.active) {
+  color: var(--gold-hi) !important;
+  background: rgba(232, 160, 48, .08) !important;
+}
+
+.dm-nav-btn.active {
+  background:
+    linear-gradient(180deg,
+      rgba(232, 160, 48, .28) 0%,
+      rgba(232, 160, 48, .08) 100%) !important;
+  border-color: var(--gold) !important;
+  color: var(--accent-gold-bright) !important;
+  font-weight: 800 !important;
+  text-shadow: 0 0 10px var(--gold-glow) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 96, .35),
+    0 4px 12px -4px var(--gold-glow) !important;
+}
+
+.dm-card {
+  background:
+    linear-gradient(180deg,
+      rgba(28, 16, 44, .98) 0%,
+      rgba(10, 6, 18, .98) 100%) !important;
+  border: 1.5px solid rgba(200, 130, 40, .24) !important;
+  border-radius: 5px !important;
+  box-shadow:
+    0 6px 18px -10px rgba(0, 0, 0, .85),
+    inset 0 1px 0 rgba(232, 160, 48, .16) !important;
+}
+
+.dm-card-title {
+  padding: 12px 18px !important;
+  background:
+    linear-gradient(90deg,
+      rgba(232, 160, 48, .2) 0%,
+      rgba(0, 0, 0, .2) 50%,
+      rgba(0, 0, 0, .3) 100%) !important;
+  border-bottom: 2px solid rgba(232, 160, 48, .3) !important;
+  font-family: var(--F1) !important;
+  font-size: .82rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .16em !important;
+  color: var(--accent-gold-bright) !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 0 10px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Bold job cards
+──────────────────────────────────────────────────────────────── */
+
+.job-card {
+  background:
+    linear-gradient(180deg, rgba(28, 16, 44, .96), rgba(10, 6, 18, .96)) !important;
+  border: 1.5px solid rgba(200, 130, 40, .22) !important;
+  border-left: 4px solid var(--jrk, var(--gold)) !important;
+  border-radius: 5px !important;
+}
+
+.job-card:hover {
+  border-color: var(--accent-gold-bright) !important;
+  transform: translateY(-2px) !important;
+  box-shadow:
+    0 12px 28px -12px rgba(0, 0, 0, .85),
+    0 0 24px -6px var(--gold-glow) !important;
+}
+
+.job-head {
+  padding: 14px 18px !important;
+  gap: 14px !important;
+}
+
+.job-rank {
+  width: 46px !important;
+  height: 46px !important;
+  font-size: 1.05rem !important;
+  font-weight: 900 !important;
+  border: 2px solid rgba(255, 255, 255, .18) !important;
+  box-shadow:
+    inset 0 -3px 6px rgba(0, 0, 0, .45),
+    inset 0 2px 0 rgba(255, 255, 255, .22),
+    0 0 16px -3px currentColor !important;
+}
+
+.job-title {
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .04em !important;
+}
+
+.job-reward {
+  padding: 6px 12px !important;
+  border-width: 1.5px !important;
+}
+
+.jrw-jewels {
+  font-size: 1.15rem !important;
+  font-weight: 900 !important;
+}
+
+.job-claim {
+  padding: 8px 16px !important;
+  font-size: .78rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .16em !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Dice roller bold refresh
+──────────────────────────────────────────────────────────────── */
+
+.dice-roller {
+  border-radius: 8px !important;
+  border-width: 2px !important;
+  width: 320px !important;
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, .95),
+    0 0 48px -6px var(--gold-glow),
+    inset 0 2px 0 rgba(255, 220, 96, .35) !important;
+}
+
+.dr-result-value {
+  font-size: 3.2rem !important;
+  font-weight: 900 !important;
+  background: linear-gradient(180deg, var(--accent-gold-bright) 0%, var(--gold) 60%, var(--ember) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 0 20px var(--gold-glow)) drop-shadow(0 2px 4px rgba(0, 0, 0, .7)) !important;
+  text-shadow: none !important;
+}
+
+.dr-result-value.crit {
+  background: linear-gradient(180deg, #ffffff 0%, var(--accent-gold-bright) 60%, var(--gold) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter:
+    drop-shadow(0 0 24px rgba(255, 235, 128, .9))
+    drop-shadow(0 0 48px rgba(255, 220, 96, .6)) !important;
+}
+
+.dr-result-value.fumble {
+  background: linear-gradient(180deg, var(--accent-crimson) 0%, #8b1122 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter:
+    drop-shadow(0 0 24px var(--accent-crimson-glow))
+    drop-shadow(0 0 48px rgba(248, 113, 113, .5)) !important;
+}
+
+.dr-die {
+  padding: 10px 4px !important;
+  font-size: .88rem !important;
+  font-weight: 800 !important;
+  background:
+    linear-gradient(180deg, rgba(30, 18, 48, .95), rgba(10, 6, 18, .95)) !important;
+  border: 1.5px solid rgba(200, 130, 40, .28) !important;
+  border-radius: 5px !important;
+}
+
+.dr-die:hover {
+  border-color: var(--accent-gold-bright) !important;
+  background:
+    linear-gradient(180deg, rgba(232, 160, 48, .18), rgba(0, 0, 0, .4)) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 14px -4px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOLD SCROLLBARS (upgraded)
+──────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 10px !important; height: 10px !important; }
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, .6) !important;
+  border-left: 1px solid rgba(232, 160, 48, .12) !important;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg,
+    var(--accent-gold-bright) 0%,
+    var(--gold) 40%,
+    var(--ember2) 100%) !important;
+  border: 1px solid rgba(0, 0, 0, .5) !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 96, .35) !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fff 0%, var(--accent-gold-bright) 40%, var(--gold) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .5),
+    0 0 10px var(--gold-glow) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TEXT SELECTION — bold gold flame
+──────────────────────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(232, 160, 48, .55) !important;
+  color: #fff !important;
+  text-shadow: 0 0 10px var(--gold-hi) !important;
+}
+

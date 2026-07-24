@@ -303,7 +303,19 @@ window.applyDamage = () => {
 // ================================================================
 // DATA STRUCTURES
 // ================================================================
-function blankStage() { return {active:'',activeDescription:'',passiveName:'',passiveDescription:'',auraCost:0}; }
+function blankStage() {
+  return {
+    active:'', activeDescription:'',
+    passiveName:'', passiveDescription:'',
+    auraCost:0,
+    // ─── NEW: cooldown & charge tracking ───
+    maxCharges: 0,       // 0 = no charge limit (cooldown-only or unlimited)
+    charges: 0,          // current charges available
+    cooldownRounds: 0,   // rounds needed to recover one charge (0 = no cooldown)
+    cooldownEnds: 0,     // in-game round when cooldown finishes (0 = ready)
+    restRecovery: 'short' // 'short' | 'long' | 'none' — when charges recharge
+  };
+}
 
 function makeBlankSkills() {
   const s = {};
@@ -375,6 +387,10 @@ const DEF_STATE = {
   settings:{ semblancePulseEnabled: true },
   shopLocation:'vale',
   cctOnline:true,
+  // Team designations (RWBY-style 4-hunter squads) and Kingdom reputation
+  teams:[],
+  reputation:{ vale: 0, atlas: 0, vacuo: 0, mistral: 0 },
+  reputationLog:[],
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -1115,6 +1131,43 @@ function normalize(raw) {
   if (!m.settings || typeof m.settings !== 'object') m.settings = {};
   m.settings.semblancePulseEnabled = m.settings.semblancePulseEnabled !== false; // default true
 
+  // ─── TEAM DESIGNATIONS ───
+  // Four-Hunter teams following RWBY/JNPR convention. Each team gets an auto-
+  // generated 4-letter code from member initials, a leader, and an accent color.
+  if (!Array.isArray(m.teams)) m.teams = [];
+  m.teams = m.teams.map((t, ix) => ({
+    id:       String(t?.id ?? ('team-' + Date.now() + '-' + ix)),
+    code:     String(t?.code ?? '????').toUpperCase().slice(0, 4),
+    name:     String(t?.name ?? ''),
+    members:  Array.isArray(t?.members)  ? t.members.map(String).slice(0, 4) : [],
+    leaderId: t?.leaderId ? String(t.leaderId) : '',
+    color:    String(t?.color ?? '#c86a1e'),
+    formedAt: Number(t?.formedAt) || Date.now(),
+    motto:    String(t?.motto ?? ''),
+    dmNotes:  String(t?.dmNotes ?? '')
+  }));
+
+  // ─── FOUR KINGDOM REPUTATION ───
+  // The party's standing across Remnant. Ranges from -3 (Hostile) to +4 (Legendary).
+  // DM adjusts; every player sees their party's current standing on the sheet.
+  const DEFAULT_KINGDOMS = { vale: 0, atlas: 0, vacuo: 0, mistral: 0 };
+  if (!m.reputation || typeof m.reputation !== 'object') m.reputation = { ...DEFAULT_KINGDOMS };
+  else {
+    Object.keys(DEFAULT_KINGDOMS).forEach(k => {
+      const v = Number(m.reputation[k]);
+      m.reputation[k] = Number.isFinite(v) ? Math.max(-3, Math.min(4, Math.round(v))) : 0;
+    });
+  }
+  // Reputation event log (DM-authored) — provides context for standing changes
+  if (!Array.isArray(m.reputationLog)) m.reputationLog = [];
+  m.reputationLog = m.reputationLog.slice(-40).map((r, ix) => ({
+    id:      String(r?.id ?? ('rep-' + Date.now() + '-' + ix)),
+    kingdom: ['vale','atlas','vacuo','mistral'].includes(r?.kingdom) ? r.kingdom : 'vale',
+    delta:   Number(r?.delta) || 0,
+    reason:  String(r?.reason ?? ''),
+    ts:      Number(r?.ts) || Date.now()
+  }));
+
   if(!m.initiative || typeof m.initiative!=='object'){ m.initiative = {active:false, round:1, turnIdx:0, entries:[]}; }
   else {
     m.initiative.active  = !!m.initiative.active;
@@ -1237,6 +1290,18 @@ function normalize(raw) {
       ascended: {...b.semblance.ascended, ...(c.semblance?.ascended || {})},
       unlocked: {...b.semblance.unlocked, ...(c.semblance?.unlocked || {})}
     };
+    // Coerce cooldown / charge numeric fields for every stage
+    ['base','first','second','third','ascended'].forEach(k => {
+      const st = mc.semblance[k];
+      st.auraCost       = Math.max(0, Number(st.auraCost) || 0);
+      st.maxCharges     = Math.max(0, Number(st.maxCharges) || 0);
+      st.charges        = st.maxCharges > 0
+                            ? Math.max(0, Math.min(st.maxCharges, Number(st.charges) || 0))
+                            : 0;
+      st.cooldownRounds = Math.max(0, Number(st.cooldownRounds) || 0);
+      st.cooldownEnds   = Math.max(0, Number(st.cooldownEnds) || 0);
+      st.restRecovery   = ['short','long','none'].includes(st.restRecovery) ? st.restRecovery : 'short';
+    });
     return mc;
   });
   if (m.selectedCharacter >= m.characters.length) m.selectedCharacter = Math.max(0, m.characters.length - 1);
@@ -1758,15 +1823,34 @@ function renderSemblance() {
   const c = getChar();
   const t = el('semblanceTitleDisplay'); if(t) t.textContent = c.semblanceName ? `Semblance — ${c.semblanceName}` : 'Semblance';
   const cont = el('semblanceStages'); if(!cont) return; cont.innerHTML='';
+  const currentRound = state.initiative?.round || 0;
   SEM_KEYS.forEach(key => {
     const stage  = c.semblance[key]; const locked = stageLocked(key,c);
     const card   = document.createElement('div'); card.className=`sem-stage${locked?' locked':''}`;
+    // Cooldown/charge status
+    const onCooldown = stage.cooldownRounds > 0 && stage.cooldownEnds > currentRound;
+    const cdLeft = onCooldown ? (stage.cooldownEnds - currentRound) : 0;
+    const outOfCharges = stage.maxCharges > 0 && stage.charges <= 0;
+    const buttonDisabled = locked || onCooldown || outOfCharges;
+    let statusChip = '';
+    if (onCooldown) {
+      statusChip = `<span class="sem-status sem-cooldown" data-tt="Cooldown active — resolves in ${cdLeft} round${cdLeft===1?'':'s'}">🕒 CD ${cdLeft}</span>`;
+    } else if (outOfCharges) {
+      statusChip = `<span class="sem-status sem-empty" data-tt="No charges remaining — rest to recover">✕ 0/${stage.maxCharges}</span>`;
+    } else if (stage.maxCharges > 0) {
+      statusChip = `<span class="sem-status sem-charged" data-tt="${stage.charges} charge${stage.charges===1?'':'s'} remaining">◆ ${stage.charges}/${stage.maxCharges}</span>`;
+    } else if (stage.cooldownRounds > 0) {
+      statusChip = `<span class="sem-status sem-ready" data-tt="Ready to use">✓ Ready</span>`;
+    }
     card.innerHTML = `
       <details class="collapse-block"${locked?'':' open'}>
         <summary class="collapse-summary">
           <div class="sem-stage-header">
             <div class="stage-name">${SEM_LABELS[key]}</div>
-            <span class="stage-badge${locked?'':' unlocked'}">${locked?'Locked':'Unlocked'}</span>
+            <div class="stage-status-group">
+              ${statusChip}
+              <span class="stage-badge${locked?'':' unlocked'}">${locked?'Locked':'Unlocked'}</span>
+            </div>
           </div>
         </summary>
         <div class="collapse-body">
@@ -1774,7 +1858,12 @@ function renderSemblance() {
             <div class="stage-line">
               <strong>${esc(stage.active||'Active — Unnamed')}</strong>
               <div>${esc(stage.activeDescription||'No description. Ask your DM.')}</div>
-              <div class="cost-note">Aura Cost: ${stage.auraCost}</div>
+              <div class="cost-note">
+                Aura Cost: ${stage.auraCost}
+                ${stage.maxCharges > 0 ? ` · Charges: ${stage.charges}/${stage.maxCharges}` : ''}
+                ${stage.cooldownRounds > 0 ? ` · Cooldown: ${stage.cooldownRounds} rd` : ''}
+                ${stage.maxCharges > 0 ? ` · Recovers on ${stage.restRecovery === 'short' ? 'short rest' : stage.restRecovery === 'long' ? 'long rest' : 'never (DM only)'}` : ''}
+              </div>
             </div>
             <div class="stage-line">
               <strong>${esc(stage.passiveName||'Passive — Unnamed')} [Passive]</strong>
@@ -1782,8 +1871,8 @@ function renderSemblance() {
             </div>
           </div>
           <div class="technique-actions">
-            <button type="button" class="neo-btn small use-btn use-sem" data-stage="${key}"${locked?' disabled':''}>
-              Use Active (−${stage.auraCost} Aura)
+            <button type="button" class="neo-btn small use-btn use-sem" data-stage="${key}"${buttonDisabled?' disabled':''}>
+              ${onCooldown ? `Cooldown ${cdLeft}r` : outOfCharges ? 'Out of Charges' : `Use Active (−${stage.auraCost} Aura)`}
             </button>
           </div>
         </div>
@@ -1791,6 +1880,10 @@ function renderSemblance() {
     cont.appendChild(card);
   });
   cont.querySelectorAll('.use-sem').forEach(btn => btn.addEventListener('click',()=>useSemblance(btn.dataset.stage)));
+  // Rest recovery buttons — guarded against double-bind across re-renders
+  const short = el('semShortRestBtn'), long = el('semLongRestBtn');
+  if (short && !short.dataset.bound) { short.dataset.bound = '1'; short.addEventListener('click', () => restSemblance('short')); }
+  if (long  && !long.dataset.bound)  { long.dataset.bound  = '1'; long.addEventListener('click',  () => restSemblance('long'));  }
 }
 
 // ================================================================
@@ -1906,7 +1999,19 @@ function renderDmSemblance() {
       <div class="field"><label>Active Desc</label><textarea class="small-textarea" data-sem="${key}" data-f="activeDescription">${esc(s.activeDescription)}</textarea></div>
       <div class="field"><label>Passive Name</label><input type="text" data-sem="${key}" data-f="passiveName" value="${esc(s.passiveName)}"></div>
       <div class="field"><label>Passive Desc</label><textarea class="small-textarea" data-sem="${key}" data-f="passiveDescription">${esc(s.passiveDescription)}</textarea></div>
-      <div class="field"><label>Aura Cost</label><input type="number" min="0" data-sem="${key}" data-f="auraCost" value="${s.auraCost}"></div>`;
+      <div class="sem-cd-grid">
+        <div class="field"><label>Aura Cost</label><input type="number" min="0" data-sem="${key}" data-f="auraCost" value="${s.auraCost}"></div>
+        <div class="field"><label>Max Charges</label><input type="number" min="0" data-sem="${key}" data-f="maxCharges" value="${s.maxCharges||0}" title="0 = unlimited (no charge limit)"></div>
+        <div class="field"><label>Current Charges</label><input type="number" min="0" data-sem="${key}" data-f="charges" value="${s.charges||0}"></div>
+        <div class="field"><label>Cooldown (rounds)</label><input type="number" min="0" data-sem="${key}" data-f="cooldownRounds" value="${s.cooldownRounds||0}" title="0 = no cooldown"></div>
+        <div class="field"><label>Recovers on</label>
+          <select data-sem="${key}" data-f="restRecovery">
+            <option value="short" ${s.restRecovery==='short'?'selected':''}>Short Rest</option>
+            <option value="long" ${s.restRecovery==='long'?'selected':''}>Long Rest</option>
+            <option value="none" ${s.restRecovery==='none'?'selected':''}>DM Only</option>
+          </select>
+        </div>
+      </div>`;
     g.appendChild(col);
   });
   const uf = (id,v) => { const e=el(id); if(e) e.checked=v; };
@@ -4128,12 +4233,46 @@ function useTechnique(id) {
 }
 function useSemblance(key) {
   const c = getChar(); if (stageLocked(key,c)) { alert('That stage is locked.'); return; }
-  const cost = c.semblance[key].auraCost;
+  const st = c.semblance[key];
+  const cost = st.auraCost;
+  // Charge check — if maxCharges is set, must have a charge available
+  if (st.maxCharges > 0 && st.charges <= 0) {
+    alert('No charges remaining. Rest to recover, or wait for cooldown.');
+    return;
+  }
+  // Cooldown check — if a per-round cooldown is running, block
+  if (st.cooldownRounds > 0 && st.cooldownEnds > (state.initiative?.round || 0)) {
+    const roundsLeft = st.cooldownEnds - (state.initiative?.round || 0);
+    alert(`Semblance on cooldown. ${roundsLeft} round${roundsLeft===1?'':'s'} until ready.`);
+    return;
+  }
   if (c.aura.current < cost) { alert(`Not enough Aura. Need ${cost}, have ${c.aura.current}.`); return; }
-  c.aura.current -= cost; ensureClamp(c); pushState(true); render();
-  // One-shot accent-colored burst — respects the site-wide setting toggle
+  c.aura.current -= cost;
+  // Consume a charge
+  if (st.maxCharges > 0) st.charges = Math.max(0, st.charges - 1);
+  // Start cooldown timer (relative to current combat round)
+  if (st.cooldownRounds > 0) {
+    st.cooldownEnds = (state.initiative?.round || 0) + st.cooldownRounds;
+  }
+  ensureClamp(c); pushState(true); render();
   try { triggerSemblancePulse(c.id); } catch(e) {}
 }
+
+// Restore Semblance charges on rest
+function restSemblance(kind /* 'short' | 'long' */) {
+  const c = getChar(); if (!c) return;
+  ['base','first','second','third','ascended'].forEach(k => {
+    const st = c.semblance[k];
+    if (!st) return;
+    // Long rest restores everything; short rest only restores short-rest stages
+    if (kind === 'long' || (kind === 'short' && st.restRecovery === 'short')) {
+      if (st.maxCharges > 0) st.charges = st.maxCharges;
+      st.cooldownEnds = 0;
+    }
+  });
+  pushState(true); render();
+}
+window.restSemblance = restSemblance;
 function useDustSpell(id) {
   const c = getChar(); const sp = c.dustSpells.find(s=>s.id===id); if(!sp) return;
   if ((c.dustInventory[sp.type]||0) < 1) { alert(`Not enough ${sp.type}.`); return; }
@@ -4154,9 +4293,20 @@ function rollAura() {
 }
 function saveSemblance() {
   const c = getChar();
+  const numericFields = new Set(['auraCost','maxCharges','charges','cooldownRounds','cooldownEnds']);
+  const selectFields  = new Set(['restRecovery']);
   el('semblanceDmGrid')?.querySelectorAll('[data-sem]').forEach(inp => {
-    const key=inp.dataset.sem, f=inp.dataset.f;
-    c.semblance[key][f] = f==='auraCost' ? Math.max(0,Number(inp.value)||0) : inp.value;
+    const key = inp.dataset.sem, f = inp.dataset.f;
+    if (!c.semblance[key]) return;
+    if (numericFields.has(f))      c.semblance[key][f] = Math.max(0, Number(inp.value) || 0);
+    else if (selectFields.has(f))  c.semblance[key][f] = ['short','long','none'].includes(inp.value) ? inp.value : 'short';
+    else                           c.semblance[key][f] = inp.value;
+  });
+  // Clamp charges within maxCharges after edits
+  ['base','first','second','third','ascended'].forEach(k => {
+    const st = c.semblance[k];
+    if (st.maxCharges > 0) st.charges = Math.max(0, Math.min(st.maxCharges, st.charges));
+    else st.charges = 0;
   });
   c.semblance.unlocked.first    = el('unlockFirst')?.checked    || false;
   c.semblance.unlocked.second   = el('unlockSecond')?.checked   || false;
@@ -4455,6 +4605,8 @@ function bindAll() {
       if (tab === 'locations')  { renderDmLocations(); }
       if (tab === 'calendar')   { renderDmCalendar(); }
       if (tab === 'quests')     { renderDmQuests(); }
+      if (tab === 'teams')      { renderDmTeams(); }
+      if (tab === 'reputation') { renderDmReputation(); }
       if (tab === 'theme')      { renderSiteSettings(); }
     });
   });
@@ -5709,6 +5861,8 @@ function renderInitiativeTracker(){
     ini.turnIdx = (ini.turnIdx + 1) % ini.entries.length;
     if (ini.turnIdx === 0) ini.round += 1;
     pushState(true); renderInitiativeTracker();
+    // Round tick — re-render semblance so cooldown counters update visibly
+    try { renderSemblance(); } catch(e){}
   });
   el('iniAdd')?.addEventListener('click', () => {
     const nm = (el('iniName')?.value||'').trim();
@@ -6117,10 +6271,15 @@ function renderCombatSuite(){
   // World state — locations/calendar/quests are visible to everyone
   try { renderSceneBanner(); }        catch(e) { console.error('renderSceneBanner:', e); }
   try { renderPlayerQuests(); }       catch(e) { console.error('renderPlayerQuests:', e); }
+  // Team banner + Kingdom reputation — visible to all viewers
+  try { renderTeamBanner(); }         catch(e) { console.error('renderTeamBanner:', e); }
+  try { renderReputation(); }         catch(e) { console.error('renderReputation:', e); }
   if (dmUnlocked) {
     try { renderDmLocations(); }      catch(e) { console.error('renderDmLocations:', e); }
     try { renderDmCalendar(); }       catch(e) { console.error('renderDmCalendar:', e); }
     try { renderDmQuests(); }         catch(e) { console.error('renderDmQuests:', e); }
+    try { renderDmTeams(); }          catch(e) { console.error('renderDmTeams:', e); }
+    try { renderDmReputation(); }     catch(e) { console.error('renderDmReputation:', e); }
     try { renderSiteSettings(); }     catch(e) { console.error('renderSiteSettings:', e); }
   }
 }
@@ -6194,6 +6353,384 @@ function renderSceneBanner(){
 }
 
 // ═════════════════════════════════════════════════════════════════
+// TEAM DESIGNATIONS — RWBY/JNPR-style 4-hunter squads
+// A team's code is the concatenation of member initials (first char of
+// name), leader's initial first. Following canon: RWBY = Ruby(leader) +
+// Weiss + Blake + Yang. If not enough characters, code padded with '?'.
+// ═════════════════════════════════════════════════════════════════
+const TEAM_ACCENT_COLORS = [
+  '#e02839', '#c8a72c', '#5aa8f5', '#a462d3',
+  '#4ade80', '#f97316', '#ec4899', '#14b8a6'
+];
+
+// Compute the 4-letter code from member IDs. Leader's initial goes first.
+function computeTeamCode(team) {
+  if (!team || !Array.isArray(team.members)) return '????';
+  const chars = state.characters || [];
+  // Build ordered list: leader first, then others in the order they were added
+  const ordered = [];
+  if (team.leaderId) {
+    const leader = chars.find(c => c.id === team.leaderId);
+    if (leader && team.members.includes(team.leaderId)) ordered.push(leader);
+  }
+  team.members.forEach(id => {
+    if (id === team.leaderId) return;
+    const c = chars.find(x => x.id === id);
+    if (c) ordered.push(c);
+  });
+  const initials = ordered.map(c => {
+    const first = (c.name || '').trim().charAt(0);
+    return first ? first.toUpperCase() : '?';
+  });
+  while (initials.length < 4) initials.push('?');
+  return initials.slice(0, 4).join('');
+}
+
+// Recompute team codes whenever member names or leadership changes
+function syncTeamCodes() {
+  if (!Array.isArray(state.teams)) return;
+  let changed = false;
+  state.teams.forEach(t => {
+    const fresh = computeTeamCode(t);
+    if (t.code !== fresh) { t.code = fresh; changed = true; }
+  });
+  return changed;
+}
+
+// Find the team a given character belongs to (or null)
+function teamOfCharacter(charId) {
+  if (!Array.isArray(state.teams)) return null;
+  return state.teams.find(t => (t.members || []).includes(charId)) || null;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · TEAM MANAGER
+// ═════════════════════════════════════════════════════════════════
+let _dmTeamSelectedId = null;
+function dmActiveTeam() {
+  const list = state.teams || [];
+  if (!list.length) return null;
+  let t = list.find(x => x.id === _dmTeamSelectedId);
+  if (!t) { t = list[0]; _dmTeamSelectedId = t.id; }
+  return t;
+}
+
+function addTeam() {
+  if (!Array.isArray(state.teams)) state.teams = [];
+  if (state.teams.length >= 12) { alert('Cap at 12 teams. Delete one first.'); return; }
+  const usedColors = new Set(state.teams.map(t => t.color));
+  const color = TEAM_ACCENT_COLORS.find(c => !usedColors.has(c)) || TEAM_ACCENT_COLORS[0];
+  const t = {
+    id: 'team-' + Date.now(),
+    code: '????',
+    name: '',
+    members: [],
+    leaderId: '',
+    color,
+    formedAt: Date.now(),
+    motto: '',
+    dmNotes: ''
+  };
+  state.teams.push(t);
+  _dmTeamSelectedId = t.id;
+  pushState(true); renderDmTeams(); render();
+}
+
+function renderDmTeams() {
+  const host = el('dmTeamRoot'); if (!host || !dmUnlocked) return;
+  syncTeamCodes();
+  const teams = state.teams || [];
+  const cur = dmActiveTeam();
+  const activeChars = state.characters.filter(c => c.state === 'active' && (c.name || '').trim());
+  // Which characters are already claimed by other teams (excluding the current)
+  const claimedElsewhere = new Set();
+  teams.forEach(t => {
+    if (cur && t.id === cur.id) return;
+    (t.members || []).forEach(id => claimedElsewhere.add(id));
+  });
+
+  host.innerHTML = `
+    <div class="dm-team-shell">
+      <aside class="dm-team-side">
+        ${teams.length ? teams.map(t => {
+          const on = cur && t.id === cur.id;
+          return `<button type="button" class="dm-team-row ${on?'active':''}" data-teamid="${esc(t.id)}" style="--tcol:${t.color}">
+            <span class="dm-team-code" style="background:${t.color}">${esc(t.code)}</span>
+            <div class="dm-team-info">
+              <div class="dm-team-name">${esc(t.name || 'Unnamed Team')}</div>
+              <div class="dm-team-sub">${(t.members||[]).length}/4 Hunters</div>
+            </div>
+          </button>`;
+        }).join('') : '<div class="dm-empty" style="padding:1rem;text-align:center">No teams formed yet.</div>'}
+      </aside>
+
+      <div class="dm-team-main">
+        ${cur ? `
+          <div class="dm-team-head" style="--tcol:${cur.color}">
+            <div class="dm-team-code-lg" style="background:${cur.color}">${esc(cur.code)}</div>
+            <div class="dm-team-headinfo">
+              <input type="text" id="dmTeamName" value="${esc(cur.name)}" class="dm-team-name-in" placeholder="Team name (optional)">
+              <div class="dm-team-code-hint">Code auto-generates from member initials · Leader first</div>
+            </div>
+            <input type="color" id="dmTeamColor" value="${esc(cur.color)}" class="dm-team-color-picker" title="Team accent color">
+            <button class="neo-btn ghost small" id="dmTeamDel" title="Disband team">🗑</button>
+          </div>
+
+          <div class="dm-team-sec">Team Roster (max 4)</div>
+          <div class="dm-team-roster">
+            ${activeChars.map(c => {
+              const inTeam    = (cur.members || []).includes(c.id);
+              const isLeader  = cur.leaderId === c.id;
+              const isClaimed = claimedElsewhere.has(c.id);
+              const disabled  = !inTeam && (isClaimed || (cur.members||[]).length >= 4);
+              return `<label class="dm-team-member ${inTeam?'in':''} ${disabled?'disabled':''}">
+                <input type="checkbox" data-mid="${esc(c.id)}" ${inTeam?'checked':''} ${disabled?'disabled':''}>
+                <span class="dm-team-mname">${esc(c.name)}</span>
+                ${isClaimed ? '<span class="dm-team-claimed">In another team</span>' : ''}
+                ${inTeam ? `<button type="button" class="dm-team-lead ${isLeader?'is-leader':''}" data-lid="${esc(c.id)}" title="${isLeader?'Team Leader':'Make Leader'}">${isLeader?'★ Leader':'☆'}</button>` : ''}
+              </label>`;
+            }).join('') || '<div class="dm-empty">No active characters to add.</div>'}
+          </div>
+
+          <div class="dm-team-sec">Team Details</div>
+          <label class="dm-team-field">
+            <span>Team Motto (shown to players)</span>
+            <input type="text" id="dmTeamMotto" value="${esc(cur.motto)}" placeholder="e.g. Truth &amp; Ideals, By Grace of Ozpin…">
+          </label>
+          <label class="dm-team-field">
+            <span>DM Notes (private)</span>
+            <textarea id="dmTeamNotes" placeholder="Team dynamics, plot arcs, unresolved threads…">${esc(cur.dmNotes)}</textarea>
+          </label>
+        ` : `<div class="dm-empty" style="padding:2rem;text-align:center">Post a team to begin.</div>`}
+      </div>
+    </div>
+  `;
+
+  // Wiring — guard against double-binding across re-renders
+  const addBtn = el('dmAddTeamBtn');
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.dataset.bound = '1';
+    addBtn.addEventListener('click', addTeam);
+  }
+  host.querySelectorAll('.dm-team-row').forEach(r => r.addEventListener('click', () => {
+    _dmTeamSelectedId = r.dataset.teamid; renderDmTeams();
+  }));
+  const bindText = (id, field) => el(id)?.addEventListener('input', e => {
+    const t = dmActiveTeam(); if (!t) return;
+    t[field] = e.target.value; pushState();
+    if (field === 'name') renderDmTeams();
+  });
+  bindText('dmTeamName', 'name');
+  bindText('dmTeamMotto', 'motto');
+  bindText('dmTeamNotes', 'dmNotes');
+  el('dmTeamColor')?.addEventListener('input', e => {
+    const t = dmActiveTeam(); if (!t) return;
+    t.color = e.target.value; pushState(); renderDmTeams(); render();
+  });
+  el('dmTeamDel')?.addEventListener('click', () => {
+    const t = dmActiveTeam(); if (!t) return;
+    if (!confirm(`Disband team "${t.code}"? This cannot be undone.`)) return;
+    state.teams = state.teams.filter(x => x.id !== t.id);
+    _dmTeamSelectedId = null;
+    pushState(true); renderDmTeams(); render();
+  });
+  // Member checkboxes
+  host.querySelectorAll('input[data-mid]').forEach(cb => cb.addEventListener('change', e => {
+    const t = dmActiveTeam(); if (!t) return;
+    const id = e.target.dataset.mid;
+    if (e.target.checked) {
+      if (!t.members.includes(id)) t.members.push(id);
+      if (!t.leaderId) t.leaderId = id;
+    } else {
+      t.members = t.members.filter(x => x !== id);
+      if (t.leaderId === id) t.leaderId = t.members[0] || '';
+    }
+    t.members = t.members.slice(0, 4);
+    t.code = computeTeamCode(t);
+    pushState(true); renderDmTeams(); render();
+  }));
+  // Leader assignment
+  host.querySelectorAll('.dm-team-lead').forEach(btn => btn.addEventListener('click', e => {
+    e.preventDefault();
+    const t = dmActiveTeam(); if (!t) return;
+    t.leaderId = btn.dataset.lid;
+    t.code = computeTeamCode(t);
+    pushState(true); renderDmTeams(); render();
+  }));
+}
+
+// ═════════════════════════════════════════════════════════════════
+// TEAM BANNER on the character sheet
+// Shows the team code + name + teammates when a character is on a team.
+// ═════════════════════════════════════════════════════════════════
+function renderTeamBanner() {
+  const host = el('teamBanner'); if (!host) return;
+  const c = getChar(); if (!c) { host.style.display = 'none'; return; }
+  const team = teamOfCharacter(c.id);
+  if (!team) { host.style.display = 'none'; return; }
+  host.style.display = '';
+  host.style.setProperty('--tcol', team.color);
+  const teammates = (team.members || [])
+    .map(id => state.characters.find(x => x.id === id))
+    .filter(Boolean);
+  host.innerHTML = `
+    <div class="team-banner-code" style="background:${team.color}">${esc(team.code)}</div>
+    <div class="team-banner-body">
+      <div class="team-banner-name">${esc(team.name || `Team ${team.code}`)}</div>
+      ${team.motto ? `<div class="team-banner-motto">${esc(team.motto)}</div>` : ''}
+    </div>
+    <div class="team-banner-roster">
+      ${teammates.map(m => {
+        const isLeader = m.id === team.leaderId;
+        const isMe     = m.id === c.id;
+        return `<span class="team-mate ${isLeader?'leader':''} ${isMe?'self':''}" title="${esc(m.name)}${isLeader?' (Team Leader)':''}">
+          ${isLeader?'★ ':''}${esc((m.name||'?').charAt(0).toUpperCase())}
+        </span>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// FOUR KINGDOM REPUTATION — Vale, Atlas, Vacuo, Mistral
+// Scale: -3 Hostile / -2 Wary / -1 Suspicious / 0 Neutral /
+//        +1 Friendly / +2 Trusted / +3 Honored / +4 Legendary
+// ═════════════════════════════════════════════════════════════════
+const KINGDOMS = [
+  { id:'vale',    label:'Vale',    color:'#4a8b4d', crest:'⚙', desc:'Kingdom of the East. Beacon Academy. Green banners, trade hub.' },
+  { id:'atlas',   label:'Atlas',   color:'#5aa8f5', crest:'❄', desc:'Kingdom of the North. Atlas Academy. Military, industry, floating city.' },
+  { id:'vacuo',   label:'Vacuo',   color:'#e0a848', crest:'☀', desc:'Kingdom of the West. Shade Academy. Desert survivalists — the strong endure.' },
+  { id:'mistral', label:'Mistral', color:'#c04a5a', crest:'☯', desc:'Kingdom of the South. Haven Academy. Ancient tradition, layered politics.' }
+];
+
+const REP_TIERS = [
+  { v:-3, label:'Hostile',   color:'#a01020', short:'HOS' },
+  { v:-2, label:'Wary',      color:'#c04030', short:'WAR' },
+  { v:-1, label:'Suspicious',color:'#c8752a', short:'SUS' },
+  { v: 0, label:'Neutral',   color:'#8a8a8a', short:'NEU' },
+  { v: 1, label:'Friendly',  color:'#8ac850', short:'FRD' },
+  { v: 2, label:'Trusted',   color:'#4ade80', short:'TRS' },
+  { v: 3, label:'Honored',   color:'#5aa8f5', short:'HON' },
+  { v: 4, label:'Legendary', color:'#c8a72c', short:'LGN' }
+];
+function repTierOf(v) {
+  const n = Math.max(-3, Math.min(4, Number(v) || 0));
+  return REP_TIERS.find(t => t.v === n) || REP_TIERS[3];
+}
+
+function renderReputation() {
+  const host = el('reputationGrid'); if (!host) return;
+  const rep = state.reputation || { vale:0, atlas:0, vacuo:0, mistral:0 };
+  host.innerHTML = KINGDOMS.map(k => {
+    const v    = rep[k.id] || 0;
+    const tier = repTierOf(v);
+    // Map -3..+4 → 0..100 percent for the bar
+    const pct  = ((v + 3) / 7) * 100;
+    return `
+      <div class="rep-card" style="--kcol:${k.color};--rcol:${tier.color}" data-tt="${esc(k.desc)}">
+        <div class="rep-head">
+          <span class="rep-crest">${k.crest}</span>
+          <span class="rep-name">${k.label}</span>
+          <span class="rep-tier" style="color:${tier.color}">${tier.label}</span>
+        </div>
+        <div class="rep-track">
+          <div class="rep-fill" style="width:${pct}%;background:${tier.color}"></div>
+          <div class="rep-marker" style="left:calc(${(3/7)*100}% - 1px)" title="Neutral"></div>
+        </div>
+        <div class="rep-value">${v>=0?'+':''}${v} · <span style="color:${tier.color}">${tier.short}</span></div>
+      </div>`;
+  }).join('');
+}
+
+// ═════════════════════════════════════════════════════════════════
+// DM · REPUTATION MANAGER
+// ═════════════════════════════════════════════════════════════════
+function renderDmReputation() {
+  const host = el('dmReputationRoot'); if (!host || !dmUnlocked) return;
+  const rep = state.reputation || { vale:0, atlas:0, vacuo:0, mistral:0 };
+  host.innerHTML = `
+    <div class="dm-rep-grid">
+      ${KINGDOMS.map(k => {
+        const v = rep[k.id] || 0;
+        const tier = repTierOf(v);
+        return `<div class="dm-rep-card" style="--kcol:${k.color};--rcol:${tier.color}">
+          <div class="dm-rep-head">
+            <span class="dm-rep-crest" style="color:${k.color}">${k.crest}</span>
+            <div class="dm-rep-title">
+              <div class="dm-rep-name">${k.label}</div>
+              <div class="dm-rep-tier" style="color:${tier.color}">${tier.label} (${v>=0?'+':''}${v})</div>
+            </div>
+          </div>
+          <div class="dm-rep-controls">
+            <button class="dm-rep-adj" data-k="${k.id}" data-d="-1" title="−1 standing">−1</button>
+            <button class="dm-rep-adj" data-k="${k.id}" data-d="1" title="+1 standing">+1</button>
+            <button class="dm-rep-reset" data-k="${k.id}" title="Reset to Neutral">↺</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="dm-rep-log-block">
+      <div class="section-label" style="margin:.8rem 0 .5rem">Record a Standing Change</div>
+      <div class="dm-rep-log-form">
+        <select id="dmRepLogKingdom">
+          ${KINGDOMS.map(k => `<option value="${k.id}">${k.label}</option>`).join('')}
+        </select>
+        <input type="number" id="dmRepLogDelta" value="1" step="1" style="width:70px" title="Change amount">
+        <input type="text" id="dmRepLogReason" placeholder="Reason (e.g. 'Rescued the Mistral delegation')">
+        <button type="button" id="dmRepLogBtn" class="neo-btn">Log &amp; Apply</button>
+      </div>
+
+      <div class="section-label" style="margin:.9rem 0 .5rem">Recent Changes</div>
+      <div class="dm-rep-log-list">
+        ${(state.reputationLog || []).slice(-12).reverse().map(r => {
+          const k = KINGDOMS.find(x => x.id === r.kingdom) || KINGDOMS[0];
+          const when = new Date(r.ts).toLocaleDateString();
+          return `<div class="dm-rep-log-row" style="--kcol:${k.color}">
+            <span class="dm-rep-log-kingdom" style="color:${k.color}">${k.label}</span>
+            <span class="dm-rep-log-delta ${r.delta>=0?'pos':'neg'}">${r.delta>=0?'+':''}${r.delta}</span>
+            <span class="dm-rep-log-reason">${esc(r.reason || '(no reason)')}</span>
+            <span class="dm-rep-log-time">${when}</span>
+          </div>`;
+        }).join('') || '<div class="dm-empty" style="padding:.6rem">No changes yet.</div>'}
+      </div>
+    </div>
+  `;
+
+  // Adjust buttons
+  host.querySelectorAll('.dm-rep-adj').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k;
+    const d = Number(b.dataset.d) || 0;
+    const cur = Number(state.reputation[k]) || 0;
+    state.reputation[k] = Math.max(-3, Math.min(4, cur + d));
+    pushState(true); renderDmReputation(); renderReputation();
+  }));
+  host.querySelectorAll('.dm-rep-reset').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.k;
+    state.reputation[k] = 0;
+    pushState(true); renderDmReputation(); renderReputation();
+  }));
+  // Log form
+  el('dmRepLogBtn')?.addEventListener('click', () => {
+    const k = el('dmRepLogKingdom')?.value || 'vale';
+    const d = Number(el('dmRepLogDelta')?.value) || 0;
+    const r = (el('dmRepLogReason')?.value || '').trim();
+    if (!d) { alert('Delta must be a nonzero number.'); return; }
+    if (!Array.isArray(state.reputation)) {}
+    state.reputation[k] = Math.max(-3, Math.min(4, (Number(state.reputation[k]) || 0) + d));
+    if (!Array.isArray(state.reputationLog)) state.reputationLog = [];
+    state.reputationLog.push({
+      id: 'rep-' + Date.now(),
+      kingdom: k, delta: d, reason: r, ts: Date.now()
+    });
+    // Cap log at 40 entries
+    if (state.reputationLog.length > 40) state.reputationLog = state.reputationLog.slice(-40);
+    if (el('dmRepLogReason')) el('dmRepLogReason').value = '';
+    pushState(true); renderDmReputation(); renderReputation();
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
 // DM · LOCATION MANAGER
 // ═════════════════════════════════════════════════════════════════
 let _dmLocSelectedId = null;
@@ -6208,7 +6745,6 @@ function renderDmLocations(){
   const host = el('dmLocationsRoot'); if(!host || !dmUnlocked) return;
   const list = state.locations || [];
   const cur = dmActiveLocation();
-
   host.innerHTML = `
     <div class="dm-loc-shell">
       <aside class="dm-loc-side">

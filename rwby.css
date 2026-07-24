@@ -6018,3 +6018,561 @@ input:focus, textarea:focus, select:focus{
 /* Softer text-selection highlight — matches the palette */
 ::selection{background:rgba(0,210,255,.28);color:#fff;text-shadow:none}
 ::-moz-selection{background:rgba(0,210,255,.28);color:#fff;text-shadow:none}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TEAM DESIGNATIONS + KINGDOM REPUTATION + SEMBLANCE COOLDOWNS
+   (Added 2026-07-24)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ────────────────────────────────────────────────────────────────
+   TEAM BANNER (character sheet)
+──────────────────────────────────────────────────────────────── */
+.team-banner {
+  --tcol: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .75rem 1.1rem;
+  margin: 0 0 .8rem 0;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tcol) 18%, transparent) 0%, rgba(6,4,12,.85) 55%, rgba(4,2,8,.9) 100%);
+  border: 1px solid color-mix(in srgb, var(--tcol) 50%, transparent);
+  border-left: 3px solid var(--tcol);
+  border-radius: 6px;
+  box-shadow:
+    0 4px 20px -14px rgba(0,0,0,.85),
+    inset 0 1px 0 color-mix(in srgb, var(--tcol) 30%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+.team-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 6%; right: 6%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--tcol), transparent);
+  filter: blur(.6px); opacity: .7;
+}
+.team-banner-code {
+  font-family: var(--F1);
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: .06em;
+  color: #fff;
+  padding: .35rem .8rem;
+  border-radius: 4px;
+  box-shadow: 0 0 20px -4px currentColor, inset 0 -2px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.28);
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  min-width: 84px;
+  text-align: center;
+}
+.team-banner-body { flex: 1; min-width: 0; }
+.team-banner-name {
+  font-family: var(--F1);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #eaf6ff;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--tcol) 60%, transparent);
+}
+.team-banner-motto {
+  font-family: var(--F2);
+  font-size: .68rem;
+  letter-spacing: .12em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-style: italic;
+  margin-top: .1rem;
+}
+.team-banner-roster {
+  display: flex;
+  gap: .3rem;
+  flex-shrink: 0;
+}
+.team-mate {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--F1);
+  font-size: .85rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(0,0,0,.5);
+  border: 1px solid var(--tcol);
+  border-radius: 50%;
+  text-shadow: 0 0 6px currentColor;
+  transition: transform .16s, box-shadow .18s;
+}
+.team-mate:hover { transform: scale(1.1); }
+.team-mate.leader {
+  background: linear-gradient(180deg, var(--tcol), rgba(0,0,0,.5));
+  box-shadow: 0 0 12px -2px var(--tcol);
+  font-size: .68rem;
+}
+.team-mate.self {
+  outline: 2px solid var(--aura);
+  outline-offset: 2px;
+  box-shadow: 0 0 12px -2px var(--aura);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM · TEAM MANAGER
+──────────────────────────────────────────────────────────────── */
+.dm-team-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 0;
+  min-height: 500px;
+  border: 1px solid var(--line-c);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dm-team-side {
+  padding: .6rem;
+  border-right: 1px solid var(--line-c);
+  background: linear-gradient(180deg, rgba(0,0,0,.4), rgba(0,0,0,.2));
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: .3rem;
+}
+.dm-team-row {
+  --tcol: var(--accent);
+  display: flex; align-items: center; gap: .55rem;
+  padding: .5rem .6rem;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: 3px solid var(--tcol);
+  border-radius: 5px;
+  cursor: pointer; text-align: left;
+  transition: all .12s;
+}
+.dm-team-row:hover {
+  border-color: var(--aura);
+  transform: translateX(2px);
+  box-shadow: 0 0 12px -6px var(--aura-glow);
+}
+.dm-team-row.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tcol) 22%, transparent), rgba(0,0,0,.5));
+  box-shadow: inset 0 0 20px -8px color-mix(in srgb, var(--tcol) 60%, transparent);
+}
+.dm-team-code {
+  font-family: var(--F1);
+  font-weight: 900;
+  font-size: 1rem;
+  color: #fff;
+  padding: .28rem .55rem;
+  border-radius: 4px;
+  min-width: 56px; text-align: center;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.24);
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  letter-spacing: .04em;
+}
+.dm-team-info { flex: 1; min-width: 0; }
+.dm-team-name {
+  font-family: var(--F1); font-size: .82rem; font-weight: 600;
+  color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dm-team-sub {
+  font-family: var(--F2); font-size: .55rem;
+  letter-spacing: .14em; color: var(--muted); text-transform: uppercase;
+}
+
+.dm-team-main {
+  padding: 1rem 1.2rem;
+  display: flex; flex-direction: column; gap: .75rem;
+  overflow-y: auto;
+}
+.dm-team-head {
+  --tcol: var(--accent);
+  display: flex; align-items: center; gap: .75rem;
+  padding-bottom: .8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--tcol) 30%, transparent);
+}
+.dm-team-code-lg {
+  font-family: var(--F1);
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: #fff;
+  padding: .5rem .95rem;
+  border-radius: 6px;
+  min-width: 100px; text-align: center;
+  box-shadow: 0 0 24px -4px currentColor, inset 0 -3px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3);
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  letter-spacing: .04em;
+}
+.dm-team-headinfo { flex: 1; min-width: 0; }
+.dm-team-name-in {
+  width: 100%;
+  padding: .5rem .7rem;
+  background: rgba(0,0,0,.5);
+  border: 1px solid var(--line-c);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--F1); font-size: 1rem; font-weight: 600;
+  letter-spacing: .05em;
+}
+.dm-team-name-in:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,212,255,.14);
+}
+.dm-team-code-hint {
+  font-family: var(--F2); font-size: .58rem;
+  letter-spacing: .14em; color: var(--muted); text-transform: uppercase;
+  margin-top: .3rem;
+}
+.dm-team-color-picker {
+  width: 42px; height: 42px;
+  padding: 2px;
+  background: transparent;
+  border: 1px solid var(--line-c);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.dm-team-sec {
+  font-family: var(--F2); font-size: .58rem;
+  letter-spacing: .22em; color: var(--aura); text-transform: uppercase; font-weight: 700;
+  padding-bottom: .25rem;
+  border-bottom: 1px dashed var(--line-c);
+  margin-top: .3rem;
+}
+.dm-team-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .4rem;
+}
+.dm-team-member {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .5rem .65rem;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--line-c);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.dm-team-member:hover:not(.disabled) {
+  border-color: var(--aura);
+  background: rgba(0,212,255,.06);
+}
+.dm-team-member.in {
+  border-color: var(--aura);
+  background: linear-gradient(90deg, rgba(0,212,255,.14), rgba(0,0,0,.4));
+}
+.dm-team-member.disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.dm-team-member input[type="checkbox"] {
+  accent-color: var(--aura);
+  width: 16px; height: 16px;
+}
+.dm-team-mname {
+  flex: 1;
+  font-family: var(--F3); font-size: .85rem;
+  color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dm-team-claimed {
+  font-family: var(--F2); font-size: .5rem;
+  letter-spacing: .14em; color: var(--warn); text-transform: uppercase;
+}
+.dm-team-lead {
+  padding: .28rem .55rem;
+  background: rgba(0,0,0,.5);
+  border: 1px solid var(--line-c);
+  color: var(--muted);
+  border-radius: 3px;
+  font-family: var(--F2); font-size: .6rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer;
+  transition: all .12s;
+}
+.dm-team-lead:hover { border-color: var(--aura); color: var(--aura); }
+.dm-team-lead.is-leader {
+  background: linear-gradient(180deg, rgba(232,167,44,.28), rgba(0,0,0,.4));
+  border-color: #e8a72c;
+  color: #ffd460;
+  text-shadow: 0 0 6px rgba(232,167,44,.5);
+}
+.dm-team-field {
+  display: flex; flex-direction: column; gap: .3rem;
+}
+.dm-team-field > span {
+  font-family: var(--F2); font-size: .55rem;
+  letter-spacing: .2em; color: var(--muted); text-transform: uppercase; font-weight: 700;
+}
+.dm-team-field input, .dm-team-field textarea {
+  padding: .5rem .65rem;
+  background: rgba(0,0,0,.5);
+  color: var(--text);
+  border: 1px solid var(--line-c);
+  border-radius: 4px;
+  font-family: var(--F3); font-size: .85rem;
+}
+.dm-team-field input:focus, .dm-team-field textarea:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,212,255,.14);
+}
+.dm-team-field textarea { min-height: 80px; resize: vertical; }
+
+/* ────────────────────────────────────────────────────────────────
+   REPUTATION GRID (character sheet Status tab)
+──────────────────────────────────────────────────────────────── */
+.reputation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: .55rem;
+  margin-top: .4rem;
+}
+.rep-card {
+  --kcol: var(--accent);
+  --rcol: var(--muted);
+  padding: .7rem .85rem;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, color-mix(in srgb, var(--kcol) 12%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(8,5,16,.95) 0%, rgba(4,2,8,.95) 100%);
+  border: 1px solid color-mix(in srgb, var(--kcol) 35%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px -10px rgba(0,0,0,.7), inset 0 1px 0 color-mix(in srgb, var(--kcol) 25%, transparent);
+  cursor: help;
+  transition: transform .16s, box-shadow .22s;
+}
+.rep-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -10px rgba(0,0,0,.85), 0 0 16px -6px color-mix(in srgb, var(--kcol) 50%, transparent);
+}
+.rep-head {
+  display: flex; align-items: center; gap: .5rem;
+  margin-bottom: .55rem;
+}
+.rep-crest {
+  font-size: 1.15rem;
+  color: var(--kcol);
+  text-shadow: 0 0 10px currentColor;
+  width: 24px; text-align: center;
+}
+.rep-name {
+  flex: 1;
+  font-family: var(--F1); font-size: .85rem; font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--kcol);
+  text-shadow: 0 0 8px currentColor;
+}
+.rep-tier {
+  font-family: var(--F2); font-size: .6rem;
+  letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+  text-shadow: 0 0 6px currentColor;
+}
+.rep-track {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(180deg, rgba(0,0,0,.7), rgba(0,0,0,.5));
+  border: 1px solid var(--line-c);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.7);
+}
+.rep-fill {
+  height: 100%;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 0 10px currentColor;
+}
+.rep-marker {
+  position: absolute; top: -3px; bottom: -3px;
+  width: 2px;
+  background: rgba(255,255,255,.35);
+  box-shadow: 0 0 4px rgba(255,255,255,.5);
+  pointer-events: none;
+}
+.rep-value {
+  margin-top: .4rem;
+  font-family: var(--F2); font-size: .7rem;
+  letter-spacing: .12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DM · REPUTATION MANAGER
+──────────────────────────────────────────────────────────────── */
+.dm-rep-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: .6rem;
+}
+.dm-rep-card {
+  --kcol: var(--accent);
+  --rcol: var(--muted);
+  padding: .8rem 1rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--kcol) 8%, rgba(8,5,16,.97)) 0%, rgba(4,2,8,.97) 100%);
+  border: 1px solid color-mix(in srgb, var(--kcol) 40%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px -12px rgba(0,0,0,.85), inset 0 1px 0 color-mix(in srgb, var(--kcol) 30%, transparent);
+}
+.dm-rep-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .7rem; }
+.dm-rep-crest {
+  font-size: 1.7rem;
+  text-shadow: 0 0 14px currentColor;
+  width: 40px; text-align: center;
+}
+.dm-rep-title { flex: 1; }
+.dm-rep-name {
+  font-family: var(--F1); font-size: 1rem; font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--kcol);
+  text-shadow: 0 0 10px currentColor;
+}
+.dm-rep-tier {
+  font-family: var(--F2); font-size: .65rem;
+  letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+  margin-top: .15rem;
+}
+.dm-rep-controls { display: flex; gap: .35rem; align-items: center; }
+.dm-rep-adj, .dm-rep-reset {
+  flex: 1;
+  padding: .55rem;
+  background: rgba(0,0,0,.5);
+  border: 1px solid var(--line-c);
+  color: var(--text);
+  border-radius: 4px;
+  font-family: var(--F1); font-size: .8rem; font-weight: 700;
+  cursor: pointer;
+  transition: all .14s cubic-bezier(.2,.8,.2,1);
+}
+.dm-rep-adj:hover, .dm-rep-reset:hover {
+  border-color: var(--aura);
+  background: rgba(0,212,255,.1);
+  color: var(--aura);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px var(--aura-glow);
+}
+.dm-rep-adj:active, .dm-rep-reset:active { transform: translateY(0); }
+.dm-rep-reset { flex: 0 0 auto; padding: .55rem .7rem; font-family: var(--F2); font-size: .95rem; }
+
+.dm-rep-log-block {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--line-c);
+}
+.dm-rep-log-form {
+  display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+  padding: .6rem;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--line-c);
+  border-radius: 5px;
+}
+.dm-rep-log-form select,
+.dm-rep-log-form input {
+  padding: .45rem .6rem;
+  background: rgba(0,0,0,.55);
+  border: 1px solid var(--line-c);
+  color: var(--text);
+  border-radius: 3px;
+  font-family: var(--F3); font-size: .82rem;
+}
+.dm-rep-log-form input[type="text"] { flex: 1; min-width: 180px; }
+.dm-rep-log-form select:focus,
+.dm-rep-log-form input:focus {
+  outline: none; border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,212,255,.14);
+}
+.dm-rep-log-list {
+  display: flex; flex-direction: column; gap: .28rem;
+}
+.dm-rep-log-row {
+  --kcol: var(--muted);
+  display: grid;
+  grid-template-columns: 100px 50px 1fr 90px;
+  gap: .55rem;
+  padding: .4rem .6rem;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--kcol);
+  border-radius: 3px;
+  font-size: .78rem;
+  align-items: center;
+}
+.dm-rep-log-kingdom {
+  font-family: var(--F1); font-weight: 700;
+  font-size: .72rem;
+  letter-spacing: .1em;
+}
+.dm-rep-log-delta {
+  font-family: var(--F1); font-weight: 800;
+  text-align: center;
+  padding: .15rem .35rem;
+  border-radius: 3px;
+}
+.dm-rep-log-delta.pos {
+  color: var(--safe);
+  background: rgba(0,232,144,.1);
+  border: 1px solid rgba(0,232,144,.35);
+}
+.dm-rep-log-delta.neg {
+  color: var(--danger);
+  background: rgba(255,26,46,.1);
+  border: 1px solid rgba(255,26,46,.35);
+}
+.dm-rep-log-reason {
+  font-family: var(--F3); color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-style: italic;
+}
+.dm-rep-log-time {
+  font-family: var(--F2); font-size: .62rem;
+  color: var(--muted); letter-spacing: .1em;
+  text-align: right;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SEMBLANCE COOLDOWN / CHARGE UI
+──────────────────────────────────────────────────────────────── */
+.stage-status-group {
+  display: flex; align-items: center; gap: .4rem;
+}
+.sem-status {
+  padding: .18rem .5rem;
+  font-family: var(--F2); font-size: .58rem;
+  letter-spacing: .1em; font-weight: 700; text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  background: rgba(0,0,0,.4);
+}
+.sem-status.sem-cooldown { color: var(--warn); background: rgba(255,153,0,.08); text-shadow: 0 0 6px rgba(255,153,0,.4); }
+.sem-status.sem-empty    { color: var(--danger); background: rgba(255,26,46,.08); text-shadow: 0 0 6px rgba(255,26,46,.4); }
+.sem-status.sem-charged  { color: var(--aura); background: rgba(0,212,255,.08); text-shadow: 0 0 6px var(--aura-glow); }
+.sem-status.sem-ready    { color: var(--safe); background: rgba(0,232,144,.08); text-shadow: 0 0 6px rgba(0,232,144,.4); }
+
+.sem-cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: .5rem;
+  padding: .6rem;
+  margin-top: .5rem;
+  background: rgba(0,212,255,.04);
+  border: 1px dashed var(--line-c);
+  border-radius: 5px;
+}
+.sem-cd-grid .field label {
+  font-size: .55rem !important;
+  letter-spacing: .16em !important;
+  color: var(--aura) !important;
+}
+
+.use-sem:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  color: var(--muted) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   RESPONSIVE
+──────────────────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .dm-team-shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .dm-team-side { border-right: 0; border-bottom: 1px solid var(--line-c); max-height: 220px; }
+  .team-banner { flex-wrap: wrap; }
+  .dm-rep-log-row { grid-template-columns: 1fr; gap: .2rem; }
+  .dm-rep-log-time { text-align: left; }
+}

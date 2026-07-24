@@ -63,6 +63,7 @@
 <main class="main">
       <div id="dmSheetBar" class="dm-sheet-bar" style="display:none"></div>
       <div id="sceneBanner" class="scene-banner"></div>
+      <div id="teamBanner" class="team-banner" style="display:none"></div>
 
   <!-- TOP BAR -->
   <header class="topbar panel">
@@ -310,6 +311,8 @@
         <div id="combatStatusChips" class="combat-status-chips"></div>
         <div class="section-title" style="margin-top:1.6rem">Grimm Threat Level</div>
         <div id="threatMeter" class="threat-meter"></div>
+        <div class="section-title" style="margin-top:1.6rem">Kingdom Reputation <span class="section-hint">— the party's standing across Remnant</span></div>
+        <div id="reputationGrid" class="reputation-grid"></div>
         <div class="section-title" style="margin-top:1.6rem">Active Conditions</div>
         <div id="conditionsActive" class="conditions-active"></div>
         <div class="section-title" style="margin-top:1.4rem">Apply / Remove</div>
@@ -597,6 +600,12 @@
           <button class="dm-nav-btn" data-dm-tab="quests">
             <span class="dm-nav-icon">📜</span><span class="dm-nav-lbl">Quests</span>
           </button>
+          <button class="dm-nav-btn" data-dm-tab="teams">
+            <span class="dm-nav-icon">🛡</span><span class="dm-nav-lbl">Teams</span>
+          </button>
+          <button class="dm-nav-btn" data-dm-tab="reputation">
+            <span class="dm-nav-icon">⚖</span><span class="dm-nav-lbl">Reputation</span>
+          </button>
         </div>
         <div class="dm-nav-group">
           <div class="dm-nav-section">Chronicle</div>
@@ -739,6 +748,23 @@
           <div class="dm-tab-title">Quest Tracker</div>
           <p class="dm-hint">One quest can be granted to one player, some players, or the whole party — same viewer-checkbox pattern as bestiaries. DM hooks stay private; players only see the description + objectives you assigned to them.</p>
           <div class="dm-card"><div class="dm-card-body" style="padding:0"><div id="dmQuestsRoot"></div></div></div>
+        </div>
+
+        <!-- TEAMS TAB -->
+        <div class="dm-tab" data-dm-tab="teams">
+          <div class="dm-tab-title">🛡 Hunter Teams</div>
+          <p class="dm-hint">Group your Huntsmen into 4-hunter teams RWBY-style. Code auto-generates from member initials — leader's first (e.g. Ruby + Weiss + Blake + Yang = <b>RWBY</b>). Each team gets a color, a motto, and a banner that appears on every member's sheet. Cap: 4 members, 12 teams.</p>
+          <div class="dm-card"><div class="dm-card-body" style="padding:0">
+            <button id="dmAddTeamBtn" type="button" class="neo-btn" style="margin:.9rem 1rem">+ Form New Team</button>
+            <div id="dmTeamRoot"></div>
+          </div></div>
+        </div>
+
+        <!-- REPUTATION TAB -->
+        <div class="dm-tab" data-dm-tab="reputation">
+          <div class="dm-tab-title">⚖ Kingdom Reputation</div>
+          <p class="dm-hint">Track the party's standing with the four kingdoms: <b style="color:#4a8b4d">Vale</b>, <b style="color:#5aa8f5">Atlas</b>, <b style="color:#e0a848">Vacuo</b>, <b style="color:#c04a5a">Mistral</b>. Scale runs from Hostile (−3) through Neutral (0) to Legendary (+4). Use the ±1 buttons for quick shifts, or the log form to document why. Players see live standing on the Status tab.</p>
+          <div class="dm-card"><div class="dm-card-body"><div id="dmReputationRoot"></div></div></div>
         </div>
 
         <!-- ROLL LOG TAB -->

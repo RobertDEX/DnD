@@ -391,6 +391,7 @@ const DEF_STATE = {
   teams:[],
   reputation:{ vale: 0, atlas: 0, vacuo: 0, mistral: 0 },
   reputationLog:[],
+  grimmCatalog:[],  // Grimm Studies codex — DM-managed canonical species catalog
   characters:[blankChar(0),blankChar(1),blankChar(2),blankChar(3)]
 };
 
@@ -1150,6 +1151,26 @@ function normalize(raw) {
   // ─── FOUR KINGDOM REPUTATION ───
   // The party's standing across Remnant. Ranges from -3 (Hostile) to +4 (Legendary).
   // DM adjusts; every player sees their party's current standing on the sheet.
+  // ─── GRIMM STUDIES CODEX ───
+  // Canonical Grimm species catalog. DM manages entries; players can browse
+  // as a reference book. Preloadable with the canonical RWBY roster.
+  if (!Array.isArray(m.grimmCatalog)) m.grimmCatalog = [];
+  m.grimmCatalog = m.grimmCatalog.map((g, ix) => ({
+    id:          String(g?.id ?? ('grimm-' + Date.now() + '-' + ix)),
+    name:        String(g?.name ?? 'Unknown Grimm'),
+    class:       ['common','pack','elite','ancient','apex'].includes(g?.class) ? g.class : 'common',
+    threat:      ['nuisance','threat','alpha','apex','ancient'].includes(g?.threat) ? g.threat : 'threat',
+    size:        String(g?.size ?? 'Medium'),
+    habitat:     String(g?.habitat ?? ''),
+    description: String(g?.description ?? ''),
+    weaknesses:  Array.isArray(g?.weaknesses) ? g.weaknesses.map(String) : [],
+    abilities:   Array.isArray(g?.abilities)  ? g.abilities.map(String)  : [],
+    encountered: Number(g?.encountered) || 0,
+    killed:      Number(g?.killed) || 0,
+    firstSeen:   String(g?.firstSeen ?? ''),
+    dmNotes:     String(g?.dmNotes ?? '')
+  }));
+
   const DEFAULT_KINGDOMS = { vale: 0, atlas: 0, vacuo: 0, mistral: 0 };
   if (!m.reputation || typeof m.reputation !== 'object') m.reputation = { ...DEFAULT_KINGDOMS };
   else {
@@ -6729,6 +6750,444 @@ function renderDmReputation() {
     pushState(true); renderDmReputation(); renderReputation();
   });
 }
+
+// ═════════════════════════════════════════════════════════════════
+// GRIMM STUDIES CODEX
+// Canonical Grimm species reference — Beacon Academy-style catalog.
+// DM can preload the canonical RWBY roster (Beowolf, Ursa, Nevermore…)
+// or author custom entries. Players browse as a reference codex.
+// ═════════════════════════════════════════════════════════════════
+
+const GRIMM_CLASSES = [
+  { id:'common',  label:'Common',  icon:'▲', desc:'Frequently encountered. Manageable in numbers.' },
+  { id:'pack',    label:'Pack',    icon:'◈', desc:'Hunts in coordinated groups. Alpha may be present.' },
+  { id:'elite',   label:'Elite',   icon:'★', desc:'Older, wiser, more dangerous. Individual threats.' },
+  { id:'ancient', label:'Ancient', icon:'✦', desc:'Centuries old. Uncommon. Highly intelligent.' },
+  { id:'apex',    label:'Apex',    icon:'▼', desc:'Legendary. Single specimens can end a kingdom.' }
+];
+const GRIMM_CLASS_BY_ID = Object.fromEntries(GRIMM_CLASSES.map(c => [c.id, c]));
+
+const GRIMM_THREAT_TIERS = [
+  { id:'nuisance', label:'Nuisance', color:'#5ad17a', desc:'Fresh Huntsmen or trained militia can handle.' },
+  { id:'threat',   label:'Threat',   color:'#e0b02a', desc:'Requires trained Huntsmen. Casualties possible.' },
+  { id:'alpha',    label:'Alpha',    color:'#e0802a', desc:'Full teams recommended. Serious threat.' },
+  { id:'apex',     label:'Apex',     color:'#c02040', desc:'Multiple teams. Extraction plan required.' },
+  { id:'ancient',  label:'Ancient',  color:'#a020c0', desc:'Wizard Saint / Council-level response.' }
+];
+const GRIMM_THREAT_BY_ID = Object.fromEntries(GRIMM_THREAT_TIERS.map(t => [t.id, t]));
+
+// The canonical RWBY roster — 14 species from the show. DM can preload
+// these with one click, then customize freely.
+const GRIMM_CANONICAL = [
+  { name:'Beowolf', class:'pack', threat:'nuisance', size:'Medium',
+    habitat:'Forests · Ruins · Frontier settlements',
+    description:'Wolf-like Grimm that hunt in packs. Bipedal, with bone-white skulls and claws. Frequently the first Grimm a young Huntsman faces. Individually weak but coordinated in numbers.',
+    weaknesses:['Fast but fragile — a single well-aimed strike kills','Rely on the pack — isolate them','Distinctive howl gives away position'],
+    abilities:['Pack hunting','Sharp claws','Bite'] },
+  { name:'Alpha Beowolf', class:'elite', threat:'threat', size:'Large',
+    habitat:'Forests · Older Grimm territory',
+    description:'Elder Beowolves grown larger and more armored over decades. Leads packs. Bone spurs cover its back and shoulders. Significantly more intelligent than common Beowolves.',
+    weaknesses:['Slower than younger Beowolves','Bone armor has gaps at joints','Killing the Alpha routs the pack'],
+    abilities:['Roar (pack rally)','Reinforced bone armor','Pack leadership'] },
+  { name:'Ursa', class:'common', threat:'threat', size:'Large',
+    habitat:'Forests · Mountains',
+    description:'Massive bear-like Grimm. Slow-witted but immensely strong. Bone spikes protrude from its back. Charges when angered — hunters bait this behavior.',
+    weaknesses:['Slow to turn — flanking works','Spikes hollow at the base','Enraged into predictable charges'],
+    abilities:['Charging tackle','Crushing swipe','High HP'] },
+  { name:'Ursa Major', class:'elite', threat:'alpha', size:'Huge',
+    habitat:'Deep forest · Ancient Grimm nests',
+    description:'An Ursa that has survived for decades. Nearly twice the size, covered in overlapping bone plating. Serves as pack elder to lesser Ursa. Highly territorial.',
+    weaknesses:['Massive size limits agility in tight spaces','Bone plating cracks under sustained fire','Aggressive when protecting territory'],
+    abilities:['Bone plate armor','Rock-shattering slam','Territory guardian'] },
+  { name:'Boarbatusk', class:'common', threat:'nuisance', size:'Medium',
+    habitat:'Underbrush · Rocky terrain',
+    description:'Tusked, boar-like Grimm. Uses a curling roll attack that shatters bone. Common in low-threat regions. Frequently used in Beacon Academy combat classes.',
+    weaknesses:['Soft underbelly when rolling','Predictable roll charge','Vulnerable when disoriented'],
+    abilities:['Rolling charge','Tusk gore','Thick side armor'] },
+  { name:'Creep', class:'pack', threat:'nuisance', size:'Small',
+    habitat:'Ruins · Underground',
+    description:'Lizard-like bipedal Grimm. Hunts in packs. Fast, elusive, prone to ambush. Weak individually. Distinctive black-and-white striped mask.',
+    weaknesses:['Fragile — low HP','No ranged attack','Panics when isolated from pack'],
+    abilities:['Ambush','Pack tactics','Sprint'] },
+  { name:'Nevermore', class:'elite', threat:'alpha', size:'Huge',
+    habitat:'Cliffs · Skies · Ancient forests',
+    description:'Massive raven-like Grimm capable of flight. Fires razor-sharp feathers as ranged projectiles. Older specimens can carry a full Huntsman team in their talons.',
+    weaknesses:['Grounded, it is vulnerable','Wings are the largest target','Cannot maneuver in tight spaces'],
+    abilities:['Flight','Feather projectile barrage','Talon grab'] },
+  { name:'Deathstalker', class:'elite', threat:'alpha', size:'Huge',
+    habitat:'Caves · Deserts · Deep forests',
+    description:'Colossal scorpion-like Grimm. Armored carapace, pincers that crush stone, glowing gold stinger. Regarded as one of the most dangerous common Grimm.',
+    weaknesses:['Armor gap under the stinger joint','Golden stinger is visually distinct — a target','Turns slowly in enclosed spaces'],
+    abilities:['Piercing stinger','Crushing pincers','Nigh-impenetrable carapace'] },
+  { name:'King Taijitu', class:'elite', threat:'alpha', size:'Huge',
+    habitat:'Snow-covered forests · Cold zones',
+    description:'Two-headed snake Grimm — one head white, one black. Both heads act independently and cover each other. Coordination is unnerving. Common in frozen regions.',
+    weaknesses:['Two heads can be pitted against each other','Cold-adapted — slower in warmth','Body is long — attacks from middle work'],
+    abilities:['Twin bite','Constrict','Independent heads'] },
+  { name:'Griffon', class:'elite', threat:'alpha', size:'Large',
+    habitat:'Skies · Cliff nests',
+    description:'Eagle-lion hybrid Grimm. Flying threat with heavy melee capability on the ground. Frequently found in coastal or mountainous regions.',
+    weaknesses:['Grounded, no better than an Ursa','Wingtips fragile','Territorial — can be lured'],
+    abilities:['Flight','Talon strike','Diving attack'] },
+  { name:'Goliath', class:'ancient', threat:'apex', size:'Gargantuan',
+    habitat:'Deep Grimmlands · Ancient migration routes',
+    description:'Elephant-like Grimm the size of buildings. Ancient. Deeply intelligent — Goliaths have been observed avoiding Huntsmen deliberately, biding their time for centuries. Their appearance signals a coming disaster.',
+    weaknesses:['Rarely attacks unprovoked — will not chase into cities','Tusks vulnerable to concentrated fire','Age has slowed them physically'],
+    abilities:['Immense HP','Tusks that shatter architecture','Centuries of tactical patience'] },
+  { name:'Manticore', class:'elite', threat:'alpha', size:'Large',
+    habitat:'Volcanic regions · Deep wastes',
+    description:'Winged Grimm with a lion body and scorpion tail. Breathes fire in short bursts. Aggressive and territorial. Rare outside inhospitable terrain.',
+    weaknesses:['Grounded, only marginally more dangerous than a lion','Fire breath has a cooldown','Weak to sustained ranged fire'],
+    abilities:['Flight','Fire breath','Scorpion tail','Claws'] },
+  { name:'Sea Feilong', class:'ancient', threat:'apex', size:'Gargantuan',
+    habitat:'Oceans · Coastal deep waters',
+    description:'Sea-dwelling dragon Grimm. Serpentine, capable of both flight and swimming. Extremely rare. Ancient specimens have taken down naval fleets and rendered entire coastal regions uninhabitable.',
+    weaknesses:['Beaching removes flight advantage','Eyes are the only reliable soft target','Requires water access — cannot pursue inland'],
+    abilities:['Flight','Swimming','Serpentine coil','Lightning breath'] },
+  { name:'Grimm Dragon', class:'apex', threat:'ancient', size:'Colossal',
+    habitat:'Mountain peaks · Legendary sites',
+    description:'The apex Grimm. Massive dragon of pure destruction. When one wakes, kingdoms burn. Records of encounters are measured in centuries. The Fall of Beacon featured one — it froze in place, still visible on Beacon Tower.',
+    weaknesses:['Silver Eyes can petrify or destroy it','Deeply sensitive to concentrated magic','Requires legendary armaments'],
+    abilities:['Flight','Continuous Grimm generation from its body','Immense HP','Armor of ancient bone plating'] }
+];
+
+// Local UI state — no Firebase sync (just navigation)
+let _grimmSelectedId = null;
+let _grimmSearchTerm = '';
+let _grimmClassFilter = '';
+let _grimmThreatFilter = '';
+
+function currentGrimmEntry() {
+  const list = state.grimmCatalog || [];
+  if (!list.length) return null;
+  return list.find(g => g.id === _grimmSelectedId) || list[0];
+}
+
+function addGrimmEntry() {
+  if (!Array.isArray(state.grimmCatalog)) state.grimmCatalog = [];
+  const g = {
+    id: 'grimm-' + Date.now(),
+    name: 'New Grimm Species',
+    class: 'common',
+    threat: 'threat',
+    size: 'Medium',
+    habitat: '',
+    description: '',
+    weaknesses: [],
+    abilities: [],
+    encountered: 0, killed: 0,
+    firstSeen: '',
+    dmNotes: ''
+  };
+  state.grimmCatalog.unshift(g);
+  _grimmSelectedId = g.id;
+  pushState(true); renderGrimmCodex();
+}
+
+function preloadCanonicalGrimm() {
+  if (!Array.isArray(state.grimmCatalog)) state.grimmCatalog = [];
+  if (state.grimmCatalog.length && !confirm(`This will add ${GRIMM_CANONICAL.length} canonical Grimm to your catalog. Existing entries won't be touched. Continue?`)) return;
+  const existingNames = new Set((state.grimmCatalog || []).map(g => (g.name || '').toLowerCase()));
+  let added = 0;
+  GRIMM_CANONICAL.forEach((g, ix) => {
+    if (existingNames.has((g.name || '').toLowerCase())) return; // don't dupe
+    state.grimmCatalog.push({
+      id: 'grimm-canon-' + Date.now() + '-' + ix,
+      ...g,
+      encountered: 0, killed: 0, firstSeen: '', dmNotes: ''
+    });
+    added++;
+  });
+  showToast(`Loaded ${added} canonical Grimm.`, 'safe');
+  pushState(true); renderGrimmCodex();
+}
+
+function openGrimmCodex() {
+  const modal = el('grimmCodex'); if (!modal) return;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderGrimmCodex();
+}
+function closeGrimmCodex() {
+  const modal = el('grimmCodex'); if (!modal) return;
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.openGrimmCodex = openGrimmCodex;
+window.closeGrimmCodex = closeGrimmCodex;
+
+function renderGrimmCodex() {
+  const modal = el('grimmCodex'); if (!modal || !modal.classList.contains('open')) return;
+  const catalog = state.grimmCatalog || [];
+
+  // Apply filters
+  let filtered = catalog;
+  if (_grimmSearchTerm) {
+    const q = _grimmSearchTerm.toLowerCase();
+    filtered = filtered.filter(g =>
+      (g.name || '').toLowerCase().includes(q) ||
+      (g.habitat || '').toLowerCase().includes(q) ||
+      (g.description || '').toLowerCase().includes(q));
+  }
+  if (_grimmClassFilter)  filtered = filtered.filter(g => g.class === _grimmClassFilter);
+  if (_grimmThreatFilter) filtered = filtered.filter(g => g.threat === _grimmThreatFilter);
+
+  const cur = currentGrimmEntry();
+  const isDm = dmUnlocked;
+
+  const sidebarHTML = filtered.length ? filtered.map(g => {
+    const on = cur && g.id === cur.id;
+    const cls  = GRIMM_CLASS_BY_ID[g.class]  || GRIMM_CLASSES[0];
+    const thr  = GRIMM_THREAT_BY_ID[g.threat] || GRIMM_THREAT_TIERS[1];
+    return `<button type="button" class="grimm-row ${on?'active':''}" data-gid="${esc(g.id)}" style="--gcol:${thr.color}">
+      <span class="grimm-row-class" title="${esc(cls.desc)}">${cls.icon}</span>
+      <div class="grimm-row-info">
+        <div class="grimm-row-name">${esc(g.name)}</div>
+        <div class="grimm-row-sub">${cls.label} · ${g.size}</div>
+      </div>
+      <span class="grimm-row-threat" style="background:${thr.color}">${thr.label}</span>
+    </button>`;
+  }).join('') : `<div class="grimm-empty-side">
+    <div class="grimm-empty-icon">✕</div>
+    <div>No matching entries.</div>
+  </div>`;
+
+  const readOnlyDetail = cur ? `
+    <div class="grimm-detail-inner">
+      <div class="grimm-corner tl"></div>
+      <div class="grimm-corner tr"></div>
+      <div class="grimm-corner bl"></div>
+      <div class="grimm-corner br"></div>
+      <div class="grimm-scanlines"></div>
+
+      <header class="grimm-detail-head">
+        <div class="grimm-badges">
+          <span class="grimm-badge grimm-class" data-tt="${esc((GRIMM_CLASS_BY_ID[cur.class]||{}).desc||'')}">
+            ${(GRIMM_CLASS_BY_ID[cur.class]||{}).icon||'▲'} ${(GRIMM_CLASS_BY_ID[cur.class]||{}).label||cur.class}
+          </span>
+          <span class="grimm-badge grimm-threat" style="--tcol:${(GRIMM_THREAT_BY_ID[cur.threat]||{}).color||'#e0b02a'}" data-tt="${esc((GRIMM_THREAT_BY_ID[cur.threat]||{}).desc||'')}">
+            ${(GRIMM_THREAT_BY_ID[cur.threat]||{}).label||cur.threat}
+          </span>
+          <span class="grimm-badge grimm-size">SIZE · ${esc(cur.size)}</span>
+        </div>
+        <h2 class="grimm-name">${esc(cur.name)}</h2>
+        ${cur.habitat ? `<div class="grimm-habitat">📍 ${esc(cur.habitat)}</div>` : ''}
+      </header>
+
+      <div class="grimm-detail-body">
+        <section class="grimm-sec">
+          <div class="grimm-sec-title">Field Report</div>
+          <div class="grimm-sec-body">${esc(cur.description) || '<em>No description recorded.</em>'}</div>
+        </section>
+
+        ${cur.abilities.length ? `<section class="grimm-sec">
+          <div class="grimm-sec-title">Combat Abilities</div>
+          <div class="grimm-chip-list">
+            ${cur.abilities.map(a => `<span class="grimm-chip ability">⚔ ${esc(a)}</span>`).join('')}
+          </div>
+        </section>` : ''}
+
+        ${cur.weaknesses.length ? `<section class="grimm-sec">
+          <div class="grimm-sec-title">Known Weaknesses</div>
+          <div class="grimm-weak-list">
+            ${cur.weaknesses.map(w => `<div class="grimm-weak">▸ ${esc(w)}</div>`).join('')}
+          </div>
+        </section>` : ''}
+
+        <section class="grimm-sec grimm-stats-sec">
+          <div class="grimm-sec-title">Party Record</div>
+          <div class="grimm-stats">
+            <div class="grimm-stat">
+              <div class="grimm-stat-value">${cur.encountered}</div>
+              <div class="grimm-stat-label">Encountered</div>
+            </div>
+            <div class="grimm-stat">
+              <div class="grimm-stat-value">${cur.killed}</div>
+              <div class="grimm-stat-label">Killed</div>
+            </div>
+            ${cur.firstSeen ? `<div class="grimm-stat grimm-firstseen">
+              <div class="grimm-stat-value">${esc(cur.firstSeen)}</div>
+              <div class="grimm-stat-label">First Seen</div>
+            </div>` : ''}
+          </div>
+        </section>
+
+        ${isDm && cur.dmNotes ? `<section class="grimm-sec grimm-dm-sec">
+          <div class="grimm-sec-title">DM Notes</div>
+          <div class="grimm-sec-body">${esc(cur.dmNotes)}</div>
+        </section>` : ''}
+      </div>
+    </div>
+  ` : `<div class="grimm-detail-empty">
+    <div class="grimm-empty-icon">📖</div>
+    <div class="grimm-empty-title">GRIMM STUDIES CODEX</div>
+    <div class="grimm-empty-sub">Select an entry from the sidebar, or ${isDm ? 'add a new species' : 'ask your DM to populate the catalog'}.</div>
+    ${isDm && !catalog.length ? '<button type="button" class="neo-btn" id="grimmCanonBtn2" style="margin-top:1rem">📚 Load Canonical Roster</button>' : ''}
+  </div>`;
+
+  const editorHTML = isDm && cur ? `
+    <div class="grimm-editor">
+      <div class="grimm-editor-head">
+        <span class="grimm-editor-title">⚙ EDIT ENTRY</span>
+        <button type="button" class="neo-btn ghost small" id="grimmDelBtn">🗑 Delete</button>
+      </div>
+      <div class="grimm-editor-grid">
+        <label class="grimm-field grimm-full"><span>Name</span>
+          <input type="text" id="grimmNameIn" value="${esc(cur.name)}">
+        </label>
+        <label class="grimm-field"><span>Class</span>
+          <select id="grimmClassIn">
+            ${GRIMM_CLASSES.map(c => `<option value="${c.id}" ${cur.class===c.id?'selected':''}>${c.icon} ${c.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="grimm-field"><span>Threat Tier</span>
+          <select id="grimmThreatIn">
+            ${GRIMM_THREAT_TIERS.map(t => `<option value="${t.id}" ${cur.threat===t.id?'selected':''}>${t.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="grimm-field"><span>Size</span>
+          <input type="text" id="grimmSizeIn" value="${esc(cur.size)}" placeholder="e.g. Large, Huge">
+        </label>
+        <label class="grimm-field"><span>First Seen</span>
+          <input type="text" id="grimmFirstSeenIn" value="${esc(cur.firstSeen)}" placeholder="e.g. Session 3, Forever Fall">
+        </label>
+        <label class="grimm-field grimm-full"><span>Habitat</span>
+          <input type="text" id="grimmHabitatIn" value="${esc(cur.habitat)}" placeholder="Where does it live?">
+        </label>
+        <label class="grimm-field grimm-full"><span>Description (Field Report)</span>
+          <textarea id="grimmDescIn" rows="4">${esc(cur.description)}</textarea>
+        </label>
+        <label class="grimm-field grimm-full"><span>Abilities (one per line)</span>
+          <textarea id="grimmAbilitiesIn" rows="3">${cur.abilities.join('\n')}</textarea>
+        </label>
+        <label class="grimm-field grimm-full"><span>Weaknesses (one per line)</span>
+          <textarea id="grimmWeaknessesIn" rows="3">${cur.weaknesses.join('\n')}</textarea>
+        </label>
+        <label class="grimm-field"><span>Encountered</span>
+          <input type="number" min="0" id="grimmEncIn" value="${cur.encountered}">
+        </label>
+        <label class="grimm-field"><span>Killed</span>
+          <input type="number" min="0" id="grimmKillIn" value="${cur.killed}">
+        </label>
+        <label class="grimm-field grimm-full"><span>DM Notes (private)</span>
+          <textarea id="grimmDmNotesIn" rows="2">${esc(cur.dmNotes)}</textarea>
+        </label>
+      </div>
+    </div>
+  ` : '';
+
+  modal.innerHTML = `
+    <div class="grimm-backdrop" onclick="closeGrimmCodex()"></div>
+    <div class="grimm-shell">
+      <header class="grimm-title-bar">
+        <div class="grimm-title-left">
+          <span class="grimm-title-icon">▲▼</span>
+          <h1 class="grimm-title">GRIMM STUDIES CODEX</h1>
+          <span class="grimm-title-sub">Beacon Academy · Field Reference</span>
+        </div>
+        <button type="button" class="grimm-close" onclick="closeGrimmCodex()" title="Close (Esc)">✕</button>
+      </header>
+
+      <div class="grimm-toolbar">
+        <input type="text" id="grimmSearch" class="grimm-search"
+               placeholder="🔍 Search species, habitat, description…" value="${esc(_grimmSearchTerm)}">
+        <select id="grimmClassFilter" class="grimm-filter">
+          <option value="">All Classes</option>
+          ${GRIMM_CLASSES.map(c => `<option value="${c.id}" ${_grimmClassFilter===c.id?'selected':''}>${c.label}</option>`).join('')}
+        </select>
+        <select id="grimmThreatFilter" class="grimm-filter">
+          <option value="">All Threat Levels</option>
+          ${GRIMM_THREAT_TIERS.map(t => `<option value="${t.id}" ${_grimmThreatFilter===t.id?'selected':''}>${t.label}</option>`).join('')}
+        </select>
+        ${isDm ? `<div class="grimm-dm-tools">
+          <button type="button" class="neo-btn small" id="grimmAddBtn">＋ Add Species</button>
+          <button type="button" class="neo-btn ghost small" id="grimmCanonBtn" title="Add all 14 canonical RWBY Grimm species">📚 Load Canonical</button>
+        </div>` : ''}
+      </div>
+
+      <div class="grimm-body">
+        <aside class="grimm-sidebar">
+          <div class="grimm-side-header">
+            <span>Species Index</span>
+            <span class="grimm-count">${filtered.length}${filtered.length !== catalog.length ? ` / ${catalog.length}` : ''}</span>
+          </div>
+          <div class="grimm-list">${sidebarHTML}</div>
+        </aside>
+        <main class="grimm-detail">${readOnlyDetail}</main>
+      </div>
+
+      ${editorHTML}
+    </div>
+  `;
+
+  // Event bindings — filters & search
+  el('grimmSearch')?.addEventListener('input', e => {
+    _grimmSearchTerm = e.target.value; renderGrimmCodex();
+    // Preserve focus
+    setTimeout(() => { el('grimmSearch')?.focus(); }, 0);
+  });
+  el('grimmClassFilter')?.addEventListener('change', e => { _grimmClassFilter = e.target.value; renderGrimmCodex(); });
+  el('grimmThreatFilter')?.addEventListener('change', e => { _grimmThreatFilter = e.target.value; renderGrimmCodex(); });
+
+  // Sidebar row selection
+  modal.querySelectorAll('.grimm-row').forEach(r => r.addEventListener('click', () => {
+    _grimmSelectedId = r.dataset.gid; renderGrimmCodex();
+  }));
+
+  // DM buttons
+  el('grimmAddBtn')?.addEventListener('click', addGrimmEntry);
+  el('grimmCanonBtn')?.addEventListener('click', preloadCanonicalGrimm);
+  el('grimmCanonBtn2')?.addEventListener('click', preloadCanonicalGrimm);
+  el('grimmDelBtn')?.addEventListener('click', () => {
+    if (!cur) return;
+    if (!confirm(`Delete "${cur.name}" from the codex?`)) return;
+    state.grimmCatalog = state.grimmCatalog.filter(g => g.id !== cur.id);
+    _grimmSelectedId = null;
+    pushState(true); renderGrimmCodex();
+  });
+
+  // DM editor bindings — all fields save on blur/input
+  if (isDm && cur) {
+    const bind = (id, field, coerce = v => v) => {
+      el(id)?.addEventListener('input', e => {
+        const c = currentGrimmEntry(); if (!c) return;
+        c[field] = coerce(e.target.value);
+        pushState();
+        // Only re-render if display fields changed
+        if (['name','class','threat','size'].includes(field)) renderGrimmCodex();
+      });
+    };
+    bind('grimmNameIn', 'name');
+    bind('grimmSizeIn', 'size');
+    bind('grimmFirstSeenIn', 'firstSeen');
+    bind('grimmHabitatIn', 'habitat');
+    bind('grimmDescIn', 'description');
+    bind('grimmDmNotesIn', 'dmNotes');
+    bind('grimmClassIn', 'class');
+    bind('grimmThreatIn', 'threat');
+    bind('grimmEncIn', 'encountered', v => Math.max(0, Number(v) || 0));
+    bind('grimmKillIn', 'killed', v => Math.max(0, Number(v) || 0));
+    // Multi-line fields split by newline
+    el('grimmAbilitiesIn')?.addEventListener('input', e => {
+      const c = currentGrimmEntry(); if (!c) return;
+      c.abilities = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+      pushState();
+    });
+    el('grimmWeaknessesIn')?.addEventListener('input', e => {
+      const c = currentGrimmEntry(); if (!c) return;
+      c.weaknesses = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+      pushState();
+    });
+  }
+}
+
+// Escape key closes the codex
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('grimmCodex');
+    if (modal && modal.classList.contains('open')) closeGrimmCodex();
+  }
+});
 
 // ═════════════════════════════════════════════════════════════════
 // DM · LOCATION MANAGER

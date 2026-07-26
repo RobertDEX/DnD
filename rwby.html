@@ -45,6 +45,7 @@
       <a href="books.html" class="neo-btn library-link">📚 Open the Library</a>
       <button id="knockBtn" type="button" class="neo-btn ghost">✋ Signal Headmaster</button>
       <button id="audioToggle" type="button" class="neo-btn ghost">♪ Audio</button>
+      <button id="grimmCodexBtn" type="button" class="neo-btn ghost" onclick="openGrimmCodex()" data-tt="Open the Grimm Studies Codex — canonical species reference">📖 Studies Codex</button>
     </div>
   </div>
   <div class="sidebar-section status-section">
@@ -309,7 +310,10 @@
       <div class="tab-content panel tab-panel" data-tab="status">
         <div class="section-title">Combat State</div>
         <div id="combatStatusChips" class="combat-status-chips"></div>
-        <div class="section-title" style="margin-top:1.6rem">Grimm Threat Level</div>
+        <div class="section-title" style="margin-top:1.6rem">
+          Grimm Threat Level
+          <button type="button" class="section-cta" onclick="openGrimmCodex()" data-tt="Open the Grimm Studies Codex — canonical species reference">📖 Studies Codex</button>
+        </div>
         <div id="threatMeter" class="threat-meter"></div>
         <div class="section-title" style="margin-top:1.6rem">Kingdom Reputation <span class="section-hint">— the party's standing across Remnant</span></div>
         <div id="reputationGrid" class="reputation-grid"></div>
@@ -1036,5 +1040,8 @@
 <script src="curses.js?v=202607202100"></script>
 <script src="rwby_shop.js?v=202607202100"></script>
 <script type="module" src="rwby.js?v=202607202100"></script>
+<!-- ── GRIMM STUDIES CODEX MODAL ── -->
+<div id="grimmCodex" class="grimm-codex-modal" aria-hidden="true"></div>
+
 </body>
 </html>

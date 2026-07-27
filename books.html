@@ -1785,6 +1785,443 @@ body::after{
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PAGE APPEARANCE + READER CONTROLS ENHANCEMENT
+   Added 2026-07-27 — drop caps, ornaments, bookmarks, page footer,
+   font-size controls, page jump, global search, progress bar
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Reader font-size scaling (via CSS custom property) ─── */
+.reader { --reader-font-scale: 1; }
+.reader .page-text {
+  font-size: calc(1.02rem * var(--reader-font-scale));
+  line-height: calc(1.7 * (0.95 + var(--reader-font-scale) * 0.05));
+  transition: font-size .18s ease, line-height .18s ease;
+}
+.reader .page-title {
+  font-size: calc(1.9rem * var(--reader-font-scale));
+  transition: font-size .18s ease;
+}
+
+/* ─── READER HEAD CONTROLS ─── */
+.reader-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.reader-book-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reader-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.reader-ctrl-btn {
+  padding: 6px 10px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(0,210,255,.2);
+  color: #c4d8f4;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: all .14s cubic-bezier(.2,.8,.2,1);
+}
+.reader-ctrl-btn:hover {
+  background: rgba(0,210,255,.12);
+  border-color: var(--aura);
+  color: var(--aura);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px -3px rgba(0,210,255,.35);
+}
+.reader-ctrl-btn.active {
+  background: rgba(232,167,44,.22);
+  border-color: #e8a72c;
+  color: #ffd460;
+  text-shadow: 0 0 6px rgba(232,167,44,.5);
+}
+.reader-font-controls {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(0,210,255,.15);
+  border-radius: 5px;
+}
+.reader-font-controls .font-btn {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: .78rem;
+}
+.reader-font-controls .font-btn:hover {
+  background: rgba(0,210,255,.14);
+  transform: none;
+  box-shadow: none;
+}
+.reader-font-controls .font-btn:nth-child(2) { font-size: .9rem; }
+.reader-font-controls .font-btn:nth-child(3) { font-size: 1rem; }
+
+/* ─── READING PROGRESS BAR ─── */
+.reader-progress-bar {
+  height: 3px;
+  background: rgba(0,0,0,.35);
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(0,210,255,.14);
+  flex-shrink: 0;
+}
+.reader-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--aura), #eaf6ff, var(--aura));
+  box-shadow: 0 0 8px var(--aura-glow);
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+
+/* ─── PAGE JUMP CONTROL ─── */
+.page-jump-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(0,210,255,.15);
+  border-radius: 4px;
+  margin: 0 8px;
+}
+.page-jump-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .12em;
+  color: #7890a5;
+  text-transform: uppercase;
+}
+.page-jump-input {
+  width: 42px;
+  padding: 3px 6px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(0,210,255,.2);
+  color: #eaf6ff;
+  border-radius: 3px;
+  font-family: 'Cinzel', serif;
+  font-size: .88rem;
+  font-weight: 600;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.page-jump-input::-webkit-inner-spin-button,
+.page-jump-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.page-jump-input:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,210,255,.14);
+}
+.page-jump-total {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .72rem;
+  color: #7890a5;
+}
+
+/* ─── PAGE ENHANCEMENTS: ornaments, drop cap, page number, ribbon ─── */
+.page-enhanced { position: relative; }
+
+/* Decorative ornaments at top and bottom of each page */
+.page-ornament-top,
+.page-ornament-bottom {
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  color: color-mix(in srgb, currentColor 45%, transparent);
+  font-size: 1.1rem;
+  letter-spacing: 1.6em;
+  padding: 8px 0 4px;
+  margin: 4px 20px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  user-select: none;
+  opacity: .6;
+}
+.page-ornament-bottom {
+  border-bottom: none;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  padding: 12px 0 8px;
+  margin-top: 24px;
+}
+
+/* Drop cap on first paragraph — illuminated capital */
+.page-text .has-drop-cap::first-letter {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  float: left;
+  font-size: 3.6em;
+  line-height: 0.85;
+  padding: .1em .12em 0 0;
+  margin-top: .08em;
+  color: var(--ink);
+  background: linear-gradient(160deg, currentColor 0%, color-mix(in srgb, currentColor 55%, transparent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: color-mix(in srgb, var(--ink) 90%, #6a4a20);
+  text-shadow: 1px 1px 0 rgba(0,0,0,.05);
+}
+.grimm-reader .page-text .has-drop-cap::first-letter,
+.holo-reader .page-text .has-drop-cap::first-letter {
+  color: color-mix(in srgb, var(--aura) 85%, #fff);
+  text-shadow: 0 0 12px var(--aura-glow), 0 0 24px var(--aura-glow);
+  background: none;
+}
+.notebook-reader .page-text .has-drop-cap::first-letter {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  color: #4a3820;
+}
+
+/* Page footer — page number + word count + reading time */
+.page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 12px;
+  border-top: 1px dashed color-mix(in srgb, currentColor 22%, transparent);
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: .82rem;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  opacity: .8;
+}
+.page-num-badge {
+  font-family: 'Cinzel', serif;
+  font-size: .88rem;
+  letter-spacing: .3em;
+  font-style: normal;
+  font-weight: 500;
+}
+.page-read-info { font-size: .78rem; }
+.holo-reader .page-footer,
+.grimm-reader .page-footer {
+  color: color-mix(in srgb, var(--aura) 55%, transparent);
+  border-top-color: color-mix(in srgb, var(--aura) 20%, transparent);
+}
+
+/* Ribbon bookmark for pages that are bookmarked */
+.page-ribbon {
+  position: absolute;
+  top: -4px;
+  right: 40px;
+  width: 24px;
+  height: 60px;
+  background: linear-gradient(180deg, #c60018 0%, #8a000f 100%);
+  z-index: 5;
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,.7), inset -3px 0 4px rgba(0,0,0,.35);
+}
+.page-ribbon::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 6px;
+  background: linear-gradient(180deg, rgba(255,255,255,.35), transparent);
+}
+.page-ribbon::after {
+  content: '';
+  position: absolute;
+  bottom: -12px; left: 0; right: 0;
+  border-left: 12px solid #8a000f;
+  border-right: 12px solid #8a000f;
+  border-bottom: 12px solid transparent;
+  width: 0; height: 0;
+}
+
+/* ─── GRIMM PAGE — different ornament (skull sigil) ─── */
+.grimm-page .page-text .has-drop-cap::first-letter {
+  color: #c02040;
+  text-shadow: 0 0 8px rgba(192, 32, 64, .5);
+}
+
+/* ─── GLOBAL SEARCH OVERLAY ─── */
+.global-search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 1, 6, .82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10001;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8vh 20px 20px;
+}
+.global-search-overlay.open { display: flex; }
+.global-search-panel {
+  width: min(760px, 100%);
+  max-height: 80vh;
+  background: linear-gradient(180deg, rgba(8, 5, 16, .96), rgba(4, 2, 10, .96));
+  border: 1px solid rgba(0, 210, 255, .3);
+  border-radius: 10px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .9), 0 0 60px -10px rgba(0, 210, 255, .25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gs-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 210, 255, .18);
+  background: linear-gradient(180deg, rgba(0, 210, 255, .05), transparent);
+  flex-shrink: 0;
+}
+.gs-icon { font-size: 1.1rem; color: var(--aura); }
+.gs-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, .5);
+  border: 1px solid rgba(0, 210, 255, .22);
+  color: #eaf6ff;
+  border-radius: 5px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .95rem;
+}
+.gs-input:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow: 0 0 0 3px rgba(0, 210, 255, .14);
+}
+.gs-close {
+  width: 36px; height: 36px;
+  background: rgba(0, 0, 0, .5);
+  border: 1px solid rgba(255, 26, 46, .4);
+  color: #ff8088;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all .16s;
+}
+.gs-close:hover {
+  background: rgba(255, 26, 46, .14);
+  transform: rotate(90deg);
+}
+.gs-results {
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gs-empty {
+  padding: 30px 20px;
+  text-align: center;
+  color: #7890a5;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+}
+.gs-count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: .16em;
+  color: var(--aura);
+  text-transform: uppercase;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid rgba(0, 210, 255, .12);
+  margin-bottom: 4px;
+}
+.gs-result {
+  display: block;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(0, 210, 255, .12);
+  border-left: 3px solid rgba(0, 210, 255, .3);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  color: #c4d8f4;
+  transition: all .14s cubic-bezier(.2, .8, .2, 1);
+  font: inherit;
+  width: 100%;
+}
+.gs-result:hover {
+  border-color: var(--aura);
+  background: rgba(0, 210, 255, .06);
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px -6px rgba(0, 210, 255, .35);
+}
+.gs-result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.gs-result-icon { font-size: 1rem; }
+.gs-result-book {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: .85rem;
+  color: #eaf6ff;
+}
+.gs-result-page {
+  margin-left: auto;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: .1em;
+  color: #7890a5;
+  text-transform: uppercase;
+}
+.gs-result-snippet {
+  font-family: 'EB Garamond', serif;
+  font-size: .88rem;
+  line-height: 1.5;
+  color: #a5b8cc;
+  font-style: italic;
+}
+.gs-result-snippet mark {
+  background: rgba(232, 167, 44, .28);
+  color: #ffd460;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* ─── Responsive tweaks for reader controls ─── */
+@media (max-width: 720px) {
+  .reader-head {
+    flex-wrap: wrap;
+  }
+  .reader-controls {
+    order: 10;
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 210, 255, .1);
+  }
+  .page-jump-block {
+    order: 5;
+    margin: 0 4px;
+  }
+  .page-jump-input {
+    width: 36px;
+  }
+  .page-ornament-top,
+  .page-ornament-bottom {
+    letter-spacing: .8em;
+    font-size: .9rem;
+  }
+  .page-text .has-drop-cap::first-letter {
+    font-size: 3em;
+  }
+}
+
 </style>
 
 </head>
@@ -1815,8 +2252,18 @@ body::after{
     <div class="reader-head">
       <button class="reader-toc-toggle" id="readerTocToggle" title="Contents">☰</button>
       <div class="reader-book-title" id="readerTitle">Book</div>
+      <div class="reader-controls">
+        <button class="reader-ctrl-btn" id="readerSearchBtn" title="Search across all books">🔍</button>
+        <div class="reader-font-controls" title="Font size">
+          <button class="reader-ctrl-btn font-btn" id="fontDown" title="Smaller text">A−</button>
+          <button class="reader-ctrl-btn font-btn" id="fontReset" title="Reset text size">A</button>
+          <button class="reader-ctrl-btn font-btn" id="fontUp" title="Larger text">A+</button>
+        </div>
+        <button class="reader-ctrl-btn" id="readerBookmark" title="Bookmark this page">🔖</button>
+      </div>
       <div class="reader-close" id="readerClose">✕</div>
     </div>
+    <div class="reader-progress-bar"><div class="reader-progress-fill" id="readerProgressFill"></div></div>
     <div class="reader-main">
       <div class="reader-toc" id="readerToc"></div>
       <div class="reader-body" id="readerBody"></div>
@@ -1824,7 +2271,26 @@ body::after{
     <div class="reader-foot">
       <button class="page-nav-btn" id="prevPage">‹ Prev</button>
       <div class="page-dots" id="pageDots"></div>
+      <div class="page-jump-block">
+        <span class="page-jump-label">Page</span>
+        <input type="number" id="pageJumpInput" class="page-jump-input" min="1" placeholder="—">
+        <span class="page-jump-total" id="pageJumpTotal">/ 0</span>
+      </div>
       <button class="page-nav-btn" id="nextPage">Next ›</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL SEARCH POPOVER -->
+<div class="global-search-overlay" id="globalSearchOverlay">
+  <div class="global-search-panel">
+    <div class="gs-head">
+      <span class="gs-icon">🔍</span>
+      <input type="text" id="globalSearchInput" class="gs-input" placeholder="Search every page of every book you can access…">
+      <button class="gs-close" id="globalSearchClose" title="Close (Esc)">✕</button>
+    </div>
+    <div class="gs-results" id="globalSearchResults">
+      <div class="gs-empty">Type to search across every book you can open.</div>
     </div>
   </div>
 </div>
@@ -2471,16 +2937,53 @@ function renderReaderPage() {
   const blood = Number(page.blood) || 0;   // 0 = none, 1-3 = intensity
   const bottomTornSet = new Set(['bottom','both','topbottom','bl','br','all']);
   const topTornSet    = new Set(['top','both','topbottom','tl','tr','all']);
+  // Reading time — ~220 words per minute
+  const wordCount = (page.text || '').split(/\s+/).filter(Boolean).length;
+  const readMinutes = Math.max(1, Math.round(wordCount / 220));
+  // Detect grimm style — different ornaments
+  const isGrimm = book.style === 'grimm';
+  const bookmarks = getBookmarks();
+  const bkmKey = book.id + ':' + _readerPage;
+  const isBookmarked = bookmarks.includes(bkmKey);
   body.innerHTML = `
     ${isPrivate ? `<div class="notes-read-bar"><span class="notes-read-label">📖 My Personal Notes · page ${_readerPage+1} of ${book.pages.length}</span><button class="notes-mode-btn" id="notesEditBtn">✎ Edit</button></div>` : ''}
     ${topTornSet.has(page.torn) ? '<div class="rip-fray top"></div>' : ''}
     ${blood ? bloodLayer(blood, _readerPage) : ''}
-    <div class="page-body-wrap">
+    ${isBookmarked ? '<div class="page-ribbon" title="You bookmarked this page"></div>' : ''}
+    <div class="page-body-wrap page-enhanced ${isGrimm?'grimm-page':''}">
+      ${!isGrimm ? '<div class="page-ornament-top" aria-hidden="true">❦ ❧ ❦</div>' : ''}
       ${page.title ? `<div class="page-title">${esc(page.title)}</div>` : ''}
       ${page.image ? `<img src="${page.image}" class="page-img" onerror="this.style.display='none'">` : ''}
       <div class="page-text rt-content">${renderRichText(page.text||'')}</div>
+      ${!isGrimm ? '<div class="page-ornament-bottom" aria-hidden="true">❦ ❧ ❦</div>' : ''}
+      <div class="page-footer">
+        <span class="page-num-badge">— ${_readerPage+1} —</span>
+        <span class="page-read-info">${wordCount.toLocaleString()} words · ~${readMinutes} min read</span>
+      </div>
     </div>
     ${bottomTornSet.has(page.torn) ? '<div class="rip-fray bottom"></div>' : ''}`;
+
+  // Apply the drop cap treatment to the first paragraph if there's real content
+  requestAnimationFrame(() => {
+    const firstP = body.querySelector('.page-text > p:first-child, .page-text > div:first-child');
+    if (firstP && firstP.textContent.trim().length > 40) {
+      firstP.classList.add('has-drop-cap');
+    }
+  });
+
+  // Update the progress bar and page jump input
+  const progressFill = $('readerProgressFill');
+  if (progressFill) {
+    const pct = book.pages.length > 1 ? ((_readerPage + 1) / book.pages.length) * 100 : 100;
+    progressFill.style.width = pct + '%';
+  }
+  const pjInp = $('pageJumpInput');
+  const pjTot = $('pageJumpTotal');
+  if (pjInp) { pjInp.value = _readerPage + 1; pjInp.max = book.pages.length; }
+  if (pjTot) pjTot.textContent = '/ ' + book.pages.length;
+  const bkmBtn = $('readerBookmark');
+  if (bkmBtn) bkmBtn.classList.toggle('active', isBookmarked);
+
   body.scrollTop = 0;
   if (isPrivate) $('notesEditBtn')?.addEventListener('click', ()=>{ _privateMode='edit'; renderReaderPage(); });
   $('pageDots').innerHTML = book.pages.map((_,i)=>
@@ -2542,6 +3045,180 @@ $('nextPage').addEventListener('click',()=>{ _readerPage++; renderReaderPage(); 
 $('readerClose').addEventListener('click',()=>$('readerOverlay').classList.remove('open'));
 $('readerTocToggle')?.addEventListener('click',()=>$('reader').classList.toggle('toc-open'));
 $('readerOverlay').addEventListener('click',e=>{ if(e.target===$('readerOverlay')) $('readerOverlay').classList.remove('open'); });
+
+// ─── FONT SIZE CONTROLS ───────────────────────────────────
+// Persist across sessions via localStorage. Font size is a scalar
+// applied to the reader body via a CSS custom property.
+const READER_FONT_KEY = 'library-reader-font-size';
+let _readerFontSize = Number(localStorage.getItem(READER_FONT_KEY)) || 1.0;
+function applyReaderFontSize(){
+  const rdr = $('reader');
+  if (rdr) rdr.style.setProperty('--reader-font-scale', _readerFontSize);
+  localStorage.setItem(READER_FONT_KEY, _readerFontSize);
+}
+applyReaderFontSize();
+$('fontUp')?.addEventListener('click', ()=>{
+  _readerFontSize = Math.min(1.6, +(_readerFontSize + 0.1).toFixed(2));
+  applyReaderFontSize();
+});
+$('fontDown')?.addEventListener('click', ()=>{
+  _readerFontSize = Math.max(0.7, +(_readerFontSize - 0.1).toFixed(2));
+  applyReaderFontSize();
+});
+$('fontReset')?.addEventListener('click', ()=>{
+  _readerFontSize = 1.0;
+  applyReaderFontSize();
+});
+
+// ─── PAGE JUMP ───────────────────────────────────────────
+$('pageJumpInput')?.addEventListener('keydown', e=>{
+  if (e.key === 'Enter') {
+    const book = _readerBook; if (!book) return;
+    const target = Number(e.target.value);
+    if (target >= 1 && target <= book.pages.length) {
+      _readerPage = target - 1;
+      renderReaderPage();
+    }
+  }
+});
+$('pageJumpInput')?.addEventListener('blur', e=>{
+  const book = _readerBook; if (!book) return;
+  const target = Number(e.target.value);
+  if (target >= 1 && target <= book.pages.length) {
+    _readerPage = target - 1;
+    renderReaderPage();
+  } else {
+    e.target.value = _readerPage + 1;
+  }
+});
+
+// ─── BOOKMARKS ───────────────────────────────────────────
+// localStorage-scoped per browser. Format: array of "bookId:pageIdx" keys.
+const BOOKMARKS_KEY = 'library-bookmarks';
+function getBookmarks(){
+  try { return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || '[]'); }
+  catch { return []; }
+}
+function setBookmarks(arr){
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(arr.slice(-100))); // cap at 100
+}
+$('readerBookmark')?.addEventListener('click', ()=>{
+  const book = _readerBook; if (!book) return;
+  const key = book.id + ':' + _readerPage;
+  const bkm = getBookmarks();
+  const idx = bkm.indexOf(key);
+  if (idx >= 0) bkm.splice(idx, 1);
+  else bkm.push(key);
+  setBookmarks(bkm);
+  renderReaderPage();
+});
+
+// ─── KEYBOARD NAVIGATION ─────────────────────────────────
+// Arrow keys flip pages when the reader is open (and no input is focused)
+document.addEventListener('keydown', e=>{
+  const rdr = $('readerOverlay');
+  if (!rdr?.classList.contains('open')) return;
+  if (e.target.matches('input, textarea')) return;
+  const book = _readerBook; if (!book) return;
+  if (e.key === 'ArrowLeft' && _readerPage > 0) {
+    _readerPage--; renderReaderPage(); e.preventDefault();
+  } else if (e.key === 'ArrowRight' && _readerPage < book.pages.length - 1) {
+    _readerPage++; renderReaderPage(); e.preventDefault();
+  } else if (e.key === 'Escape') {
+    $('readerOverlay').classList.remove('open');
+  }
+});
+
+// ─── GLOBAL SEARCH ───────────────────────────────────────
+// Full-text search across every book the current viewer can access.
+$('readerSearchBtn')?.addEventListener('click', ()=>{
+  $('globalSearchOverlay').classList.add('open');
+  setTimeout(()=>$('globalSearchInput')?.focus(), 100);
+  renderGlobalSearch('');
+});
+$('globalSearchClose')?.addEventListener('click', ()=>{
+  $('globalSearchOverlay').classList.remove('open');
+});
+$('globalSearchOverlay')?.addEventListener('click', e=>{
+  if (e.target === $('globalSearchOverlay')) $('globalSearchOverlay').classList.remove('open');
+});
+$('globalSearchInput')?.addEventListener('input', e=>{
+  renderGlobalSearch(e.target.value);
+});
+$('globalSearchInput')?.addEventListener('keydown', e=>{
+  if (e.key === 'Escape') $('globalSearchOverlay').classList.remove('open');
+});
+
+function renderGlobalSearch(q){
+  const results = $('globalSearchResults'); if (!results) return;
+  q = (q || '').trim().toLowerCase();
+  if (!q) {
+    results.innerHTML = '<div class="gs-empty">Type to search across every book you can open.</div>';
+    return;
+  }
+  if (q.length < 2) {
+    results.innerHTML = '<div class="gs-empty">Type at least 2 characters…</div>';
+    return;
+  }
+  // Search every book, every page — only if the viewer can access it
+  const hits = [];
+  const searchBooks = [...library.books];
+  if (_privateBook) searchBooks.push(_privateBook);
+  searchBooks.forEach(book => {
+    if (!canAccess(book)) return;
+    book.pages.forEach((page, pi) => {
+      const hay = ((page.title || '') + ' ' + (page.text || '')).toLowerCase();
+      if (hay.includes(q)) {
+        // Find a short snippet around the match
+        const idx = hay.indexOf(q);
+        const start = Math.max(0, idx - 60);
+        const end = Math.min(hay.length, idx + q.length + 60);
+        const raw = (page.text || '');
+        const rawIdx = raw.toLowerCase().indexOf(q);
+        let snippet = '';
+        if (rawIdx >= 0) {
+          const s = Math.max(0, rawIdx - 60);
+          const e = Math.min(raw.length, rawIdx + q.length + 60);
+          snippet = (s > 0 ? '…' : '') + raw.slice(s, e) + (e < raw.length ? '…' : '');
+        } else {
+          snippet = page.text?.slice(0, 120) || '';
+        }
+        hits.push({ book, page, pi, snippet });
+      }
+    });
+  });
+  if (!hits.length) {
+    results.innerHTML = `<div class="gs-empty">No matches for "${esc(q)}".</div>`;
+    return;
+  }
+  // Highlight the match in each snippet
+  const highlight = (text, term) => {
+    const escText = esc(text);
+    const escTerm = esc(term);
+    const re = new RegExp(escTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return escText.replace(re, m => `<mark>${m}</mark>`);
+  };
+  results.innerHTML = `
+    <div class="gs-count">${hits.length} result${hits.length===1?'':'s'} across ${new Set(hits.map(h => h.book.id)).size} book${new Set(hits.map(h => h.book.id)).size===1?'':'s'}</div>
+    ${hits.map((h, i) => `
+      <button class="gs-result" data-gs="${i}">
+        <div class="gs-result-head">
+          <span class="gs-result-icon">${h.book.deco || '📖'}</span>
+          <span class="gs-result-book">${esc(h.book.name)}</span>
+          <span class="gs-result-page">Page ${h.pi + 1}${h.page.title ? ' · ' + esc(h.page.title) : ''}</span>
+        </div>
+        <div class="gs-result-snippet">${highlight(h.snippet, q)}</div>
+      </button>
+    `).join('')}
+  `;
+  results.querySelectorAll('.gs-result').forEach(btn => btn.addEventListener('click', ()=>{
+    const hit = hits[Number(btn.dataset.gs)];
+    if (!hit) return;
+    $('globalSearchOverlay').classList.remove('open');
+    openReader(hit.book);
+    setTimeout(()=>{ _readerPage = hit.pi; renderReaderPage(); }, 100);
+  }));
+}
 
 // ════════════ DM ════════════
 $('dmBtn').addEventListener('click',()=>{
@@ -2970,9 +3647,37 @@ function renderWorkspace(){
     renderPageFolds();
   });
 
+  // ─── Global editing guard: any input/textarea/select focus in the workspace
+  // sets _isEditing so incoming Firebase snapshots don't rebuild the DOM under
+  // the user's cursor. Uses focusin/focusout for automatic delegation.
+  ws.addEventListener('focusin', (e) => {
+    if (e.target.matches('input, textarea, select')) _isEditing = true;
+  });
+  ws.addEventListener('focusout', (e) => {
+    if (e.target.matches('input, textarea, select')) {
+      _isEditing = false;
+      // If a snapshot came in while we were typing, apply it now
+      if (_pendingRemoteRender) { _pendingRemoteRender = false; renderShelf(); }
+    }
+  });
+
+  // Debounced Firebase writes — only push after 400ms of no typing to further
+  // reduce snapshot chatter. Local state updates remain synchronous.
   renderPageFolds();
 }
 let _wsPageSearch = '';
+
+// Debounced Firebase writer. Local mutations still call this directly, but the
+// actual network write happens 400ms after the last call.
+let _pushLibraryTimer = null;
+function schedulePushLibrary() {
+  if (_pushLibraryTimer) clearTimeout(_pushLibraryTimer);
+  _pushLibraryTimer = setTimeout(() => {
+    _pushLibraryTimer = null;
+    if (typeof _actualPushLibrary === 'function') _actualPushLibrary();
+    else pushLibrary();
+  }, 400);
+}
 
 // Folded page list — only the open one shows its editor
 function renderPageFolds(){

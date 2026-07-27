@@ -2221,6 +2221,152 @@ body::after{
     font-size: 3em;
   }
 }
+/* ─── CRITICAL WIDTH CONTAINMENT FIXES ─────────────────────────
+   Prevents the reader and page content from bursting out of their
+   allotted space when there are long titles, no-break words, or
+   any child that would otherwise force the container wider.
+   ──────────────────────────────────────────────────────────── */
+
+/* Reader itself — hard cap on width */
+.reader {
+  max-width: min(1040px, 96vw);
+  overflow: hidden;
+}
+
+/* Every direct child of reader gets its width constrained */
+.reader-head,
+.reader-main,
+.reader-foot,
+.reader-progress-bar {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Grid columns inside the main body — force each grid track to
+   respect its allocated size instead of expanding to fit content */
+.reader-main {
+  min-width: 0;
+  overflow: hidden;
+}
+.reader-toc,
+.reader-body {
+  min-width: 0;
+}
+
+/* Body content — everything wraps, nothing overflows horizontally */
+.reader-body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  box-sizing: border-box;
+}
+.page-body-wrap,
+.page-body-wrap.page-enhanced {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.page-text,
+.page-text.rt-content {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+/* Header controls — allow the title to shrink and truncate cleanly.
+   The row itself can't overflow, and long titles ellipsize */
+.reader-head {
+  overflow: hidden;
+  padding-right: 1rem;
+}
+.reader-book-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reader-controls {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Ornaments — never expand beyond the page column */
+.page-ornament-top,
+.page-ornament-bottom {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+  box-sizing: border-box;
+}
+
+/* Rich text output — prevent images or code blocks from bursting out */
+.rt-content img,
+.rt-content pre,
+.rt-content code,
+.rt-content table {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.rt-content pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rt-content blockquote {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rt-content h1, .rt-content h2, .rt-content h3 {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Reader foot — prevent the page dots from pushing the jump block off screen */
+.reader-foot {
+  overflow: hidden;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.page-dots {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.page-dots::-webkit-scrollbar { height: 3px; }
+.page-dots::-webkit-scrollbar-thumb { background: rgba(0,210,255,.3); border-radius: 999px; }
+
+/* At narrower widths, tighten padding so more room goes to content */
+@media (max-width: 900px) {
+  .reader-body { padding: 1.4rem 1.6rem; }
+  .reader-main { grid-template-columns: 200px 1fr; }
+}
+@media (max-width: 640px) {
+  .reader-main {
+    grid-template-columns: 1fr;
+  }
+  .reader-toc {
+    display: none;
+  }
+  .reader.toc-open .reader-toc {
+    display: flex;
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 240px;
+    z-index: 10;
+    background: inherit;
+    backdrop-filter: blur(20px);
+  }
+  .reader-body { padding: 1.2rem 1.3rem; }
+  .page-text { font-size: calc(0.98rem * var(--reader-font-scale)); }
+  .reader-controls { gap: 4px; }
+  .reader-font-controls .font-btn { padding: 4px 6px; font-size: .7rem; }
+}
 
 </style>
 

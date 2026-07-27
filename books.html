@@ -1063,10 +1063,10 @@ body::after{
 
 /* NEW layout: book list | workspace */
 .dm-panel-layout{flex:1;display:grid;grid-template-columns:300px 1fr;overflow:hidden}
-.dm-sidebar{display:flex;flex-direction:column;background:rgba(0,0,0,.15);border-right:1px solid rgba(0,210,255,.08)}
+.dm-sidebar{display:flex;flex-direction:column;background:rgba(0,0,0,.15);border-right:1px solid rgba(0,210,255,.08);overflow:hidden;min-height:0}
 .dm-book-list{
-  overflow-y:auto;padding:.8rem;flex:1;
-  display:flex;flex-direction:column;gap:.3rem;
+  padding:0;flex:1;min-height:0;
+  display:flex;flex-direction:column;gap:0;overflow:hidden;
 }
 .dm-book-list::-webkit-scrollbar{width:5px}
 .dm-book-list::-webkit-scrollbar-thumb{background:rgba(0,210,255,.2);border-radius:999px}
@@ -1302,7 +1302,9 @@ body::after{
 /* ─── BOOK LIST BODY (scrollable) ─── */
 .dm-book-list-body {
   overflow-y: auto;
-  flex: 1;
+  overflow-x: hidden;
+  flex: 1 1 0;
+  min-height: 0;
   padding: 8px;
   display: flex; flex-direction: column; gap: 4px;
 }
@@ -1311,6 +1313,13 @@ body::after{
   background: rgba(0,210,255,.22);
   border-radius: 999px;
 }
+.dm-book-list-body::-webkit-scrollbar-track {
+  background: rgba(0,0,0,.2);
+}
+
+/* Old sidebar-bottom "+ New Book" button is now redundant — the new one
+   lives inside the tools row at the top of the list. Hide the legacy. */
+.dm-sidebar > #addBookBtn { display: none !important; }
 
 /* ─── BOOK LIST ITEMS ─── */
 .dm-book-item {
@@ -2630,10 +2639,20 @@ async function loadPlayers() {
 // ── library sync ──
 let _isEditing = false;       // true while DM is actively typing
 let _pendingRemoteRender = false;
+// CRITICAL: block all writes until Firebase confirms it has loaded data.
+// Without this, the DM's first keystroke on page-load-race can overwrite
+// Firebase with the empty default state, wiping every book's pages.
+let _firstSnapshotReceived = false;
 async function pushLibrary() {
+  if (!_firstSnapshotReceived) {
+    console.warn('pushLibrary: BLOCKED — first Firebase snapshot has not arrived yet. Refusing to write.');
+    return;
+  }
   try { await setDoc(BOOKS_DOC, { data: JSON.stringify(library) }); }
   catch(e){ console.error('pushLibrary', e); }
 }
+// Expose so it's inspectable via devtools if the DM ever suspects a stuck flag
+window._librarySnapshotStatus = () => ({ received: _firstSnapshotReceived, bookCount: library.books.length });
 function mergeLibrary(saved){
   // The book DEFINITIONS (default set) come from defaultBooks() in code, so
   // renames + additions to defaults take effect on load. User-added books
@@ -2680,16 +2699,33 @@ function startLibraryListener() {
       try {
         const parsed = JSON.parse(snap.data().data);
         if (parsed.books) {
-          if (_isEditing) { _pendingRemoteRender = true; return; }
+          if (_isEditing) { _pendingRemoteRender = true; _firstSnapshotReceived = true; return; }
           library = mergeLibrary(parsed);
+          _firstSnapshotReceived = true;
+        } else {
+          // Doc exists but has no books array — treat as empty campaign,
+          // safe to enable writes so DM can start populating.
+          _firstSnapshotReceived = true;
         }
-      } catch(e){}
+      } catch(e) {
+        // LOUD failure: parse error means Firebase data is corrupt or in an
+        // unexpected format. Do NOT flip the flag — keeps writes blocked so
+        // we don't overwrite the corrupt-but-recoverable data with defaults.
+        console.error('Library snapshot parse failed — refusing to overwrite. Data is preserved in Firebase. Error:', e);
+        console.error('Raw snapshot data:', snap.data());
+      }
     } else {
+      // Doc doesn't exist — brand new campaign. Safe to write defaults.
       library = { books: defaultBooks() };
+      _firstSnapshotReceived = true;
     }
     renderShelf();
     if (dmUnlocked && !_isEditing) { renderBookList(); renderWorkspace(); }
-  }, ()=>{});
+  }, err => {
+    // LOUD failure on the listener itself. Keeps _firstSnapshotReceived false
+    // so no writes can go through until the connection recovers.
+    console.error('Library snapshot listener error — writes remain blocked until connection recovers:', err);
+  });
 }
 
 // which "player slot" am I? Books page doesn't claim characters,

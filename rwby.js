@@ -2968,6 +2968,30 @@ function renderCustomFeatAuthor(){
       const extra = {attack:'cfAttack',initiative:'cfInit',ac:'cfAc',passive:'cfPassive',hpMax:'cfHp',auraMax:'cfAura',speed:'cfSpeed'};
       Object.entries(extra).forEach(([k,id])=>{ const v = Number(el(id)?.value)||0; if(v) effects[k]=v; });
 
+      if(!Array.isArray(state.customFeats)) state.customFeats = [];
+
+      if (_editingFeatId) {
+        // ── EDIT MODE ── update the existing feat in place. Because feats are
+        // referenced by ID, every character who has this feat automatically
+        // sees the new values on next render — no cascade needed.
+        const idx = state.customFeats.findIndex(f => f.id === _editingFeatId);
+        if (idx < 0) { showToast('Feat vanished — can\'t save', 'warn'); _editingFeatId = null; updateFeatFormMode(); return; }
+        pushUndo(`Edited custom feat "${name}"`);
+        state.customFeats[idx] = {
+          ...state.customFeats[idx],
+          icon: (el('cfIcon')?.value||'✦').slice(0,3) || '✦',
+          name,
+          desc: (el('cfDesc')?.value||'').trim(),
+          effects
+        };
+        _editingFeatId = null;
+        cancelEditFeat();  // resets form + button label
+        pushState(true); render();
+        showToast(`Feat "${name}" updated`, 'success');
+        return;
+      }
+
+      // ── CREATE MODE ──
       const feat = {
         id: 'custom-' + Date.now(),
         icon: (el('cfIcon')?.value||'✦').slice(0,3) || '✦',
@@ -2976,7 +3000,6 @@ function renderCustomFeatAuthor(){
         custom: true,
         effects
       };
-      if(!Array.isArray(state.customFeats)) state.customFeats = [];
       pushUndo(`Created custom feat "${name}"`);
       state.customFeats.push(feat);
 
@@ -2990,6 +3013,85 @@ function renderCustomFeatAuthor(){
       showToast(`Custom feat "${name}" created`, 'success');
     });
   }
+
+  // Wire the Cancel Edit button (may not exist on first render — hidden until edit mode)
+  const cancelBtn = el('cfCancelEdit');
+  if (cancelBtn && !cancelBtn.dataset.bound) {
+    cancelBtn.dataset.bound = '1';
+    cancelBtn.addEventListener('click', cancelEditFeat);
+  }
+}
+
+// Edit mode state — when non-null, the custom feat form is editing an existing
+// entry rather than creating a new one. Local navigation state, not synced.
+let _editingFeatId = null;
+
+// Populate the authoring form with an existing feat's values, then scroll to it
+function beginEditFeat(id) {
+  const feat = (state.customFeats || []).find(f => f.id === id);
+  if (!feat) return;
+  _editingFeatId = id;
+  // Fill primary fields
+  if (el('cfIcon')) el('cfIcon').value = feat.icon || '✦';
+  if (el('cfName')) el('cfName').value = feat.name || '';
+  if (el('cfDesc')) el('cfDesc').value = feat.desc || '';
+  // Stat bonuses
+  STATS.forEach(s => {
+    const inp = el('cf_' + s);
+    if (inp) inp.value = String(feat.effects?.stat?.[s] || 0);
+    const allInp = el('cf_all_' + s);
+    if (allInp) allInp.value = String(feat.effects?.allSkillsOfStat?.[s] || 0);
+  });
+  // Per-skill bonuses
+  document.querySelectorAll('#cfSkills input[data-skill]').forEach(inp => {
+    const skillName = inp.dataset.skill;
+    inp.value = String(feat.effects?.skill?.[skillName] || 0);
+  });
+  // Extra fields
+  const extra = { attack:'cfAttack', initiative:'cfInit', ac:'cfAc', passive:'cfPassive', hpMax:'cfHp', auraMax:'cfAura', speed:'cfSpeed' };
+  Object.entries(extra).forEach(([k, id]) => {
+    const inp = el(id);
+    if (inp) inp.value = String(feat.effects?.[k] || 0);
+  });
+  // Update button label + expose cancel
+  updateFeatFormMode();
+  // Open the authoring section if collapsed (it's a <details> element)
+  const details = el('cfCreate')?.closest('details');
+  if (details) details.open = true;
+  // Scroll into view
+  el('cfName')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => el('cfName')?.focus(), 300);
+}
+
+function cancelEditFeat() {
+  _editingFeatId = null;
+  // Reset the form
+  if (el('cfName')) el('cfName').value = '';
+  if (el('cfDesc')) el('cfDesc').value = '';
+  if (el('cfIcon')) el('cfIcon').value = '✦';
+  STATS.forEach(s => {
+    if (el('cf_' + s)) el('cf_' + s).value = '0';
+    const a = el('cf_all_' + s); if (a) a.value = '0';
+  });
+  document.querySelectorAll('#cfSkills input[data-skill]').forEach(inp => inp.value = '0');
+  ['cfAttack','cfInit','cfAc','cfPassive','cfHp','cfAura','cfSpeed'].forEach(id => {
+    if (el(id)) el(id).value = '0';
+  });
+  updateFeatFormMode();
+}
+
+function updateFeatFormMode() {
+  const btn = el('cfCreate'); if (!btn) return;
+  const cancelBtn = el('cfCancelEdit');
+  if (_editingFeatId) {
+    btn.textContent = '💾 Save Changes';
+    btn.classList.add('editing');
+    if (cancelBtn) cancelBtn.style.display = '';
+  } else {
+    btn.textContent = '＋ Create feat';
+    btn.classList.remove('editing');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+  }
 }
 
 function renderDmFeatGrid(){
@@ -3000,16 +3102,28 @@ function renderDmFeatGrid(){
   const feats = allFeats();
   host.innerHTML = feats.map(f=>{
     const has = c.feats.includes(f.id);
-    return `<button class="dmf-card${has?' granted':''}${f.custom?' custom':''}" data-featid="${f.id}" title="${esc(f.desc)}">
+    const isEditing = f.custom && _editingFeatId === f.id;
+    return `<button class="dmf-card${has?' granted':''}${f.custom?' custom':''}${isEditing?' editing':''}" data-featid="${f.id}" title="${esc(f.desc)}">
       <span class="dmf-icon">${esc(f.icon)}</span>
       <span class="dmf-body">
         <span class="dmf-name">${esc(f.name)}${f.custom?' <em class="dmf-tag">custom</em>':''}</span>
         <span class="dmf-effects">${featEffectSummary(f).join(' · ')||'no effects'}</span>
       </span>
-      ${f.custom?`<span class="dmf-trash" data-delfeat="${f.id}" title="Delete this custom feat">🗑</span>`:''}
+      ${f.custom?`
+        <span class="dmf-actions">
+          <span class="dmf-edit" data-editfeat="${f.id}" title="Edit this custom feat">✎</span>
+          <span class="dmf-trash" data-delfeat="${f.id}" title="Delete this custom feat">🗑</span>
+        </span>
+      `:''}
       <span class="dmf-check">${has?'✓':'+'}</span>
     </button>`;
   }).join('');
+
+  // Edit a custom feat — populate the create form with its values
+  host.querySelectorAll('.dmf-edit').forEach(e=> e.addEventListener('click', ev=>{
+    ev.stopPropagation();
+    beginEditFeat(e.dataset.editfeat);
+  }));
 
   // delete a custom feat entirely (also strips it from everyone who had it)
   host.querySelectorAll('.dmf-trash').forEach(t=> t.addEventListener('click', e=>{
@@ -3020,6 +3134,8 @@ function renderDmFeatGrid(){
     pushUndo(`Deleted custom feat "${f?.name||id}"`);
     state.customFeats = (state.customFeats||[]).filter(x=>x.id!==id);
     state.characters.forEach(ch=>{ if(Array.isArray(ch.feats)) ch.feats = ch.feats.filter(x=>x!==id); });
+    // If we were editing this one, exit edit mode
+    if (_editingFeatId === id) { _editingFeatId = null; updateFeatFormMode(); }
     pushState(true); render();
   }));
 
@@ -8167,23 +8283,116 @@ let _auraBreakChar = null; // id of the char whose break we last showed (avoid r
 
 
 
+// Local navigation state — which awarded feat is being edited (per-browser, not synced)
+let _editingAwardedFeatId = null;
+
 function renderDmCustomFeats(){
   const host = el('dmFeatGranted'); if(!host) return;
   const idx = _dmTarget;
   const c = state.characters[idx];
   if(!c){ host.innerHTML = ''; return; }
   if(!Array.isArray(c.feats)) c.feats = [];
-  if(!c.feats.length){
+  // Filter to awarded feats only — object entries, not ID strings from
+  // the mechanical FEATS catalog. Mechanical feats are grid-managed above.
+  const awarded = c.feats.filter(f => typeof f === 'object' && f !== null && f.id);
+  if(!awarded.length){
     host.innerHTML = `<div class="dm-feat-empty">No custom feats awarded to ${esc(c.name||'this character')} yet.</div>`;
     return;
   }
-  host.innerHTML = c.feats.map(f=>`
-    <div class="dm-feat-row">
-      <span class="dm-feat-icon">${esc(f.icon||'❖')}</span>
-      <div class="dm-feat-text"><span class="dm-feat-name">${esc(f.name||'Feat')}</span>${f.desc?`<span class="dm-feat-desc">${esc(f.desc)}</span>`:''}</div>
-      <button class="dm-feat-del" data-fid="${esc(f.id)}" title="Revoke">✕</button>
-    </div>`).join('');
-  host.querySelectorAll('.dm-feat-del').forEach(b=> b.addEventListener('click', ()=> revokeFeat(idx, b.dataset.fid)));
+  host.innerHTML = awarded.map(f=>{
+    const editing = _editingAwardedFeatId === f.id;
+    if (editing) {
+      return `
+        <div class="dm-feat-row dm-feat-row-editing" data-fid="${esc(f.id)}">
+          <input class="dm-feat-edit-icon" data-edit-field="icon" value="${esc(f.icon||'❖')}" maxlength="3" title="Icon">
+          <div class="dm-feat-edit-fields">
+            <input class="dm-feat-edit-name" data-edit-field="name" value="${esc(f.name||'')}" placeholder="Feat name">
+            <textarea class="dm-feat-edit-desc" data-edit-field="desc" placeholder="Description">${esc(f.desc||'')}</textarea>
+          </div>
+          <div class="dm-feat-edit-actions">
+            <button class="dm-feat-save" data-fid="${esc(f.id)}" title="Save changes">💾</button>
+            <button class="dm-feat-cancel" title="Cancel">✕</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="dm-feat-row" data-fid="${esc(f.id)}">
+        <span class="dm-feat-icon">${esc(f.icon||'❖')}</span>
+        <div class="dm-feat-text">
+          <span class="dm-feat-name">${esc(f.name||'Feat')}</span>
+          ${f.desc?`<span class="dm-feat-desc">${esc(f.desc)}</span>`:''}
+        </div>
+        <div class="dm-feat-actions">
+          <button class="dm-feat-edit" data-fid="${esc(f.id)}" title="Edit this feat">✎</button>
+          <button class="dm-feat-del" data-fid="${esc(f.id)}" title="Revoke">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Revoke handlers
+  host.querySelectorAll('.dm-feat-del').forEach(b=>
+    b.addEventListener('click', ()=> revokeFeat(idx, b.dataset.fid))
+  );
+
+  // Enter edit mode
+  host.querySelectorAll('.dm-feat-edit').forEach(b=>
+    b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      _editingAwardedFeatId = b.dataset.fid;
+      renderDmCustomFeats();
+      // Focus the name input so the DM can start typing immediately
+      setTimeout(()=>{
+        const nameInp = host.querySelector('.dm-feat-edit-name');
+        nameInp?.focus();
+        nameInp?.select();
+      }, 20);
+    })
+  );
+
+  // Save handler — pulls values from the row and writes them back
+  host.querySelectorAll('.dm-feat-save').forEach(b=>
+    b.addEventListener('click', ()=>{
+      const fid = b.dataset.fid;
+      const target = state.characters[idx];
+      if(!target) return;
+      const feat = target.feats.find(f => typeof f === 'object' && f && f.id === fid);
+      if(!feat){ _editingAwardedFeatId = null; renderDmCustomFeats(); return; }
+      const row = host.querySelector(`.dm-feat-row-editing[data-fid="${CSS.escape(fid)}"]`);
+      if(!row){ _editingAwardedFeatId = null; renderDmCustomFeats(); return; }
+      const newName = row.querySelector('[data-edit-field="name"]')?.value.trim() || feat.name;
+      const newDesc = row.querySelector('[data-edit-field="desc"]')?.value.trim() || '';
+      const newIcon = row.querySelector('[data-edit-field="icon"]')?.value.trim() || '❖';
+      if(!newName){ showToast('Feat needs a name', 'warn'); return; }
+      pushUndo(`Edited feat "${feat.name}" on ${target.name||'character'}`);
+      feat.name = newName;
+      feat.desc = newDesc;
+      feat.icon = newIcon;
+      _editingAwardedFeatId = null;
+      pushState(true); render();
+      showToast(`Feat "${newName}" updated`, 'success');
+    })
+  );
+
+  // Cancel handler — discard edits
+  host.querySelectorAll('.dm-feat-cancel').forEach(b=>
+    b.addEventListener('click', ()=>{
+      _editingAwardedFeatId = null;
+      renderDmCustomFeats();
+    })
+  );
+
+  // Save on Enter in name field; Ctrl+Enter in description; Escape cancels
+  host.querySelectorAll('.dm-feat-row-editing').forEach(row=>{
+    row.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Escape'){ _editingAwardedFeatId = null; renderDmCustomFeats(); return; }
+      if(ev.key === 'Enter'){
+        const isTextarea = ev.target.tagName === 'TEXTAREA';
+        if(isTextarea && !ev.ctrlKey && !ev.metaKey) return; // let newlines through
+        ev.preventDefault();
+        row.querySelector('.dm-feat-save')?.click();
+      }
+    });
+  });
 }
 
 function createCustomFeat(){

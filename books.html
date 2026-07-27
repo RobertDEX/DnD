@@ -1047,11 +1047,11 @@ body::after{
 .dm-login p{font-size:.95rem;color:#8090a0;margin-bottom:1.4rem;font-style:italic}
 
 .dm-panel{
-  width:min(1100px,100%);height:min(90vh,860px);display:none;flex-direction:column;
-  background:linear-gradient(145deg,rgba(6,4,14,.78),rgba(3,2,8,.82));
-  backdrop-filter:blur(24px) saturate(1.2);
-  border:1px solid rgba(0,210,255,.18);border-radius:16px;overflow:hidden;
-  box-shadow:0 0 80px rgba(0,210,255,.1),0 32px 80px rgba(0,0,0,.5);
+  width:min(1600px,96vw);height:min(94vh,1100px);display:none;flex-direction:column;
+  background:linear-gradient(145deg,rgba(6,4,14,.82),rgba(3,2,8,.86));
+  backdrop-filter:blur(28px) saturate(1.25);
+  border:1px solid rgba(0,210,255,.22);border-radius:16px;overflow:hidden;
+  box-shadow:0 0 100px rgba(0,210,255,.14),0 40px 100px rgba(0,0,0,.6);
 }
 .dm-panel.open{display:flex}
 .dm-panel-head{
@@ -1062,7 +1062,7 @@ body::after{
 .dm-panel-head h2{font-family:'Orbitron',sans-serif;font-size:1rem;color:var(--aura);letter-spacing:.05em}
 
 /* NEW layout: book list | workspace */
-.dm-panel-layout{flex:1;display:grid;grid-template-columns:240px 1fr;overflow:hidden}
+.dm-panel-layout{flex:1;display:grid;grid-template-columns:300px 1fr;overflow:hidden}
 .dm-sidebar{display:flex;flex-direction:column;background:rgba(0,0,0,.15);border-right:1px solid rgba(0,210,255,.08)}
 .dm-book-list{
   overflow-y:auto;padding:.8rem;flex:1;
@@ -1246,6 +1246,545 @@ body::after{
 .reader.grimm-reader .rt-content .rt-h1{font-size:2.2rem}
 .reader.grimm-reader .rt-content .rt-h2{position:relative}
 .reader.grimm-reader .rt-content .rt-quote{border-left-color:#ff5a78;background:rgba(255,40,70,.06);color:#ffc4d0}
+/* ═══════════════════════════════════════════════════════════════════
+   LIBRARY ENHANCEMENT PASS — DM WORKSPACE + SHELF + BOOK LIST
+   Added 2026-07-27
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── DM LIST TOOLS (top of sidebar) ─── */
+.dm-list-tools {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid rgba(0,210,255,.14);
+  display: flex; flex-direction: column; gap: 8px;
+  background: linear-gradient(180deg, rgba(0,210,255,.05), transparent);
+  flex-shrink: 0;
+}
+.dm-list-tools .btn {
+  width: 100%;
+  justify-content: center;
+}
+.dm-list-searchrow { display: flex; gap: 6px; }
+.dm-list-search {
+  flex: 1; padding: 7px 10px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(0,210,255,.2);
+  color: #eaf6ff;
+  border-radius: 5px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .8rem;
+}
+.dm-list-search:focus {
+  outline: none; border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,210,255,.14);
+}
+.dm-list-filterrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dm-list-select {
+  padding: 6px 8px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(0,210,255,.18);
+  color: #c4d8f4;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .72rem;
+  cursor: pointer;
+}
+.dm-list-select:focus { outline: none; border-color: var(--aura); }
+.dm-list-count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: .16em;
+  color: #7890a5;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* ─── BOOK LIST BODY (scrollable) ─── */
+.dm-book-list-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.dm-book-list-body::-webkit-scrollbar { width: 6px; }
+.dm-book-list-body::-webkit-scrollbar-thumb {
+  background: rgba(0,210,255,.22);
+  border-radius: 999px;
+}
+
+/* ─── BOOK LIST ITEMS ─── */
+.dm-book-item {
+  --book-color: var(--aura);
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.05);
+  border-left: 3px solid var(--book-color);
+  border-radius: 5px;
+  cursor: pointer; text-align: left;
+  transition: all .15s cubic-bezier(.2,.8,.2,1);
+  color: #c4d8f4;
+  font: inherit;
+  width: 100%;
+}
+.dm-book-item:hover {
+  border-color: var(--book-color);
+  transform: translateX(2px);
+  background: rgba(0,0,0,.5);
+}
+.dm-book-item.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--book-color) 22%, transparent), rgba(0,0,0,.5));
+  box-shadow: inset 0 0 20px -8px var(--book-color), 0 0 12px -6px var(--book-color);
+}
+.dm-book-item.pinned {
+  border-left-width: 4px;
+}
+.bi-cover {
+  width: 32px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  color: #fff;
+  border-radius: 3px;
+  box-shadow: inset 0 -3px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.2);
+  flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+}
+.bi-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bi-name {
+  font-family: 'Cinzel', serif;
+  font-size: .85rem;
+  font-weight: 600;
+  color: #eaf6ff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bi-meta {
+  display: flex; gap: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .58rem;
+  letter-spacing: .1em;
+  color: #7890a5;
+  text-transform: uppercase;
+}
+.bi-cat { color: var(--book-color); opacity: .9; }
+.bi-author {
+  font-family: 'EB Garamond', serif;
+  font-size: .72rem;
+  font-style: italic;
+  color: #8a9db0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ─── DM WORKSPACE BOOK HEADER ─── */
+.ws-book-header {
+  --book-color: var(--aura);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--book-color) 30%, transparent);
+}
+.ws-book-header-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px;
+  align-items: start;
+}
+.ws-cover-preview {
+  --cover: var(--aura);
+  width: 90px; height: 120px;
+  background: linear-gradient(155deg, var(--cover) 0%, color-mix(in srgb, var(--cover) 60%, #000) 100%);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  color: #fff;
+  box-shadow:
+    0 8px 24px -8px rgba(0,0,0,.7),
+    inset 0 -4px 8px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset -2px 0 4px rgba(0,0,0,.25);
+  position: relative;
+  overflow: hidden;
+}
+.ws-cover-preview::before {
+  content: '';
+  position: absolute;
+  left: 4px; top: 4px; bottom: 4px;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(255,255,255,.28), transparent);
+  border-radius: 2px;
+}
+.ws-cover-deco {
+  font-size: 1.8rem;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0,0,0,.5);
+}
+.ws-cover-cat {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .48rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(255,255,255,.85);
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,.3);
+}
+.ws-book-header-main {
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ws-name-row { display: flex; gap: 8px; align-items: center; }
+.ws-name-input {
+  flex: 1; min-width: 0;
+  padding: 8px 12px;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(0,210,255,.18);
+  color: #eaf6ff;
+  border-radius: 5px;
+  font-family: 'Cinzel', serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.ws-name-input:focus {
+  outline: none;
+  border-color: var(--book-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--book-color) 14%, transparent);
+}
+.ws-author-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.ws-author-lbl {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  color: #7890a5;
+  font-size: .9rem;
+}
+.ws-author-input {
+  flex: 1; min-width: 0;
+  padding: 5px 10px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(0,210,255,.14);
+  color: #c4d8f4;
+  border-radius: 4px;
+  font-family: 'EB Garamond', serif;
+  font-size: .95rem;
+  font-style: italic;
+}
+.ws-author-input:focus { outline: none; border-color: var(--book-color); }
+.ws-stats-row {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 4px;
+}
+.ws-stat {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .14em;
+  color: #7890a5;
+  text-transform: uppercase;
+}
+.ws-stat b {
+  color: var(--book-color);
+  font-weight: 700;
+  margin-right: 3px;
+}
+.ws-stat.pinned {
+  padding: 2px 8px;
+  background: rgba(232,167,44,.15);
+  border: 1px solid rgba(232,167,44,.4);
+  border-radius: 3px;
+  color: #ffd460;
+}
+.ws-actions-primary {
+  display: flex; flex-direction: column; gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ─── DM TOOLS STRIP ─── */
+.ws-tools-strip {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 10px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(0,210,255,.14);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.ws-tool {
+  flex: 1; min-width: 130px;
+  padding: 8px 12px;
+  background: rgba(0,210,255,.06);
+  border: 1px solid rgba(0,210,255,.22);
+  color: #c4d8f4;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .7rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .15s cubic-bezier(.2,.8,.2,1);
+}
+.ws-tool:hover {
+  background: rgba(0,210,255,.14);
+  border-color: var(--aura);
+  color: var(--aura);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -4px rgba(0,210,255,.35);
+}
+.ws-tool.danger {
+  background: rgba(255,26,46,.06);
+  border-color: rgba(255,26,46,.28);
+  color: #ff8088;
+}
+.ws-tool.danger:hover {
+  background: rgba(255,26,46,.16);
+  border-color: #ff1a2e;
+  color: #ff8088;
+  box-shadow: 0 4px 10px -4px rgba(255,26,46,.4);
+}
+
+/* ─── DM METADATA SECTION ─── */
+.ws-metadata {
+  padding: 14px;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(0,210,255,.14);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ws-metadata-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+.ws-field-color input[type="color"] {
+  width: 44px; height: 34px;
+  padding: 2px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(0,210,255,.22);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ws-field-deco input {
+  width: 60px; text-align: center;
+  font-size: 1.1rem;
+}
+.ws-hint {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: .75rem;
+  color: #7890a5;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 6px;
+}
+
+/* ─── ACCESS TOOLBAR ─── */
+.access-toolbar {
+  display: flex; gap: 6px;
+  margin: 6px 0 10px;
+}
+.access-toolbar .btn { padding: 5px 12px; font-size: .68rem; }
+
+/* ─── PAGES HEAD WITH TOOLS ─── */
+.ws-pages-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 10px;
+  flex-wrap: wrap;
+}
+.ws-pages-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  color: var(--aura);
+  text-shadow: 0 0 8px rgba(0,210,255,.35);
+}
+.ws-pages-tools {
+  display: flex; gap: 6px;
+  align-items: center;
+}
+.ws-page-search {
+  padding: 6px 10px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(0,210,255,.2);
+  color: #eaf6ff;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .78rem;
+  width: 180px;
+}
+.ws-page-search:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow: 0 0 0 2px rgba(0,210,255,.14);
+}
+
+/* ─── PAGE ACTIONS in the fold head ─── */
+.pf-actions {
+  display: flex; gap: 3px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+.pf-act {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(0,210,255,.18);
+  color: #c4d8f4;
+  border-radius: 3px;
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all .12s;
+  padding: 0;
+}
+.pf-act:hover:not(:disabled) {
+  background: rgba(0,210,255,.14);
+  border-color: var(--aura);
+  color: var(--aura);
+}
+.pf-act:disabled {
+  opacity: .3; cursor: not-allowed;
+}
+.pf-act-del {
+  border-color: rgba(255,80,80,.28);
+  color: #ff8088;
+}
+.pf-act-del:hover:not(:disabled) {
+  background: rgba(255,26,46,.14);
+  border-color: #ff1a2e;
+  color: #ff8088;
+}
+
+/* ─── EMPTY STATE ─── */
+.ws-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: #7890a5;
+  font-family: 'EB Garamond', serif;
+  font-size: 1rem;
+}
+.ws-empty-icon {
+  font-size: 3rem;
+  opacity: .5;
+  margin-bottom: 10px;
+}
+
+/* ─── SHELF BOOK ENHANCEMENTS (colored cover + spine + hover desc) ─── */
+.book:not(.grimm) {
+  --book-cover: #c8a72c;
+  position: relative;
+}
+.book-cover-spine {
+  position: absolute;
+  left: 6px; top: 6px; bottom: 6px;
+  width: 4px;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.35);
+  pointer-events: none;
+  opacity: .95;
+}
+.book-deco { transition: color .3s, text-shadow .3s; }
+.book-author {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: .78rem;
+  color: #5a5040;
+  margin-top: 2px;
+  padding: 0 10px;
+}
+.book-cat-tag {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  padding: 2px 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .54rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  background: rgba(0,0,0,.4);
+  border: 1px solid;
+  border-radius: 2px;
+  backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.book-desc-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 10px 14px;
+  background: rgba(4,2,10,.96);
+  border: 1px solid rgba(0,210,255,.35);
+  border-radius: 5px;
+  color: #eaf6ff;
+  font-family: 'EB Garamond', serif;
+  font-size: .82rem;
+  line-height: 1.4;
+  font-style: italic;
+  width: max-content;
+  max-width: 280px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  z-index: 100;
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,.8);
+}
+.book:hover .book-desc-tooltip { opacity: 1; }
+.book-pin-badge {
+  position: absolute;
+  top: 6px; left: 6px;
+  padding: 2px 6px;
+  background: rgba(232,167,44,.22);
+  border: 1px solid rgba(232,167,44,.5);
+  border-radius: 3px;
+  font-size: .7rem;
+  z-index: 4;
+  text-shadow: 0 0 6px rgba(232,167,44,.6);
+}
+.book.pinned {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -12px rgba(232,167,44,.35);
+}
+
+/* ─── SCROLLBAR for larger DM panel ─── */
+.dm-workspace::-webkit-scrollbar { width: 8px; }
+.dm-workspace::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--aura), rgba(0,210,255,.4));
+  border-radius: 999px;
+}
+
+/* ─── RESPONSIVE for bigger panel ─── */
+@media (max-width: 1300px) {
+  .ws-metadata-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ws-field-color, .ws-field-deco {
+    grid-column: auto;
+  }
+}
+@media (max-width: 900px) {
+  .dm-panel-layout {
+    grid-template-columns: 1fr;
+  }
+  .ws-book-header-top {
+    grid-template-columns: 1fr;
+  }
+  .ws-actions-primary {
+    flex-direction: row;
+  }
+  .ws-metadata-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ws-tools-strip {
+    flex-direction: column;
+  }
+  .ws-tool {
+    flex: none;
+  }
+}
+
 </style>
 
 </head>
@@ -1368,17 +1907,49 @@ const DM_PASS = '123456789';
 const BOOKS_DOC = doc(db, 'rwby-meta', 'library');
 
 // ── default books ──
+// ═════════════════════════════════════════════════════════════════
+// BOOK CATEGORIES — thematic classification with icons + colors
+// ═════════════════════════════════════════════════════════════════
+const BOOK_CATEGORIES = [
+  { id:'scripture', label:'Scripture',    icon:'📖', color:'#c8a72c', desc:'Doctrinal texts, catechisms, canon.' },
+  { id:'grimoire',  label:'Grimoire',     icon:'🕯', color:'#a020c0', desc:'Ritual books, occult knowledge.' },
+  { id:'journal',   label:'Journal',      icon:'📓', color:'#4a8b4d', desc:'Personal notebooks, field diaries.' },
+  { id:'grimm',     label:'Grimm Studies',icon:'☠',  color:'#c02040', desc:'Catalogs of Grimm species.' },
+  { id:'history',   label:'History',      icon:'📜', color:'#5aa8f5', desc:'Chronicles, records, historical texts.' },
+  { id:'reference', label:'Reference',    icon:'⚙',  color:'#00d4ff', desc:'Manuals, guides, technical texts.' },
+  { id:'personal',  label:'Personal',     icon:'✒',  color:'#e0a848', desc:'Private correspondence, letters, notes.' }
+];
+const BOOK_CATEGORY_BY_ID = Object.fromEntries(BOOK_CATEGORIES.map(c => [c.id, c]));
+
 function defaultBooks() {
   return [
-    { id:'rowan',   name:"Rowan Rose's Notebook",          style:'notebook', deco:'📓', access:['all'], pages:[] },
-    { id:'soul',    name:'Soul-Calming',                   style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'intent',  name:'Intent-Carving',                 style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'world',   name:'World-Will',                     style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'yield',   name:'Yielding',                       style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'human',   name:'Scripture of Human Will',        style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'void',    name:'Void-Severing',                  style:'tome',     deco:'📖', access:['all'], pages:[] },
-    { id:'grimm',   name:'Grimm Studies · By The Grimm Reaper, Peter Port', style:'grimm', deco:'☠', access:['all'], pages:[] },
+    { id:'rowan',   name:"Rowan Rose's Notebook",          style:'notebook', deco:'📓', access:['all'], pages:[], category:'journal',   author:'Rowan Rose',           description:'Personal notebook. Handwritten field entries.', coverColor:'#4a8b4d',  tags:['field','personal'] },
+    { id:'soul',    name:'Soul-Calming',                   style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'On the discipline of stilling the inner tempest.', coverColor:'#c8a72c', tags:['doctrine'] },
+    { id:'intent',  name:'Intent-Carving',                 style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'Meditations on shaping will into action.', coverColor:'#c8a72c', tags:['doctrine'] },
+    { id:'world',   name:'World-Will',                     style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'Reflections on the Will beyond the self.', coverColor:'#c8a72c', tags:['doctrine'] },
+    { id:'yield',   name:'Yielding',                       style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'On surrender, receptivity, and grace.', coverColor:'#c8a72c', tags:['doctrine'] },
+    { id:'human',   name:'Scripture of Human Will',        style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'Foundational text on the will of humanity.', coverColor:'#c8a72c', tags:['doctrine','canon'] },
+    { id:'void',    name:'Void-Severing',                  style:'tome',     deco:'📖', access:['all'], pages:[], category:'scripture', author:'The First Scholars',    description:'On cutting the ties that bind consciousness.', coverColor:'#c8a72c', tags:['doctrine'] },
+    { id:'grimm',   name:'Grimm Studies · By The Grimm Reaper, Peter Port', style:'grimm', deco:'☠', access:['all'], pages:[], category:'grimm', author:'Prof. Peter Port', description:'A comprehensive study of the creatures of Grimm — with commentary.', coverColor:'#c02040', tags:['bestiary','canon'] },
   ];
+}
+
+// Migrate old book data — fill missing metadata fields on load
+function migrateBook(b, ix) {
+  return {
+    id:          b.id || ('book-'+Date.now()+'-'+ix),
+    name:        b.name || 'Untitled',
+    style:       b.style || 'tome',
+    deco:        b.deco || '📖',
+    access:      Array.isArray(b.access) ? b.access : ['all'],
+    pages:       Array.isArray(b.pages) ? b.pages : [],
+    category:    BOOK_CATEGORY_BY_ID[b.category] ? b.category : (b.style === 'grimm' ? 'grimm' : b.style === 'notebook' ? 'journal' : 'scripture'),
+    author:      String(b.author || ''),
+    description: String(b.description || ''),
+    coverColor:  String(b.coverColor || (BOOK_CATEGORY_BY_ID[b.category]?.color || '#c8a72c')),
+    tags:        Array.isArray(b.tags) ? b.tags.map(String) : [],
+    pinned:      !!b.pinned
+  };
 }
 
 // players list pulled from campaign doc (for access control)
@@ -1452,22 +2023,43 @@ async function pushLibrary() {
   catch(e){ console.error('pushLibrary', e); }
 }
 function mergeLibrary(saved){
-  // The book DEFINITIONS (name, deco, style, order) always come from defaultBooks()
-  // in code. Only the per-book pages and access come from Firebase. This way,
-  // editing names/decos/styles in defaultBooks() takes effect even after a save.
+  // The book DEFINITIONS (default set) come from defaultBooks() in code, so
+  // renames + additions to defaults take effect on load. User-added books
+  // (any book not in defaults) are preserved from Firebase directly. Metadata
+  // (category, author, description, coverColor, tags) always uses the SAVED
+  // value if present, falling back to the default definition.
   const defs = defaultBooks();
+  const defIds = new Set(defs.map(d => d.id));
+  const savedBooks = (saved?.books || []).map(migrateBook);
   const savedById = {};
-  (saved?.books || []).forEach(b => { savedById[b.id] = b; });
-  return {
-    books: defs.map(def => {
-      const s = savedById[def.id];
-      return {
-        ...def,
-        pages:  s?.pages  || def.pages  || [],
-        access: s?.access || def.access || ['all'],
-      };
-    })
-  };
+  savedBooks.forEach(b => { savedById[b.id] = b; });
+
+  // Merge defaults with saved data
+  const merged = defs.map(def => {
+    const s = savedById[def.id];
+    if (!s) return migrateBook(def);
+    // For default books: prefer saved values for editable metadata,
+    // fall back to default. Structure/style always from defaults.
+    return migrateBook({
+      ...def,
+      name:        s.name        ?? def.name,
+      pages:       s.pages       ?? [],
+      access:      s.access      ?? ['all'],
+      category:    s.category    ?? def.category,
+      author:      s.author      ?? def.author,
+      description: s.description ?? def.description,
+      coverColor:  s.coverColor  ?? def.coverColor,
+      tags:        s.tags        ?? def.tags,
+      pinned:      s.pinned      ?? false,
+    });
+  });
+
+  // Append user-added books (any saved book not in defaults)
+  savedBooks.forEach(s => {
+    if (!defIds.has(s.id)) merged.push(s);
+  });
+
+  return { books: merged };
 }
 
 function startLibraryListener() {
@@ -1582,12 +2174,21 @@ function renderShelf() {
         </div>
         ${access ? '' : `<div class="book-lock"><div class="book-lock-icon">🔒</div><div class="book-lock-text">Sealed</div></div>`}`;
     } else {
+      const cat = BOOK_CATEGORY_BY_ID[book.category] || BOOK_CATEGORIES[0];
+      const coverCol = book.coverColor || cat.color;
+      el.style.setProperty('--book-cover', coverCol);
+      if (book.pinned && !book.private) el.classList.add('pinned');
       el.innerHTML = `
         ${book.private ? `<div class="book-access-badge private">🔒 Private</div>` : (dmUnlocked ? `<div class="book-access-badge ${restricted?'restricted':'open'}">${restricted?'Restricted':'Open'}</div>` : '')}
+        ${book.pinned && !book.private ? '<div class="book-pin-badge" title="Pinned by the DM">📌</div>' : ''}
+        <div class="book-cover-spine" style="background:linear-gradient(180deg, ${coverCol}, ${coverCol}dd)"></div>
         <div class="book-inner">
-          <div class="book-deco">${book.deco}</div>
+          <div class="book-deco" style="color:${coverCol};text-shadow:0 0 12px ${coverCol}55">${book.deco}</div>
           <div class="book-title">${esc(book.name)}</div>
+          ${book.author ? `<div class="book-author">by ${esc(book.author)}</div>` : ''}
           <div class="book-meta">${book.pages.length} page${book.pages.length===1?'':'s'}</div>
+          ${book.description ? `<div class="book-desc-tooltip">${esc(book.description)}</div>` : ''}
+          <div class="book-cat-tag" style="border-color:${cat.color};color:${cat.color}">${cat.icon} ${cat.label}</div>
         </div>
         ${access ? '' : `<div class="book-lock"><div class="book-lock-icon">🔒</div><div class="book-lock-text">Sealed</div></div>`}`;
     }
@@ -1988,19 +2589,115 @@ let _selectedBook = 0;   // index of book being edited
 let _openPage = null;    // index of currently expanded page fold (null = none)
 
 // Sidebar list of books
+let _dmBookFilter = '';
+let _dmBookCatFilter = '';
+let _dmBookSort = 'default'; // 'default' | 'name' | 'category' | 'pages' | 'recent'
+
 function renderBookList(){
   const list = $('dmBookList'); if(!list) return;
-  list.innerHTML = library.books.map((book, bi) => {
-    const restricted = book.access && !book.access.includes('all');
-    return `
-      <button class="dm-book-item ${bi===_selectedBook?'active':''}" data-book="${bi}">
-        <span class="bi-deco">${book.deco}</span>
-        <span class="bi-info">
-          <span class="bi-name">${esc(book.name)}</span>
-          <span class="bi-count">${book.pages.length} pg${restricted?' · 🔒':''}</span>
-        </span>
-      </button>`;
-  }).join('');
+
+  // Apply filters
+  let visible = library.books.map((b, bi) => ({ book: b, bi }));
+  if (_dmBookFilter) {
+    const q = _dmBookFilter.toLowerCase();
+    visible = visible.filter(({book}) =>
+      (book.name || '').toLowerCase().includes(q) ||
+      (book.author || '').toLowerCase().includes(q) ||
+      (book.description || '').toLowerCase().includes(q) ||
+      (book.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+  if (_dmBookCatFilter) {
+    visible = visible.filter(({book}) => book.category === _dmBookCatFilter);
+  }
+  // Sort — pinned always float to top regardless
+  if (_dmBookSort === 'name') {
+    visible.sort((a, b) => (a.book.name || '').localeCompare(b.book.name || ''));
+  } else if (_dmBookSort === 'category') {
+    visible.sort((a, b) => (a.book.category || '').localeCompare(b.book.category || ''));
+  } else if (_dmBookSort === 'pages') {
+    visible.sort((a, b) => (b.book.pages.length) - (a.book.pages.length));
+  }
+  visible.sort((a, b) => (b.book.pinned ? 1 : 0) - (a.book.pinned ? 1 : 0));
+
+  list.innerHTML = `
+    <div class="dm-list-tools">
+      <button class="btn small" id="dmNewBookBtn" title="Create a new book">＋ New Book</button>
+      <div class="dm-list-searchrow">
+        <input type="text" id="dmBookFilterInp" class="dm-list-search" placeholder="🔍 Search books…" value="${esc(_dmBookFilter)}">
+      </div>
+      <div class="dm-list-filterrow">
+        <select id="dmBookCatSel" class="dm-list-select">
+          <option value="">All Categories</option>
+          ${BOOK_CATEGORIES.map(c => `<option value="${c.id}" ${_dmBookCatFilter===c.id?'selected':''}>${c.icon} ${c.label}</option>`).join('')}
+        </select>
+        <select id="dmBookSortSel" class="dm-list-select">
+          <option value="default"  ${_dmBookSort==='default'?'selected':''}>Default order</option>
+          <option value="name"     ${_dmBookSort==='name'?'selected':''}>A → Z</option>
+          <option value="category" ${_dmBookSort==='category'?'selected':''}>By category</option>
+          <option value="pages"    ${_dmBookSort==='pages'?'selected':''}>By page count</option>
+        </select>
+      </div>
+      <div class="dm-list-count">${visible.length}${visible.length !== library.books.length ? ` / ${library.books.length}` : ''} books</div>
+    </div>
+    <div class="dm-book-list-body">
+      ${visible.length ? visible.map(({book, bi}) => {
+        const restricted = book.access && !book.access.includes('all');
+        const cat = BOOK_CATEGORY_BY_ID[book.category] || BOOK_CATEGORIES[0];
+        return `
+          <button class="dm-book-item ${bi===_selectedBook?'active':''} ${book.pinned?'pinned':''}" data-book="${bi}" style="--book-color:${book.coverColor||cat.color}">
+            <span class="bi-cover" style="background:${book.coverColor||cat.color}">${book.deco || cat.icon}</span>
+            <span class="bi-info">
+              <span class="bi-name">${book.pinned?'📌 ':''}${esc(book.name)}</span>
+              <span class="bi-meta">
+                <span class="bi-cat">${cat.icon} ${cat.label}</span>
+                <span class="bi-count">${book.pages.length} pg${restricted?' · 🔒':''}</span>
+              </span>
+              ${book.author ? `<span class="bi-author">${esc(book.author)}</span>` : ''}
+            </span>
+          </button>`;
+      }).join('') : '<div class="dm-empty" style="padding:1.4rem;text-align:center">No books match your filters.</div>'}
+    </div>
+  `;
+
+  // Wire New Book button
+  $('dmNewBookBtn')?.addEventListener('click', ()=>{
+    const b = {
+      id: 'book-' + Date.now(),
+      name: 'New Book',
+      style: 'tome',
+      deco: '📖',
+      access: ['all'],
+      pages: [],
+      category: 'scripture',
+      author: '',
+      description: '',
+      coverColor: BOOK_CATEGORIES[0].color,
+      tags: [],
+      pinned: false
+    };
+    library.books.push(b);
+    _selectedBook = library.books.length - 1;
+    _openPage = null;
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+
+  // Wire filters
+  $('dmBookFilterInp')?.addEventListener('input', e => {
+    _dmBookFilter = e.target.value;
+    renderBookList();
+    setTimeout(() => $('dmBookFilterInp')?.focus(), 0);
+  });
+  $('dmBookCatSel')?.addEventListener('change', e => {
+    _dmBookCatFilter = e.target.value;
+    renderBookList();
+  });
+  $('dmBookSortSel')?.addEventListener('change', e => {
+    _dmBookSort = e.target.value;
+    renderBookList();
+  });
+
+  // Book row selection
   list.querySelectorAll('[data-book]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       _selectedBook = Number(btn.dataset.book);
@@ -2014,20 +2711,91 @@ function renderBookList(){
 function renderWorkspace(){
   const ws = $('dmWorkspace'); if(!ws) return;
   const book = library.books[_selectedBook];
-  if (!book){ ws.innerHTML = '<div class="ws-empty">Select a book.</div>'; return; }
+  if (!book){ ws.innerHTML = '<div class="ws-empty"><div class="ws-empty-icon">📚</div>Select a book from the sidebar, or create a new one.</div>'; return; }
   const isAll = !book.access || book.access.includes('all');
+  const cat = BOOK_CATEGORY_BY_ID[book.category] || BOOK_CATEGORIES[0];
+  const totalWords = book.pages.reduce((sum, p) => sum + ((p.text || '').split(/\s+/).filter(Boolean).length), 0);
 
   ws.innerHTML = `
-    <div class="ws-head">
-      <div class="ws-title"><span class="wsdeco">${book.deco}</span><input class="ws-name-input" id="wsBookName" value="${esc(book.name)}" placeholder="Book title…"></div>
-      <div style="display:flex;gap:.4rem">
-        <button class="btn small ghost" id="wsDeleteBook" title="Delete this book" style="color:#ff8088;border-color:rgba(255,80,80,.3)">🗑 Delete</button>
-        <button class="btn small" id="wsAddPage">+ Page</button>
+    <div class="ws-book-header" style="--book-color:${cat.color}">
+      <div class="ws-book-header-top">
+        <div class="ws-book-header-left">
+          <div class="ws-cover-preview" style="--cover:${book.coverColor||cat.color}">
+            <div class="ws-cover-deco">${book.deco || cat.icon}</div>
+            <div class="ws-cover-cat">${cat.label}</div>
+          </div>
+        </div>
+        <div class="ws-book-header-main">
+          <div class="ws-name-row">
+            <input class="ws-name-input" id="wsBookName" value="${esc(book.name)}" placeholder="Book title…">
+          </div>
+          <div class="ws-author-row">
+            <span class="ws-author-lbl">by</span>
+            <input class="ws-author-input" id="wsBookAuthor" value="${esc(book.author || '')}" placeholder="Author (optional)">
+          </div>
+          <div class="ws-stats-row">
+            <span class="ws-stat"><b>${book.pages.length}</b> pages</span>
+            <span class="ws-stat"><b>${totalWords.toLocaleString()}</b> words</span>
+            <span class="ws-stat"><b>${isAll ? 'Everyone' : book.access.length}</b> ${isAll ? '' : (book.access.length === 1 ? 'reader' : 'readers')}</span>
+            ${book.pinned ? '<span class="ws-stat pinned">📌 Pinned</span>' : ''}
+          </div>
+        </div>
+        <div class="ws-actions-primary">
+          <button class="btn small" id="wsAddPage" title="Add a new page">＋ Page</button>
+          <button class="btn small ghost" id="wsPinBook" title="${book.pinned ? 'Unpin from top of shelf' : 'Pin to top of shelf'}">${book.pinned ? '📌 Pinned' : '📍 Pin'}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ws-tools-strip">
+      <button class="ws-tool" id="wsDupBook" title="Duplicate this book with all pages">📑 Duplicate Book</button>
+      <button class="ws-tool" id="wsExportBook" title="Export as Markdown">📤 Export MD</button>
+      <button class="ws-tool" id="wsImportBook" title="Import pages from Markdown">📥 Import MD</button>
+      <button class="ws-tool" id="wsClearPages" title="Delete every page in this book">🗑 Clear Pages</button>
+      <button class="ws-tool danger" id="wsDeleteBook" title="Permanently delete this book">✕ Delete Book</button>
+    </div>
+
+    <div class="ws-metadata">
+      <div class="ws-metadata-row">
+        <div class="dm-field ws-field-category">
+          <label>Category</label>
+          <select id="wsBookCategory">
+            ${BOOK_CATEGORIES.map(c => `<option value="${c.id}" ${book.category===c.id?'selected':''}>${c.icon} ${c.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="dm-field ws-field-style">
+          <label>Style</label>
+          <select id="wsBookStyle">
+            <option value="tome" ${book.style==='tome'?'selected':''}>📖 Tome</option>
+            <option value="notebook" ${book.style==='notebook'?'selected':''}>📓 Notebook</option>
+            <option value="grimm" ${book.style==='grimm'?'selected':''}>☠ Grimm Bestiary</option>
+          </select>
+        </div>
+        <div class="dm-field ws-field-deco">
+          <label>Icon</label>
+          <input type="text" id="wsBookDeco" value="${esc(book.deco || '')}" maxlength="4" placeholder="📖">
+        </div>
+        <div class="dm-field ws-field-color">
+          <label>Cover Color</label>
+          <input type="color" id="wsBookColor" value="${esc(book.coverColor || cat.color)}">
+        </div>
+      </div>
+      <div class="dm-field ws-field-desc">
+        <label>Description <span class="ws-hint">— shown on the shelf on hover</span></label>
+        <textarea id="wsBookDesc" rows="2" placeholder="What's this book about?">${esc(book.description || '')}</textarea>
+      </div>
+      <div class="dm-field ws-field-tags">
+        <label>Tags <span class="ws-hint">— comma-separated, used for filtering</span></label>
+        <input type="text" id="wsBookTags" value="${esc((book.tags||[]).join(', '))}" placeholder="e.g. doctrine, canon, field">
       </div>
     </div>
 
     <div class="access-section">
       <div class="access-title">Who can open this book?</div>
+      <div class="access-toolbar">
+        <button class="btn small ghost" id="wsAccessAll2" title="Grant access to every character">✦ All</button>
+        <button class="btn small ghost" id="wsAccessNone" title="Revoke access from everyone">✕ None</button>
+      </div>
       <div class="access-grid">
         <label class="access-pill everyone"><input type="checkbox" id="wsAccessAll" ${isAll?'checked':''}> ✦ Everyone</label>
         ${players.map(p=>`<label class="access-pill"><input type="checkbox" class="ws-access-cb" data-idx="${p.idx}" ${(!isAll && book.access.includes(p.idx))?'checked':''} ${isAll?'disabled':''}> ${esc(p.name)}</label>`).join('') || '<div class="dm-empty" style="grid-column:1/-1">No active players found</div>'}
@@ -2035,7 +2803,12 @@ function renderWorkspace(){
     </div>
 
     <div class="ws-pages-head">
-      <div class="ws-pages-title">Pages (${book.pages.length})</div>
+      <div class="ws-pages-title">📄 Pages (${book.pages.length})</div>
+      <div class="ws-pages-tools">
+        <input type="text" id="wsPageSearch" class="ws-page-search" placeholder="🔍 Search pages…" value="${esc(_wsPageSearch || '')}">
+        <button class="btn small ghost" id="wsCollapseAll" title="Collapse all page editors">▲ Collapse</button>
+        <button class="btn small ghost" id="wsExpandAll" title="Expand all page editors">▼ Expand</button>
+      </div>
     </div>
     <div id="wsPages"></div>
   `;
@@ -2045,16 +2818,117 @@ function renderWorkspace(){
     book.name = e.target.value || book.name;
     pushLibrary(); renderBookList();
   });
+  // author
+  $('wsBookAuthor')?.addEventListener('input', e=>{
+    book.author = e.target.value;
+    pushLibrary(); renderBookList();
+  });
+  // category / style / deco / color
+  $('wsBookCategory')?.addEventListener('change', e=>{
+    book.category = e.target.value;
+    // Auto-set cover color to match category if user hasn't customized it
+    const newCat = BOOK_CATEGORY_BY_ID[e.target.value];
+    if (newCat && book.coverColor === (BOOK_CATEGORY_BY_ID[book.category]?.color)) {
+      book.coverColor = newCat.color;
+    }
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  $('wsBookStyle')?.addEventListener('change', e=>{
+    book.style = e.target.value;
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  $('wsBookDeco')?.addEventListener('input', e=>{
+    book.deco = e.target.value;
+    pushLibrary(); renderBookList(); renderShelf();
+  });
+  $('wsBookColor')?.addEventListener('input', e=>{
+    book.coverColor = e.target.value;
+    pushLibrary(); renderShelf(); renderWorkspace();
+  });
+  $('wsBookDesc')?.addEventListener('input', e=>{
+    book.description = e.target.value;
+    pushLibrary();
+  });
+  $('wsBookTags')?.addEventListener('input', e=>{
+    book.tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+    pushLibrary();
+  });
+  // pin
+  $('wsPinBook')?.addEventListener('click', ()=>{
+    book.pinned = !book.pinned;
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  // duplicate book
+  $('wsDupBook')?.addEventListener('click', ()=>{
+    const clone = JSON.parse(JSON.stringify(book));
+    clone.id = 'book-' + Date.now();
+    clone.name = book.name + ' (copy)';
+    clone.pinned = false;
+    // fresh page IDs
+    clone.pages = clone.pages.map(p => ({ ...p, id: 'pg-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6) }));
+    library.books.push(clone);
+    _selectedBook = library.books.length - 1;
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  // export Markdown
+  $('wsExportBook')?.addEventListener('click', ()=>{
+    let md = `# ${book.name}\n\n`;
+    if (book.author) md += `*by ${book.author}*\n\n`;
+    if (book.description) md += `> ${book.description}\n\n`;
+    md += `---\n\n`;
+    book.pages.forEach((p, i) => {
+      md += `## Page ${i+1}${p.title ? ' — ' + p.title : ''}\n\n${p.text || ''}\n\n---\n\n`;
+    });
+    const blob = new Blob([md], {type:'text/markdown'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${book.name.replace(/[^\w\-. ]/g,'_')}.md`;
+    a.click(); URL.revokeObjectURL(url);
+  });
+  // import Markdown
+  $('wsImportBook')?.addEventListener('click', ()=>{
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.md,.txt,text/markdown,text/plain';
+    inp.onchange = async () => {
+      const file = inp.files?.[0]; if (!file) return;
+      const text = await file.text();
+      // Split on --- separator OR on ## Page/Chapter headers
+      const chunks = text.split(/\n---\n|(?=^## )/m).map(s => s.trim()).filter(Boolean);
+      if (!confirm(`Import ${chunks.length} pages into "${book.name}"? Existing pages will be preserved and new ones appended.`)) return;
+      chunks.forEach((chunk, i) => {
+        const titleMatch = chunk.match(/^##\s+(?:Page \d+\s*—\s*)?(.+)/m);
+        const title = titleMatch ? titleMatch[1].trim() : '';
+        const body = chunk.replace(/^##\s+.+\n\n?/m, '').trim();
+        book.pages.push({ id:'pg-'+Date.now()+'-'+i, title, text:body, image:'' });
+      });
+      pushLibrary(); renderWorkspace();
+    };
+    inp.click();
+  });
+  // clear pages
+  $('wsClearPages')?.addEventListener('click', ()=>{
+    if(!confirm(`Delete all ${book.pages.length} pages from "${book.name}"? The book itself will remain.`)) return;
+    book.pages = [];
+    pushLibrary(); renderBookList(); renderWorkspace();
+  });
   // delete book
   $('wsDeleteBook')?.addEventListener('click',()=>{
     if(!confirm(`Delete "${book.name}" and all its pages? This cannot be undone.`)) return;
     library.books.splice(_selectedBook, 1);
     _selectedBook = Math.max(0, _selectedBook - 1);
-    pushLibrary(); renderBookList(); renderWorkspace();
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
   });
-  // add page
-  $('wsAccessAll').addEventListener('change', e=>{
+  // access all/none quick actions
+  $('wsAccessAll')?.addEventListener('change', e=>{
     book.access = e.target.checked ? ['all'] : [];
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  $('wsAccessAll2')?.addEventListener('click', ()=>{
+    book.access = ['all'];
+    pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
+  });
+  $('wsAccessNone')?.addEventListener('click', ()=>{
+    book.access = [];
     pushLibrary(); renderBookList(); renderShelf(); renderWorkspace();
   });
   // access: per player
@@ -2069,11 +2943,10 @@ function renderWorkspace(){
     });
   });
   // add page
-  $('wsAddPage').addEventListener('click',()=>{
+  $('wsAddPage')?.addEventListener('click',()=>{
     book.pages.push({ id:'pg-'+Date.now(), title:'', text:'', image:'' });
-    _openPage = book.pages.length - 1; // open the new one
+    _openPage = book.pages.length - 1;
     pushLibrary(); renderBookList(); renderPageFolds();
-    // focus its content
     setTimeout(()=>{
       const folds = $('wsPages').querySelectorAll('.page-fold');
       const last = folds[folds.length-1];
@@ -2081,9 +2954,25 @@ function renderWorkspace(){
       last?.querySelector('textarea[data-f="text"]')?.focus();
     }, 50);
   });
+  // page search
+  $('wsPageSearch')?.addEventListener('input', e=>{
+    _wsPageSearch = e.target.value;
+    renderPageFolds();
+    setTimeout(()=>$('wsPageSearch')?.focus(), 0);
+  });
+  // expand/collapse all
+  $('wsCollapseAll')?.addEventListener('click', ()=>{
+    _openPage = -1;
+    renderPageFolds();
+  });
+  $('wsExpandAll')?.addEventListener('click', ()=>{
+    _openPage = -2; // sentinel: all open
+    renderPageFolds();
+  });
 
   renderPageFolds();
 }
+let _wsPageSearch = '';
 
 // Folded page list — only the open one shows its editor
 function renderPageFolds(){
@@ -2093,14 +2982,37 @@ function renderPageFolds(){
     cont.innerHTML = `<div class="ws-empty"><div class="ws-empty-icon">📄</div>No pages yet. Add one to begin writing.</div>`;
     return;
   }
+  // Apply search filter (matches title OR text content)
+  const q = (_wsPageSearch || '').trim().toLowerCase();
+  const visibleIndices = book.pages.map((pg, pi) => {
+    if (!q) return pi;
+    const hay = ((pg.title || '') + ' ' + (pg.text || '')).toLowerCase();
+    return hay.includes(q) ? pi : -1;
+  }).filter(i => i !== -1);
+
+  if (!visibleIndices.length) {
+    cont.innerHTML = `<div class="ws-empty"><div class="ws-empty-icon">🔍</div>No pages match "${esc(q)}".</div>`;
+    return;
+  }
+
   cont.innerHTML = '';
-  book.pages.forEach((pg, pi) => {
+  visibleIndices.forEach(pi => {
+    const pg = book.pages[pi];
+    // Sentinel handling: -2 = all expanded, -1 = all collapsed, otherwise specific page
+    const isOpen = _openPage === -2 || pi === _openPage;
     const fold = document.createElement('div');
-    fold.className = `page-fold ${pi===_openPage?'open':''}`;
+    fold.className = `page-fold ${isOpen?'open':''}`;
     fold.innerHTML = `
       <div class="page-fold-head" data-foldhead="${pi}">
         <span class="pf-num">Pg ${pi+1}</span>
         <span class="pf-title ${pg.title?'':'untitled'}">${pg.title ? esc(pg.title) : 'Untitled page'}</span>
+        <div class="pf-actions">
+          <button class="pf-act" data-act="up"    data-pi="${pi}" title="Move page up"    ${pi===0?'disabled':''}>▲</button>
+          <button class="pf-act" data-act="down"  data-pi="${pi}" title="Move page down"  ${pi===book.pages.length-1?'disabled':''}>▼</button>
+          <button class="pf-act" data-act="dup"   data-pi="${pi}" title="Duplicate page">⧉</button>
+          <button class="pf-act" data-act="move"  data-pi="${pi}" title="Move to another book">↷</button>
+          <button class="pf-act pf-act-del" data-act="del" data-pi="${pi}" title="Delete page">✕</button>
+        </div>
         <span class="pf-chev">▾</span>
       </div>
       <div class="page-fold-body">
@@ -2180,12 +3092,52 @@ function renderPageFolds(){
     cont.appendChild(fold);
   });
 
-  // fold toggles
+  // fold toggles — click anywhere in the head EXCEPT on action buttons
   cont.querySelectorAll('[data-foldhead]').forEach(h=>{
-    h.addEventListener('click',()=>{
+    h.addEventListener('click',(ev)=>{
+      // Ignore clicks on action buttons in the head
+      if (ev.target.closest('.pf-act')) return;
       const pi = Number(h.dataset.foldhead);
       _openPage = (_openPage === pi) ? null : pi;
       renderPageFolds();
+    });
+  });
+
+  // Page-level action buttons in the fold head
+  cont.querySelectorAll('.pf-act').forEach(btn=>{
+    btn.addEventListener('click',(ev)=>{
+      ev.stopPropagation();
+      const pi = Number(btn.dataset.pi);
+      const act = btn.dataset.act;
+      if (act === 'up' && pi > 0) {
+        [book.pages[pi-1], book.pages[pi]] = [book.pages[pi], book.pages[pi-1]];
+        _openPage = pi - 1;
+      } else if (act === 'down' && pi < book.pages.length - 1) {
+        [book.pages[pi+1], book.pages[pi]] = [book.pages[pi], book.pages[pi+1]];
+        _openPage = pi + 1;
+      } else if (act === 'dup') {
+        const clone = JSON.parse(JSON.stringify(book.pages[pi]));
+        clone.id = 'pg-' + Date.now() + '-' + Math.random().toString(16).slice(2, 6);
+        clone.title = (clone.title || 'Untitled') + ' (copy)';
+        book.pages.splice(pi + 1, 0, clone);
+        _openPage = pi + 1;
+      } else if (act === 'move') {
+        const otherBooks = library.books.filter((b, i) => i !== _selectedBook);
+        if (!otherBooks.length) { alert('No other books to move to. Create one first.'); return; }
+        const menu = otherBooks.map((b, i) => `${i+1}. ${b.name}`).join('\n');
+        const choice = prompt(`Move this page to which book?\n\n${menu}\n\nEnter number:`);
+        if (!choice) return;
+        const targetIdx = library.books.findIndex(b => b === otherBooks[Number(choice) - 1]);
+        if (targetIdx < 0) { alert('Invalid choice.'); return; }
+        const pg = book.pages.splice(pi, 1)[0];
+        library.books[targetIdx].pages.push(pg);
+        _openPage = null;
+      } else if (act === 'del') {
+        if (!confirm(`Delete page ${pi + 1}${book.pages[pi].title ? ' — "' + book.pages[pi].title + '"' : ''}?`)) return;
+        book.pages.splice(pi, 1);
+        _openPage = null;
+      }
+      pushLibrary(); renderBookList(); renderShelf(); renderPageFolds();
     });
   });
 

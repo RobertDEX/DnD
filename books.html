@@ -2448,46 +2448,7 @@ body::after{
   50%      { opacity: .5; transform: scale(1.15); }
 }
 
-/* ─── TOC SUB-ENTRIES (headings extracted from content) ─── */
-.toc-item-wrap {
-  display: block;
-  margin-bottom: 2px;
-}
-.toc-subs {
-  padding: 4px 0 8px 34px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-left: 1px dashed color-mix(in srgb, currentColor 22%, transparent);
-  margin-left: 14px;
-  animation: toc-subs-in .22s ease;
-}
-@keyframes toc-subs-in {
-  from { opacity: 0; transform: translateX(-3px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.toc-sub {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic;
-  padding: 3px 8px;
-  color: color-mix(in srgb, currentColor 60%, transparent);
-  cursor: pointer;
-  border-radius: 3px;
-  transition: all .12s;
-  line-height: 1.3;
-  border-left: 2px solid transparent;
-}
-.toc-sub:hover {
-  color: currentColor;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-  border-left-color: color-mix(in srgb, currentColor 40%, transparent);
-  transform: translateX(2px);
-}
-.toc-sub-h1 { font-size: .85rem; font-weight: 600; padding-left: 8px; }
-.toc-sub-h2 { font-size: .78rem; padding-left: 18px; }
-.toc-sub-h3 { font-size: .72rem; padding-left: 26px; opacity: .8; }
-.reader.holo-reader .toc-sub,
-.reader.grimm-reader .toc-sub { font-family: 'Share Tech Mono', monospace; font-style: normal; font-size: .68rem !important; letter-spacing: .08em; text-transform: uppercase; }
+/* ─── AUTO-SAVE INDICATOR (in DM panel head) ─── */
 
 /* ─── ENHANCED PAPER AESTHETIC ─── */
 /* Deeper aging on the paper — foxing spots, edge darkening,
@@ -3328,43 +3289,16 @@ function renderTocList() {
     // Danger badges only render on Grimm books — other books use the raw title
     const dr = isGrimm ? (pg.danger || '').toUpperCase() : '';
     const badge = dr ? `<span class="toc-danger dr-${dr.toLowerCase().replace(/[^a-z0-9]/g,'')}">${dr}</span>` : '';
-
-    // Extract h1/h2/h3 headings from the page content and render as sub-entries.
-    // Skip these when a search filter is active (results are already narrow enough).
-    let subEntries = '';
-    if (!q && pg.text) {
-      const headingMatches = [];
-      const lines = pg.text.split('\n');
-      lines.forEach(line => {
-        const m = line.match(/^(#{1,3})\s+(.+)$/);
-        if (m) headingMatches.push({ level: m[1].length, text: m[2].trim() });
-      });
-      if (headingMatches.length) {
-        subEntries = '<div class="toc-subs">' + headingMatches.map(h =>
-          `<div class="toc-sub toc-sub-h${h.level}" data-tocsub="${idx}">${esc(h.text)}</div>`
-        ).join('') + '</div>';
-      }
-    }
-
-    return `<div class="toc-item-wrap"><button class="toc-item ${idx===_readerPage?'active':''}" data-toc="${idx}">
+    return `<button class="toc-item ${idx===_readerPage?'active':''}" data-toc="${idx}">
       <span class="toc-num">${idx+1}</span>
       <span class="toc-name ${pg.title?'':'untitled'}">${pg.title?esc(pg.title):'Untitled'}</span>
       ${badge}
-    </button>${subEntries}</div>`;
+    </button>`;
   }).join('') : '<div class="toc-no-results">No pages match.</div>';
 
   listEl.querySelectorAll('[data-toc]').forEach(b => {
     b.addEventListener('click', () => {
       _readerPage = Number(b.dataset.toc);
-      renderReaderPage();
-      $('reader').classList.remove('toc-open');
-    });
-  });
-  // Sub-entry clicks — jump to the parent page (browser will scroll to the
-  // heading naturally via renderRichText's h1/h2/h3 rendering)
-  listEl.querySelectorAll('[data-tocsub]').forEach(el => {
-    el.addEventListener('click', () => {
-      _readerPage = Number(el.dataset.tocsub);
       renderReaderPage();
       $('reader').classList.remove('toc-open');
     });

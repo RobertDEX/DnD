@@ -7321,3 +7321,303 @@ input:focus, textarea:focus, select:focus{
   .grimm-toolbar { flex-direction: column; align-items: stretch; }
   .grimm-editor-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   GRIMM STUDIES CODEX — VISUAL POLISH PASS 2
+   Added 2026-07-27
+   · Animated red-ember particle backdrop
+   · Threat-tier pulses matching danger color
+   · Redesigned class badges with glow rings
+   · Field report / abilities / weaknesses cards with distinct treatment
+   · Refined typography with letter-glow
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── EMBER PARTICLE BACKDROP inside the shell ─── */
+.grimm-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 2px at 12% 18%, rgba(192,0,10,.35), transparent 60%),
+    radial-gradient(circle 3px at 78% 24%, rgba(192,0,10,.25), transparent 60%),
+    radial-gradient(circle 2px at 34% 62%, rgba(192,0,10,.30), transparent 60%),
+    radial-gradient(circle 2px at 86% 72%, rgba(192,0,10,.28), transparent 60%),
+    radial-gradient(circle 3px at 24% 88%, rgba(192,0,10,.22), transparent 60%),
+    radial-gradient(circle 2px at 62% 8%,  rgba(192,0,10,.32), transparent 60%),
+    radial-gradient(circle 2px at 8% 44%,  rgba(192,0,10,.24), transparent 60%),
+    radial-gradient(circle 3px at 92% 52%, rgba(192,0,10,.20), transparent 60%);
+  animation: grimm-embers 8s ease-in-out infinite alternate;
+  z-index: 0;
+  opacity: .8;
+}
+@keyframes grimm-embers {
+  0%   { transform: translateY(0) scale(1);   opacity: .8; }
+  50%  { transform: translateY(-8px) scale(1.05); opacity: .55; }
+  100% { transform: translateY(4px) scale(.98); opacity: .75; }
+}
+
+/* ─── ANIMATED THREAT-TIER PULSE on the detail badge ─── */
+.grimm-badge.grimm-threat {
+  position: relative;
+  animation: threat-pulse 2.6s ease-in-out infinite;
+}
+@keyframes threat-pulse {
+  0%, 100% { box-shadow: 0 0 12px -4px currentColor; }
+  50%      { box-shadow: 0 0 22px -2px currentColor, 0 0 40px -10px currentColor; }
+}
+.grimm-badge.grimm-threat::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  opacity: 0;
+  animation: threat-ring 2.6s ease-out infinite;
+}
+@keyframes threat-ring {
+  0%   { opacity: .8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* ─── REDESIGNED CLASS BADGES with concentric ring ─── */
+.grimm-badge.grimm-class {
+  position: relative;
+  padding-left: 22px;
+}
+.grimm-badge.grimm-class::before {
+  content: '';
+  position: absolute;
+  left: 6px; top: 50%;
+  transform: translateY(-50%);
+  width: 12px; height: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  box-shadow: inset 0 0 4px currentColor, 0 0 6px -1px currentColor;
+}
+.grimm-badge.grimm-class::after {
+  content: '';
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  width: 4px; height: 4px;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ─── SIDEBAR ROW — glow accent on active row ─── */
+.grimm-row.active {
+  animation: grimm-row-glow 3s ease-in-out infinite;
+}
+@keyframes grimm-row-glow {
+  0%, 100% { box-shadow: inset 0 0 24px -10px color-mix(in srgb, var(--gcol) 60%, transparent), 0 0 16px -6px var(--gcol); }
+  50%      { box-shadow: inset 0 0 30px -8px color-mix(in srgb, var(--gcol) 80%, transparent), 0 0 24px -4px var(--gcol); }
+}
+/* Threat badge in the row — subtle pulse */
+.grimm-row-threat {
+  animation: threat-badge-glow 3s ease-in-out infinite;
+}
+@keyframes threat-badge-glow {
+  0%, 100% { box-shadow: 0 0 8px -2px currentColor; }
+  50%      { box-shadow: 0 0 14px 0 currentColor; }
+}
+
+/* ─── FIELD REPORT SECTION — journal-entry treatment ─── */
+.grimm-sec:has(.grimm-sec-title:not(.grimm-dm-sec .grimm-sec-title)) .grimm-sec-body {
+  position: relative;
+  padding: 14px 16px 14px 20px;
+  background:
+    linear-gradient(180deg, rgba(0,20,40,.16) 0%, rgba(0,10,20,.14) 100%),
+    rgba(0,0,0,.15);
+  border-radius: 4px;
+  border-left: 3px solid rgba(0,212,255,.28);
+  box-shadow: inset 0 1px 0 rgba(0,212,255,.08);
+}
+.grimm-sec .grimm-sec-body::before {
+  content: '';
+  position: absolute;
+  top: 8px; bottom: 8px; left: 8px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(0,212,255,.18), transparent);
+}
+
+/* ─── COMBAT ABILITIES — proper combat card look ─── */
+.grimm-chip.ability {
+  position: relative;
+  padding: 8px 14px 8px 32px;
+  background: linear-gradient(135deg, rgba(232,167,44,.14), rgba(0,0,0,.55));
+  border-color: rgba(232,167,44,.5);
+  color: #ffd460;
+  text-shadow: 0 0 8px rgba(232,167,44,.5);
+  font-weight: 600;
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.grimm-chip.ability::before {
+  content: '⚔';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ffd460;
+  text-shadow: 0 0 8px rgba(232,167,44,.7);
+  font-size: .95rem;
+}
+.grimm-chip.ability:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -6px rgba(232,167,44,.5);
+  background: linear-gradient(135deg, rgba(232,167,44,.22), rgba(0,0,0,.5));
+}
+
+/* ─── WEAKNESSES — target-reticle bullets ─── */
+.grimm-weak {
+  position: relative;
+  padding: 10px 12px 10px 32px;
+  background: linear-gradient(135deg, rgba(0,232,144,.06), rgba(0,0,0,.25));
+  border-color: rgba(0,232,144,.3);
+  border-left-width: 3px;
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.grimm-weak::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px; height: 12px;
+  border: 1.5px solid var(--safe);
+  border-radius: 50%;
+  box-shadow: 0 0 6px -1px var(--safe);
+}
+.grimm-weak::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px; height: 2px;
+  background: var(--safe);
+  border-radius: 50%;
+  box-shadow: 0 0 4px var(--safe);
+}
+.grimm-weak:hover {
+  transform: translateX(3px);
+  box-shadow: 0 4px 12px -6px rgba(0,232,144,.35);
+}
+
+/* ─── PARTY RECORD STATS — bigger glow, better proportions ─── */
+.grimm-stat {
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.grimm-stat:hover {
+  transform: translateY(-2px);
+  border-color: var(--aura);
+  box-shadow: 0 8px 20px -8px rgba(0,212,255,.4);
+}
+.grimm-stat-value {
+  position: relative;
+}
+.grimm-stat-value::after {
+  content: '';
+  position: absolute;
+  left: 20%; right: 20%;
+  bottom: -4px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--aura), transparent);
+  opacity: .5;
+}
+
+/* ─── GRIMM NAME — glimmer effect ─── */
+.grimm-name {
+  background: linear-gradient(90deg,
+    #eaf6ff 0%,
+    #ffffff 50%,
+    #eaf6ff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: grimm-name-shine 4s ease-in-out infinite;
+}
+@keyframes grimm-name-shine {
+  0%   { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── HABITAT LINE — pin drop pulse ─── */
+.grimm-habitat {
+  padding: 6px 12px;
+  background: rgba(0,0,0,.35);
+  border-radius: 4px;
+  border-left: 2px solid rgba(0,212,255,.3);
+  display: inline-block;
+  transition: border-color .2s;
+}
+.grimm-habitat:hover {
+  border-left-color: var(--aura);
+  background: rgba(0,212,255,.06);
+}
+
+/* ─── SECTION TITLE — subtle rise-in ─── */
+.grimm-sec-title {
+  position: relative;
+  overflow: hidden;
+}
+.grimm-sec-title::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 12px;
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--aura), transparent);
+  opacity: .6;
+}
+
+/* ─── TOOLBAR SEARCH INPUT — enhanced focus glow ─── */
+.grimm-search:focus {
+  outline: none;
+  border-color: var(--aura);
+  box-shadow:
+    0 0 0 3px rgba(0,210,255,.14),
+    inset 0 0 20px -8px rgba(0,210,255,.4),
+    0 0 20px -8px rgba(0,212,255,.5);
+  background: linear-gradient(180deg, rgba(0,20,40,.5), rgba(0,10,25,.4));
+}
+
+/* ─── EMPTY STATE — animated icon ─── */
+.grimm-detail-empty .grimm-empty-icon {
+  animation: grimm-empty-float 3s ease-in-out infinite;
+}
+@keyframes grimm-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* ─── DETAIL PANEL — subtle grid overlay for HUD feel ─── */
+.grimm-detail-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── DM EDITOR — full-width fields get more breathing room ─── */
+.grimm-editor {
+  background: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,10,25,.4));
+}
+.grimm-field textarea {
+  transition: all .15s;
+}
+.grimm-field textarea:focus {
+  outline: none;
+  border-color: var(--aura);
+  background: rgba(0,20,40,.6);
+  box-shadow: 0 0 0 2px rgba(0,212,255,.12), inset 0 0 20px -10px rgba(0,212,255,.3);
+}

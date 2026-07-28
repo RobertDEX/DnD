@@ -2684,6 +2684,250 @@ body::after{
   box-shadow: 0 0 0 3px rgba(0,210,255,.10);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LIBRARY SUBTLE POLISH PASS — micro-interactions & refinements
+   Added 2026-07-27
+   Nothing loud. Just felt-more-than-seen touches.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Page turn: subtle fade-in on new page render ─── */
+.page-body-wrap {
+  animation: page-fade-in .28s cubic-bezier(.4,0,.2,1);
+}
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Match the transition on the private notes bar so the head doesn't snap */
+.notes-read-bar,
+.notes-edit-head {
+  animation: page-fade-in .28s cubic-bezier(.4,0,.2,1);
+}
+
+/* ─── Text selection colors per reader style ─── */
+.reader.paper .reader-body ::selection {
+  background: rgba(160, 130, 90, .35);
+  color: #2a1e10;
+  text-shadow: none;
+}
+.reader.notebook-reader .reader-body ::selection {
+  background: rgba(120, 100, 70, .4);
+  color: #1e1610;
+  text-shadow: none;
+}
+.reader.holo-reader .reader-body ::selection,
+.reader.grimm-reader .reader-body ::selection {
+  background: rgba(0, 210, 255, .35);
+  color: #eaf6ff;
+  text-shadow: none;
+}
+
+/* ─── Scroll fade indicators — top and bottom of the reader body ─── */
+.reader-body {
+  position: relative;
+}
+.reader-body::before,
+.reader-body::after {
+  content: '';
+  position: sticky;
+  left: 0; right: 0;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+  z-index: 4;
+  transition: opacity .2s;
+}
+.reader-body::before {
+  top: 0;
+  margin-bottom: -20px;
+  background: linear-gradient(180deg, currentColor 0%, transparent 100%);
+  color: transparent;
+}
+.reader-body::after {
+  bottom: 0;
+  margin-top: -20px;
+  background: linear-gradient(0deg, currentColor 0%, transparent 100%);
+  color: transparent;
+}
+.reader.paper .reader-body::before,
+.reader.paper .reader-body::after,
+.notebook-reader .reader-body::before,
+.notebook-reader .reader-body::after {
+  color: rgba(180, 150, 100, .3);
+}
+.holo-reader .reader-body::before,
+.holo-reader .reader-body::after,
+.grimm-reader .reader-body::before,
+.grimm-reader .reader-body::after {
+  color: rgba(4, 8, 18, .55);
+}
+
+/* ─── Typography polish — kerning + ligatures on body copy ─── */
+.reader .page-text,
+.reader .page-title,
+.gs-result-snippet,
+.book-desc-tooltip {
+  font-feature-settings: 'kern' 1, 'liga' 1, 'onum' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* Small-caps first line for pull-quotes */
+.rt-content blockquote:first-line {
+  font-variant: small-caps;
+  letter-spacing: .02em;
+}
+
+/* ─── Book shelf hover: title micro-shift for depth cue ─── */
+.book:not(.grimm) .book-title,
+.book:not(.grimm) .book-author {
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.book:not(.grimm):hover .book-title {
+  transform: translateY(-1px);
+}
+.book:not(.grimm):hover .book-author {
+  transform: translateY(-.5px);
+}
+.book:not(.grimm):hover .book-deco {
+  transform: scale(1.06);
+  transition: transform .3s cubic-bezier(.2,.8,.2,1);
+}
+
+/* ─── Bookmark button pulses when the current page is bookmarked ─── */
+.reader-ctrl-btn.active {
+  animation: bookmark-glow 2.8s ease-in-out infinite;
+}
+@keyframes bookmark-glow {
+  0%, 100% { box-shadow: 0 0 8px -2px rgba(232,167,44,.35); }
+  50%      { box-shadow: 0 0 14px 0 rgba(232,167,44,.5); }
+}
+
+/* ─── Progress bar micro-tick — small flash when it advances ─── */
+.reader-progress-fill {
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+  will-change: width;
+}
+
+/* ─── Reader overlay: smoother open animation with backdrop breath ─── */
+.reader-overlay {
+  transition: background .35s ease;
+}
+.reader-overlay.open {
+  animation: overlay-in .32s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── TOC item: subtle "you are here" marker on the active row ─── */
+.toc-item.active {
+  position: relative;
+}
+.toc-item.active::before {
+  content: '';
+  position: absolute;
+  left: -3px; top: 20%; bottom: 20%;
+  width: 2px;
+  background: currentColor;
+  opacity: .6;
+  box-shadow: 0 0 4px currentColor;
+  animation: toc-marker-pulse 2.4s ease-in-out infinite;
+}
+@keyframes toc-marker-pulse {
+  0%, 100% { opacity: .6; }
+  50%      { opacity: 1; }
+}
+
+/* ─── Page nav buttons: cursor + hover polish ─── */
+.page-nav-btn {
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.page-nav-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.page-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
+/* ─── Page dots: current one gets a soft ring ─── */
+.page-dot.current {
+  box-shadow: 0 0 0 3px rgba(0,210,255,.18), 0 0 8px rgba(0,210,255,.4);
+}
+
+/* ─── DM workspace: input focus rings across all fields ─── */
+.dm-field input:focus,
+.dm-field textarea:focus,
+.dm-field select:focus {
+  transition: box-shadow .18s, border-color .18s, background .18s;
+}
+
+/* ─── Search input: subtle inner-glow on focus ─── */
+.gs-input:focus,
+.grimm-search:focus,
+.toc-search:focus,
+.dm-list-search:focus {
+  animation: search-focus-glow .5s ease-out;
+}
+@keyframes search-focus-glow {
+  0%   { box-shadow: 0 0 0 8px rgba(0,210,255,.2); }
+  100% { box-shadow: 0 0 0 3px rgba(0,210,255,.14); }
+}
+
+/* ─── Save indicator: subtle tap feel + micro-transition on state ─── */
+.save-indicator {
+  cursor: default;
+}
+.save-indicator.save-saving {
+  transition: none; /* let the pulse read cleanly */
+}
+
+/* ─── Book cover image icon: tiny float on hover ─── */
+.book:not(.grimm):not(.locked):hover .book-deco {
+  animation: book-icon-float 2.8s ease-in-out infinite;
+}
+@keyframes book-icon-float {
+  0%, 100% { transform: scale(1.06) translateY(0); }
+  50%      { transform: scale(1.06) translateY(-2px); }
+}
+
+/* ─── Rich text: proper widow/orphan prevention ─── */
+.rt-content p, .rt-content h1, .rt-content h2, .rt-content h3 {
+  orphans: 2;
+  widows: 2;
+}
+/* Slightly tighter paragraph spacing on the reader for a more book-like feel */
+.reader .rt-content p + p {
+  margin-top: .55em;
+}
+/* First-child paragraph after a heading gets a bit more air */
+.rt-content h1 + p,
+.rt-content h2 + p,
+.rt-content h3 + p {
+  margin-top: .8em;
+}
+
+/* ─── DM panel: smoother open ─── */
+.dm-panel {
+  transition: opacity .3s ease, transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.dm-overlay.open .dm-panel {
+  opacity: 1;
+}
+.dm-overlay:not(.open) .dm-panel {
+  opacity: 0;
+}
+
+/* ─── Buttons: consistent tactile press ─── */
+.btn:not(:disabled):active,
+.reader-ctrl-btn:not(:disabled):active,
+.ws-tool:not(:disabled):active {
+  transform: translateY(0) scale(.98);
+  transition-duration: .06s;
+}
+
 </style>
 
 </head>

@@ -7621,3 +7621,151 @@ input:focus, textarea:focus, select:focus{
   background: rgba(0,20,40,.6);
   box-shadow: 0 0 0 2px rgba(0,212,255,.12), inset 0 0 20px -10px rgba(0,212,255,.3);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   GRIMM STUDIES SUBTLE POLISH PASS — micro-refinements
+   Added 2026-07-27
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Detail panel: subtle fade-in when switching entries ─── */
+.grimm-detail-inner {
+  animation: grimm-detail-in .32s cubic-bezier(.4,0,.2,1);
+}
+@keyframes grimm-detail-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Corner brackets: stagger power-on when modal opens ─── */
+.grimm-corner.tl { animation: grimm-corner-in .5s cubic-bezier(.2,.8,.2,1); }
+.grimm-corner.tr { animation: grimm-corner-in .5s cubic-bezier(.2,.8,.2,1) .08s both; }
+.grimm-corner.bl { animation: grimm-corner-in .5s cubic-bezier(.2,.8,.2,1) .16s both; }
+.grimm-corner.br { animation: grimm-corner-in .5s cubic-bezier(.2,.8,.2,1) .24s both; }
+@keyframes grimm-corner-in {
+  from { opacity: 0; transform: scale(1.4); filter: blur(2px); }
+  to   { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+/* ─── Text selection inside the codex ─── */
+.grimm-codex-modal ::selection {
+  background: rgba(0, 210, 255, .35);
+  color: #eaf6ff;
+  text-shadow: none;
+}
+
+/* ─── Sidebar row: subtle press feedback ─── */
+.grimm-row:active {
+  transform: translateX(3px) scale(.995);
+  transition-duration: .06s;
+}
+
+/* ─── Detail header: name typography polish ─── */
+.grimm-name {
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  text-rendering: optimizeLegibility;
+}
+.grimm-detail-body {
+  font-feature-settings: 'kern' 1, 'liga' 1, 'onum' 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── Section title: subtle appearance on scroll into view ─── */
+.grimm-sec {
+  animation: grimm-sec-in .38s cubic-bezier(.4,0,.2,1) both;
+}
+.grimm-sec:nth-child(1) { animation-delay: .04s; }
+.grimm-sec:nth-child(2) { animation-delay: .10s; }
+.grimm-sec:nth-child(3) { animation-delay: .16s; }
+.grimm-sec:nth-child(4) { animation-delay: .22s; }
+.grimm-sec:nth-child(5) { animation-delay: .28s; }
+@keyframes grimm-sec-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Combat ability chip: subtle press ─── */
+.grimm-chip.ability:active {
+  transform: translateY(0) scale(.98);
+  transition-duration: .06s;
+}
+
+/* ─── Empty state search icon micro-glow ─── */
+.grimm-empty-icon {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+/* ─── Backdrop breath: barely perceptible ─── */
+.grimm-backdrop {
+  animation: grimm-backdrop-breath 12s ease-in-out infinite;
+}
+@keyframes grimm-backdrop-breath {
+  0%, 100% { backdrop-filter: blur(8px); }
+  50%      { backdrop-filter: blur(10px); }
+}
+
+/* ─── Sidebar scrollbar polish ─── */
+.grimm-list::-webkit-scrollbar {
+  width: 6px;
+}
+.grimm-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, .3);
+}
+.grimm-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0,210,255,.35), rgba(0,210,255,.15));
+  border-radius: 999px;
+}
+.grimm-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(0,210,255,.55), rgba(0,210,255,.28));
+}
+
+/* ─── Editor field: focus rings + inner glow ─── */
+.grimm-field input:focus,
+.grimm-field select:focus {
+  animation: grimm-field-focus .35s ease-out;
+}
+@keyframes grimm-field-focus {
+  0%   { box-shadow: 0 0 0 6px rgba(0,210,255,.14); }
+  100% { box-shadow: 0 0 0 2px rgba(0,210,255,.12); }
+}
+
+/* ─── Detail panel scroll: subtle top/bottom fade shadows ─── */
+.grimm-detail {
+  position: relative;
+}
+.grimm-detail::before,
+.grimm-detail::after {
+  content: '';
+  position: sticky;
+  left: 0; right: 0;
+  height: 18px;
+  display: block;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity .2s;
+}
+.grimm-detail::before {
+  top: 0;
+  margin-bottom: -18px;
+  background: linear-gradient(180deg, rgba(4,2,10,.45) 0%, transparent 100%);
+}
+.grimm-detail::after {
+  bottom: 0;
+  margin-top: -18px;
+  background: linear-gradient(0deg, rgba(4,2,10,.45) 0%, transparent 100%);
+}
+
+/* ─── Party record numbers: subtle count-up feel via slight shine ─── */
+.grimm-stat-value {
+  background: linear-gradient(180deg, currentColor 0%, color-mix(in srgb, currentColor 70%, transparent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ─── Habitat label: subtle icon lift on hover ─── */
+.grimm-habitat {
+  transition: border-left-color .2s, background .2s, transform .2s;
+}
+.grimm-habitat:hover {
+  transform: translateX(2px);
+}

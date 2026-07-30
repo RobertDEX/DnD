@@ -882,8 +882,18 @@ function applyCurse(curse) {
 }
 
 let _pushDebounce = null;
+let _firstSnapshotReceived = false; // Set true when Firebase confirms a snapshot arrived. Blocks writes until then.
 async function pushState(immediate = false) {
   if (spectator) return; // spectators never write
+  // CRITICAL: block writes until Firebase confirms a snapshot has actually
+  // arrived. Without this, a page-load race where the user types a name into
+  // a default character BEFORE the snapshot lands would push a mostly-empty
+  // state (only that one name) and wipe every other character + world data.
+  if (!_firstSnapshotReceived) {
+    console.warn('pushState: BLOCKED — first Firebase snapshot has not arrived yet. Refusing to write.');
+    setSyncDot('warn');
+    return;
+  }
   const hasData = state.characters.some(c => c.name && c.name.trim());
   if (!hasData) return;
   const target = (typeof activeCampaignDoc === 'function') ? activeCampaignDoc() : 'rwby-campaign';
@@ -913,6 +923,10 @@ function startListener() {
   const target = (typeof activeCampaignDoc === 'function') ? activeCampaignDoc() : 'rwby-campaign';
   _unsub = onSnapshot(doc(db, 'campaigns', target), snap => {
     if (!snap.exists()) {
+      // Fresh campaign — no doc exists yet. Safe to allow writes so the DM
+      // can create the initial data. This is the only path that flips the
+      // flag WITHOUT a successful parse.
+      _firstSnapshotReceived = true;
       if (typeof _lastError !== 'undefined') _lastError = `campaigns/${target} does not exist yet`;
       setSyncDot('error');
       return;
@@ -924,10 +938,11 @@ function startListener() {
       // If the incoming payload is byte-identical to what we last applied,
       // there is nothing visible to change — skip the whole re-render. This
       // stops the "characters refreshing" flash caused by our own write echoes.
-      if (raw === _lastAppliedRaw) { setSyncDot('synced'); return; }
+      if (raw === _lastAppliedRaw) { setSyncDot('synced'); _firstSnapshotReceived = true; return; }
       _lastAppliedRaw = raw;
 
       const remote = normalize(JSON.parse(raw));
+      _firstSnapshotReceived = true; // parse succeeded — writes are safe now
       checkStateChanges(remote);  // #31 toasts
 
       // ── Stale-claim reconciliation ────────────────────────
@@ -1052,7 +1067,7 @@ function startListener() {
 function setSyncDot(s) {
   const d = document.getElementById('syncDot'); if (!d) return;
   d.className = 'sync-dot ' + s;
-  d.title = {synced:'Synced', syncing:'Syncing…', error:'Offline — changes may not save'}[s]||s;
+  d.title = {synced:'Synced', syncing:'Syncing…', warn:'Loading — writes blocked until sync', error:'Offline — changes may not save'}[s]||s;
 }
 
 
@@ -5850,6 +5865,7 @@ window.rwbyDebug = {
   currentDoc(){ return activeCampaignDoc(); },
   currentSize(){ return JSON.stringify(state).length; },
   lastError(){ return _lastError; },
+  snapshotStatus(){ return { received: _firstSnapshotReceived, chars: state.characters.length, dmUnlocked, spectator }; },
   async forcePush(){ return pushState(true); },
   help(){
     console.log(`RWBY Debug Utilities:

@@ -4761,3 +4761,152 @@ body::before {
   padding: .35rem .4rem;
   font-size: .78rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DM PANEL V2 — two-column grid, compact roster, clean forms
+   ═══════════════════════════════════════════════════════════════════ */
+.dm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .dm-grid { grid-template-columns: 1fr; }
+}
+.dm-col-left, .dm-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+}
+
+/* Compact roster — table-like rows instead of bloated cards */
+.dm-roster-compact {
+  padding: .4rem !important;
+}
+.dm-agent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 .6rem;
+  padding: .5rem .6rem !important;
+  margin-bottom: .3rem !important;
+  border-radius: 4px !important;
+  border-width: 1px !important;
+  cursor: pointer;
+}
+.dm-agent-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .2rem !important;
+}
+.dm-agent-pick {
+  font-size: .82rem !important;
+  font-weight: 700 !important;
+}
+.dm-agent-rank {
+  font-size: .52rem !important;
+  opacity: .6;
+}
+.dm-agent-state-tag {
+  font-size: .42rem !important;
+  padding: .1rem .35rem !important;
+}
+.dm-agent-controls {
+  grid-column: 1 / -1;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: .3rem !important;
+  margin-bottom: .15rem !important;
+}
+.dm-mini > span {
+  font-size: .4rem !important;
+}
+.dm-mini input, .dm-mini select {
+  padding: .25rem .35rem !important;
+  font-size: .7rem !important;
+}
+.dm-agent-actions {
+  grid-column: 1 / -1;
+  padding-top: .2rem !important;
+  border-top: 1px solid rgba(80,140,220,.08) !important;
+  gap: .3rem !important;
+}
+.dm-pts-display {
+  font-size: .65rem !important;
+}
+.dm-agent-reserve, .dm-agent-del {
+  font-size: .5rem !important;
+  padding: .2rem .5rem !important;
+}
+
+/* Compact quick-action rows */
+.dm-qa-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: .3rem;
+  align-items: end;
+}
+.dm-qa-row select,
+.dm-qa-row input {
+  min-width: 0;
+  padding: .35rem .4rem;
+  font-size: .75rem;
+}
+
+/* Presets — compact pill row */
+.dm-preset-row {
+  display: flex;
+  gap: .25rem;
+  flex-wrap: wrap;
+  margin: .4rem 0;
+}
+.dm-preset {
+  font-family: var(--F4);
+  font-size: .52rem;
+  letter-spacing: .06em;
+  padding: .25rem .5rem;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(80,140,220,.2);
+  color: var(--text-dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.dm-preset:hover {
+  background: rgba(74,139,245,.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Skill stone form — compact */
+.dm-ss-form {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.dm-ss-form input,
+.dm-ss-form select,
+.dm-ss-form textarea {
+  padding: .3rem .4rem;
+  font-size: .75rem;
+}
+.dm-ss-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: .3rem;
+}
+
+/* DM EXP status — compact bars */
+.dm-exp-status {
+  gap: .25rem !important;
+}
+.dm-exp-row {
+  grid-template-columns: 1fr auto 80px auto !important;
+  gap: .4rem !important;
+  padding: .25rem .4rem !important;
+}
+.dm-exp-name { font-size: .72rem !important; }
+.dm-exp-lvl { font-size: .58rem !important; }
+.dm-exp-nums { font-size: .5rem !important; }

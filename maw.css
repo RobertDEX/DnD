@@ -3501,6 +3501,11 @@ body{
 .dm-login-card {
   max-width: 380px;
   margin: 10vh auto 0;
+  background: linear-gradient(180deg, rgba(18,40,80,.9), rgba(14,32,65,.95));
+  border: 1px solid var(--sys-border);
+  border-radius: var(--r);
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,.8), 0 0 40px -10px var(--accent-glow);
+  overflow: hidden;
 }
 .dm-pass-input {
   width: 100%;

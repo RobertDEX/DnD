@@ -76,6 +76,7 @@
 
   <!-- ═══ TABS ═══ -->
   <div class="tab-bar">
+    <button class="tab-btn" data-tab="profile">Profile</button>
     <button class="tab-btn active" data-tab="status">◆ Status</button>
     <button class="tab-btn" data-tab="skills">Skills</button>
     <button class="tab-btn" data-tab="loadout">Loadout</button>
@@ -87,13 +88,9 @@
     <button class="tab-btn" data-tab="notes">Notes</button>
   </div>
 
-  <!-- ═══ STATUS TAB (Solo Leveling System Window) ═══ -->
-  <div class="tab-content active tab-panel" data-tab="status">
+  <!-- ═══ PROFILE TAB (character identity + vitals + combat) ═══ -->
+  <div class="tab-content tab-panel" data-tab="profile">
     <div class="status-tab-layout">
-
-      <!-- STATUS WINDOW -->
-      <section class="status-window-panel" id="statusWindow"></section>
-
       <!-- IDENTITY -->
       <section class="panel">
         <div class="panel-title">Identity</div>
@@ -106,9 +103,7 @@
           <div class="identity-fields">
             <div class="field big"><label>Name</label><input id="charName" type="text" placeholder="Character name"></div>
             <div class="field"><label>Title</label><input id="charCodename" type="text" placeholder="Earned title (e.g. Shadow Monarch)"></div>
-            <div class="field"><label>Class</label>
-              <select id="charRole"></select>
-            </div>
+            <div class="field"><label>Class</label><input id="charClassDisplay" type="text" readonly placeholder="Unlocks at Level 10 (DM assigns)"></div>
           </div>
         </div>
         <div class="form-grid">
@@ -192,6 +187,13 @@
         <div class="panel-title">Combat & Derived <span class="passive-perc">Passive Perception <strong id="passivePerc">10</strong></span></div>
         <div id="calcPanel"></div>
       </section>
+    </div>
+  </div>
+
+  <!-- ═══ STATUS TAB (Solo Leveling System Window — standalone) ═══ -->
+  <div class="tab-content active tab-panel" data-tab="status">
+    <div class="status-tab-layout">
+      <section class="status-window-panel" id="statusWindow"></section>
     </div>
   </div>
 

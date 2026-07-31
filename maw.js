@@ -194,7 +194,7 @@ function blankChar(i) {
   return {
     id:`dt-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'', codename:'', role:'', clearance:'', age:'', level:1, background:'',
-    playerClass:'knight',     // class from PLAYER_CLASSES
+    playerClass:'none',       // no class until DM assigns at level 10
     rank:'E',                 // letter rank E-S
     points:0,                 // gold currency
     title:'',                 // earned title (e.g. "Shadow Monarch")
@@ -327,7 +327,7 @@ function normalize(raw){
         cha: Math.max(0, Number(bs.cha) || 0)
       };
       mc.baseStatPoints = Math.max(0, Number(c.baseStatPoints ?? 9));
-      mc.playerClass = CLASS_BY_ID[c.playerClass] ? c.playerClass : 'knight';
+      mc.playerClass = (c.playerClass === 'none' || CLASS_BY_ID[c.playerClass]) ? c.playerClass : 'none';
       mc.title = String(c.title || '');
       mc.fatigue = clamp(Number(c.fatigue) || 0, 0, 100);
       if(!RANK_BY_ID[mc.rank]) mc.rank = 'E';      mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
@@ -696,7 +696,8 @@ function renderTabs(){
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
   try {
     switch(state.activeTab){
-      case 'status':    renderStatusWindow(); renderStats(); renderDamageTypes(); renderCalcPanel(); break;
+      case 'profile':   renderMainFields(); renderStats(); renderDamageTypes(); renderCalcPanel(); renderDeathSaves(); break;
+      case 'status':    renderStatusWindow(); break;
       case 'skills':    renderSkillsMatrix(); break;
       case 'loadout':   renderWeapons(); renderInventory(); break;
       case 'relations': renderRelationships(); break;
@@ -787,15 +788,18 @@ function renderMainFields(){
     else slot.style.removeProperty('--portrait-url');
     slot.classList.toggle('has-img', !!c.portrait);
   }
-  // Class dropdown — populate if empty
-  const roleSel = el('charRole');
-  if(roleSel){
-    if(!roleSel.options.length || roleSel.options.length < PLAYER_CLASSES.length){
-      roleSel.innerHTML = PLAYER_CLASSES.map(pc =>
-        `<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`
-      ).join('');
+  // Class display — read-only, DM assigns at level 10
+  const classDisplay = el('charClassDisplay');
+  if(classDisplay){
+    const cls = CLASS_BY_ID[c.playerClass];
+    if(cls){
+      classDisplay.value = `${cls.icon} ${cls.label}`;
+      classDisplay.style.color = cls.color;
+    } else {
+      const lvl = Number(c.level) || 1;
+      classDisplay.value = lvl >= 10 ? 'Awaiting assignment (DM)' : `Unlocks at Level 10 (currently ${lvl})`;
+      classDisplay.style.color = '';
     }
-    if(document.activeElement !== roleSel) roleSel.value = c.playerClass || 'knight';
   }
   // Rank dropdown
   const rkSel = el('charClearance'); if(rkSel && document.activeElement!==rkSel) rkSel.value = c.rank;
@@ -909,13 +913,15 @@ function renderStats(){
 function renderStatusWindow(){
   const host = el('statusWindow'); if(!host) return;
   const c = getChar();
-  const cls = CLASS_BY_ID[c.playerClass] || PLAYER_CLASSES[0];
+  const cls = CLASS_BY_ID[c.playerClass];
   const rank = RANK_BY_ID[c.rank] || RANKS[0];
   const remaining = systemPointsRemaining(c);
   const total = systemPointsTotal(c);
   const spent = systemPointsSpent(c);
   const hpPct = c.hp.max > 0 ? (c.hp.current / c.hp.max * 100) : 0;
   const mpPct = c.mana.max > 0 ? (c.mana.current / c.mana.max * 100) : 0;
+  const lvl = Number(c.level) || 1;
+  const classLabel = cls ? `<span style="color:${cls.color}">${cls.icon} ${cls.label}</span>` : (lvl >= 10 ? '<span style="color:var(--amber)">Awaiting Class</span>' : '<span style="color:var(--text-dim)">Locked (Lv.10)</span>');
 
   host.innerHTML = `
     <div class="sw-ornament tl"></div>
@@ -934,7 +940,7 @@ function renderStatusWindow(){
       </div>
       <div class="sw-info-row">
         <span class="sw-label">JOB:</span>
-        <span class="sw-value" style="color:${cls.color}">${cls.icon} ${cls.label}</span>
+        <span class="sw-value">${classLabel}</span>
         <span class="sw-label">FATIGUE:</span>
         <span class="sw-value">${c.fatigue || 0}</span>
       </div>
@@ -1613,14 +1619,20 @@ function renderDmPanel(){
           <label class="dm-mini"><span>Rank</span>
             <select class="dm-rank" data-i="${i}">${RANKS.map(r=>`<option value="${r.id}" ${c.rank===r.id?'selected':''}>${r.id} · ${r.title}</option>`).join('')}</select>
           </label>
-          <label class="dm-mini"><span>Points</span>
+          <label class="dm-mini"><span>Class ${(Number(c.level)||1)<10?'(Lv.10)':''}</span>
+            <select class="dm-class" data-i="${i}" ${(Number(c.level)||1)<10?'disabled':''}>
+              <option value="none" ${c.playerClass==='none'?'selected':''}>— No Class —</option>
+              ${PLAYER_CLASSES.map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
+            </select>
+          </label>
+          <label class="dm-mini"><span>Gold</span>
             <input class="dm-points" data-i="${i}" type="number" value="${c.points||0}">
           </label>
           <label class="dm-mini"><span>Status</span>
             <select class="dm-state" data-i="${i}">
               <option value="active" ${st==='active'?'selected':''}>Active</option>
               <option value="reserve" ${st==='reserve'?'selected':''}>Reserve</option>
-              <option value="dead" ${st==='dead'?'selected':''}>KIA</option>
+              <option value="dead" ${st==='dead'?'selected':''}>Dead</option>
             </select>
           </label>
         </div>
@@ -1633,6 +1645,16 @@ function renderDmPanel(){
     }).join('');
     roster.querySelectorAll('.dm-agent-pick').forEach(b=> b.addEventListener('click',()=>{ state.selectedCharacter=+b.dataset.i; render(); }));
     roster.querySelectorAll('.dm-rank').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].rank=s.value; pushState(true); render(); }));
+    roster.querySelectorAll('.dm-class').forEach(s=> s.addEventListener('change',()=>{
+      const c = state.characters[+s.dataset.i];
+      const oldClass = c.playerClass;
+      c.playerClass = s.value;
+      pushState(true); render();
+      if(s.value !== 'none' && oldClass === 'none'){
+        const cls = CLASS_BY_ID[s.value];
+        showToast(`${c.name||'Player'} has been granted the ${cls?.label||s.value} class!`, 'buy');
+      }
+    }));
     roster.querySelectorAll('.dm-points').forEach(inp=> inp.addEventListener('input',()=>{ state.characters[+inp.dataset.i].points=Math.max(0,Number(inp.value)||0); pushState(); renderHeader(); }));
     roster.querySelectorAll('.dm-state').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].state=s.value; pushState(true); render(); }));
     roster.querySelectorAll('.dm-agent-reserve').forEach(b=> b.addEventListener('click',()=>{ const c=state.characters[+b.dataset.i]; c.state = c.state==='reserve'?'active':'reserve'; pushState(true); render(); showToast(c.state==='reserve'?`${c.name||'Agent'} moved to reserve`:`${c.name||'Agent'} reinstated`,'info'); }));
@@ -3344,11 +3366,6 @@ function bindFields(){
   ii('currentMana','currentMana'); ii('maxMana','maxMana');
   ii('notesArea','notesText');
 
-  // Class dropdown
-  el('charRole')?.addEventListener('change', e=>{
-    getChar().playerClass = e.target.value;
-    pushState(true); render();
-  });
   // Rank dropdown
   el('charClearance')?.addEventListener('change', e=>{ getChar().rank=e.target.value; pushState(true); render(); });
 

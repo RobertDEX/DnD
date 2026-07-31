@@ -111,6 +111,20 @@ const RANKS = [
 ];
 const RANK_BY_ID = Object.fromEntries(RANKS.map(r=>[r.id,r]));
 
+const PLAYER_CLASSES = [
+  { id:'knight',    label:'Knight',    icon:'⚔', color:'#5aa8f5', primary:'STR', desc:'Frontline tank. Heavy armor, sword & shield.' },
+  { id:'sorcerer',  label:'Sorcerer',  icon:'🔮', color:'#a462d3', primary:'INT', desc:'Raw arcane power. High damage, fragile.' },
+  { id:'priest',    label:'Priest',    icon:'✝', color:'#ffd460', primary:'WIS', desc:'Healer and support. Radiant damage, buffs.' },
+  { id:'ranger',    label:'Ranger',    icon:'🏹', color:'#4ade80', primary:'DEX', desc:'Ranged DPS. Traps, beast companions.' },
+  { id:'assassin',  label:'Assassin',  icon:'🗡', color:'#c04a5a', primary:'DEX', desc:'Stealth striker. Critical hits, poison.' },
+  { id:'berserker', label:'Berserker', icon:'🪓', color:'#e0802a', primary:'STR', desc:'Reckless damage. Rage, cleave, lifesteal.' },
+  { id:'necromancer',label:'Necromancer',icon:'💀',color:'#8a5ad1',primary:'INT', desc:'Summons undead. Drains life. Dark magic.' },
+  { id:'paladin',   label:'Paladin',   icon:'🛡', color:'#e8a72c', primary:'CHA', desc:'Holy warrior. Smites, heals, auras.' }
+];
+const CLASS_BY_ID = Object.fromEntries(PLAYER_CLASSES.map(c => [c.id, c]));
+
+const RARITY_COLORS = { common:'#9aa6b2', uncommon:'#5a9a78', rare:'#5aa8f5', epic:'#a462d3', legendary:'#e8a72c' };
+
 // Threat grades for missions / anomalies and their point bounties
 const THREAT_GRADES = [
   { grade:'E', points:100,    color:'#7a8590', label:'Easy' },
@@ -180,16 +194,24 @@ function blankChar(i) {
   return {
     id:`dt-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'', codename:'', role:'', clearance:'', age:'', level:1, background:'',
-    rank:'E',            // corporate tier I-IV
-    points:0,            // mission points / currency
+    playerClass:'knight',     // class from PLAYER_CLASSES
+    rank:'E',                 // letter rank E-S
+    points:0,                 // gold currency
+    title:'',                 // earned title (e.g. "Shadow Monarch")
     division:'', site:'',
-    profBonusOverride:null, initiativeBonus:0, attackStat:'DEX',
+    profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
     portrait:'', accentColor:'', claimedBy:'',
-    stats:{STR:10,DEX:10,CON:10,INT:10,WIS:10,CHA:10},
+    // Base DnD stats — start at 8, player distributes 9 creation points
+    stats:{STR:8,DEX:8,CON:8,INT:8,WIS:8,CHA:8},
+    baseStatPoints:9,  // creation points remaining (out of 9)
+    // System Stats — gain 3 distributable points per level
+    // These ADD to the base DnD stats to form the effective score
+    systemStats:{str:0,dex:0,con:0,int:0,wis:0,cha:0},
     skills:makeBlankSkills(),
-    hp:{current:0,max:0}, sanity:{current:0,max:0},  // sanity replaces mana
+    hp:{current:0,max:0}, mana:{current:0,max:0},
     armor:10, speed:'30 ft', tempHp:0,
+    fatigue:0,  // 0-100, like Solo Leveling fatigue
     deathSaves:{successes:0,failures:0,stable:false},
     abilitiesText:'', notesText:'',
     relationships:[], weapons:[], inventory:[], anomalies:[], missions:[], abilities:[], commendations:[]
@@ -246,11 +268,41 @@ function ensureClamp(c){
   if(c.hp.max<0)c.hp.max=0;
   if(c.hp.current>c.hp.max)c.hp.current=c.hp.max;
   if(c.hp.current<0)c.hp.current=0;
-  if(c.sanity.max<0)c.sanity.max=0;
-  if(c.sanity.current>c.sanity.max)c.sanity.current=c.sanity.max;
-  if(c.sanity.current<0)c.sanity.current=0;
+  if(c.mana.max<0)c.mana.max=0;
+  if(c.mana.current>c.mana.max)c.mana.current=c.mana.max;
+  if(c.mana.current<0)c.mana.current=0;
   if(c.points<0)c.points=0;
+  c.fatigue = clamp(c.fatigue || 0, 0, 100);
 }
+
+// System Stats → DnD stat mapping. Each system stat point adds +1
+// to the corresponding DnD ability score. The base score comes from
+// the point-buy (starts at 8, 9 points to distribute at creation).
+const SYSTEM_STAT_MAP = {str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA'};
+const SYSTEM_STAT_LABELS = {str:'Strength', dex:'Agility', con:'Vitality', int:'Intelligence', wis:'Sense', cha:'Charisma'};
+
+function effectiveStat(c, stat) {
+  const base = Number(c.stats[stat]) || 8;
+  const sysKey = stat.toLowerCase();
+  const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
+  return base + sysBonus;
+}
+
+// How many system stat points the character has available to spend.
+// Formula: (level - 1) * 3 points total, minus what's already allocated.
+function systemPointsTotal(c) { return Math.max(0, (Number(c.level) || 1) - 1) * 3; }
+function systemPointsSpent(c) {
+  const ss = c.systemStats || {};
+  return Object.values(ss).reduce((sum, v) => sum + (Number(v) || 0), 0);
+}
+function systemPointsRemaining(c) { return Math.max(0, systemPointsTotal(c) - systemPointsSpent(c)); }
+
+// Base stat point-buy: 9 points distributed across 6 stats that start at 8.
+// Points spent = sum(stats) - 48 (6 stats × 8 base).
+function basePointsSpent(c) {
+  return STATS.reduce((sum, s) => sum + (Number(c.stats[s]) || 8), 0) - 48;
+}
+function basePointsRemaining(c) { return Math.max(0, 9 - basePointsSpent(c)); }
 
 function normalize(raw){
   const m = { ...state, ...raw };
@@ -261,9 +313,24 @@ function normalize(raw){
       const mc = { ...b, ...c };
       mc.stats = { ...b.stats, ...(c.stats||{}) };
       mc.hp = { ...b.hp, ...(c.hp||{}) };
-      mc.sanity = { ...b.sanity, ...(c.sanity||{}) };
+      // Migrate mana → mana (backwards compat)
+      mc.mana = { ...b.mana, ...(c.mana || c.sanity || {}) };
       mc.deathSaves = { ...b.deathSaves, ...(c.deathSaves||{}) };
-      mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
+      // System Stats — parallel stat pool that boosts DnD stats
+      const bs = c.systemStats || {};
+      mc.systemStats = {
+        str: Math.max(0, Number(bs.str) || 0),
+        dex: Math.max(0, Number(bs.dex) || 0),
+        con: Math.max(0, Number(bs.con) || 0),
+        int: Math.max(0, Number(bs.int) || 0),
+        wis: Math.max(0, Number(bs.wis) || 0),
+        cha: Math.max(0, Number(bs.cha) || 0)
+      };
+      mc.baseStatPoints = Math.max(0, Number(c.baseStatPoints ?? 9));
+      mc.playerClass = CLASS_BY_ID[c.playerClass] ? c.playerClass : 'knight';
+      mc.title = String(c.title || '');
+      mc.fatigue = clamp(Number(c.fatigue) || 0, 0, 100);
+      if(!RANK_BY_ID[mc.rank]) mc.rank = 'E';      mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
       mc.weapons    = Array.isArray(c.weapons)?c.weapons:[];
       mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
       mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
@@ -277,7 +344,7 @@ function normalize(raw){
       }));
       mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
       if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
-      if(!RANK_BY_ID[mc.rank]) mc.rank = 'I';
+      if(!RANK_BY_ID[mc.rank]) mc.rank = 'E';
       const blankSk = makeBlankSkills(); mc.skills = {};
       Object.keys(blankSk).forEach(n=>{ mc.skills[n] = { ...blankSk[n], ...(c.skills?.[n]||{}) }; });
       return mc;
@@ -386,15 +453,15 @@ function skillTotal(c, skillName){
   const def = SKILL_DEFS.find(s=>s.name===skillName);
   if(!def) return 0;
   const sk = c.skills[skillName] || {prof:false,expert:false,misc:0};
-  let total = mod(c.stats[def.stat]);
+  let total = mod(effectiveStat(c, def.stat));
   const pb = profBonus(c);
   if(sk.expert) total += pb*2;
   else if(sk.prof) total += pb;
   total += Number(sk.misc)||0;
   return total;
 }
-function calcInitiative(c){ return mod(c.stats.DEX) + (Number(c.initiativeBonus)||0); }
-function attackBonus(c){ return mod(c.stats[c.attackStat||'DEX']) + profBonus(c); }
+function calcInitiative(c){ return mod(effectiveStat(c, 'DEX')) + (Number(c.initiativeBonus)||0); }
+function attackBonus(c){ return mod(effectiveStat(c, c.attackStat||'STR')) + profBonus(c); }
 
 // ================================================================
 // FIREBASE SYNC
@@ -597,6 +664,7 @@ function render(){
   try{ renderHeader(); }catch(e){ console.error('header',e); }
   try{ renderMainFields(); }catch(e){ console.error('fields',e); }
   try{ renderStats(); }catch(e){ console.error('stats',e); }
+  try{ renderStatusWindow(); }catch(e){ console.error('statusWindow',e); }
   try{ renderDamageTypes(); }catch(e){ console.error('damageTypes',e); }
   try{ renderSceneBanner(); }catch(e){}
   try{ renderPlayerCases(); }catch(e){}
@@ -615,7 +683,7 @@ function render(){
   try{ renderDmPanel(); }catch(e){}
   try{ applyCharacterAccents(); }catch(e){}
   try{ renderIdentityBar(); }catch(e){}
-  try{ applySanityDamage(); }catch(e){}
+  try{ applyManaDamage(); }catch(e){}
   try{ applyHeartbeat(); }catch(e){}
   try{ updateAmbient(); }catch(e){}
   try{ renderTabs(); }catch(e){}
@@ -678,13 +746,13 @@ function renderHeader(){
   s('topRank', `${rk.tier} · ${rk.title}${rk.subtitle ? ' · ' + rk.subtitle : ''}`);
   s('topPoints', fmtGold(c.points)+' gold');
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
-  s('topSanityMini', `${c.sanity.current} / ${c.sanity.max}`);
+  s('topManaMini', `${c.mana.current} / ${c.mana.max}`);
   s('topArmorMini', c.armor);
   try { renderDmTargetPicker(); } catch(e){}
   const hpPct = c.hp.max>0?(c.hp.current/c.hp.max)*100:0;
-  const sPct  = c.sanity.max>0?(c.sanity.current/c.sanity.max)*100:0;
+  const sPct  = c.mana.max>0?(c.mana.current/c.mana.max)*100:0;
   const hb=el('topHpBar'); if(hb) hb.style.width=clamp(hpPct,0,100)+'%';
-  const sb=el('topSanityBar'); if(sb) sb.style.width=clamp(sPct,0,100)+'%';
+  const sb=el('topManaBar'); if(sb) sb.style.width=clamp(sPct,0,100)+'%';
   const rb=el('topRankBadge'); if(rb){ rb.textContent=rk.id; rb.style.color=rk.color; rb.style.borderColor=rk.color; }
 }
 
@@ -708,7 +776,7 @@ function renderMainFields(){
   sv('charBackground',c.background); sv('charDivision',c.division); sv('charSite',c.site);
   sv('charSpeed',c.speed); sv('charArmor',c.armor); sv('charTempHp',c.tempHp);
   sv('currentHp',c.hp.current); sv('maxHp',c.hp.max);
-  sv('currentSanity',c.sanity.current); sv('maxSanity',c.sanity.max);
+  sv('currentMana',c.mana.current); sv('maxMana',c.mana.max);
   sv('charPoints',c.points);
   const initDisp = el('initiativeDisplay'); if(initDisp) initDisp.value = fmtMod(calcInitiative(c));
   const pp = el('passivePerc'); if(pp) pp.textContent = passivePerception(c);
@@ -767,8 +835,11 @@ function renderStats(){
   const c = getChar();
   const grid = el('statsGrid'); if(!grid) return;
   grid.innerHTML = STATS.map(st=>{
-    const score = c.stats[st];
-    const m = mod(score);
+    const base = Number(c.stats[st]) || 8;
+    const sysKey = st.toLowerCase();
+    const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
+    const effective = base + sysBonus;
+    const m = mod(effective);
     const modPos = m > 0;
     const modZero = m === 0;
     return `
@@ -782,19 +853,143 @@ function renderStats(){
         <span class="stat-mod-val">${Math.abs(m)}</span>
       </div>
       <div class="stat-score-row">
-        <button class="stat-adj minus" data-stat="${st}" data-action="minus" title="Decrease">−</button>
-        <input class="stat-score" id="stat_${st}" type="number" value="${score}" data-stat="${st}" aria-label="${st} score">
-        <button class="stat-adj plus" data-stat="${st}" data-action="plus" title="Increase">+</button>
+        <button class="stat-adj minus" data-stat="${st}" data-action="minus" title="Decrease base">−</button>
+        <input class="stat-score" id="stat_${st}" type="number" value="${base}" data-stat="${st}" aria-label="${st} base score">
+        <button class="stat-adj plus" data-stat="${st}" data-action="plus" title="Increase base">+</button>
       </div>
+      ${sysBonus > 0 ? `<div class="stat-sys-bonus">+${sysBonus} system</div>` : ''}
+      <div class="stat-effective">= ${effective}</div>
       <div class="stat-corner tl"></div>
       <div class="stat-corner br"></div>
     </div>`;
   }).join('');
+  // Base creation points remaining
+  const bpr = basePointsRemaining(c);
+  const bprEl = el('basePointsRemaining');
+  if (bprEl) bprEl.textContent = bpr;
+
   grid.querySelectorAll('.stat-score').forEach(inp=>{
-    inp.addEventListener('input', e=>{ c.stats[e.target.dataset.stat]=Number(e.target.value)||0; pushState(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHeader(); });
+    inp.addEventListener('input', e=>{
+      const newVal = Number(e.target.value) || 8;
+      c.stats[e.target.dataset.stat] = newVal;
+      pushState(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHeader();
+      renderStatusWindow();
+    });
   });
   grid.querySelectorAll('.stat-adj').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ const st=btn.dataset.stat; c.stats[st]=(Number(c.stats[st])||0)+(btn.dataset.action==='plus'?1:-1); pushState(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHeader(); });
+    btn.addEventListener('click', ()=>{
+      const st=btn.dataset.stat;
+      const dir = btn.dataset.action==='plus' ? 1 : -1;
+      // If increasing, check base point budget
+      if (dir > 0 && basePointsRemaining(c) <= 0) return;
+      const newVal = (Number(c.stats[st])||8) + dir;
+      if (newVal < 1) return;
+      c.stats[st] = newVal;
+      pushState(); renderStats(); renderSkillsMatrix(); renderCalcPanel(); renderHeader();
+      renderStatusWindow();
+    });
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// STATUS WINDOW — Solo Leveling system panel
+// Shows the character's System Stats with point allocation,
+// HP/MP bars, class, title, fatigue, and remaining points.
+// ═════════════════════════════════════════════════════════════════
+function renderStatusWindow(){
+  const host = el('statusWindow'); if(!host) return;
+  const c = getChar();
+  const cls = CLASS_BY_ID[c.playerClass] || PLAYER_CLASSES[0];
+  const rank = RANK_BY_ID[c.rank] || RANKS[0];
+  const remaining = systemPointsRemaining(c);
+  const total = systemPointsTotal(c);
+  const spent = systemPointsSpent(c);
+  const hpPct = c.hp.max > 0 ? (c.hp.current / c.hp.max * 100) : 0;
+  const mpPct = c.mana.max > 0 ? (c.mana.current / c.mana.max * 100) : 0;
+
+  host.innerHTML = `
+    <div class="sw-ornament tl"></div>
+    <div class="sw-ornament tr"></div>
+    <div class="sw-ornament bl"></div>
+    <div class="sw-ornament br"></div>
+    <div class="sw-crest"></div>
+    <h2 class="sw-title">STATUS</h2>
+
+    <div class="sw-info-grid">
+      <div class="sw-info-row">
+        <span class="sw-label">NAME:</span>
+        <span class="sw-value">${esc(c.name || '—')}</span>
+        <span class="sw-label">LEVEL:</span>
+        <span class="sw-value">${c.level || 1}</span>
+      </div>
+      <div class="sw-info-row">
+        <span class="sw-label">JOB:</span>
+        <span class="sw-value" style="color:${cls.color}">${cls.icon} ${cls.label}</span>
+        <span class="sw-label">FATIGUE:</span>
+        <span class="sw-value">${c.fatigue || 0}</span>
+      </div>
+      <div class="sw-info-row single">
+        <span class="sw-label">TITLE:</span>
+        <span class="sw-value">${esc(c.title || 'None')}</span>
+      </div>
+    </div>
+
+    <div class="sw-bars">
+      <div class="sw-bar-group">
+        <span class="sw-bar-label">HP:</span>
+        <span class="sw-bar-nums">${c.hp.current} / ${c.hp.max}</span>
+        <div class="sw-bar hp"><div class="sw-bar-fill" style="width:${hpPct}%"></div></div>
+      </div>
+      <div class="sw-bar-group">
+        <span class="sw-bar-label">MP:</span>
+        <span class="sw-bar-nums">${c.mana.current} / ${c.mana.max}</span>
+        <div class="sw-bar mp"><div class="sw-bar-fill" style="width:${mpPct}%"></div></div>
+      </div>
+    </div>
+
+    <div class="sw-divider"><span class="sw-diamond">◆</span></div>
+
+    <div class="sw-sys-stats">
+      ${Object.entries(SYSTEM_STAT_LABELS).map(([key, label]) => {
+        const val = Number(c.systemStats?.[key]) || 0;
+        const canAdd = remaining > 0;
+        return `
+        <div class="sw-sys-row">
+          <span class="sw-sys-label">${label.toUpperCase()}:</span>
+          <span class="sw-sys-value">${val}</span>
+          <div class="sw-sys-adj">
+            <button class="sw-sys-btn plus" data-sysstat="${key}" ${canAdd?'':'disabled'} title="+1 ${label}">▲</button>
+            <button class="sw-sys-btn minus" data-sysstat="${key}" ${val<=0?'disabled':''} title="-1 ${label}">▼</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="sw-divider"><span class="sw-diamond">◆</span></div>
+
+    <div class="sw-remaining">
+      <span class="sw-remaining-label">REMAINING POINTS:</span>
+      <span class="sw-remaining-value ${remaining>0?'has-points':''}">${remaining}</span>
+      <span class="sw-remaining-sub">(${spent} / ${total} used)</span>
+    </div>
+  `;
+
+  // Wire system stat +/- buttons
+  host.querySelectorAll('.sw-sys-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sysstat;
+      const dir = btn.classList.contains('plus') ? 1 : -1;
+      if (dir > 0 && systemPointsRemaining(c) <= 0) return;
+      const newVal = (Number(c.systemStats[key]) || 0) + dir;
+      if (newVal < 0) return;
+      c.systemStats[key] = newVal;
+      pushState(true);
+      renderStatusWindow();
+      renderStats();
+      renderSkillsMatrix();
+      renderCalcPanel();
+      renderHeader();
+    });
   });
 }
 
@@ -1351,7 +1546,7 @@ function renderAbilities(){
         <label><span>Type</span>
           <select class="ab-type" data-i="${i}">${TALENT_TYPES.map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}</select>
         </label>
-        <label><span>Cost</span><input class="ab-cost" data-i="${i}" value="${esc(a.cost||'')}" placeholder="e.g. 2 Sanity"></label>
+        <label><span>Cost</span><input class="ab-cost" data-i="${i}" value="${esc(a.cost||'')}" placeholder="e.g. 2 Mana"></label>
         <label><span>Cooldown</span><input class="ab-cooldown" data-i="${i}" value="${esc(a.cooldown||'')}" placeholder="e.g. 1/day"></label>
       </div>
       <textarea class="ab-desc" data-i="${i}" placeholder="What it does, how it works, any risks…">${esc(a.desc||'')}</textarea>
@@ -2174,9 +2369,9 @@ function bulkApply(kind){
       case 'hp-dmg':   c.hp.current = clamp((c.hp.current||0)-amt,0,c.hp.max); verb=`−${amt} HP`; break;
       case 'hp-heal':  c.hp.current = clamp((c.hp.current||0)+amt,0,c.hp.max); verb=`+${amt} HP`; break;
       case 'hp-full':  c.hp.current = c.hp.max; verb='HP restored'; break;
-      case 'san-dmg':  c.sanity.current = clamp((c.sanity.current||0)-amt,0,c.sanity.max); verb=`−${amt} Sanity`; break;
-      case 'san-heal': c.sanity.current = clamp((c.sanity.current||0)+amt,0,c.sanity.max); verb=`+${amt} Sanity`; break;
-      case 'san-full': c.sanity.current = c.sanity.max; verb='Sanity restored'; break;
+      case 'san-dmg':  c.mana.current = clamp((c.mana.current||0)-amt,0,c.mana.max); verb=`−${amt} Mana`; break;
+      case 'san-heal': c.mana.current = clamp((c.mana.current||0)+amt,0,c.mana.max); verb=`+${amt} Mana`; break;
+      case 'san-full': c.mana.current = c.mana.max; verb='Mana restored'; break;
       case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtGold(amt)} gold`; break;
       case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtGold(amt)} gold`; break;
     }
@@ -2259,15 +2454,15 @@ function dmAddAgent(){
 }
 
 // ================================================================
-// RESOURCE ADJUST (HP / Sanity / Points quick buttons)
+// RESOURCE ADJUST (HP / Mana / Points quick buttons)
 // ================================================================
 function adjustResource(resource, amt){
   const c = getChar();
   if(resource==='hp'){ c.hp.current = clamp((c.hp.current||0)+amt, 0, c.hp.max); }
-  else if(resource==='sanity'){ c.sanity.current = clamp((c.sanity.current||0)+amt, 0, c.sanity.max); }
+  else if(resource==='mana'){ c.mana.current = clamp((c.mana.current||0)+amt, 0, c.mana.max); }
   else if(resource==='points'){ c.points = Math.max(0,(Number(c.points)||0)+amt); }
   ensureClamp(c); pushState(true); renderMainFields(); renderHeader();
-  if(resource==='sanity') applySanityDamage();
+  if(resource==='mana') applyManaDamage();
 }
 
 // ================================================================
@@ -2485,7 +2680,7 @@ function updateAmbient(){
   if(!_ambient) return;
   const c = getChar();
   const hpPct = c.hp.max>0 ? c.hp.current/c.hp.max : 1;
-  const sanPct = c.sanity.max>0 ? c.sanity.current/c.sanity.max : 1;
+  const sanPct = c.mana.max>0 ? c.mana.current/c.mana.max : 1;
   const low = Math.min(hpPct, sanPct);
   const ac = _ambient.ac;
   const tension = 1 - low;
@@ -2628,16 +2823,16 @@ function beginCorruption(){
 }
 
 // ================================================================
-// LOW-SANITY SCREEN DAMAGE — the whole screen degrades as sanity falls
+// LOW-SANITY SCREEN DAMAGE — the whole screen degrades as mana falls
 // Tied to the character you're viewing/controlling. Four bands:
 //   >50% none · 50-30% level1 · 30-15% level2 · <15% level3 (critical)
 // ================================================================
-let _sanityBand = 0;
-let _sanityWhisperTimer = null;
-function applySanityDamage(){
+let _manaBand = 0;
+let _manaWhisperTimer = null;
+function applyManaDamage(){
   const c = getChar();
-  const max = Number(c?.sanity?.max)||0;
-  const cur = Number(c?.sanity?.current)||0;
+  const max = Number(c?.mana?.max)||0;
+  const cur = Number(c?.mana?.current)||0;
   const pct = max>0 ? (cur/max)*100 : 100;   // no max set = treat as stable
   let band = 0;
   if(max>0){
@@ -2645,27 +2840,27 @@ function applySanityDamage(){
     else if(pct<=30) band = 2;
     else if(pct<=50) band = 1;
   }
-  if(band === _sanityBand){ ensureSanityOverlay(band); return; }
-  const rising = band > _sanityBand;
-  _sanityBand = band;
-  document.body.classList.remove('sanity-1','sanity-2','sanity-3');
-  ensureSanityOverlay(band);
+  if(band === _manaBand){ ensureManaOverlay(band); return; }
+  const rising = band > _manaBand;
+  _manaBand = band;
+  document.body.classList.remove('mana-1','mana-2','mana-3');
+  ensureManaOverlay(band);
   if(band>0){
-    document.body.classList.add('sanity-'+band);
+    document.body.classList.add('mana-'+band);
     if(rising){
       // sensory sting when it gets worse
       if(band>=2) SFX?.warn?.();
-      if(band>=3){ SFX?.alarm?.(); startSanityWhispers(); }
+      if(band>=3){ SFX?.alarm?.(); startManaWhispers(); }
     }
   }
-  if(band<3) stopSanityWhispers();
+  if(band<3) stopManaWhispers();
 }
-function ensureSanityOverlay(band){
-  let o = el('sanityOverlay');
+function ensureManaOverlay(band){
+  let o = el('manaOverlay');
   if(band<=0){ o?.remove(); return; }
   if(!o){
     o = document.createElement('div');
-    o.id = 'sanityOverlay';
+    o.id = 'manaOverlay';
     o.innerHTML = `
       <div class="san-vignette"></div>
       <div class="san-grain"></div>
@@ -2677,10 +2872,10 @@ function ensureSanityOverlay(band){
   }
   o.className = 'san-band-'+band;
 }
-// faint distorted "whispers" at critical sanity (synthesized, no audio files)
-function startSanityWhispers(){
+// faint distorted "whispers" at critical mana (synthesized, no audio files)
+function startManaWhispers(){
   if(_sfxEnabled===false) return;
-  stopSanityWhispers();
+  stopManaWhispers();
   const whisper = ()=>{
     const ac = _ac(); if(!ac){ return; }
     // breathy noise burst through a bandpass — sounds like a distant voice
@@ -2694,9 +2889,9 @@ function startSanityWhispers(){
     src.connect(bp); bp.connect(g); g.connect(ac.destination);
     src.start();
   };
-  _sanityWhisperTimer = setInterval(()=>{ if(Math.random()<0.6) whisper(); }, 4000);
+  _manaWhisperTimer = setInterval(()=>{ if(Math.random()<0.6) whisper(); }, 4000);
 }
-function stopSanityWhispers(){ clearInterval(_sanityWhisperTimer); _sanityWhisperTimer=null; }
+function stopManaWhispers(){ clearInterval(_manaWhisperTimer); _manaWhisperTimer=null; }
 
 // ================================================================
 // COMMENDATIONS / ACHIEVEMENTS
@@ -2915,7 +3110,7 @@ function canEdit(){
 }
 function updateField(field, value){
   const c = getChar();
-  const map = { currentHp:'hp.current', maxHp:'hp.max', currentSanity:'sanity.current', maxSanity:'sanity.max' };
+  const map = { currentHp:'hp.current', maxHp:'hp.max', currentMana:'mana.current', maxMana:'mana.max' };
   if(map[field]){ const[o,k]=map[field].split('.'); c[o][k]=Math.max(0,Number(value)||0); }
   else if(['level','armor','tempHp','points'].includes(field)) c[field]=Math.max(0,Number(value)||0);
   else c[field]=value;
@@ -2940,7 +3135,7 @@ function bindFields(){
   ii('charBackground','background'); ii('charDivision','division'); ii('charSite','site');
   ii('charSpeed','speed'); ii('charArmor','armor'); ii('charTempHp','tempHp');
   ii('currentHp','currentHp'); ii('maxHp','maxHp');
-  ii('currentSanity','currentSanity'); ii('maxSanity','maxSanity');
+  ii('currentMana','currentMana'); ii('maxMana','maxMana');
   ii('charPoints','points'); ii('abilitiesText','abilitiesText'); ii('notesText','notesText');
 
   el('charRank')?.addEventListener('change', e=>{ getChar().rank=e.target.value; pushState(true); render(); });

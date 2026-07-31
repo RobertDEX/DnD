@@ -5092,3 +5092,49 @@ body::before {
 .dt-dot.res { background: #4ade80; }
 .dt-dot.vuln { background: #d94f4f; }
 .dt-dot.imm { background: #c2a23a; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROFILE GRID — two-column character sheet layout
+   ═══════════════════════════════════════════════════════════════════ */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+.profile-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}
+
+/* Form grid helpers */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .6rem;
+}
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: .6rem;
+}
+@media (max-width: 600px) {
+  .form-grid-2 { grid-template-columns: 1fr; }
+  .form-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* Resource grid — stack vertically in the right column to save width */
+.profile-col .resource-grid {
+  grid-template-columns: 1fr;
+  gap: .6rem;
+}
+
+/* Stats in right column — 3×2 grid */
+.profile-col .stats-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}

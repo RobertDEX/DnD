@@ -88,105 +88,114 @@
     <button class="tab-btn" data-tab="notes">Notes</button>
   </div>
 
-  <!-- ═══ PROFILE TAB (character identity + vitals + combat) ═══ -->
+  <!-- ═══ PROFILE TAB (character sheet — grid layout) ═══ -->
   <div class="tab-content tab-panel" data-tab="profile">
-    <div class="status-tab-layout">
-      <!-- IDENTITY -->
-      <section class="panel">
-        <div class="panel-title">Identity</div>
-        <div class="identity-row">
-          <label class="portrait-label" for="portraitInput">
-            <div class="portrait-slot" id="portraitSlot"></div>
-            <span class="portrait-hint">UPLOAD</span>
-            <input type="file" id="portraitInput" accept="image/*" hidden>
-          </label>
-          <div class="identity-fields">
-            <div class="field big"><label>Name</label><input id="charName" type="text" placeholder="Character name"></div>
-            <div class="field"><label>Title</label><input id="charCodename" type="text" placeholder="Earned title (e.g. Shadow Monarch)"></div>
-            <div class="field"><label>Class</label><input id="charClassDisplay" type="text" readonly placeholder="Unlocks at Level 10 (DM assigns)"></div>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="field"><label>Rank</label>
-            <select id="charClearance">
-              <option value="E">E-Rank · Apprentice</option>
-              <option value="D">D-Rank · Initiate</option>
-              <option value="C">C-Rank · Veteran</option>
-              <option value="B">B-Rank · Elite</option>
-              <option value="A">A-Rank · Champion</option>
-              <option value="S">S-Rank · Monarch</option>
-            </select>
-          </div>
-          <div class="field"><label>DnD Level</label><input id="charLevel" type="number" min="1" value="1" readonly title="Derived from System Level (every 10 sys levels = 1 DnD level)"></div>
-          <div class="field"><label>Age</label><input id="charAge" type="text" placeholder="—"></div>
-        </div>
-        <div class="field"><label>Background</label><input id="charBackground" type="text" placeholder="Origin story…"></div>
-        <div class="rank-display" id="rankDisplay"></div>
-      </section>
+    <div class="profile-grid">
 
-      <!-- VITALS -->
-      <section class="panel">
-        <div class="panel-title">Vitals</div>
-        <div class="resource-grid">
-          <div class="resource-block hp-block">
-            <div class="res-label">HP</div>
-            <div class="res-inputs">
-              <input id="currentHp" type="number" value="0"><span>/</span><input id="maxHp" type="number" value="0">
-            </div>
-            <div class="res-adjust">
-              <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
-              <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
-              <button class="adj-btn" data-resource="hp" data-amt="1">+1</button>
-              <button class="adj-btn" data-resource="hp" data-amt="5">+5</button>
+      <!-- LEFT COLUMN -->
+      <div class="profile-col">
+        <!-- IDENTITY -->
+        <section class="panel">
+          <div class="panel-title">Identity</div>
+          <div class="identity-row">
+            <label class="portrait-label" for="portraitInput">
+              <div class="portrait-slot" id="portraitSlot"></div>
+              <span class="portrait-hint">UPLOAD</span>
+              <input type="file" id="portraitInput" accept="image/*" hidden>
+            </label>
+            <div class="identity-fields">
+              <div class="field big"><label>Name</label><input id="charName" type="text" placeholder="Character name"></div>
+              <div class="field"><label>Title</label><input id="charCodename" type="text" placeholder="Earned title (e.g. Shadow Monarch)"></div>
             </div>
           </div>
-          <div class="resource-block mp-block">
-            <div class="res-label">MANA</div>
-            <div class="res-inputs">
-              <input id="currentMana" type="number" value="0"><span>/</span><input id="maxMana" type="number" value="0">
-            </div>
-            <div class="res-adjust">
-              <button class="adj-btn" data-resource="mana" data-amt="-5">−5</button>
-              <button class="adj-btn" data-resource="mana" data-amt="-1">−1</button>
-              <button class="adj-btn" data-resource="mana" data-amt="1">+1</button>
-              <button class="adj-btn" data-resource="mana" data-amt="5">+5</button>
+          <div class="form-grid-2" style="margin-top:.6rem">
+            <div class="field"><label>Class</label><input id="charClassDisplay" type="text" readonly placeholder="Unlocks at Sys.Lv.10"></div>
+            <div class="field"><label>Rank</label>
+              <select id="charClearance">
+                <option value="E">E-Rank · Apprentice</option>
+                <option value="D">D-Rank · Initiate</option>
+                <option value="C">C-Rank · Veteran</option>
+                <option value="B">B-Rank · Elite</option>
+                <option value="A">A-Rank · Champion</option>
+                <option value="S">S-Rank · Monarch</option>
+              </select>
             </div>
           </div>
-        </div>
-        <div class="vitals-mini">
-          <div class="field small"><label>Armor Class</label><input id="charArmor" type="number" value="10"></div>
-          <div class="field small"><label>Temp HP</label><input id="charTempHp" type="number" value="0"></div>
-          <div class="field small"><label>Speed</label><input id="charSpeed" type="text" value="30 ft"></div>
-          <div class="field small"><label>Initiative</label><input id="initiativeDisplay" type="text" readonly></div>
-        </div>
-        <div class="death-saves-box">
-          <div class="death-title">Death Saves</div>
-          <div id="deathSaves"></div>
-        </div>
-        <div class="state-radios">
-          <label><input type="radio" name="playerState" id="stateActive"> Active</label>
-          <label><input type="radio" name="playerState" id="stateReserve"> Reserve</label>
-          <label><input type="radio" name="playerState" id="stateDead"> Dead</label>
-        </div>
-      </section>
+          <div class="form-grid-3" style="margin-top:.5rem">
+            <div class="field"><label>DnD Level</label><input id="charLevel" type="number" min="1" value="1" readonly></div>
+            <div class="field"><label>Age</label><input id="charAge" type="text" placeholder="—"></div>
+            <div class="field"><label>Background</label><input id="charBackground" type="text" placeholder="Origin…"></div>
+          </div>
+          <div class="rank-display" id="rankDisplay"></div>
+        </section>
 
-      <!-- ATTRIBUTES -->
-      <section class="panel">
-        <div class="panel-title">Ability Scores <span class="base-pts-info">Creation Points: <strong id="basePointsRemaining">9</strong></span></div>
-        <div class="stats-grid" id="statsGrid"></div>
-      </section>
+        <!-- COMBAT -->
+        <section class="panel">
+          <div class="panel-title">Combat <span class="passive-perc">Passive Perception <strong id="passivePerc">10</strong></span></div>
+          <div id="calcPanel"></div>
+        </section>
 
-      <!-- DAMAGE TYPES -->
-      <section class="panel">
-        <div class="panel-title">Damage Types <span class="dt-legend"><span class="dt-dot res"></span>Resist <span class="dt-dot vuln"></span>Vulnerable <span class="dt-dot imm"></span>Immune</span></div>
-        <div id="damageTypesGrid" class="damage-types-grid"></div>
-      </section>
+        <!-- DAMAGE TYPES -->
+        <section class="panel">
+          <div class="panel-title">Damage Types <span class="dt-legend"><span class="dt-dot res"></span>Res <span class="dt-dot vuln"></span>Vul <span class="dt-dot imm"></span>Imm</span></div>
+          <div id="damageTypesGrid" class="damage-types-grid"></div>
+        </section>
+      </div>
 
-      <!-- COMBAT -->
-      <section class="panel">
-        <div class="panel-title">Combat & Derived <span class="passive-perc">Passive Perception <strong id="passivePerc">10</strong></span></div>
-        <div id="calcPanel"></div>
-      </section>
+      <!-- RIGHT COLUMN -->
+      <div class="profile-col">
+        <!-- VITALS -->
+        <section class="panel">
+          <div class="panel-title">Vitals</div>
+          <div class="resource-grid">
+            <div class="resource-block hp-block">
+              <div class="res-label">HP</div>
+              <div class="res-inputs">
+                <input id="currentHp" type="number" value="0"><span>/</span><input id="maxHp" type="number" value="0">
+              </div>
+              <div class="res-adjust">
+                <button class="adj-btn" data-resource="hp" data-amt="-5">−5</button>
+                <button class="adj-btn" data-resource="hp" data-amt="-1">−1</button>
+                <button class="adj-btn" data-resource="hp" data-amt="1">+1</button>
+                <button class="adj-btn" data-resource="hp" data-amt="5">+5</button>
+              </div>
+            </div>
+            <div class="resource-block mp-block">
+              <div class="res-label">MANA</div>
+              <div class="res-inputs">
+                <input id="currentMana" type="number" value="0"><span>/</span><input id="maxMana" type="number" value="0">
+              </div>
+              <div class="res-adjust">
+                <button class="adj-btn" data-resource="mana" data-amt="-5">−5</button>
+                <button class="adj-btn" data-resource="mana" data-amt="-1">−1</button>
+                <button class="adj-btn" data-resource="mana" data-amt="1">+1</button>
+                <button class="adj-btn" data-resource="mana" data-amt="5">+5</button>
+              </div>
+            </div>
+          </div>
+          <div class="vitals-mini">
+            <div class="field small"><label>AC</label><input id="charArmor" type="number" value="10"></div>
+            <div class="field small"><label>Temp HP</label><input id="charTempHp" type="number" value="0"></div>
+            <div class="field small"><label>Speed</label><input id="charSpeed" type="text" value="30 ft"></div>
+            <div class="field small"><label>Init</label><input id="initiativeDisplay" type="text" readonly></div>
+          </div>
+          <div class="death-saves-box">
+            <div class="death-title">Death Saves</div>
+            <div id="deathSaves"></div>
+          </div>
+          <div class="state-radios">
+            <label><input type="radio" name="playerState" id="stateActive"> Active</label>
+            <label><input type="radio" name="playerState" id="stateReserve"> Reserve</label>
+            <label><input type="radio" name="playerState" id="stateDead"> Dead</label>
+          </div>
+        </section>
+
+        <!-- ABILITY SCORES -->
+        <section class="panel">
+          <div class="panel-title">Stats <span class="base-pts-info">Points: <strong id="basePointsRemaining">9 / 9</strong></span></div>
+          <div class="stats-grid" id="statsGrid"></div>
+        </section>
+      </div>
     </div>
   </div>
 

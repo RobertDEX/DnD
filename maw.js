@@ -3085,16 +3085,212 @@ function disableAllInputs(){
 // ================================================================
 function openDmLogin(){
   const ov = el('dmOverlay'); if(!ov) return;
+  const content = el('dmContent'); if(!content) return;
   ov.classList.remove('hidden');
-  el('dmLoginPanel')?.classList.remove('hidden');
-  el('dmFullPanel')?.classList.add('hidden');
-  if(dmUnlocked){ el('dmLoginPanel')?.classList.add('hidden'); el('dmFullPanel')?.classList.remove('hidden'); renderDmPanel(); }
+
+  if(dmUnlocked){
+    buildDmPanelHtml();
+    renderDmPanel();
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="dm-login-card" id="dmLoginPanel">
+      <div class="dm-card-title">⚔ GAME MASTER LOGIN</div>
+      <div class="dm-card-body" style="text-align:center">
+        <input type="password" id="dmPasswordInput" class="dm-pass-input" placeholder="Enter GM password" autocomplete="off">
+        <button type="button" class="maw-btn" id="dmUnlockBtn" style="margin-top:.8rem;width:100%">UNLOCK</button>
+      </div>
+    </div>
+  `;
+  el('dmUnlockBtn')?.addEventListener('click', unlockDm);
+  el('dmPasswordInput')?.addEventListener('keydown', e => { if(e.key==='Enter') unlockDm(); });
+  el('dmPasswordInput')?.focus();
 }
+
+function buildDmPanelHtml(){
+  const content = el('dmContent'); if(!content) return;
+  content.innerHTML = `
+    <div class="dm-full-panel" id="dmFullPanel">
+      <div class="dm-head">
+        <h2 class="dm-head-title">⚔ GAME MASTER CONSOLE</h2>
+        <div class="dm-head-actions">
+          <button class="maw-btn small" id="dmAddCharBtn">＋ Add Player</button>
+          <button class="maw-btn ghost small" id="dmLockBtn">🔒 Lock</button>
+          <button class="maw-btn ghost small" id="dmCloseBtn">✕ Close</button>
+        </div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">◆ Player Roster</div>
+        <div class="dm-card-body" id="dmRoster"></div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">⚔ Quick Actions</div>
+        <div class="dm-card-body">
+          <div class="dm-quick-actions" id="dmQuickActions">
+            <select id="dmActionTarget" class="dm-action-select">
+              ${state.characters.map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
+            </select>
+            <select id="dmActionType">
+              <option value="hp-dmg">HP Damage</option>
+              <option value="hp-heal">HP Heal</option>
+              <option value="hp-full">HP Full Restore</option>
+              <option value="mp-dmg">Mana Drain</option>
+              <option value="mp-heal">Mana Restore</option>
+              <option value="mp-full">Mana Full</option>
+            </select>
+            <input type="number" id="dmActionAmount" value="10" min="0" placeholder="Amount">
+            <button class="maw-btn small" id="dmActionBtn">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">🏪 Shop Management</div>
+        <div class="dm-card-body">
+          <button class="maw-btn small" id="dmLoadDefaultShop">Load Default Shop Catalog</button>
+          <button class="maw-btn ghost small" id="dmClearShop" style="margin-left:.5rem">Clear Shop</button>
+          <div class="dm-shop-custom" style="margin-top:1rem">
+            <div class="dm-mini-label">Add Custom Item</div>
+            <div class="dm-shop-add-row">
+              <input type="text" id="dmShopItemName" placeholder="Item name">
+              <input type="number" id="dmShopItemPrice" placeholder="Price" min="0">
+              <select id="dmShopItemTier"><option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option><option value="4">Tier 4</option></select>
+              <select id="dmShopItemCat">${SHOP_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+              <button class="maw-btn small" id="dmShopAddBtn">＋</button>
+            </div>
+            <textarea id="dmShopItemDesc" placeholder="Item description (optional)" rows="2" style="margin-top:.4rem"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">💰 Gold Awards</div>
+        <div class="dm-card-body">
+          <div class="dm-quick-actions">
+            <select id="dmGoldTarget">
+              <option value="all">All Players</option>
+              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
+            </select>
+            <select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}-Rank: ${fmtGold(t.points)} gold</option>`).join('')}</select>
+            <button class="maw-btn small" id="dmGoldBtn">Award Gold</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">📡 Scene & Broadcast</div>
+        <div class="dm-card-body">
+          <div class="field"><label>Current Scene / Floor</label><input type="text" id="dmSceneName" placeholder="e.g. Floor 12 — The Crimson Gate" value="${esc(state.sceneName||'')}"></div>
+          <div class="field" style="margin-top:.6rem"><label>Broadcast Message (all players see this)</label>
+            <textarea id="dmBroadcast" rows="2" placeholder="System announcement…">${esc(state.broadcast||'')}</textarea>
+          </div>
+          <button class="maw-btn small" id="dmBroadcastBtn" style="margin-top:.5rem">Send Broadcast</button>
+        </div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">⚔ Initiative Tracker</div>
+        <div class="dm-card-body" id="dmInitiative"></div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">📖 Monster Catalog</div>
+        <div class="dm-card-body" id="dmAnomalyCatalog"></div>
+      </div>
+
+      <div class="dm-card">
+        <div class="dm-card-title">📜 Quest Manager</div>
+        <div class="dm-card-body" id="dmCases"></div>
+      </div>
+    </div>
+  `;
+
+  // Wire DM head buttons
+  el('dmCloseBtn')?.addEventListener('click', closeDmOverlay);
+  el('dmLockBtn')?.addEventListener('click', lockDm);
+  el('dmAddCharBtn')?.addEventListener('click', ()=>{
+    state.characters.push(blankChar(state.characters.length));
+    pushState(true); render(); buildDmPanelHtml(); renderDmPanel();
+  });
+
+  // Quick actions
+  el('dmActionBtn')?.addEventListener('click', ()=>{
+    const idx = Number(el('dmActionTarget')?.value)||0;
+    const c = state.characters[idx]; if(!c) return;
+    const type = el('dmActionType')?.value;
+    const amt = Math.max(0, Number(el('dmActionAmount')?.value)||0);
+    switch(type){
+      case 'hp-dmg':  c.hp.current = clamp((c.hp.current||0)-amt,0,c.hp.max); break;
+      case 'hp-heal': c.hp.current = clamp((c.hp.current||0)+amt,0,c.hp.max); break;
+      case 'hp-full': c.hp.current = c.hp.max; break;
+      case 'mp-dmg':  c.mana.current = clamp((c.mana.current||0)-amt,0,c.mana.max); break;
+      case 'mp-heal': c.mana.current = clamp((c.mana.current||0)+amt,0,c.mana.max); break;
+      case 'mp-full': c.mana.current = c.mana.max; break;
+    }
+    ensureClamp(c); pushState(true); render(); renderDmPanel();
+    showToast(`${type.replace('-',' ')} applied to ${c.name||'Player'}`, 'info');
+  });
+
+  // Shop management
+  el('dmLoadDefaultShop')?.addEventListener('click', ()=>{
+    if(state.shop.length && !confirm('Replace current shop with default catalog?')) return;
+    state.shop = (window.MAW_DEFAULT_SHOP||[]).map(it=>({...it}));
+    pushState(true); render();
+    showToast(`Loaded ${state.shop.length} items into shop`, 'buy');
+  });
+  el('dmClearShop')?.addEventListener('click', ()=>{
+    if(!confirm('Clear all shop items?')) return;
+    state.shop = []; pushState(true); render();
+    showToast('Shop cleared', 'info');
+  });
+  el('dmShopAddBtn')?.addEventListener('click', ()=>{
+    const name = el('dmShopItemName')?.value?.trim(); if(!name) return;
+    state.shop.push({
+      tier: Number(el('dmShopItemTier')?.value)||1,
+      name, category: el('dmShopItemCat')?.value||'Consumables',
+      price: Math.max(0, Number(el('dmShopItemPrice')?.value)||0),
+      desc: el('dmShopItemDesc')?.value||'', stock:null
+    });
+    pushState(true); render();
+    if(el('dmShopItemName')) el('dmShopItemName').value='';
+    if(el('dmShopItemDesc')) el('dmShopItemDesc').value='';
+    showToast(`Added "${name}" to shop`, 'buy');
+  });
+
+  // Gold awards
+  el('dmGoldBtn')?.addEventListener('click', ()=>{
+    const target = el('dmGoldTarget')?.value;
+    const grade = el('dmGoldGrade')?.value||'E';
+    const thr = THREAT_BY_GRADE[grade]||THREAT_GRADES[0];
+    const amount = thr.points;
+    if(target === 'all'){
+      state.characters.filter(c=>c.state==='active').forEach(c=>{ c.points = (c.points||0)+amount; });
+      showToast(`Awarded ${fmtGold(amount)} gold to all active players`, 'buy');
+    } else {
+      const c = state.characters[Number(target)]; if(!c) return;
+      c.points = (c.points||0)+amount;
+      showToast(`Awarded ${fmtGold(amount)} gold to ${c.name||'Player'}`, 'buy');
+    }
+    pushState(true); render(); renderDmPanel();
+  });
+
+  // Scene + broadcast
+  el('dmSceneName')?.addEventListener('input', e=>{ state.sceneName = e.target.value; pushState(); });
+  el('dmBroadcastBtn')?.addEventListener('click', ()=>{
+    state.broadcast = el('dmBroadcast')?.value||'';
+    pushState(true); render();
+    showToast('Broadcast sent', 'info');
+  });
+}
+
 function unlockDm(){
   if(el('dmPasswordInput')?.value !== DM_PASS){ showToast('Access denied','warn'); return; }
   dmUnlocked = true; sessionStorage.setItem('dt-dm','1');
-  el('dmLoginPanel')?.classList.add('hidden');
-  el('dmFullPanel')?.classList.remove('hidden');
+  buildDmPanelHtml();
+  renderDmPanel();
   render();
 }
 function lockDm(){ dmUnlocked=false; sessionStorage.removeItem('dt-dm'); el('dmOverlay')?.classList.add('hidden'); render(); }

@@ -3930,3 +3930,591 @@ body{
   gap: 8px;
   align-items: baseline;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PIZZAZZ PASS — animated backgrounds, glowing panels, system HUD feel
+   Every surface should feel alive, like the System is always watching.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── ANIMATED BACKGROUND — slow-drifting mana particles ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -4;
+  background:
+    radial-gradient(circle 3px at 15% 20%, rgba(74,139,245,.25), transparent 50%),
+    radial-gradient(circle 2px at 72% 35%, rgba(74,139,245,.2), transparent 50%),
+    radial-gradient(circle 3px at 40% 70%, rgba(74,139,245,.18), transparent 50%),
+    radial-gradient(circle 2px at 85% 80%, rgba(74,139,245,.22), transparent 50%),
+    radial-gradient(circle 2px at 25% 90%, rgba(74,139,245,.15), transparent 50%),
+    radial-gradient(circle 3px at 60% 10%, rgba(74,139,245,.2), transparent 50%);
+  animation: mana-drift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes mana-drift {
+  0%   { transform: translateY(0) scale(1); opacity: .6; }
+  50%  { transform: translateY(-15px) scale(1.1); opacity: .4; }
+  100% { transform: translateY(8px) scale(.95); opacity: .65; }
+}
+
+/* ─── PANELS — glassmorphic with animated top-accent line ─── */
+.panel {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, #eaf6ff 50%, var(--accent) 70%, transparent 100%);
+  background-size: 200% 100%;
+  animation: panel-accent-slide 4s linear infinite;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+@keyframes panel-accent-slide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.panel::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 8px; bottom: 8px; right: 8px;
+  border: 1px solid rgba(80,160,255,.06);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* ─── TOPBAR — holographic shimmer on hover ─── */
+.topbar {
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .3s;
+}
+.topbar:hover {
+  box-shadow: 0 4px 30px -8px rgba(0,0,0,.6), 0 0 25px -8px var(--accent-glow);
+}
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(100,180,255,.06) 49%, rgba(100,180,255,.12) 50%, rgba(100,180,255,.06) 51%, transparent 60%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+}
+.topbar:hover::after {
+  opacity: 1;
+  animation: topbar-sheen 1.5s ease-in-out;
+}
+@keyframes topbar-sheen {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── TOPBAR RANK BADGE — pulsing glow ─── */
+.topbar-rank-badge {
+  position: relative;
+  animation: rank-badge-pulse 3s ease-in-out infinite;
+}
+@keyframes rank-badge-pulse {
+  0%, 100% { box-shadow: 0 0 14px -4px var(--accent-glow), inset 0 0 12px -6px var(--accent-glow); }
+  50%      { box-shadow: 0 0 22px -2px var(--accent-glow), inset 0 0 18px -4px var(--accent-glow); }
+}
+.topbar-name {
+  background: linear-gradient(90deg, #fff, #c8d8f0, #fff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: name-shimmer 6s ease-in-out infinite;
+}
+@keyframes name-shimmer {
+  0%, 100% { background-position: 0% 0; }
+  50%      { background-position: 200% 0; }
+}
+
+/* ─── RESOURCE BARS in topbar — animated glow + pulse on low ─── */
+.tbar-track {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.6);
+}
+.tbar-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  animation: bar-sheen 3s ease-in-out infinite;
+}
+@keyframes bar-sheen {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.tbar-fill {
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+
+/* Armor mini badge — diamond shape */
+.armor-mini {
+  position: relative;
+  padding: .3rem .6rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.armor-mini strong {
+  font-family: var(--F1);
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ─── TABS — glow active indicator + hover lift ─── */
+.tab-btn {
+  position: relative;
+  transition: all .2s cubic-bezier(.2,.8,.2,1);
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: all .2s;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+.tab-btn:hover {
+  transform: translateY(-1px);
+}
+.tab-btn:hover::after {
+  left: 10%; right: 10%; opacity: .6;
+}
+.tab-btn.active::after {
+  left: 0; right: 0; opacity: 1;
+}
+.tab-btn:active {
+  transform: translateY(0) scale(.97);
+  transition-duration: .06s;
+}
+
+/* ─── STAT BLOCKS — HUD corners + glow effect ─── */
+.stat-block {
+  position: relative;
+  overflow: hidden;
+  transition: all .2s cubic-bezier(.2,.8,.2,1);
+}
+.stat-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,.5), 0 0 16px -4px var(--accent-glow);
+}
+.stat-corner {
+  position: absolute;
+  width: 10px; height: 10px;
+  border: 1px solid rgba(80,160,255,.3);
+  pointer-events: none;
+}
+.stat-corner.tl { top: 3px; left: 3px; border-right: 0; border-bottom: 0; }
+.stat-corner.br { bottom: 3px; right: 3px; border-left: 0; border-top: 0; }
+.stat-key {
+  font-family: var(--F1);
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+.stat-mod-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+}
+.stat-mod-val {
+  font-family: var(--F1);
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(100,180,255,.4);
+  line-height: 1;
+}
+.stat-mod-sign {
+  font-family: var(--F1);
+  font-size: .9rem;
+  color: var(--text-dim);
+}
+.stat-block.positive .stat-mod-val { color: #4ade80; text-shadow: 0 0 12px rgba(74,222,128,.4); }
+.stat-block.positive .stat-mod-sign { color: #4ade80; }
+.stat-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: .4rem;
+}
+.stat-score {
+  width: 42px;
+  text-align: center;
+  font-family: var(--F1);
+  font-size: .85rem;
+  font-weight: 700;
+  padding: .3rem;
+}
+.stat-adj {
+  width: 24px; height: 24px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(80,140,220,.25);
+  color: var(--text-dim);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: .8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+  padding: 0;
+}
+.stat-adj:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(74,139,245,.12);
+  box-shadow: 0 0 8px -2px var(--accent-glow);
+}
+
+/* ─── CHARACTER TABS in sidebar — system card feel ─── */
+.character-tab {
+  position: relative;
+  overflow: hidden;
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.character-tab::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--char-color, rgba(60,120,200,.3)), transparent);
+  opacity: 0;
+  transition: opacity .18s;
+}
+.character-tab:hover::before { opacity: .8; }
+.character-tab.active::before { opacity: 1; width: 3px; }
+.character-tab:hover {
+  transform: translateX(3px);
+}
+.character-tab.active {
+  transform: translateX(4px);
+}
+
+/* ─── BUTTONS — glow + ripple ─── */
+.maw-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all .18s cubic-bezier(.2,.8,.2,1);
+}
+.maw-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(100,180,255,.1) 50%, transparent 60%);
+  opacity: 0;
+  transition: opacity .18s;
+}
+.maw-btn:hover::after { opacity: 1; }
+.maw-btn:active {
+  transform: scale(.97);
+  transition-duration: .06s;
+}
+.maw-btn.dm:hover {
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ─── RESOURCE BLOCKS — animated border pulse ─── */
+.resource-block {
+  position: relative;
+  overflow: hidden;
+  transition: border-color .18s, box-shadow .18s;
+}
+.resource-block:hover {
+  box-shadow: 0 0 14px -6px rgba(74,139,245,.4);
+}
+.hp-block:hover { box-shadow: 0 0 14px -6px rgba(217,79,79,.5); }
+.mp-block:hover { box-shadow: 0 0 14px -6px rgba(74,139,245,.5); }
+.res-label {
+  font-family: var(--F1);
+  font-weight: 900;
+  letter-spacing: .14em;
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+  margin-bottom: .3rem;
+  font-size: .72rem;
+}
+.hp-block .res-label { color: #d94f4f; text-shadow: 0 0 6px rgba(217,79,79,.4); }
+.mp-block .res-label { color: #4a8bf5; text-shadow: 0 0 6px rgba(74,139,245,.4); }
+
+/* ─── ADJUST BUTTONS — tiny + tactile ─── */
+.adj-btn {
+  font-family: var(--F4);
+  font-size: .62rem;
+  padding: .3rem .5rem;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(80,140,220,.2);
+  color: var(--text-dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.adj-btn:hover {
+  background: rgba(74,139,245,.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px -2px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.adj-btn:active { transform: translateY(0) scale(.95); }
+.res-adjust { display: flex; gap: .3rem; justify-content: center; margin-top: .4rem; }
+.res-inputs {
+  display: flex; align-items: center; gap: .3rem; justify-content: center;
+}
+.res-inputs input { width: 55px; text-align: center; font-family: var(--F1); font-weight: 700; font-size: .95rem; }
+.res-inputs span { color: var(--muted); font-weight: 300; }
+
+/* ─── SHOP — rarity-glow on item cards ─── */
+.shop-item {
+  position: relative;
+  overflow: hidden;
+}
+.shop-item::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, transparent 20%, var(--amber) 50%, transparent 80%);
+  filter: blur(.5px);
+}
+.shop-buy-btn {
+  position: relative;
+  overflow: hidden;
+}
+.shop-buy-btn:hover::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: rgba(194,162,58,.15);
+  animation: buy-pulse .8s ease-out;
+}
+@keyframes buy-pulse {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+.gold-val {
+  color: var(--amber) !important;
+  text-shadow: 0 0 8px rgba(194,162,58,.5);
+}
+
+/* ─── SIDEBAR — system-UI ambient glow ─── */
+.sidebar {
+  position: relative;
+}
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 30%; right: 0; bottom: 30%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--accent-glow), transparent);
+  filter: blur(3px);
+  opacity: .5;
+}
+.brand-mark {
+  animation: brand-float 4s ease-in-out infinite;
+}
+@keyframes brand-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.sidebar-foot {
+  font-family: var(--F4);
+  font-size: .42rem;
+  letter-spacing: .22em;
+  color: rgba(100,160,220,.3);
+  text-align: center;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+/* ─── DM CARDS — glow accents ─── */
+.dm-card {
+  overflow: hidden;
+  transition: all .2s cubic-bezier(.2,.8,.2,1);
+}
+.dm-card:hover {
+  transform: translateY(-1px);
+}
+.dm-card-title {
+  position: relative;
+}
+.dm-card-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent 60%);
+  opacity: .3;
+}
+
+/* ─── TALENT/SKILL CARDS — type-colored accents ─── */
+.talent-card {
+  position: relative;
+  overflow: hidden;
+  transition: border-color .18s, box-shadow .18s;
+}
+.talent-card:hover {
+  box-shadow: 0 0 14px -6px var(--accent-glow);
+}
+.talent-type-badge {
+  font-family: var(--F4);
+  font-size: .48rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: .15rem .5rem;
+  border-radius: 2px;
+  background: rgba(74,139,245,.12);
+  border: 1px solid rgba(74,139,245,.3);
+  color: var(--accent);
+}
+.type-passive .talent-type-badge { background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.3); color: #4ade80; }
+.type-ultimate .talent-type-badge { background: rgba(194,162,58,.12); border-color: rgba(194,162,58,.3); color: var(--amber); }
+
+/* ─── SCROLLBAR GLOW ─── */
+::-webkit-scrollbar-thumb:hover {
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* ─── DEATH SAVES — system look ─── */
+.death-saves-box {
+  margin-top: .8rem;
+  padding: .7rem;
+  background: rgba(8,16,32,.5);
+  border: 1px solid rgba(80,140,220,.15);
+  border-radius: var(--r);
+}
+.death-title {
+  font-family: var(--F4);
+  font-size: .52rem;
+  letter-spacing: .18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: .4rem;
+}
+
+/* ─── VITALS MINI ROW ─── */
+.vitals-mini {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .6rem;
+  margin-bottom: .8rem;
+}
+.vitals-mini .field.small input {
+  text-align: center;
+  font-family: var(--F1);
+  font-weight: 700;
+}
+
+/* ─── STATE RADIOS ─── */
+.state-radios {
+  display: flex;
+  gap: 1rem;
+  padding: .5rem 0;
+  font-family: var(--F4);
+  font-size: .62rem;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.state-radios label {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  cursor: pointer;
+  transition: color .12s;
+}
+.state-radios label:hover { color: var(--accent); }
+.state-radios input[type="radio"] { accent-color: var(--accent); }
+
+/* ─── NOTES TEXTAREA ─── */
+.notes-textarea {
+  min-height: 300px;
+  font-family: var(--F3);
+  font-size: .9rem;
+  line-height: 1.7;
+  resize: vertical;
+  background: rgba(8,16,32,.6);
+  border: 1px solid rgba(80,140,220,.15);
+  border-radius: var(--r);
+  padding: 1rem;
+}
+.notes-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(74,139,245,.12), inset 0 0 20px -10px var(--accent-glow);
+}
+
+/* ─── RANK DISPLAY — animated glow on active rank ─── */
+.rank-pip.active {
+  animation: rank-pip-glow 3s ease-in-out infinite;
+}
+@keyframes rank-pip-glow {
+  0%, 100% { box-shadow: 0 0 16px -4px color-mix(in srgb, var(--rk) 60%, transparent), inset 0 1px 0 color-mix(in srgb, var(--rk) 25%, transparent); }
+  50%      { box-shadow: 0 0 24px -2px color-mix(in srgb, var(--rk) 80%, transparent), inset 0 1px 0 color-mix(in srgb, var(--rk) 35%, transparent); }
+}
+
+/* ─── FORM GRID polish ─── */
+.form-grid {
+  gap: .8rem;
+}
+
+/* ─── FADE-IN animation for tab content ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-panel {
+  animation: fadeIn .3s cubic-bezier(.4,0,.2,1);
+}
+
+/* ─── EMPTY NOTE styling ─── */
+.empty-note {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+  font-family: var(--F4);
+  font-size: .78rem;
+  letter-spacing: .1em;
+  line-height: 1.8;
+}
+.empty-note.big {
+  font-size: 1rem;
+  padding: 3rem;
+}
+.empty-note.big::first-line {
+  font-size: 2rem;
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+.empty-note span {
+  display: block;
+  font-size: .68rem;
+  color: var(--text-dim);
+  margin-top: .4rem;
+}
+
+/* ─── RESPONSIVE polish ─── */
+@media (max-width: 1000px) {
+  .topbar-bars { flex: 1 1 100%; margin-top: .5rem; }
+  .vitals-mini { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .resource-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}

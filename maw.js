@@ -24,7 +24,7 @@ const STAT_LABELS = {
   STR:'Strength', DEX:'Agility', CON:'Vitality', INT:'Intelligence', WIS:'Wisdom', CHA:'Charisma'
 };
 
-// Skills — Arcana is replaced by SENSITIVITY (paranormal perception)
+// Skills — fantasy RPG skill list
 const SKILL_DEFS = [
   {name:'STR Save',        stat:'STR', isSave:true},
   {name:'Athletics',       stat:'STR'},
@@ -34,19 +34,19 @@ const SKILL_DEFS = [
   {name:'Stealth',         stat:'DEX'},
   {name:'Sleight of Hand', stat:'DEX'},
   {name:'CON Save',        stat:'CON', isSave:true},
-  {name:'Containment',     stat:'CON'},
+  {name:'Tanking',          stat:'CON'},
   {name:'INT Save',        stat:'INT', isSave:true},
   {name:'Investigation',   stat:'INT'},
-  {name:'Anomaly Lore',    stat:'INT'},
-  {name:'Technology',      stat:'INT'},
+  {name:'Arcana',           stat:'INT'},
+  {name:'History',          stat:'INT'},
   {name:'Medicine',        stat:'INT'},
   {name:'WIS Save',        stat:'WIS', isSave:true},
-  {name:'Sensitivity',     stat:'WIS'},   // <-- replaces Arcana
+  {name:'Mana Sense',      stat:'WIS'},
   {name:'Perception',      stat:'WIS'},
   {name:'Insight',         stat:'WIS'},
   {name:'Survival',        stat:'WIS'},
   {name:'CHA Save',        stat:'CHA', isSave:true},
-  {name:'Interrogation',   stat:'CHA'},
+  {name:'Intimidation',    stat:'CHA'},
   {name:'Persuasion',      stat:'CHA'},
   {name:'Intimidation',    stat:'CHA'},
   {name:'Deception',       stat:'CHA'}
@@ -57,7 +57,7 @@ const SKILL_DEFS = [
 // available in case we want to swap it for grimmer flavor later.
 const STAT_FULL = STAT_LABELS;
 
-// Skill descriptions — paranormal investigation flavor. Kept tight
+// Skill descriptions — dungeon-diving RPG flavor. Kept tight
 // and specific so the tooltip fires as clean tactical guidance.
 const SKILL_DESCS = {
   // Saves — resistance rolls against being acted on
@@ -78,29 +78,29 @@ const SKILL_DESCS = {
   'Sleight of Hand': 'Pick pockets, palm items, quietly disable small devices.',
 
   // CON
-  'Containment': 'Improvise a seal. Hold a breach. Keep the anomaly at bay long enough.',
+  'Tanking': 'Hold the line. Absorb damage for your party. Endure what others cannot.',
 
   // INT
   'Investigation': 'Search a room. Reconstruct events. Deduce what happened here.',
-  'Anomaly Lore':  'What you know about known SCPs, cryptids, and paranormal precedent.',
-  'Technology':    'Hack, repair, jury-rig. Understand technical and electronic systems.',
+  'Arcana': 'Identify spells, enchantments, magical items. Understand mana flows.',
+  'History': 'Recall lore about dungeons, monsters, ancient civilizations, and artifacts.',
   'Medicine':      'Stabilize the wounded. Diagnose. Identify what is wrong with them.',
 
   // WIS
-  'Sensitivity': 'Paranormal perception. Feel presences. Catch what should not be there.',
+  'Mana Sense': 'Feel mana flows, detect hidden magic, sense enchantments and wards.',
   'Perception':  'Notice sounds, movements, hidden details — mundane awareness.',
   'Insight':     'Read people. Detect lies. Sense hidden motives and intentions.',
   'Survival':    'Track, navigate unfamiliar terrain, endure the elements, find shelter.',
 
   // CHA
-  'Interrogation': 'Extract information under pressure. Break down interview defenses.',
+  'Intimidation': 'Frighten enemies, demand surrender, project dominance and menace.',
   'Persuasion':    'Convince, negotiate, win over. Get civilians to comply.',
   'Intimidation':  'Threaten. Coerce. Dominate through fear.',
   'Deception':     'Lie convincingly. Maintain cover. Misdirect.'
 };
 
-// Corporate ranks (Clearance Tiers) — flavored for a paranormal
-// investigation corporation with SCP-adjacent hierarchy.
+// Player ranks — Solo Leveling letter-grade system.
+// E through S rank, earned through Tower progression.
 const RANKS = [
   { id:'E', tier:'E-RANK', title:'E-RANK',  subtitle:'Apprentice',   color:'#7a8590' },
   { id:'D', tier:'D-RANK', title:'D-RANK',  subtitle:'Initiate',     color:'#5a9a78' },
@@ -119,7 +119,18 @@ const PLAYER_CLASSES = [
   { id:'assassin',  label:'Assassin',  icon:'🗡', color:'#c04a5a', primary:'DEX', desc:'Stealth striker. Critical hits, poison.' },
   { id:'berserker', label:'Berserker', icon:'🪓', color:'#e0802a', primary:'STR', desc:'Reckless damage. Rage, cleave, lifesteal.' },
   { id:'necromancer',label:'Necromancer',icon:'💀',color:'#8a5ad1',primary:'INT', desc:'Summons undead. Drains life. Dark magic.' },
-  { id:'paladin',   label:'Paladin',   icon:'🛡', color:'#e8a72c', primary:'CHA', desc:'Holy warrior. Smites, heals, auras.' }
+  { id:'paladin',   label:'Paladin',   icon:'🛡', color:'#e8a72c', primary:'CHA', desc:'Holy warrior. Smites, heals, auras.' },
+  // ─── HIDDEN / ADVANCED CLASSES (DM only, prestige) ───
+  { id:'magic_knight',    label:'Magic Knight',      icon:'⚔🔮', color:'#6a8cf5', primary:'STR', desc:'Blade and sorcery combined. Enchants weapons with mana.', hidden:true },
+  { id:'lich_lord',       label:'Lich Lord',          icon:'💀👑', color:'#6a2aaa', primary:'INT', desc:'Master of death itself. Commands undead armies. Phylactery bound.', hidden:true },
+  { id:'brutal_berserker',label:'Brutal Berserker',   icon:'🪓💀', color:'#c04020', primary:'STR', desc:'Beyond rage. Every kill fuels the next. Unstoppable carnage.', hidden:true },
+  { id:'shadow_assassin', label:'Shadow Assassin',    icon:'🗡🌑', color:'#4a1a3a', primary:'DEX', desc:'One with darkness. Can kill from the shadow realm itself.', hidden:true },
+  { id:'arch_mage',       label:'Arch Mage',          icon:'🔮✦', color:'#c080ff', primary:'INT', desc:'Transcendent arcane mastery. Bends reality. Infinite mana potential.', hidden:true },
+  { id:'high_priest',     label:'High Priest',        icon:'✝✦', color:'#fff0a0', primary:'WIS', desc:'Direct conduit to the divine. Mass resurrection. Absolute healing.', hidden:true },
+  { id:'beast_master',    label:'Beast Master',       icon:'🏹🐺', color:'#2aaa60', primary:'DEX', desc:'Commands tamed monsters. Rides dragons. The wild obeys.', hidden:true },
+  { id:'shadow_monarch',  label:'Shadow Monarch',     icon:'👁', color:'#1a1a4a', primary:'INT', desc:'Ruler of shadows. Extracts and commands shadow soldiers from the dead. The apex predator.', hidden:true },
+  { id:'dragon_knight',   label:'Dragon Knight',      icon:'🐉', color:'#d4a020', primary:'STR', desc:'Bonded to a dragon. Scales as armor. Breath weapon. Flight.', hidden:true },
+  { id:'saint',           label:'Saint',              icon:'✦', color:'#ffffff', primary:'WIS', desc:'Ascended beyond mortal limits. Immune to death magic. Aura of salvation.', hidden:true },
 ];
 const CLASS_BY_ID = Object.fromEntries(PLAYER_CLASSES.map(c => [c.id, c]));
 
@@ -155,6 +166,47 @@ const CLASS_BASIC_SKILLS = {
   paladin:    [
     { name:'Divine Smite',   type:'Active',  cost:'15 MP', cooldown:'—',       desc:'Channel divine energy through your weapon. On a hit, deal an extra 2d8 radiant damage. +1d8 against undead and fiends.' },
     { name:'Lay on Hands',   type:'Active',  cost:'—',     cooldown:'Long rest',desc:'Touch an ally and restore up to 5×your level HP from your divine pool. Can also cure one disease or neutralize one poison.' }
+  ],
+  // ─── HIDDEN / ADVANCED CLASS SKILLS ───
+  magic_knight: [
+    { name:'Mana Blade',       type:'Active',  cost:'20 MP', cooldown:'—',       desc:'Infuse your weapon with raw mana. Next 3 attacks deal +2d8 force damage and count as magical.' },
+    { name:'Spell Parry',      type:'Passive', cost:'—',     cooldown:'—',       desc:'When targeted by a spell, use your reaction to make a melee attack. On hit, the spell is deflected.' }
+  ],
+  lich_lord: [
+    { name:'Army of the Dead', type:'Active',  cost:'60 MP', cooldown:'Long rest',desc:'Raise up to 6 undead servants simultaneously. They persist until destroyed. You command them telepathically.' },
+    { name:'Soul Cage',        type:'Active',  cost:'40 MP', cooldown:'—',       desc:'Trap the soul of a creature that died within 60ft. Consume it to restore 50 HP or ask it one question it must answer truthfully.' }
+  ],
+  brutal_berserker: [
+    { name:'Bloodlust',        type:'Passive', cost:'—',     cooldown:'—',       desc:'Every kill heals you for 2d6 HP and adds +1 damage to your next attack (stacks up to +10).' },
+    { name:'Rampage',          type:'Active',  cost:'30 MP', cooldown:'Short rest',desc:'For 3 rounds, you can make one additional attack per turn. Each kill extends the duration by 1 round.' }
+  ],
+  shadow_assassin: [
+    { name:'Shadow Kill',      type:'Active',  cost:'25 MP', cooldown:'—',       desc:'Strike from the shadow realm. Teleport behind target, deal 6d6+DEX piercing. Target cannot use reactions until their next turn.' },
+    { name:'Vanish',           type:'Active',  cost:'15 MP', cooldown:'2 rounds',desc:'Become completely invisible and intangible for 1 round. You can move through creatures and walls up to 5ft thick.' }
+  ],
+  arch_mage: [
+    { name:'Mana Overflow',    type:'Active',  cost:'50 MP', cooldown:'Long rest',desc:'For 1 minute, all spell damage is doubled and spell MP costs are halved. Mana regenerates 10/round.' },
+    { name:'Reality Warp',     type:'Active',  cost:'80 MP', cooldown:'Long rest',desc:'Reshape a 30ft cube of reality. Transmute matter, create terrain, or undo damage to structures and creatures within.' }
+  ],
+  high_priest: [
+    { name:'Mass Resurrection', type:'Active', cost:'100 MP',cooldown:'Long rest',desc:'Resurrect up to 4 dead allies within 60ft to full HP. Removes all conditions. The light blinds undead within 120ft for 8d8 radiant.' },
+    { name:'Divine Aegis',      type:'Active', cost:'40 MP', cooldown:'Short rest',desc:'Create a 30ft aura for 10 minutes. All allies inside gain +2 AC, resistance to all damage, and immunity to fear and charm.' }
+  ],
+  beast_master: [
+    { name:'Tame Monster',     type:'Active',  cost:'30 MP', cooldown:'Long rest',desc:'Attempt to bond with a monster. WIS save DC equals your spell DC. On success, it becomes your permanent companion (max 2).' },
+    { name:'Pack Tactics',     type:'Passive', cost:'—',     cooldown:'—',       desc:'You and your tamed beasts have advantage on attack rolls against a creature if at least one beast is within 5ft of it.' }
+  ],
+  shadow_monarch: [
+    { name:"Ruler's Authority",type:'Active',  cost:'40 MP', cooldown:'—',       desc:'Telekinesis — move any object or creature up to 300lbs. Can crush, throw, or restrain. STR save to resist.' },
+    { name:'Shadow Extraction',type:'Active',  cost:'50 MP', cooldown:'—',       desc:'Extract the shadow of a slain enemy. It becomes a permanent shadow soldier under your command. No limit on army size.' }
+  ],
+  dragon_knight: [
+    { name:'Dragon Bond',      type:'Passive', cost:'—',     cooldown:'—',       desc:'You are bonded to a dragon. Gain fire resistance, +2 AC from scales, and can summon your dragon once per long rest.' },
+    { name:'Breath Weapon',    type:'Active',  cost:'35 MP', cooldown:'Short rest',desc:'Channel your dragon\'s breath. 60ft cone, 8d6 fire/cold/lightning damage (matches your dragon). DEX save for half.' }
+  ],
+  saint: [
+    { name:'Aura of Salvation',type:'Passive', cost:'—',     cooldown:'—',       desc:'All allies within 30ft heal 1d4 HP at the start of each of your turns. Undead within range take 1d4 radiant damage.' },
+    { name:'Miracle',          type:'Active',  cost:'100 MP',cooldown:'Long rest',desc:'Request a miracle from the divine. The DM determines the outcome, but the effect can duplicate any spell of 8th level or lower.' }
   ]
 };
 
@@ -174,7 +226,7 @@ const THREAT_BY_GRADE = Object.fromEntries(THREAT_GRADES.map(t=>[t.grade,t]));
 // Anomaly containment classes (flavor for the bestiary-like anomaly log)
 const ANOMALY_CLASSES = ['Beast','Undead','Demon','Dragon','Elemental','Construct','Aberration','Humanoid'];
 
-// Damage types — mundane, elemental, paranormal, memetic. Each character
+// Damage types — mundane, elemental, divine, arcane. Each character
 // can have a set they RESIST (half damage), a set they're VULNERABLE to
 // (double damage), and a set they're IMMUNE to (no damage).
 const DAMAGE_TYPES = [
@@ -270,7 +322,7 @@ let state = {
 
 // Commendation/achievement catalog (DM grants these)
 const COMMENDATIONS = [
-  { id:'first_contain', icon:'◈', name:'First Containment',   desc:'Successfully contained your first anomaly.' },
+  { id:'first_contain', icon:'◈', name:'First Kill',   desc:'Slew your first monster in the Tower.' },
   { id:'survived_keter', icon:'☣', name:'Keter Survivor',     desc:'Survived direct contact with a Keter-class entity.' },
   { id:'tier4',         icon:'★', name:'Ascension',           desc:'Reached Tier IV — Overseer clearance.' },
   { id:'flawless',      icon:'✦', name:'Flawless Operation',  desc:'Completed a mission with no casualties or losses.' },
@@ -491,7 +543,7 @@ function normalize(raw){
       mc.inventory  = Array.isArray(c.inventory)?c.inventory:[];
       mc.anomalies  = Array.isArray(c.anomalies)?c.anomalies:[];
       mc.missions   = Array.isArray(c.missions)?c.missions:[];
-      // Damage-type arrays — signature paranormal defense/vulnerability
+      // Damage-type arrays — resistances and vulnerabilities
       mc.resistances    = Array.isArray(c.resistances)    ? c.resistances.map(String)    : [];
       mc.vulnerabilities= Array.isArray(c.vulnerabilities)? c.vulnerabilities.map(String): [];
       mc.immunities     = Array.isArray(c.immunities)     ? c.immunities.map(String)     : [];
@@ -1237,7 +1289,7 @@ function renderSkillsMatrix(){
         ${sorted.map(def => {
           const sk = c.skills[def.name] || {prof:false,expert:false,misc:0};
           const total = skillTotal(c, def.name);
-          const isSense = def.name === 'Sensitivity';
+          const isSense = def.name === 'Mana Sense';
           const desc = SKILL_DESCS[def.name] || '';
           return `
           <div class="skill-row${def.isSave?' save-row':''}${isSense?' sense-row':''}"
@@ -1277,7 +1329,7 @@ function renderCalcPanel(){
       <div class="calc-cell"><span class="calc-k">Initiative</span><span class="calc-v">${fmtMod(calcInitiative(c))}</span></div>
       <div class="calc-cell"><span class="calc-k">Attack</span><span class="calc-v">${fmtMod(attackBonus(c))}</span></div>
       <div class="calc-cell"><span class="calc-k">Passive Perc.</span><span class="calc-v">${passivePerception(c)}</span></div>
-      <div class="calc-cell"><span class="calc-k">Sensitivity</span><span class="calc-v">${fmtMod(skillTotal(c,'Sensitivity'))}</span></div>
+      <div class="calc-cell"><span class="calc-k">Mana Sense</span><span class="calc-v">${fmtMod(skillTotal(c,'Mana Sense'))}</span></div>
       <div class="calc-cell"><span class="calc-k">Armor Class</span><span class="calc-v">${c.armor}</span></div>
     </div>
     <div class="calc-settings">
@@ -1482,7 +1534,7 @@ function mapShopCatToInv(cat){
     case 'Protection': return 'Armor';
     case 'Anomalous Items': return 'Anomalous';
     case 'Medical': case 'Warding & Barriers': return 'Consumable';
-    case 'Tech & Detection': case 'Utility': case 'Containment': return 'Tool';
+    case 'Skill Stones': case 'Loot Boxes': return 'Misc';
     default: return 'Misc';
   }
 }
@@ -1603,7 +1655,7 @@ function renderRelationships(){
 function addRelationship(){ const c=getChar(); if(!Array.isArray(c.relationships))c.relationships=[]; c.relationships.push({name:'',type:'Colleague',notes:''}); pushState(true); renderRelationships(); }
 
 // ================================================================
-// ANOMALY LOG  (SCP-style bestiary)
+// MONSTER LOG (Tower bestiary)
 // ================================================================
 // ── ANOMALY LOG (player view) ──
 // Player sees TWO sections:
@@ -1632,7 +1684,7 @@ function renderAnomalies(){
         <span class="anom-grade" style="background:${tg.color}" data-tt="Threat Grade ${a.threat} — ${tg.label}">${a.threat||'F'}</span>
         <span class="anom-desig">${esc(a.desig||'DT-???')}</span>
         <span class="anom-name">${esc(a.name||'Unidentified')}</span>
-        <span class="anom-class" data-tt="Containment class: ${a.class}">${esc(a.class||'Euclid')}</span>
+        <span class="anom-class" data-tt="Monster type: ${a.class}">${esc(a.class||'Beast')}</span>
         ${opts.available
           ? `<button class="anom-buy ${canAfford?'':'disabled'}" data-buy="${esc(a.id)}"
               data-tt="${canAfford ? 'Requisition this classified file — half the threat grade bounty' : 'Insufficient points'}">
@@ -1647,7 +1699,7 @@ function renderAnomalies(){
         </div>
         <div class="anom-row">
           <div class="anom-field"><span class="anom-field-lbl">Threat Grade</span><div class="anom-field-val">${a.threat||'F'} · ${tg.label}</div></div>
-          <div class="anom-field"><span class="anom-field-lbl">Containment</span><div class="anom-field-val">${esc(a.class||'Euclid')}</div></div>
+          <div class="anom-field"><span class="anom-field-lbl">Type</span><div class="anom-field-val">${esc(a.class||'Beast')}</div></div>
         </div>
         <div class="anom-field"><span class="anom-field-lbl">Field Notes</span>
           <div class="anom-desc-view ${a.redacted?'redacted':''}">${a.redacted
@@ -1818,7 +1870,12 @@ function renderDmPanel(){
           <label class="dm-mini"><span>Class ${(Number(c.systemLevel)||1)<10?'(Sys.10)':''}</span>
             <select class="dm-class" data-i="${i}" ${(Number(c.systemLevel)||1)<10?'disabled':''}>
               <option value="none" ${c.playerClass==='none'?'selected':''}>— No Class —</option>
-              ${PLAYER_CLASSES.map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
+              <optgroup label="Base Classes">
+                ${PLAYER_CLASSES.filter(pc=>!pc.hidden).map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
+              </optgroup>
+              <optgroup label="★ Advanced Classes (Hidden)">
+                ${PLAYER_CLASSES.filter(pc=>pc.hidden).map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
+              </optgroup>
             </select>
           </label>
           <label class="dm-mini"><span>Gold</span>
@@ -1946,13 +2003,13 @@ function renderDmAnomalyCatalog(){
               ${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label} (${fmtGold(t.points)} bounty)</option>`).join('')}
             </select>
           </label>
-          <label><span>Containment Class</span>
+          <label><span>Monster Type</span>
             <select class="dm-anom-f" data-i="${i}" data-k="class">
               ${ANOMALY_CLASSES.map(cn=>`<option ${a.class===cn?'selected':''}>${cn}</option>`).join('')}
             </select>
           </label>
         </div>
-        <label><span>Description · Behavior · Containment Notes</span>
+        <label><span>Description · Behavior · Combat Notes</span>
           <textarea class="dm-anom-f dm-anom-desc" data-i="${i}" data-k="desc" placeholder="Describe the anomaly. Its behavior. How it's contained. What the party should know.">${esc(a.desc)}</textarea>
         </label>
         <label class="dm-anom-redact ${a.redacted?'on':''}" data-tt="When classified, players see black bars instead of the description. Toggle off to reveal.">
@@ -3955,7 +4012,7 @@ document.addEventListener('click', ()=>{ _ac(); if(_sfxEnabled) startAmbient(); 
 startKnockListener();
 
 // ═══════════════════════════════════════════════════════════════════
-// TOOLTIP SYSTEM — global, delegated, on-brand SCP-terminal styling
+// TOOLTIP SYSTEM — global, delegated, system-UI styling
 // Any element with data-tt="text" gets a floating tooltip on hover.
 // ═══════════════════════════════════════════════════════════════════
 (function initTooltips(){

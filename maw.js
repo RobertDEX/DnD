@@ -706,8 +706,8 @@ async function pushState(immediate=false){
     setSyncDot('warn');
     return;
   }
-  const hasData = state.characters.some(c=>c.name && c.name.trim());
-  if(!hasData && !state.shop.length) return;
+  // Guard: don't push completely empty state (no names AND no shop).
+  // But DO allow pushing if there are system-level changes (EXP, gold, etc.)
   if(immediate){
     setSyncDot('syncing');
     try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) }); setSyncDot('synced'); }
@@ -761,11 +761,13 @@ function startListener(){
       state.shop = remote.shop;
       state.requests = remote.requests;
       state.theme = remote.theme;
-      state.evidenceBoard = remote.evidenceBoard;
       state.anomalyCatalog = remote.anomalyCatalog || [];
       state.cases         = remote.cases         || [];
       state.sites         = remote.sites         || [];
       state.initiative    = remote.initiative    || { active:false, round:1, turnIdx:0, entries:[] };
+      state.sceneName     = remote.sceneName     || '';
+      state.broadcast     = remote.broadcast     || '';
+      state.activeTab     = remote.activeTab     || state.activeTab;
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
@@ -3494,147 +3496,131 @@ function buildDmPanelHtml(){
   content.innerHTML = `
     <div class="dm-full-panel" id="dmFullPanel">
       <div class="dm-head">
-        <h2 class="dm-head-title">⚔ GAME MASTER CONSOLE</h2>
+        <h2 class="dm-head-title">⚔ GAME MASTER</h2>
         <div class="dm-head-actions">
-          <button class="maw-btn small" id="dmAddCharBtn">＋ Add Player</button>
-          <button class="maw-btn ghost small" id="dmLockBtn">🔒 Lock</button>
-          <button class="maw-btn ghost small" id="dmCloseBtn">✕ Close</button>
+          <button class="maw-btn small" id="dmAddCharBtn">＋ Player</button>
+          <button class="maw-btn ghost small" id="dmLockBtn">🔒</button>
+          <button class="maw-btn ghost small" id="dmCloseBtn">✕</button>
         </div>
       </div>
 
-      <div class="dm-card">
-        <div class="dm-card-title">◆ Player Roster</div>
-        <div class="dm-card-body" id="dmRoster"></div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">⚔ Quick Actions</div>
-        <div class="dm-card-body">
-          <div class="dm-quick-actions" id="dmQuickActions">
-            <select id="dmActionTarget" class="dm-action-select">
-              ${state.characters.map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
-            </select>
-            <select id="dmActionType">
-              <option value="hp-dmg">HP Damage</option>
-              <option value="hp-heal">HP Heal</option>
-              <option value="hp-full">HP Full Restore</option>
-              <option value="mp-dmg">Mana Drain</option>
-              <option value="mp-heal">Mana Restore</option>
-              <option value="mp-full">Mana Full</option>
-            </select>
-            <input type="number" id="dmActionAmount" value="10" min="0" placeholder="Amount">
-            <button class="maw-btn small" id="dmActionBtn">Apply</button>
+      <div class="dm-grid">
+        <div class="dm-col-left">
+          <div class="dm-card">
+            <div class="dm-card-title">◆ Roster</div>
+            <div class="dm-card-body dm-roster-compact" id="dmRoster"></div>
           </div>
-        </div>
-      </div>
 
-      <div class="dm-card">
-        <div class="dm-card-title">🏪 Shop Management</div>
-        <div class="dm-card-body">
-          <button class="maw-btn small" id="dmLoadDefaultShop">Load Default Shop Catalog</button>
-          <button class="maw-btn ghost small" id="dmClearShop" style="margin-left:.5rem">Clear Shop</button>
-          <div class="dm-shop-custom" style="margin-top:1rem">
-            <div class="dm-mini-label">Add Custom Item</div>
-            <div class="dm-shop-add-row">
-              <input type="text" id="dmShopItemName" placeholder="Item name">
-              <input type="number" id="dmShopItemPrice" placeholder="Price" min="0">
-              <select id="dmShopItemTier"><option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option><option value="4">Tier 4</option></select>
-              <select id="dmShopItemCat">${SHOP_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
-              <button class="maw-btn small" id="dmShopAddBtn">＋</button>
+          <div class="dm-card">
+            <div class="dm-card-title">⚡ Quick Actions</div>
+            <div class="dm-card-body">
+              <div class="dm-qa-row">
+                <select id="dmActionTarget">${state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}</select>
+                <select id="dmActionType">
+                  <option value="hp-dmg">HP −</option><option value="hp-heal">HP +</option><option value="hp-full">HP Full</option>
+                  <option value="mp-dmg">MP −</option><option value="mp-heal">MP +</option><option value="mp-full">MP Full</option>
+                </select>
+                <input type="number" id="dmActionAmount" value="10" min="0">
+                <button class="maw-btn small" id="dmActionBtn">GO</button>
+              </div>
             </div>
-            <textarea id="dmShopItemDesc" placeholder="Item description (optional)" rows="2" style="margin-top:.4rem"></textarea>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">✦ EXP</div>
+            <div class="dm-card-body">
+              <div class="dm-qa-row">
+                <select id="dmExpTarget">
+                  <option value="all">All</option>
+                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
+                </select>
+                <input type="number" id="dmExpAmount" value="100" min="1">
+                <button class="maw-btn small" id="dmExpBtn">Award</button>
+              </div>
+              <div class="dm-preset-row">${[50,100,250,500,1000,5000].map(n=>`<button class="dm-preset dm-exp-preset" data-exp="${n}">${n>=1000?(n/1000)+'k':n}</button>`).join('')}</div>
+              <div id="dmExpStatus" class="dm-exp-status"></div>
+            </div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">💰 Gold</div>
+            <div class="dm-card-body">
+              <div class="dm-qa-row">
+                <select id="dmGoldTarget">
+                  <option value="all">All</option>
+                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
+                </select>
+                <select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select>
+                <button class="maw-btn small" id="dmGoldBtn">Award</button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="dm-card">
-        <div class="dm-card-title">💰 Gold Awards</div>
-        <div class="dm-card-body">
-          <div class="dm-quick-actions">
-            <select id="dmGoldTarget">
-              <option value="all">All Players</option>
-              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
-            </select>
-            <select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}-Rank: ${fmtGold(t.points)} gold</option>`).join('')}</select>
-            <button class="maw-btn small" id="dmGoldBtn">Award Gold</button>
+        <div class="dm-col-right">
+          <div class="dm-card">
+            <div class="dm-card-title">💎 Skill Stones</div>
+            <div class="dm-card-body">
+              <div class="dm-ss-form">
+                <input type="text" id="dmSSName" placeholder="Skill name">
+                <div class="dm-ss-form-row">
+                  <select id="dmSSType"><option>Active</option><option>Passive</option><option>Ultimate</option></select>
+                  <input type="text" id="dmSSCost" placeholder="MP cost">
+                  <input type="text" id="dmSSCooldown" placeholder="Cooldown">
+                  <input type="text" id="dmSSElement" placeholder="Element">
+                </div>
+                <textarea id="dmSSDesc" placeholder="Description" rows="2"></textarea>
+                <div class="dm-ss-form-row">
+                  <select id="dmSSTarget">${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}</select>
+                  <button class="maw-btn small" id="dmSSAwardBtn">💎 Award</button>
+                </div>
+              </div>
+              <div id="dmSSInventories" style="margin-top:.6rem"></div>
+            </div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">🏪 Shop</div>
+            <div class="dm-card-body">
+              <div class="dm-qa-row" style="margin-bottom:.6rem">
+                <button class="maw-btn small" id="dmLoadDefaultShop">Load Catalog</button>
+                <button class="maw-btn ghost small" id="dmClearShop">Clear</button>
+              </div>
+              <input type="text" id="dmShopItemName" placeholder="Custom item name" style="margin-bottom:.3rem">
+              <div class="dm-qa-row">
+                <input type="number" id="dmShopItemPrice" placeholder="Price" min="0">
+                <select id="dmShopItemTier"><option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option></select>
+                <select id="dmShopItemCat">${SHOP_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+                <button class="maw-btn small" id="dmShopAddBtn">＋</button>
+              </div>
+              <textarea id="dmShopItemDesc" placeholder="Description" rows="1" style="margin-top:.3rem"></textarea>
+            </div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">📡 Broadcast</div>
+            <div class="dm-card-body">
+              <input type="text" id="dmSceneName" placeholder="Scene / Floor name" value="${esc(state.sceneName||'')}" style="margin-bottom:.4rem">
+              <textarea id="dmBroadcast" rows="2" placeholder="System announcement…">${esc(state.broadcast||'')}</textarea>
+              <button class="maw-btn small" id="dmBroadcastBtn" style="margin-top:.4rem">Send</button>
+            </div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">⚔ Initiative</div>
+            <div class="dm-card-body" id="dmInitiative"></div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">📖 Bestiary</div>
+            <div class="dm-card-body" id="dmAnomalyCatalog"></div>
+          </div>
+
+          <div class="dm-card">
+            <div class="dm-card-title">📜 Quests</div>
+            <div class="dm-card-body" id="dmCases"></div>
           </div>
         </div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">✦ EXP Awards</div>
-        <div class="dm-card-body">
-          <div class="dm-quick-actions">
-            <select id="dmExpTarget">
-              <option value="all">All Players</option>
-              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))} (Sys.Lv.${c.systemLevel||1})</option>`).join('')}
-            </select>
-            <input type="number" id="dmExpAmount" value="100" min="1" placeholder="EXP amount">
-            <button class="maw-btn small" id="dmExpBtn">Award EXP</button>
-          </div>
-          <div class="dm-mini-label" style="margin-top:.6rem">Quick Presets</div>
-          <div class="dm-exp-presets">
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="50">50 EXP</button>
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="100">100 EXP</button>
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="250">250 EXP</button>
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="500">500 EXP</button>
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="1000">1,000 EXP</button>
-            <button class="maw-btn ghost small dm-exp-preset" data-exp="5000">5,000 EXP</button>
-          </div>
-          <div class="dm-mini-label" style="margin-top:.6rem">Party EXP Status</div>
-          <div id="dmExpStatus" class="dm-exp-status"></div>
-        </div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">💎 Skill Stone Manager</div>
-        <div class="dm-card-body">
-          <div class="dm-mini-label">Create & Award a Skill Stone</div>
-          <div class="dm-shop-add-row">
-            <input type="text" id="dmSSName" placeholder="Skill name (e.g. Fireball)">
-            <select id="dmSSType"><option value="Active">Active</option><option value="Passive">Passive</option><option value="Ultimate">Ultimate</option></select>
-          </div>
-          <div class="dm-shop-add-row" style="margin-top:.4rem">
-            <input type="text" id="dmSSCost" placeholder="Mana cost (e.g. 30 MP)" value="">
-            <input type="text" id="dmSSCooldown" placeholder="Cooldown (e.g. 3 rounds)" value="">
-            <input type="text" id="dmSSElement" placeholder="Element (e.g. Fire)" value="">
-          </div>
-          <textarea id="dmSSDesc" placeholder="Skill description — what does it do?" rows="2" style="margin-top:.4rem"></textarea>
-          <div class="dm-shop-add-row" style="margin-top:.5rem">
-            <select id="dmSSTarget">
-              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
-            </select>
-            <button class="maw-btn small" id="dmSSAwardBtn">💎 Award Skill Stone</button>
-          </div>
-          <div class="dm-mini-label" style="margin-top:1rem">Player Skill Stone Inventories</div>
-          <div id="dmSSInventories"></div>
-        </div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">📡 Scene & Broadcast</div>
-        <div class="dm-card-body">
-          <div class="field"><label>Current Scene / Floor</label><input type="text" id="dmSceneName" placeholder="e.g. Floor 12 — The Crimson Gate" value="${esc(state.sceneName||'')}"></div>
-          <div class="field" style="margin-top:.6rem"><label>Broadcast Message (all players see this)</label>
-            <textarea id="dmBroadcast" rows="2" placeholder="System announcement…">${esc(state.broadcast||'')}</textarea>
-          </div>
-          <button class="maw-btn small" id="dmBroadcastBtn" style="margin-top:.5rem">Send Broadcast</button>
-        </div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">⚔ Initiative Tracker</div>
-        <div class="dm-card-body" id="dmInitiative"></div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">📖 Monster Catalog</div>
-        <div class="dm-card-body" id="dmAnomalyCatalog"></div>
-      </div>
-
-      <div class="dm-card">
-        <div class="dm-card-title">📜 Quest Manager</div>
-        <div class="dm-card-body" id="dmCases"></div>
       </div>
     </div>
   `;

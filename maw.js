@@ -123,6 +123,41 @@ const PLAYER_CLASSES = [
 ];
 const CLASS_BY_ID = Object.fromEntries(PLAYER_CLASSES.map(c => [c.id, c]));
 
+const CLASS_BASIC_SKILLS = {
+  knight:     [
+    { name:'Swordsmanship',  type:'Passive', cost:'—',     cooldown:'—',       desc:'Mastery of blade techniques. +2 to melee attack rolls. Can perform Thrust (single target, +1d6) and Sweep (2 targets, normal damage).' },
+    { name:'Shield Bash',    type:'Active',  cost:'15 MP', cooldown:'1 round', desc:'Slam your shield into a target. Deals 2d6 bludgeoning and stuns the target for 1 round. STR save DC 14 negates stun.' }
+  ],
+  sorcerer:   [
+    { name:'Arcane Bolt',    type:'Active',  cost:'10 MP', cooldown:'—',       desc:'Hurl a bolt of pure arcane energy. 3d6 force damage, range 120ft. Spell attack roll.' },
+    { name:'Mana Shield',    type:'Active',  cost:'20 MP', cooldown:'3 rounds',desc:'Conjure a barrier of mana. Absorbs up to 30 damage for 1 minute. Excess damage breaks the shield.' }
+  ],
+  priest:     [
+    { name:'Holy Light',     type:'Active',  cost:'15 MP', cooldown:'—',       desc:'Channel radiant energy. Heals 3d8+WIS to one ally, or deals 3d8 radiant to one undead/demon.' },
+    { name:'Blessing',       type:'Active',  cost:'25 MP', cooldown:'Long rest',desc:'Bless up to 3 allies. They gain +1d4 to attack rolls and saving throws for 10 minutes.' }
+  ],
+  ranger:     [
+    { name:'Quick Shot',     type:'Active',  cost:'10 MP', cooldown:'—',       desc:'Fire two arrows in rapid succession. Each deals 1d8+DEX piercing. Both can target the same or different enemies.' },
+    { name:"Nature's Mark",  type:'Active',  cost:'15 MP', cooldown:'Short rest',desc:'Mark a target. All attacks against it gain advantage for 1 minute. The mark is visible only to your party.' }
+  ],
+  assassin:   [
+    { name:'Backstab',       type:'Passive', cost:'—',     cooldown:'—',       desc:'Attacks from stealth or against surprised targets deal an extra 3d6 damage. Critical hits add another 2d6.' },
+    { name:'Shadow Step',    type:'Active',  cost:'20 MP', cooldown:'2 rounds',desc:'Teleport up to 60ft to an unoccupied space you can see. If you appear behind an enemy, your next attack has advantage.' }
+  ],
+  berserker:  [
+    { name:'Rage',           type:'Active',  cost:'20 MP', cooldown:'Short rest',desc:'Enter a berserker rage for 1 minute. +3 to melee damage, resistance to physical damage, but cannot cast spells. Ends early if you take no damage for 1 round.' },
+    { name:'Cleave',         type:'Active',  cost:'15 MP', cooldown:'1 round', desc:'A devastating horizontal swing. Hits all enemies within 10ft in a 180° arc. Deals weapon damage +2d6 to each.' }
+  ],
+  necromancer:[
+    { name:'Raise Dead',     type:'Active',  cost:'30 MP', cooldown:'Long rest',desc:'Animate a corpse as an undead servant. It has half the original creature\'s HP and obeys simple commands. Lasts 1 hour or until destroyed.' },
+    { name:'Life Drain',     type:'Active',  cost:'15 MP', cooldown:'—',       desc:'Drain life from a target within 30ft. Deals 3d6 necrotic damage and you heal for half the damage dealt.' }
+  ],
+  paladin:    [
+    { name:'Divine Smite',   type:'Active',  cost:'15 MP', cooldown:'—',       desc:'Channel divine energy through your weapon. On a hit, deal an extra 2d8 radiant damage. +1d8 against undead and fiends.' },
+    { name:'Lay on Hands',   type:'Active',  cost:'—',     cooldown:'Long rest',desc:'Touch an ally and restore up to 5×your level HP from your divine pool. Can also cure one disease or neutralize one poison.' }
+  ]
+};
+
 const RARITY_COLORS = { common:'#9aa6b2', uncommon:'#5a9a78', rare:'#5aa8f5', epic:'#a462d3', legendary:'#e8a72c' };
 
 // Threat grades for missions / anomalies and their point bounties
@@ -214,7 +249,8 @@ function blankChar(i) {
     fatigue:0,  // 0-100, like Solo Leveling fatigue
     deathSaves:{successes:0,failures:0,stable:false},
     abilitiesText:'', notesText:'',
-    relationships:[], weapons:[], inventory:[], anomalies:[], missions:[], abilities:[], commendations:[]
+    relationships:[], weapons:[], inventory:[], anomalies:[], missions:[], abilities:[], commendations:[],
+    skillStones:[]  // unabsorbed skill stones — absorbing moves them to abilities permanently
   };
 }
 
@@ -343,6 +379,17 @@ function normalize(raw){
         name:a?.name||'', type:a?.type||'Talent', cost:a?.cost||'', cooldown:a?.cooldown||'', desc:a?.desc||''
       }));
       mc.commendations = Array.isArray(c.commendations)?c.commendations:[];
+      mc.skillStones = (Array.isArray(c.skillStones)?c.skillStones:[]).map(s=>({
+        id:       String(s?.id || ('ss-'+Date.now()+'-'+Math.random().toString(16).slice(2))),
+        name:     String(s?.name || 'Unknown Skill'),
+        type:     String(s?.type || 'Active'),
+        cost:     String(s?.cost || '—'),
+        cooldown: String(s?.cooldown || '—'),
+        desc:     String(s?.desc || ''),
+        element:  String(s?.element || ''),
+        fromDm:   !!s?.fromDm,
+        fromPlayer: String(s?.fromPlayer || '')
+      }));
       if(typeof mc.points!=='number') mc.points = Number(mc.points)||0;
       if(!RANK_BY_ID[mc.rank]) mc.rank = 'E';
       const blankSk = makeBlankSkills(); mc.skills = {};
@@ -703,7 +750,7 @@ function renderTabs(){
       case 'relations': renderRelationships(); break;
       case 'monsters':  renderAnomalies(); break;
       case 'cases':     renderPlayerCases(); break;
-      case 'abilities': renderAbilities(); renderCommendations(); break;
+      case 'abilities': renderAbilities(); renderSkillStones(); renderCommendations(); break;
       case 'shop':      renderShop(); renderRequests(); break;
     }
   } catch(e){}
@@ -1544,28 +1591,28 @@ function renderAbilities(){
   const c = getChar();
   const host = el('abilitiesList'); if(!host) return;
   if(!Array.isArray(c.abilities)) c.abilities=[];
-  const cnt = el('talentCount'); if(cnt) cnt.textContent = `${c.abilities.length} ON FILE`;
+  const cnt = el('talentCount'); if(cnt) cnt.textContent = `${c.abilities.length} LEARNED`;
   if(!c.abilities.length){
-    host.innerHTML = `<div class="empty-note big">✶<br>NO TALENTS RECORDED<br><span>Log your agent's trained skills, anomalous abilities, and special techniques.</span></div>`;
+    host.innerHTML = `<div class="empty-note big">✶<br>NO SKILLS LEARNED<br><span>Gain skills by receiving a class at Level 10 or by absorbing Skill Stones.</span></div>`;
     return;
   }
   host.innerHTML = c.abilities.map((a,i)=>{
-    const type = a.type||'Talent';
+    const type = a.type||'Active';
     return `
     <div class="talent-card type-${type.toLowerCase()}">
       <div class="talent-head">
         <span class="talent-type-badge">${esc(type)}</span>
-        <input class="ab-name" data-i="${i}" value="${esc(a.name||'')}" placeholder="Talent name">
+        <input class="ab-name" data-i="${i}" value="${esc(a.name||'')}" placeholder="Skill name">
         <button class="ab-del" data-i="${i}" title="Remove">✕</button>
       </div>
       <div class="talent-meta">
         <label><span>Type</span>
           <select class="ab-type" data-i="${i}">${TALENT_TYPES.map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}</select>
         </label>
-        <label><span>Cost</span><input class="ab-cost" data-i="${i}" value="${esc(a.cost||'')}" placeholder="e.g. 2 Mana"></label>
-        <label><span>Cooldown</span><input class="ab-cooldown" data-i="${i}" value="${esc(a.cooldown||'')}" placeholder="e.g. 1/day"></label>
+        <label><span>Cost</span><input class="ab-cost" data-i="${i}" value="${esc(a.cost||'')}" placeholder="e.g. 30 MP"></label>
+        <label><span>Cooldown</span><input class="ab-cooldown" data-i="${i}" value="${esc(a.cooldown||'')}" placeholder="e.g. 3 rounds"></label>
       </div>
-      <textarea class="ab-desc" data-i="${i}" placeholder="What it does, how it works, any risks…">${esc(a.desc||'')}</textarea>
+      <textarea class="ab-desc" data-i="${i}" placeholder="What it does, how it works…">${esc(a.desc||'')}</textarea>
     </div>`;
   }).join('');
   // text fields: live-update state on input, FLUSH to server on blur (prevents data loss on leave)
@@ -1649,11 +1696,28 @@ function renderDmPanel(){
       const c = state.characters[+s.dataset.i];
       const oldClass = c.playerClass;
       c.playerClass = s.value;
-      pushState(true); render();
+      // Auto-grant basic class skills when assigned for the first time
       if(s.value !== 'none' && oldClass === 'none'){
+        const basics = CLASS_BASIC_SKILLS[s.value] || [];
+        basics.forEach(skill => {
+          // Only add if they don't already have a skill with this name
+          const exists = c.abilities.some(a => a.name === skill.name);
+          if(!exists){
+            c.abilities.push({
+              name: skill.name,
+              type: skill.type,
+              cost: skill.cost,
+              cooldown: skill.cooldown,
+              desc: skill.desc + ' [Class Skill]'
+            });
+          }
+        });
         const cls = CLASS_BY_ID[s.value];
-        showToast(`${c.name||'Player'} has been granted the ${cls?.label||s.value} class!`, 'buy');
+        showToast(`${c.name||'Player'} is now a ${cls?.label||s.value}! Granted: ${basics.map(b=>b.name).join(', ')}`, 'buy');
+      } else if(s.value !== 'none' && oldClass !== 'none'){
+        showToast(`${c.name||'Player'}'s class changed to ${CLASS_BY_ID[s.value]?.label||s.value}`, 'info');
       }
+      pushState(true); render();
     }));
     roster.querySelectorAll('.dm-points').forEach(inp=> inp.addEventListener('input',()=>{ state.characters[+inp.dataset.i].points=Math.max(0,Number(inp.value)||0); pushState(); renderHeader(); }));
     roster.querySelectorAll('.dm-state').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].state=s.value; pushState(true); render(); }));
@@ -2928,6 +2992,95 @@ function stopManaWhispers(){ clearInterval(_manaWhisperTimer); _manaWhisperTimer
 // ================================================================
 // COMMENDATIONS / ACHIEVEMENTS
 // ================================================================
+// ═════════════════════════════════════════════════════════════════
+// SKILL STONES — items that can be absorbed into permanent skills
+// DM creates and awards them. Players can absorb or transfer.
+// ═════════════════════════════════════════════════════════════════
+function renderSkillStones(){
+  const host = el('skillStonesList'); if(!host) return;
+  const c = getChar();
+  const stones = c.skillStones || [];
+  if(!stones.length){
+    host.innerHTML = `<div class="empty-note">No Skill Stones held. The Game Master awards these as dungeon rewards.</div>`;
+    return;
+  }
+  const otherPlayers = state.characters.filter(x => x.id !== c.id && x.state === 'active' && x.name);
+  host.innerHTML = stones.map((s, i) => `
+    <div class="ss-card" style="--ss-color:${s.element ? getElementColor(s.element) : 'var(--accent)'}">
+      <div class="ss-head">
+        <span class="ss-gem">💎</span>
+        <span class="ss-name">${esc(s.name)}</span>
+        <span class="ss-type-badge">${esc(s.type)}</span>
+        ${s.element ? `<span class="ss-element">${esc(s.element)}</span>` : ''}
+      </div>
+      <div class="ss-meta">
+        ${s.cost && s.cost !== '—' ? `<span>Cost: ${esc(s.cost)}</span>` : ''}
+        ${s.cooldown && s.cooldown !== '—' ? `<span>CD: ${esc(s.cooldown)}</span>` : ''}
+        ${s.fromDm ? '<span class="ss-from">From: GM</span>' : ''}
+        ${s.fromPlayer ? `<span class="ss-from">From: ${esc(s.fromPlayer)}</span>` : ''}
+      </div>
+      ${s.desc ? `<div class="ss-desc">${esc(s.desc)}</div>` : ''}
+      <div class="ss-actions">
+        <button class="maw-btn small ss-absorb" data-si="${i}" title="Absorb this stone — permanently learn the skill">✦ ABSORB</button>
+        ${otherPlayers.length ? `
+          <select class="ss-transfer-target" data-si="${i}">
+            <option value="">Transfer to…</option>
+            ${otherPlayers.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}
+          </select>
+          <button class="maw-btn ghost small ss-transfer" data-si="${i}" title="Send this stone to another player">↷ Send</button>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  // Absorb handler
+  host.querySelectorAll('.ss-absorb').forEach(btn => btn.addEventListener('click', ()=>{
+    const i = Number(btn.dataset.si);
+    const stone = c.skillStones[i]; if(!stone) return;
+    if(!confirm(`Absorb "${stone.name}"? This will permanently add it to your skills and destroy the stone.`)) return;
+    // Add to abilities
+    c.abilities.push({
+      name: stone.name,
+      type: stone.type || 'Active',
+      cost: stone.cost || '—',
+      cooldown: stone.cooldown || '—',
+      desc: (stone.desc || '') + (stone.element ? ` [${stone.element}]` : '') + ' [Skill Stone]'
+    });
+    // Remove stone
+    c.skillStones.splice(i, 1);
+    pushState(true); render();
+    showToast(`✦ ${stone.name} absorbed! Skill permanently learned.`, 'buy');
+  }));
+
+  // Transfer handler
+  host.querySelectorAll('.ss-transfer').forEach(btn => btn.addEventListener('click', ()=>{
+    const i = Number(btn.dataset.si);
+    const stone = c.skillStones[i]; if(!stone) return;
+    const sel = host.querySelector(`.ss-transfer-target[data-si="${i}"]`);
+    const targetId = sel?.value; if(!targetId){ showToast('Select a player to send to','warn'); return; }
+    const target = state.characters.find(x => x.id === targetId);
+    if(!target){ showToast('Target not found','warn'); return; }
+    if(!confirm(`Send "${stone.name}" to ${target.name}? You will lose the stone.`)) return;
+    // Move stone to target
+    const transferred = { ...stone, fromPlayer: c.name || 'Unknown', fromDm: false };
+    if(!Array.isArray(target.skillStones)) target.skillStones = [];
+    target.skillStones.push(transferred);
+    c.skillStones.splice(i, 1);
+    pushState(true); render();
+    showToast(`💎 ${stone.name} sent to ${target.name}!`, 'info');
+  }));
+}
+
+function getElementColor(element){
+  const map = {
+    fire:'#d94f4f', ice:'#5aa8f5', cold:'#5aa8f5', lightning:'#e8a72c',
+    water:'#3a8ac0', wind:'#5ad17a', earth:'#a08040', light:'#ffd460',
+    dark:'#8a5ad1', radiant:'#ffd460', necrotic:'#8a5ad1', poison:'#5a9a78',
+    force:'#a462d3', thunder:'#e0802a', arcane:'#a462d3', holy:'#ffd460'
+  };
+  return map[(element||'').toLowerCase()] || 'var(--accent)';
+}
+
 function renderCommendations(){
   const c = getChar();
   const host = el('commendationsList'); if(!host) return;
@@ -3203,6 +3356,31 @@ function buildDmPanelHtml(){
       </div>
 
       <div class="dm-card">
+        <div class="dm-card-title">💎 Skill Stone Manager</div>
+        <div class="dm-card-body">
+          <div class="dm-mini-label">Create & Award a Skill Stone</div>
+          <div class="dm-shop-add-row">
+            <input type="text" id="dmSSName" placeholder="Skill name (e.g. Fireball)">
+            <select id="dmSSType"><option value="Active">Active</option><option value="Passive">Passive</option><option value="Ultimate">Ultimate</option></select>
+          </div>
+          <div class="dm-shop-add-row" style="margin-top:.4rem">
+            <input type="text" id="dmSSCost" placeholder="Mana cost (e.g. 30 MP)" value="">
+            <input type="text" id="dmSSCooldown" placeholder="Cooldown (e.g. 3 rounds)" value="">
+            <input type="text" id="dmSSElement" placeholder="Element (e.g. Fire)" value="">
+          </div>
+          <textarea id="dmSSDesc" placeholder="Skill description — what does it do?" rows="2" style="margin-top:.4rem"></textarea>
+          <div class="dm-shop-add-row" style="margin-top:.5rem">
+            <select id="dmSSTarget">
+              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}
+            </select>
+            <button class="maw-btn small" id="dmSSAwardBtn">💎 Award Skill Stone</button>
+          </div>
+          <div class="dm-mini-label" style="margin-top:1rem">Player Skill Stone Inventories</div>
+          <div id="dmSSInventories"></div>
+        </div>
+      </div>
+
+      <div class="dm-card">
         <div class="dm-card-title">📡 Scene & Broadcast</div>
         <div class="dm-card-body">
           <div class="field"><label>Current Scene / Floor</label><input type="text" id="dmSceneName" placeholder="e.g. Floor 12 — The Crimson Gate" value="${esc(state.sceneName||'')}"></div>
@@ -3306,6 +3484,60 @@ function buildDmPanelHtml(){
     pushState(true); render();
     showToast('Broadcast sent', 'info');
   });
+
+  // Skill Stone award
+  el('dmSSAwardBtn')?.addEventListener('click', ()=>{
+    const name = el('dmSSName')?.value?.trim(); if(!name){ showToast('Give the skill a name','warn'); return; }
+    const targetIdx = Number(el('dmSSTarget')?.value);
+    const c = state.characters[targetIdx]; if(!c){ showToast('Invalid target','warn'); return; }
+    const stone = {
+      id: 'ss-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
+      name,
+      type: el('dmSSType')?.value || 'Active',
+      cost: el('dmSSCost')?.value || '—',
+      cooldown: el('dmSSCooldown')?.value || '—',
+      desc: el('dmSSDesc')?.value || '',
+      element: el('dmSSElement')?.value || '',
+      fromDm: true,
+      fromPlayer: ''
+    };
+    if(!Array.isArray(c.skillStones)) c.skillStones = [];
+    c.skillStones.push(stone);
+    pushState(true);
+    showToast(`💎 Skill Stone "${name}" awarded to ${c.name||'Player'}!`, 'buy');
+    // Clear form
+    ['dmSSName','dmSSCost','dmSSCooldown','dmSSElement','dmSSDesc'].forEach(id=>{ const e=el(id); if(e) e.value=''; });
+    renderDmSkillStoneInventories();
+  });
+
+  renderDmSkillStoneInventories();
+}
+
+function renderDmSkillStoneInventories(){
+  const host = el('dmSSInventories'); if(!host) return;
+  const chars = state.characters.filter(c => c.state === 'active');
+  if(!chars.length){ host.innerHTML = '<div class="dm-empty">No active players.</div>'; return; }
+  host.innerHTML = chars.map(c => {
+    const stones = c.skillStones || [];
+    return `
+      <div class="dm-ss-player">
+        <div class="dm-ss-player-name">${esc(c.name||'Unnamed')} <span class="dm-ss-count">${stones.length} stone${stones.length===1?'':'s'}</span></div>
+        ${stones.length ? stones.map(s => `
+          <div class="dm-ss-stone">
+            <span class="dm-ss-stone-name">💎 ${esc(s.name)}</span>
+            <span class="dm-ss-stone-type">${esc(s.type)}</span>
+            ${s.element ? `<span class="dm-ss-stone-elem">${esc(s.element)}</span>` : ''}
+            <button class="dm-ss-revoke" data-cid="${esc(c.id)}" data-sid="${esc(s.id)}" title="Revoke this stone">✕</button>
+          </div>
+        `).join('') : '<div class="dm-empty" style="padding:.3rem 0">No stones held.</div>'}
+      </div>`;
+  }).join('');
+  host.querySelectorAll('.dm-ss-revoke').forEach(btn => btn.addEventListener('click', ()=>{
+    const c = state.characters.find(x => x.id === btn.dataset.cid); if(!c) return;
+    c.skillStones = (c.skillStones||[]).filter(s => s.id !== btn.dataset.sid);
+    pushState(true); renderDmSkillStoneInventories();
+    showToast('Skill stone revoked','info');
+  }));
 }
 
 function unlockDm(){

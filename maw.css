@@ -3678,3 +3678,176 @@ body{
   min-width: 100px;
   padding: .4rem .5rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SKILL STONES — player-side cards + DM inventory display
+   ═══════════════════════════════════════════════════════════════════ */
+.ss-card {
+  --ss-color: var(--accent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ss-color) 12%, rgba(8,16,32,.8)), rgba(8,16,32,.85));
+  border: 1px solid color-mix(in srgb, var(--ss-color) 40%, transparent);
+  border-left: 3px solid var(--ss-color);
+  border-radius: var(--r);
+  padding: .9rem 1rem;
+  margin-bottom: .6rem;
+  transition: border-color .15s, box-shadow .18s;
+}
+.ss-card:hover {
+  border-color: var(--ss-color);
+  box-shadow: 0 0 16px -4px color-mix(in srgb, var(--ss-color) 50%, transparent);
+}
+.ss-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .4rem;
+}
+.ss-gem {
+  font-size: 1.2rem;
+  filter: drop-shadow(0 0 6px var(--ss-color));
+}
+.ss-name {
+  font-family: var(--F2);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+}
+.ss-type-badge {
+  font-family: var(--F4);
+  font-size: .5rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .15rem .5rem;
+  border: 1px solid var(--ss-color);
+  color: var(--ss-color);
+  border-radius: 2px;
+}
+.ss-element {
+  font-family: var(--F4);
+  font-size: .5rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .15rem .5rem;
+  background: color-mix(in srgb, var(--ss-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ss-color) 30%, transparent);
+  color: var(--ss-color);
+  border-radius: 2px;
+}
+.ss-meta {
+  display: flex;
+  gap: .8rem;
+  flex-wrap: wrap;
+  margin-bottom: .4rem;
+  font-family: var(--F4);
+  font-size: .6rem;
+  color: var(--text-dim);
+  letter-spacing: .08em;
+}
+.ss-from {
+  color: var(--muted);
+  font-style: italic;
+}
+.ss-desc {
+  font-family: var(--F3);
+  font-size: .78rem;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: .6rem;
+  padding: .5rem .6rem;
+  background: rgba(0,0,0,.2);
+  border-radius: var(--r);
+  border-left: 2px solid color-mix(in srgb, var(--ss-color) 30%, transparent);
+}
+.ss-actions {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ss-absorb {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ss-color) 25%, rgba(8,16,32,.8)), rgba(8,16,32,.7)) !important;
+  border-color: var(--ss-color) !important;
+  color: var(--ss-color) !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px color-mix(in srgb, var(--ss-color) 50%, transparent);
+}
+.ss-absorb:hover {
+  background: color-mix(in srgb, var(--ss-color) 35%, rgba(8,16,32,.7)) !important;
+  box-shadow: 0 0 16px -2px color-mix(in srgb, var(--ss-color) 60%, transparent) !important;
+  color: #fff !important;
+}
+.ss-transfer-target {
+  flex: 1;
+  min-width: 120px;
+  padding: .4rem .5rem;
+}
+
+/* DM Skill Stone inventory view */
+.dm-ss-player {
+  padding: .6rem;
+  border: 1px solid rgba(80,140,220,.15);
+  border-radius: var(--r);
+  margin-bottom: .5rem;
+  background: rgba(8,16,32,.4);
+}
+.dm-ss-player-name {
+  font-family: var(--F2);
+  font-size: .85rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: .4rem;
+}
+.dm-ss-count {
+  font-family: var(--F4);
+  font-size: .52rem;
+  color: var(--text-dim);
+  letter-spacing: .1em;
+  margin-left: .5rem;
+}
+.dm-ss-stone {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .5rem;
+  background: rgba(0,0,0,.2);
+  border-radius: 2px;
+  margin-bottom: .2rem;
+}
+.dm-ss-stone-name {
+  font-family: var(--F2);
+  font-size: .8rem;
+  color: var(--text);
+  flex: 1;
+}
+.dm-ss-stone-type {
+  font-family: var(--F4);
+  font-size: .48rem;
+  color: var(--accent);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.dm-ss-stone-elem {
+  font-family: var(--F4);
+  font-size: .48rem;
+  color: var(--amber);
+  letter-spacing: .1em;
+}
+.dm-ss-revoke {
+  background: none;
+  border: 1px solid rgba(80,140,220,.2);
+  color: var(--text-dim);
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: .7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+.dm-ss-revoke:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}

@@ -233,6 +233,8 @@ function blankChar(i) {
     rank:'E',                 // letter rank E-S
     points:0,                 // gold currency
     title:'',                 // earned title (e.g. "Shadow Monarch")
+    exp:0,                    // current experience points
+    systemLevel:1,            // system level (every 10 = 1 DnD level)
     division:'', site:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'STR',
     state: i<4?'active':'reserve',
@@ -325,20 +327,134 @@ function effectiveStat(c, stat) {
 }
 
 // How many system stat points the character has available to spend.
-// Formula: (level - 1) * 3 points total, minus what's already allocated.
-function systemPointsTotal(c) { return Math.max(0, (Number(c.level) || 1) - 1) * 3; }
+// Formula: (systemLevel - 1) * 3 points total, minus what's already allocated.
+function systemPointsTotal(c) { return Math.max(0, (Number(c.systemLevel) || 1) - 1) * 3; }
 function systemPointsSpent(c) {
   const ss = c.systemStats || {};
   return Object.values(ss).reduce((sum, v) => sum + (Number(v) || 0), 0);
 }
 function systemPointsRemaining(c) { return Math.max(0, systemPointsTotal(c) - systemPointsSpent(c)); }
 
-// Base stat point-buy: 9 points distributed across 6 stats that start at 8.
+// ═════════════════════════════════════════════════════════════════
+// EXP & LEVELING SYSTEM
+// EXP needed scales ×1.8 per system level. Every 10 system levels = 1 DnD level.
+// ═════════════════════════════════════════════════════════════════
+const EXP_BASE = 100;    // EXP to go from system level 1 → 2
+const EXP_SCALE = 1.05;  // ×1.05 per level — matches monster reward scaling across 200 levels
+
+// EXP needed to go from level n to level n+1
+// Each level takes roughly the same number of on-level fights (~8-15 kills)
+// because monster EXP rewards scale at a similar rate to requirements.
+// Levels 10-11 get a ×1.15 bump (class unlock wall — earns a grind moment).
+function expForLevel(n) {
+  let total = EXP_BASE;
+  for (let i = 1; i < n; i++) {
+    const scale = (i >= 10 && i <= 11) ? 1.15 : EXP_SCALE;
+    total = Math.floor(total * scale);
+  }
+  return total;
+}
+
+// Total cumulative EXP needed to REACH level n (from level 1)
+function expCumulativeForLevel(n) {
+  let total = 0;
+  for (let i = 1; i < n; i++) total += expForLevel(i);
+  return total;
+}
+
+// EXP into current level (how much of the current level's bar is filled)
+function expIntoCurrentLevel(c) {
+  const cumNeeded = expCumulativeForLevel(c.systemLevel || 1);
+  return Math.max(0, (c.exp || 0) - cumNeeded);
+}
+
+// EXP needed for the NEXT level up from current
+function expNeededForNextLevel(c) { return expForLevel(c.systemLevel || 1); }
+
+// DnD level derived from system level: every 10 system levels = 1 DnD level
+function dndLevelFromSystem(sysLvl) { return Math.floor((Math.max(1, sysLvl) - 1) / 10) + 1; }
+
+// Process EXP gain — auto level up, return number of levels gained
+function gainExp(c, amount) {
+  if (amount <= 0) return 0;
+  c.exp = (c.exp || 0) + amount;
+  let levelsGained = 0;
+  const oldDndLevel = dndLevelFromSystem(c.systemLevel || 1);
+  // Keep leveling up while we have enough EXP
+  while (true) {
+    const needed = expCumulativeForLevel((c.systemLevel || 1) + 1);
+    if (c.exp >= needed) {
+      c.systemLevel = (c.systemLevel || 1) + 1;
+      levelsGained++;
+    } else break;
+  }
+  // Sync DnD level
+  c.level = dndLevelFromSystem(c.systemLevel);
+  // Check if DnD level changed — announce rewards
+  if (c.level > oldDndLevel) {
+    for (let dLvl = oldDndLevel + 1; dLvl <= c.level; dLvl++) {
+      announceDndLevelUp(c, dLvl);
+    }
+  }
+  return levelsGained;
+}
+
+// DnD level-up benefits table
+const DND_LEVEL_REWARDS = {
+  1:  { profBonus:2, note:'Starting level.' },
+  2:  { profBonus:2, note:'Gain a Hit Die. Class features improve.' },
+  3:  { profBonus:2, note:'Gain a Hit Die. Subclass or archetype available.' },
+  4:  { profBonus:2, note:'Gain a Hit Die. +2 to one Ability Score (or a Feat).' },
+  5:  { profBonus:3, note:'Proficiency Bonus increases to +3. Gain a Hit Die. Extra Attack (martial).' },
+  6:  { profBonus:3, note:'Gain a Hit Die. Class feature.' },
+  7:  { profBonus:3, note:'Gain a Hit Die. Class feature.' },
+  8:  { profBonus:3, note:'Gain a Hit Die. +2 to one Ability Score (or a Feat).' },
+  9:  { profBonus:4, note:'Proficiency Bonus increases to +4. Gain a Hit Die. 5th-level spells (casters).' },
+  10: { profBonus:4, note:'Gain a Hit Die. Class feature.' },
+  11: { profBonus:4, note:'Gain a Hit Die. Class feature.' },
+  12: { profBonus:4, note:'Gain a Hit Die. +2 to one Ability Score (or a Feat).' },
+  13: { profBonus:5, note:'Proficiency Bonus increases to +5. Gain a Hit Die. 7th-level spells (casters).' },
+  14: { profBonus:5, note:'Gain a Hit Die. Class feature.' },
+  15: { profBonus:5, note:'Gain a Hit Die. Class feature.' },
+  16: { profBonus:5, note:'Gain a Hit Die. +2 to one Ability Score (or a Feat).' },
+  17: { profBonus:6, note:'Proficiency Bonus increases to +6. Gain a Hit Die. 9th-level spells (casters).' },
+  18: { profBonus:6, note:'Gain a Hit Die. Class feature.' },
+  19: { profBonus:6, note:'Gain a Hit Die. +2 to one Ability Score (or a Feat).' },
+  20: { profBonus:6, note:'Gain a Hit Die. Capstone class feature. Maximum power.' }
+};
+
+function announceDndLevelUp(c, newDndLevel) {
+  const reward = DND_LEVEL_REWARDS[newDndLevel] || {};
+  const sysLvl = newDndLevel * 10;
+  const isASI = [4,8,12,16,19].includes(newDndLevel);
+  const isProfUp = [5,9,13,17].includes(newDndLevel);
+
+  let msg = `⚔ DnD LEVEL UP! ${c.name||'Player'} is now DnD Level ${newDndLevel}!`;
+  if (isProfUp) msg += ` Proficiency Bonus → +${reward.profBonus}.`;
+  if (isASI) msg += ` Ability Score Improvement available!`;
+  msg += ` ${reward.note || ''}`;
+
+  showToast(msg, 'buy');
+
+  // Auto-increase base stat points for ASI levels (+2 points to distribute)
+  if (isASI) {
+    c.baseStatPoints = (c.baseStatPoints || 0) + 2;
+    showToast(`+2 Ability Score points awarded to ${c.name||'Player'}. Spend them in the Profile tab.`, 'info');
+  }
+}
+
+// Base stat point-buy: starts with 9 points, gains +2 at DnD levels 4/8/12/16/19 (ASI).
+// Total pool = 9 + (2 × number of ASI levels reached).
 // Points spent = sum(stats) - 48 (6 stats × 8 base).
+function totalBasePoints(c) {
+  const dndLvl = c.level || 1;
+  const asiLevels = [4,8,12,16,19].filter(l => dndLvl >= l).length;
+  return 9 + (asiLevels * 2);
+}
 function basePointsSpent(c) {
   return STATS.reduce((sum, s) => sum + (Number(c.stats[s]) || 8), 0) - 48;
 }
-function basePointsRemaining(c) { return Math.max(0, 9 - basePointsSpent(c)); }
+function basePointsRemaining(c) { return Math.max(0, totalBasePoints(c) - basePointsSpent(c)); }
 
 function normalize(raw){
   const m = { ...state, ...raw };
@@ -365,6 +481,10 @@ function normalize(raw){
       mc.baseStatPoints = Math.max(0, Number(c.baseStatPoints ?? 9));
       mc.playerClass = (c.playerClass === 'none' || CLASS_BY_ID[c.playerClass]) ? c.playerClass : 'none';
       mc.title = String(c.title || '');
+      mc.exp = Math.max(0, Number(c.exp) || 0);
+      mc.systemLevel = Math.max(1, Number(c.systemLevel) || 1);
+      // DnD level is always derived from system level
+      mc.level = dndLevelFromSystem(mc.systemLevel);
       mc.fatigue = clamp(Number(c.fatigue) || 0, 0, 100);
       if(!RANK_BY_ID[mc.rank]) mc.rank = 'E';      mc.relationships = Array.isArray(c.relationships)?c.relationships:[];
       mc.weapons    = Array.isArray(c.weapons)?c.weapons:[];
@@ -790,9 +910,10 @@ function renderHeader(){
   const c = getChar();
   const s = (id,v)=>{ const e=el(id); if(e) e.textContent=v; };
   const rk = rankOf(c);
-  s('topAgentName', c.name||'—');
-  s('topAgentRole', c.role||c.codename||'Unassigned');
-  s('topRank', `${rk.title} · ${rk.subtitle}`);
+  const cls = CLASS_BY_ID[c.playerClass];
+  s('topPlayerName', c.name||'—');
+  s('topPlayerRole', cls ? `${cls.icon} ${cls.label}` : 'No Class');
+  s('topRank', `${rk.title} · Sys.Lv.${c.systemLevel||1}`);
   s('topGold', fmtGold(c.points));
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
   s('topManaMini', `${c.mana.current} / ${c.mana.max}`);
@@ -835,16 +956,16 @@ function renderMainFields(){
     else slot.style.removeProperty('--portrait-url');
     slot.classList.toggle('has-img', !!c.portrait);
   }
-  // Class display — read-only, DM assigns at level 10
+  // Class display — read-only, DM assigns at system level 10
   const classDisplay = el('charClassDisplay');
   if(classDisplay){
     const cls = CLASS_BY_ID[c.playerClass];
+    const sysLvl = Number(c.systemLevel) || 1;
     if(cls){
       classDisplay.value = `${cls.icon} ${cls.label}`;
       classDisplay.style.color = cls.color;
     } else {
-      const lvl = Number(c.level) || 1;
-      classDisplay.value = lvl >= 10 ? 'Awaiting assignment (DM)' : `Unlocks at Level 10 (currently ${lvl})`;
+      classDisplay.value = sysLvl >= 10 ? 'Awaiting assignment (DM)' : `Unlocks at Sys.Lv.10 (currently ${sysLvl})`;
       classDisplay.style.color = '';
     }
   }
@@ -927,7 +1048,7 @@ function renderStats(){
   // Base creation points remaining
   const bpr = basePointsRemaining(c);
   const bprEl = el('basePointsRemaining');
-  if (bprEl) bprEl.textContent = bpr;
+  if (bprEl) bprEl.textContent = `${bpr} / ${totalBasePoints(c)}`;
 
   grid.querySelectorAll('.stat-score').forEach(inp=>{
     inp.addEventListener('input', e=>{
@@ -968,7 +1089,13 @@ function renderStatusWindow(){
   const hpPct = c.hp.max > 0 ? (c.hp.current / c.hp.max * 100) : 0;
   const mpPct = c.mana.max > 0 ? (c.mana.current / c.mana.max * 100) : 0;
   const lvl = Number(c.level) || 1;
-  const classLabel = cls ? `<span style="color:${cls.color}">${cls.icon} ${cls.label}</span>` : (lvl >= 10 ? '<span style="color:var(--amber)">Awaiting Class</span>' : '<span style="color:var(--text-dim)">Locked (Lv.10)</span>');
+  const sysLvl = Number(c.systemLevel) || 1;
+  const classLabel = cls ? `<span style="color:${cls.color}">${cls.icon} ${cls.label}</span>` : (sysLvl >= 10 ? '<span style="color:var(--amber)">Awaiting Class</span>' : '<span style="color:var(--text-dim)">Locked (Sys.Lv.10)</span>');
+
+  // EXP bar calculations
+  const expCurrent = expIntoCurrentLevel(c);
+  const expNeeded = expNeededForNextLevel(c);
+  const expPct = expNeeded > 0 ? Math.min(100, (expCurrent / expNeeded) * 100) : 0;
 
   host.innerHTML = `
     <div class="sw-ornament tl"></div>
@@ -983,17 +1110,19 @@ function renderStatusWindow(){
         <span class="sw-label">NAME:</span>
         <span class="sw-value">${esc(c.name || '—')}</span>
         <span class="sw-label">LEVEL:</span>
-        <span class="sw-value">${c.level || 1}</span>
+        <span class="sw-value">${sysLvl}</span>
       </div>
       <div class="sw-info-row">
         <span class="sw-label">JOB:</span>
         <span class="sw-value">${classLabel}</span>
-        <span class="sw-label">FATIGUE:</span>
-        <span class="sw-value">${c.fatigue || 0}</span>
+        <span class="sw-label">DND LV:</span>
+        <span class="sw-value">${lvl}</span>
       </div>
-      <div class="sw-info-row single">
+      <div class="sw-info-row">
         <span class="sw-label">TITLE:</span>
         <span class="sw-value">${esc(c.title || 'None')}</span>
+        <span class="sw-label">FATIGUE:</span>
+        <span class="sw-value">${c.fatigue || 0}</span>
       </div>
     </div>
 
@@ -1007,6 +1136,11 @@ function renderStatusWindow(){
         <span class="sw-bar-label">MP:</span>
         <span class="sw-bar-nums">${c.mana.current} / ${c.mana.max}</span>
         <div class="sw-bar mp"><div class="sw-bar-fill" style="width:${mpPct}%"></div></div>
+      </div>
+      <div class="sw-bar-group">
+        <span class="sw-bar-label">EXP:</span>
+        <span class="sw-bar-nums">${fmtGold(expCurrent)} / ${fmtGold(expNeeded)}</span>
+        <div class="sw-bar exp"><div class="sw-bar-fill" style="width:${expPct}%"></div></div>
       </div>
     </div>
 
@@ -1034,6 +1168,21 @@ function renderStatusWindow(){
       <span class="sw-remaining-label">REMAINING POINTS:</span>
       <span class="sw-remaining-value ${remaining>0?'has-points':''}">${remaining}</span>
       <span class="sw-remaining-sub">(${spent} / ${total} used)</span>
+    </div>
+
+    <div class="sw-divider"><span class="sw-diamond">◆</span></div>
+
+    <div class="sw-dnd-info">
+      <div class="sw-dnd-row">
+        <span class="sw-label">PROF. BONUS:</span>
+        <span class="sw-value" style="color:var(--accent)">+${profBonus(c)}</span>
+        <span class="sw-label">BASE STAT PTS:</span>
+        <span class="sw-value">${totalBasePoints(c)} (${basePointsRemaining(c)} left)</span>
+      </div>
+      <div class="sw-dnd-row">
+        <span class="sw-label">NEXT DND LV:</span>
+        <span class="sw-value">${lvl < 20 ? `Lv.${(lvl)*10+1} (${(lvl)*10+1 - sysLvl} sys.levels away)` : 'MAX LEVEL'}</span>
+      </div>
     </div>
   `;
 
@@ -1666,8 +1815,8 @@ function renderDmPanel(){
           <label class="dm-mini"><span>Rank</span>
             <select class="dm-rank" data-i="${i}">${RANKS.map(r=>`<option value="${r.id}" ${c.rank===r.id?'selected':''}>${r.id} · ${r.title}</option>`).join('')}</select>
           </label>
-          <label class="dm-mini"><span>Class ${(Number(c.level)||1)<10?'(Lv.10)':''}</span>
-            <select class="dm-class" data-i="${i}" ${(Number(c.level)||1)<10?'disabled':''}>
+          <label class="dm-mini"><span>Class ${(Number(c.systemLevel)||1)<10?'(Sys.10)':''}</span>
+            <select class="dm-class" data-i="${i}" ${(Number(c.systemLevel)||1)<10?'disabled':''}>
               <option value="none" ${c.playerClass==='none'?'selected':''}>— No Class —</option>
               ${PLAYER_CLASSES.map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
             </select>
@@ -3356,6 +3505,31 @@ function buildDmPanelHtml(){
       </div>
 
       <div class="dm-card">
+        <div class="dm-card-title">✦ EXP Awards</div>
+        <div class="dm-card-body">
+          <div class="dm-quick-actions">
+            <select id="dmExpTarget">
+              <option value="all">All Players</option>
+              ${state.characters.filter(c=>c.state==='active').map((c,i) => `<option value="${i}">${esc(c.name||'Player '+(i+1))} (Sys.Lv.${c.systemLevel||1})</option>`).join('')}
+            </select>
+            <input type="number" id="dmExpAmount" value="100" min="1" placeholder="EXP amount">
+            <button class="maw-btn small" id="dmExpBtn">Award EXP</button>
+          </div>
+          <div class="dm-mini-label" style="margin-top:.6rem">Quick Presets</div>
+          <div class="dm-exp-presets">
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="50">50 EXP</button>
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="100">100 EXP</button>
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="250">250 EXP</button>
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="500">500 EXP</button>
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="1000">1,000 EXP</button>
+            <button class="maw-btn ghost small dm-exp-preset" data-exp="5000">5,000 EXP</button>
+          </div>
+          <div class="dm-mini-label" style="margin-top:.6rem">Party EXP Status</div>
+          <div id="dmExpStatus" class="dm-exp-status"></div>
+        </div>
+      </div>
+
+      <div class="dm-card">
         <div class="dm-card-title">💎 Skill Stone Manager</div>
         <div class="dm-card-body">
           <div class="dm-mini-label">Create & Award a Skill Stone</div>
@@ -3477,6 +3651,32 @@ function buildDmPanelHtml(){
     pushState(true); render(); renderDmPanel();
   });
 
+  // EXP awards
+  function awardExpFromDm(){
+    const target = el('dmExpTarget')?.value;
+    const amount = Math.max(0, Number(el('dmExpAmount')?.value) || 0);
+    if(!amount){ showToast('Enter an EXP amount','warn'); return; }
+    const targets = target === 'all'
+      ? state.characters.filter(c=>c.state==='active')
+      : [state.characters[Number(target)]].filter(Boolean);
+    targets.forEach(c => {
+      const oldLvl = c.systemLevel || 1;
+      const levelsGained = gainExp(c, amount);
+      if(levelsGained > 0){
+        showToast(`✦ ${c.name||'Player'} leveled up! System Lv.${oldLvl} → ${c.systemLevel}${c.level !== dndLevelFromSystem(oldLvl) ? ` (DnD Lv.${c.level}!)` : ''}`, 'buy');
+      }
+    });
+    showToast(`+${fmtGold(amount)} EXP to ${target==='all'?'all players':targets[0]?.name||'Player'}`, 'info');
+    pushState(true); render(); renderDmExpStatus();
+  }
+  el('dmExpBtn')?.addEventListener('click', awardExpFromDm);
+  // Presets fill the amount input then award
+  document.querySelectorAll('.dm-exp-preset').forEach(btn => btn.addEventListener('click', ()=>{
+    const inp = el('dmExpAmount'); if(inp) inp.value = btn.dataset.exp;
+    awardExpFromDm();
+  }));
+  renderDmExpStatus();
+
   // Scene + broadcast
   el('dmSceneName')?.addEventListener('input', e=>{ state.sceneName = e.target.value; pushState(); });
   el('dmBroadcastBtn')?.addEventListener('click', ()=>{
@@ -3511,6 +3711,24 @@ function buildDmPanelHtml(){
   });
 
   renderDmSkillStoneInventories();
+}
+
+function renderDmExpStatus(){
+  const host = el('dmExpStatus'); if(!host) return;
+  const chars = state.characters.filter(c => c.state === 'active');
+  host.innerHTML = chars.map(c => {
+    const sysLvl = c.systemLevel || 1;
+    const expCur = expIntoCurrentLevel(c);
+    const expNeed = expNeededForNextLevel(c);
+    const pct = expNeed > 0 ? Math.min(100, (expCur / expNeed) * 100) : 0;
+    return `
+      <div class="dm-exp-row">
+        <span class="dm-exp-name">${esc(c.name||'Unnamed')}</span>
+        <span class="dm-exp-lvl">Sys.${sysLvl} <span style="color:var(--text-dim)">(DnD ${c.level||1})</span></span>
+        <div class="dm-exp-bar"><div class="dm-exp-bar-fill" style="width:${pct}%"></div></div>
+        <span class="dm-exp-nums">${fmtGold(expCur)} / ${fmtGold(expNeed)}</span>
+      </div>`;
+  }).join('') || '<div class="dm-empty">No active players.</div>';
 }
 
 function renderDmSkillStoneInventories(){

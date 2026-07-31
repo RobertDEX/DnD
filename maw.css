@@ -1,6 +1,7 @@
 /* ============================================================
-   MAKE A WISH INCORPORATED — maw.css
-   Evil · Corporate · Lifeless
+   DUNGEON TOWER — maw.css
+   Solo-Leveling-inspired RPG System UI
+   Dark · System · Fantasy · Tower
    ============================================================ */
 :root{
   --bg:        #0a0b0d;
@@ -12,8 +13,8 @@
   --text:      #c3cad2;
   --text-dim:  #6b7681;
   --muted:     #4a535c;
-  --accent:    #d94f4f;       /* corporate blood red */
-  --accent2:   #b03a3a;
+  --accent:    #4a8bf5;       /* system blue */
+  --accent2:   #3070d0;
   --steel:     #8a96a2;
   --steel-hi:  #aeb9c4;
   --amber:     #c2a23a;
@@ -579,10 +580,10 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 
 /* ════════════════════════════════════════════════════════════
    UI UPGRADE LAYER — depth, lighting, motion, polish
-   (overrides/augments base styles; corporate-cold aesthetic)
+   (overrides/augments base styles; system-cold aesthetic)
    ════════════════════════════════════════════════════════════ */
 
-/* Deeper page backdrop with a faint top-down corporate glow */
+/* Deeper page backdrop with a faint top-down system glow */
 body{
   background:
     radial-gradient(120% 80% at 50% -10%, rgba(217,79,79,.05), transparent 60%),
@@ -732,7 +733,7 @@ input:focus,select:focus,textarea:focus{
 /* Toast: glassy with glow */
 .toast{backdrop-filter:blur(6px);background:rgba(17,20,24,.92);box-shadow:0 12px 40px -14px #000, 0 0 0 1px var(--line2)}
 
-/* Smooth scrollbars in the corporate palette */
+/* Smooth scrollbars in the system palette */
 ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#333b44,#262c33);border-radius:0}
 ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#445,#333b44)}
 
@@ -979,7 +980,7 @@ body.heartbeat-active .topbar-rank-badge{animation:hb-badge 1s ease-in-out infin
 /* ═══════════════════════════════════════════════════════════════════
    VISUAL ENHANCEMENT PASS (2026-07-21)
    Corporate mission-console polish. NOT cyberpunk cyan — this is
-   institutional, clinical, SCP-terminal. Sharp corners preserved.
+   institutional, clinical, RPG-terminal. Sharp corners preserved.
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────
@@ -1456,7 +1457,7 @@ input:focus, textarea:focus, select:focus{
 /* ═══════════════════════════════════════════════════════════════════
    ENHANCED UI POLISH v2 (2026-07-21)
    Deeper personnel-file feel across the whole site.
-   Corner brackets, corporate insignia treatment, segmented vitals,
+   Corner brackets, system insignia treatment, segmented vitals,
    institutional field inputs, richer panel corners.
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -1527,7 +1528,7 @@ input:focus, textarea:focus, select:focus{
 .portrait-label:hover .portrait-hint{color:var(--accent)}
 
 /* ────────────────────────────────────────────────────────────────
-   TOPBAR ID BLOCK — corporate personnel-header treatment
+   TOPBAR ID BLOCK — system personnel-header treatment
 ──────────────────────────────────────────────────────────────── */
 .topbar-id{
   display:flex;align-items:center;gap:.9rem;
@@ -1633,7 +1634,7 @@ input:focus, textarea:focus, select:focus{
 .passive-perc strong{color:var(--accent);font-family:var(--F1);font-weight:800;letter-spacing:0}
 
 /* ────────────────────────────────────────────────────────────────
-   PANEL CORNER GLYPHS — subtle SCP-terminal marks on main panels
+   PANEL CORNER GLYPHS — subtle RPG-terminal marks on main panels
 ──────────────────────────────────────────────────────────────── */
 .panel{
   position:relative;
@@ -1701,7 +1702,7 @@ input:focus, textarea:focus, select:focus{
 }
 
 /* ────────────────────────────────────────────────────────────────
-   FIELD INPUTS — SCP terminal treatment
+   FIELD INPUTS — RPG terminal treatment
 ──────────────────────────────────────────────────────────────── */
 .field input, .field textarea, .field select,
 input[type=text], input[type=number], textarea, select{
@@ -1875,7 +1876,7 @@ input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
 
 /* ═══════════════════════════════════════════════════════════════════
    PARANORMAL INVESTIGATION UI (2026-07-21)
-   Grouped skills matrix · SCP tooltip · darker, more menacing polish
+   Grouped skills matrix · RPG tooltip · darker, more menacing polish
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ────────────────────────────────────────────────────────────────
@@ -1976,7 +1977,7 @@ input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
   text-transform:uppercase;font-size:.7rem;
 }
 
-/* Sensitivity — thematic amber accent (paranormal sixth sense) */
+/* Sensitivity — thematic amber accent (dungeon sixth sense) */
 .skill-row.sense-row{
   background:linear-gradient(90deg, rgba(194,162,58,.08), transparent 70%);
 }
@@ -2047,7 +2048,7 @@ input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
 }
 
 /* ────────────────────────────────────────────────────────────────
-   TOOLTIP — floating SCP terminal panel
+   TOOLTIP — floating RPG terminal panel
 ──────────────────────────────────────────────────────────────── */
 .maw-tooltip{
   position:fixed;pointer-events:none;
@@ -2092,7 +2093,7 @@ input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus{
   border-right:6px solid transparent;
   border-bottom:6px solid var(--accent);
 }
-/* Tooltip corner glyphs — subtle SCP flair */
+/* Tooltip corner glyphs — subtle RPG flair */
 .maw-tooltip::after{
   content:'';position:absolute;top:3px;right:3px;
   width:7px;height:7px;pointer-events:none;

@@ -1,7 +1,7 @@
 // ============================================================
-// MAKE A WISH INCORPORATED — maw.js
-// SCP-esque Paranormal Investigation DnD · Firebase-synced
-// Evil · Corporate · Lifeless
+// DUNGEON TOWER — dt.js
+// Solo-Leveling-inspired Tower-Climbing RPG · Firebase-synced
+// Dark · System · Dungeon · Fantasy
 // ============================================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getFirestore, doc, collection, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
@@ -11,9 +11,9 @@ const FB_CONFIG = {
   projectId:"dand-3c76a",storageBucket:"dand-3c76a.firebasestorage.app",
   messagingSenderId:"27455098509",appId:"1:27455098509:web:432929f697da9a947d5cc4",measurementId:"G-D1TQM5WJT8"
 };
-const fbApp = initializeApp(FB_CONFIG, 'maw');
+const fbApp = initializeApp(FB_CONFIG, 'dt');
 const db    = getFirestore(fbApp);
-const DOC   = 'maw-campaign';
+const DOC   = 'dt-campaign';
 const DM_PASS = '123456789';
 
 // ================================================================
@@ -21,14 +21,14 @@ const DM_PASS = '123456789';
 // ================================================================
 const STATS = ['STR','DEX','CON','INT','WIS','CHA'];
 const STAT_LABELS = {
-  STR:'Force', DEX:'Reflex', CON:'Endurance', INT:'Intellect', WIS:'Awareness', CHA:'Presence'
+  STR:'Strength', DEX:'Agility', CON:'Vitality', INT:'Intelligence', WIS:'Wisdom', CHA:'Charisma'
 };
 
 // Skills — Arcana is replaced by SENSITIVITY (paranormal perception)
 const SKILL_DEFS = [
   {name:'STR Save',        stat:'STR', isSave:true},
   {name:'Athletics',       stat:'STR'},
-  {name:'Force',           stat:'STR'},
+  {name:'Athletics',       stat:'STR'},
   {name:'DEX Save',        stat:'DEX', isSave:true},
   {name:'Acrobatics',      stat:'DEX'},
   {name:'Stealth',         stat:'DEX'},
@@ -102,68 +102,67 @@ const SKILL_DESCS = {
 // Corporate ranks (Clearance Tiers) — flavored for a paranormal
 // investigation corporation with SCP-adjacent hierarchy.
 const RANKS = [
-  { id:'I',   tier:'TIER 1', title:'PROBATE',    subtitle:'Threshold Clearance',  color:'#7a8590' },
-  { id:'II',  tier:'TIER 2', title:'OPERATIVE',  subtitle:'Field Clearance',      color:'#9aa6b2' },
-  { id:'III', tier:'TIER 3', title:'CUSTODIAN',  subtitle:'Sanctioned Clearance', color:'#c2b067' },
-  { id:'IV',  tier:'TIER 4', title:'OVERSEER',   subtitle:'Absolute Clearance',   color:'#d94f4f' }
+  { id:'E', tier:'E-RANK', title:'E-RANK',  subtitle:'Apprentice',   color:'#7a8590' },
+  { id:'D', tier:'D-RANK', title:'D-RANK',  subtitle:'Initiate',     color:'#5a9a78' },
+  { id:'C', tier:'C-RANK', title:'C-RANK',  subtitle:'Veteran',      color:'#c2a23a' },
+  { id:'B', tier:'B-RANK', title:'B-RANK',  subtitle:'Elite',        color:'#5aa8f5' },
+  { id:'A', tier:'A-RANK', title:'A-RANK',  subtitle:'Champion',     color:'#d94f4f' },
+  { id:'S', tier:'S-RANK', title:'S-RANK',  subtitle:'Monarch',      color:'#b04ad9' }
 ];
 const RANK_BY_ID = Object.fromEntries(RANKS.map(r=>[r.id,r]));
 
 // Threat grades for missions / anomalies and their point bounties
 const THREAT_GRADES = [
-  { grade:'F', points:100,    color:'#6f7a85', label:'Negligible' },
-  { grade:'D', points:500,    color:'#5a9a78', label:'Minor' },
-  { grade:'C', points:1000,   color:'#c2a23a', label:'Moderate' },
-  { grade:'B', points:5000,   color:'#d98030', label:'Severe' },
-  { grade:'A', points:10000,  color:'#d94f4f', label:'Critical' },
-  { grade:'S', points:50000,  color:'#b04ad9', label:'Apollyon · Separate Review' }
+  { grade:'E', points:100,    color:'#7a8590', label:'Easy' },
+  { grade:'D', points:300,    color:'#5a9a78', label:'Normal' },
+  { grade:'C', points:2700,   color:'#c2a23a', label:'Hard' },
+  { grade:'B', points:75000,  color:'#5aa8f5', label:'Very Hard' },
+  { grade:'A', points:100000, color:'#d94f4f', label:'Deadly' },
+  { grade:'S', points:200000, color:'#b04ad9', label:'Catastrophic' }
 ];
 const THREAT_BY_GRADE = Object.fromEntries(THREAT_GRADES.map(t=>[t.grade,t]));
 
 // Anomaly containment classes (flavor for the bestiary-like anomaly log)
-const ANOMALY_CLASSES = ['Safe','Euclid','Keter','Thaumiel','Neutralized','Uncontained'];
+const ANOMALY_CLASSES = ['Beast','Undead','Demon','Dragon','Elemental','Construct','Aberration','Humanoid'];
 
 // Damage types — mundane, elemental, paranormal, memetic. Each character
 // can have a set they RESIST (half damage), a set they're VULNERABLE to
 // (double damage), and a set they're IMMUNE to (no damage).
 const DAMAGE_TYPES = [
-  { id:'physical',      label:'Physical',      cat:'mundane',    icon:'⚔', desc:'Blunt, piercing, and slashing damage — the everyday kind.' },
-  { id:'fire',          label:'Fire',          cat:'elemental',  icon:'🔥', desc:'Burning heat, open flame, incendiary weapons.' },
-  { id:'cold',          label:'Cold',          cat:'elemental',  icon:'❄', desc:'Freezing temperatures, ice attacks, hypothermic exposure.' },
-  { id:'electric',      label:'Electric',      cat:'elemental',  icon:'⚡', desc:'Lightning, current, and directed electrical discharge.' },
-  { id:'acid',          label:'Acid',          cat:'elemental',  icon:'☣', desc:'Corrosive substances that dissolve tissue and material.' },
-  { id:'radiant',       label:'Radiant',       cat:'divine',     icon:'✟', desc:'Holy light and consecrated energy — anathema to unclean entities.' },
-  { id:'necrotic',      label:'Necrotic',      cat:'divine',     icon:'⚰', desc:'Life-draining rot and unhallowed decay.' },
-  { id:'psychic',       label:'Psychic',       cat:'mental',     icon:'☾', desc:'Direct assault on the mind — thought-warfare, mental compulsion.' },
-  { id:'cognitohazard', label:'Cognitohazard', cat:'mental',     icon:'⊗', desc:'Memetic hazards — ideas, images, or patterns that hurt to know.' },
-  { id:'corruption',    label:'Corruption',    cat:'paranormal', icon:'⌇', desc:'Long-term paranormal exposure that eats away at identity and form.' },
-  { id:'poison',        label:'Poison',        cat:'mundane',    icon:'⚕', desc:'Toxins, venoms, and biological agents.' },
-  { id:'silver',        label:'Silver',        cat:'paranormal', icon:'☾', desc:'Silver weapons — the classic counter to shapechangers.' },
-  { id:'cold_iron',     label:'Cold Iron',     cat:'paranormal', icon:'⚒', desc:'Cold-forged iron — traditional bane of fae and certain spirits.' },
-  { id:'salt',          label:'Salt',          cat:'paranormal', icon:'◇', desc:'Consecrated salt — ancient boundary between the living and the other.' },
+  { id:'physical',  label:'Physical',  cat:'mundane',    icon:'⚔', desc:'Slashing, piercing, and bludgeoning damage.' },
+  { id:'fire',      label:'Fire',      cat:'elemental',  icon:'🔥', desc:'Flames, lava, and burning heat.' },
+  { id:'cold',      label:'Cold',      cat:'elemental',  icon:'❄', desc:'Ice, frost, and freezing cold.' },
+  { id:'lightning', label:'Lightning',  cat:'elemental',  icon:'⚡', desc:'Electric bolts and chain lightning.' },
+  { id:'acid',      label:'Acid',      cat:'elemental',  icon:'☣', desc:'Corrosive substances and dissolving attacks.' },
+  { id:'radiant',   label:'Radiant',   cat:'divine',     icon:'✦', desc:'Holy light, divine power, sacred energy.' },
+  { id:'necrotic',  label:'Necrotic',  cat:'divine',     icon:'💀', desc:'Life-draining rot, death magic, undeath.' },
+  { id:'psychic',   label:'Psychic',   cat:'arcane',     icon:'👁', desc:'Mind-rending attacks, psionic force.' },
+  { id:'force',     label:'Force',     cat:'arcane',     icon:'◆', desc:'Pure magical force — raw mana made lethal.' },
+  { id:'poison',    label:'Poison',    cat:'mundane',    icon:'🐍', desc:'Venoms, toxins, and poisonous gases.' },
+  { id:'thunder',   label:'Thunder',   cat:'elemental',  icon:'💥', desc:'Concussive blasts and sonic damage.' },
 ];
 const DAMAGE_TYPE_BY_ID = Object.fromEntries(DAMAGE_TYPES.map(t => [t.id, t]));
 
-const DMG_TYPES = ['Ballistic','Slashing','Bludgeoning','Fire','Cryo','Electric','Chemical','Anomalous','Psychic','Other'];
-const TRAINING  = ['Untrained','Trained','Specialist'];
-const ITEM_CATEGORIES = ['Weapon','Armor','Tool','Consumable','Anomalous','Document','Misc'];
+const DMG_TYPES = ['Slashing','Bludgeoning','Piercing','Fire','Cold','Lightning','Acid','Radiant','Necrotic','Psychic','Force','Poison','Thunder'];
+const TRAINING  = ['Untrained','Trained','Master'];
+const ITEM_CATEGORIES = ['Weapon','Armor','Accessory','Consumable','Skill Stone','Material','Misc'];
 
 // Requisitions catalog categories + tier access
-const SHOP_CATEGORIES = ['Warding & Barriers','Tech & Detection','Combat','Containment','Protection','Medical','Utility','Anomalous Items'];
-const RANK_TO_TIER = { 'I':1, 'II':2, 'III':3, 'IV':4 };   // an agent of rank R can access all tiers <= R
-const TIER_LABEL = { 1:'TIER 1 · PROBATE', 2:'TIER 2 · OPERATIVE', 3:'TIER 3 · CUSTODIAN', 4:'TIER 4 · OVERSEER' };
+const SHOP_CATEGORIES = ['Consumables','Weapons','Armor','Accessories','Skill Stones','Loot Boxes'];
+const RANK_TO_TIER = { 'E':1, 'D':2, 'C':3, 'B':4, 'A':4, 'S':4 };   // an agent of rank R can access all tiers <= R
+const TIER_LABEL = { 1:'E-RANK', 2:'D-RANK', 3:'C-RANK', 4:'B-RANK+' };
 const TIER_COLOR = { 1:'#7a8590', 2:'#9aa6b2', 3:'#c2b067', 4:'#d94f4f' };
 
 // ================================================================
 // STATE
 // ================================================================
-const MY_PRESENCE_ID = localStorage.getItem('maw-pid') || (() => {
+const MY_PRESENCE_ID = localStorage.getItem('dt-pid') || (() => {
   const id = Math.random().toString(36).slice(2);
-  localStorage.setItem('maw-pid', id); return id;
+  localStorage.setItem('dt-pid', id); return id;
 })();
 
-let dmUnlocked = sessionStorage.getItem('maw-dm') === '1';
-let spectator  = sessionStorage.getItem('maw-spectator') === '1';
+let dmUnlocked = sessionStorage.getItem('dt-dm') === '1';
+let spectator  = sessionStorage.getItem('dt-spectator') === '1';
 let _lastAppliedRaw = null;
 let _firstSnapshotReceived = false;  // Firebase load-completed guard — see pushState
 let _welcomeShown = false;
@@ -179,9 +178,9 @@ function makeBlankSkills() {
 
 function blankChar(i) {
   return {
-    id:`maw-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
+    id:`dt-${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
     name:'', codename:'', role:'', clearance:'', age:'', level:1, background:'',
-    rank:'I',            // corporate tier I-IV
+    rank:'E',            // corporate tier I-IV
     points:0,            // mission points / currency
     division:'', site:'',
     profBonusOverride:null, initiativeBonus:0, attackStat:'DEX',
@@ -232,7 +231,7 @@ function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 function mod(score){ return Math.floor((Number(score||10)-10)/2); }
 function fmtMod(n){ return n>=0?`+${n}`:`${n}`; }
 function profBonus(c){ if(c.profBonusOverride!=null) return Number(c.profBonusOverride)||0; return Math.ceil((Number(c.level)||1)/4)+1; }
-function fmtPoints(n){ return (Number(n)||0).toLocaleString('en-US'); }
+function fmtGold(n){ return (Number(n)||0).toLocaleString('en-US'); }
 
 function getChar(){
   if(dmUnlocked||spectator) return state.characters[state.selectedCharacter] || state.characters[0];
@@ -313,7 +312,7 @@ function normalize(raw){
   if(!Array.isArray(m.anomalyCatalog)) m.anomalyCatalog = [];
   m.anomalyCatalog = m.anomalyCatalog.map((a,ix) => ({
     id:        String(a?.id ?? ('anom-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
-    desig:     String(a?.desig ?? 'MAW-???'),
+    desig:     String(a?.desig ?? 'DT-???'),
     name:      String(a?.name ?? 'Unidentified'),
     threat:    THREAT_BY_GRADE[a?.threat] ? a.threat : 'F',
     class:     ANOMALY_CLASSES.includes(a?.class) ? a.class : 'Euclid',
@@ -515,17 +514,17 @@ async function pushPresence(){
     const mine = getMyCharacter();
     const name = dmUnlocked ? 'DM' : (mine?.name || (spectator?'Observer':'Anon'));
     const color = mine?.accentColor || (dmUnlocked?'#d94f4f':'#7a8590');
-    await setDoc(doc(db,'maw-presence',MY_PRESENCE_ID), { id:MY_PRESENCE_ID, name, color, ts:Date.now() });
+    await setDoc(doc(db,'dt-presence',MY_PRESENCE_ID), { id:MY_PRESENCE_ID, name, color, ts:Date.now() });
   } catch(e){}
 }
 function startPresenceListener(){
   if(_presenceUnsub) _presenceUnsub();
-  _presenceUnsub = onSnapshot(collection(db,'maw-presence'), snap=>{
+  _presenceUnsub = onSnapshot(collection(db,'dt-presence'), snap=>{
     const now = Date.now(); const active=[]; const liveIds=new Set();
     snap.forEach(d=>{
       const p = d.data();
       if(now-p.ts<35000){ active.push(p); liveIds.add(p.id); }
-      else { deleteDoc(doc(db,'maw-presence',d.id)).catch(()=>{}); }
+      else { deleteDoc(doc(db,'dt-presence',d.id)).catch(()=>{}); }
     });
     liveIds.add(MY_PRESENCE_ID);
     _livePresenceIds = liveIds;
@@ -551,13 +550,13 @@ function releaseMyCharacterSync(){
     if(_pushDebounce){ clearTimeout(_pushDebounce); _pushDebounce=null; }
     const mine = state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
     if(!mine) { // still drop presence
-      navigator.sendBeacon && _beaconDelete('maw-presence', MY_PRESENCE_ID);
+      navigator.sendBeacon && _beaconDelete('dt-presence', MY_PRESENCE_ID);
       return;
     }
     mine.claimedBy = '';
     // Write the freed state + remove presence using sendBeacon so it survives unload.
     _beaconSetCampaign();
-    _beaconDelete('maw-presence', MY_PRESENCE_ID);
+    _beaconDelete('dt-presence', MY_PRESENCE_ID);
   } catch(e){}
 }
 // Firestore REST beacon helpers (regular setDoc won't reliably finish during unload)
@@ -581,7 +580,7 @@ function releaseMyCharacter(){
   const mine = state.characters.find(c=>c.claimedBy===MY_PRESENCE_ID);
   if(!mine) return;
   mine.claimedBy = '';
-  localStorage.removeItem('maw-my-idx');
+  localStorage.removeItem('dt-my-idx');
   pushState(true); pushPresence(); render();
 }
 window.addEventListener('pagehide', releaseMyCharacterSync);
@@ -677,7 +676,7 @@ function renderHeader(){
   s('topAgentName', c.name||'—');
   s('topAgentRole', c.role||c.codename||'Unassigned');
   s('topRank', `${rk.tier} · ${rk.title}${rk.subtitle ? ' · ' + rk.subtitle : ''}`);
-  s('topPoints', fmtPoints(c.points)+' pts');
+  s('topPoints', fmtGold(c.points)+' gold');
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
   s('topSanityMini', `${c.sanity.current} / ${c.sanity.max}`);
   s('topArmorMini', c.armor);
@@ -942,7 +941,7 @@ function renderInventory(){
   const host = el('inventoryList'); if(!host) return;
   if(!Array.isArray(c.inventory)) c.inventory=[];
   const totalVal = c.inventory.reduce((s,it)=> s + (Number(it.value)||0)*(Number(it.qty)||1), 0);
-  const tv = el('inventoryValue'); if(tv) tv.textContent = fmtPoints(totalVal)+' pts';
+  const tv = el('inventoryValue'); if(tv) tv.textContent = fmtGold(totalVal)+' gold';
   if(!c.inventory.length){ host.innerHTML = `<div class="empty-note">Inventory empty.</div>`; return; }
   host.innerHTML = c.inventory.map((it,i)=>`
     <div class="inv-item cat-${(it.category||'Misc').toLowerCase()}">
@@ -953,8 +952,8 @@ function renderInventory(){
       </div>
       <input class="inv-name" data-i="${i}" value="${esc(it.name||'')}" placeholder="Item">
       <select class="inv-cat" data-i="${i}">${ITEM_CATEGORIES.map(t=>`<option ${it.category===t?'selected':''}>${t}</option>`).join('')}</select>
-      <div class="inv-val"><input class="inv-value" data-i="${i}" type="number" value="${it.value??''}" placeholder="0"><span>pts</span></div>
-      ${canEdit()? `<button class="inv-sell" data-i="${i}" title="Sell to MAW Inc.">SELL</button>`:''}
+      <div class="inv-val"><input class="inv-value" data-i="${i}" type="number" value="${it.value??''}" placeholder="0"><span>gold</span></div>
+      ${canEdit()? `<button class="inv-sell" data-i="${i}" title="Sell to DT Inc.">SELL</button>`:''}
       <button class="inv-del" data-i="${i}">✕</button>
     </div>`).join('');
   host.querySelectorAll('.inv-name').forEach(inp=> inp.addEventListener('input',()=>{ c.inventory[+inp.dataset.i].name=inp.value; pushState(); }));
@@ -978,12 +977,12 @@ function sellItem(i){
   const c=getChar(); const it=c.inventory[i]; if(!it) return;
   const unit = Number(it.value)||0;
   const refund = Math.floor(unit*0.5); // sell at 50%
-  if(!confirm(`Sell 1× ${it.name} to Make a Wish Inc. for ${fmtPoints(refund)} pts?`)) return;
+  if(!confirm(`Sell 1× ${it.name} to the Shop for ${fmtGold(refund)} gold?`)) return;
   c.points = (Number(c.points)||0) + refund;
   it.qty = (Number(it.qty)||1) - 1;
   if(it.qty<=0) c.inventory.splice(i,1);
   pushState(true); renderInventory(); renderHeader();
-  showToast(`Sold ${it.name} · +${fmtPoints(refund)} pts`,'sell');
+  showToast(`Sold ${it.name} · +${fmtGold(refund)} gold`,'sell');
 }
 
 // ================================================================
@@ -992,14 +991,14 @@ function sellItem(i){
 function renderShop(){
   const c = getChar();
   const host = el('shopList'); if(!host) return;
-  const bal = el('shopBalance'); if(bal) bal.textContent = fmtPoints(c.points)+' pts';
+  const bal = el('shopBalance'); if(bal) bal.textContent = fmtGold(c.points)+' gold';
   const myTier = RANK_TO_TIER[c.rank] || 1;
   // clearance banner
   const clr = el('shopClearance');
   if(clr) clr.innerHTML = `CLEARANCE <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to Tier ${myTier} requisitions and below`;
 
   if(!Array.isArray(state.shop) || !state.shop.length){
-    host.innerHTML = `<div class="empty-note">The requisitions catalog is empty.${dmUnlocked?' Open the DM Panel → Requisitions and press <b>Load MAW Default Catalog</b> to stock it.':' The DM stocks it from the DM Panel.'}</div>`;
+    host.innerHTML = `<div class="empty-note">The requisitions catalog is empty.${dmUnlocked?' Open the DM Panel → Requisitions and press <b>Load DT Default Catalog</b> to stock it.':' The DM stocks it from the DM Panel.'}</div>`;
     return;
   }
 
@@ -1038,7 +1037,7 @@ function renderShop(){
             ${item.desc?`<div class="shop-item-desc">${esc(item.desc)}</div>`:''}
           </div>
           <div class="shop-item-buy">
-            <div class="shop-price">${fmtPoints(price)}<span>pts</span></div>
+            <div class="shop-price">${fmtGold(price)}<span>gold</span></div>
             ${canEdit()&&!out? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'REQUISITION':'INSUFFICIENT'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
           </div>
         </div>`;
@@ -1059,7 +1058,7 @@ function buyItem(i){
   const price=Number(item.price)||0;
   if((Number(c.points)||0) < price){ showToast('Insufficient points','warn'); return; }
   if(item.stock!=null && item.stock<=0){ showToast('Sold out','warn'); return; }
-  if(!confirm(`Requisition ${item.name} for ${fmtPoints(price)} pts?`)) return;
+  if(!confirm(`Requisition ${item.name} for ${fmtGold(price)} gold?`)) return;
   c.points -= price;
   if(item.stock!=null) item.stock -= 1;
   if(!Array.isArray(c.inventory)) c.inventory=[];
@@ -1155,7 +1154,7 @@ function approveRequest(id){
   r.status = 'approved';
   pushState(true); render();
   SFX?.buy?.();
-  showToast(`Stocked "${r.item}" · ${fmtPoints(price)} pts`,'buy');
+  showToast(`Stocked "${r.item}" · ${fmtGold(price)} gold`,'buy');
 }
 function denyRequest(id){
   if(!dmUnlocked) return;
@@ -1224,13 +1223,13 @@ function renderAnomalies(){
     <div class="anom-card ${opts.available?'available':''}" style="--tg:${tg.color}">
       <div class="anom-head">
         <span class="anom-grade" style="background:${tg.color}" data-tt="Threat Grade ${a.threat} — ${tg.label}">${a.threat||'F'}</span>
-        <span class="anom-desig">${esc(a.desig||'MAW-???')}</span>
+        <span class="anom-desig">${esc(a.desig||'DT-???')}</span>
         <span class="anom-name">${esc(a.name||'Unidentified')}</span>
         <span class="anom-class" data-tt="Containment class: ${a.class}">${esc(a.class||'Euclid')}</span>
         ${opts.available
           ? `<button class="anom-buy ${canAfford?'':'disabled'}" data-buy="${esc(a.id)}"
               data-tt="${canAfford ? 'Requisition this classified file — half the threat grade bounty' : 'Insufficient points'}">
-              REQUISITION · ${fmtPoints(priceHalf)} pts
+              REQUISITION · ${fmtGold(priceHalf)} gold
             </button>`
           : `<span class="anom-chev">▾</span>`}
       </div>
@@ -1311,7 +1310,7 @@ function renderAnomalies(){
       const tg = THREAT_BY_GRADE[anom.threat] || THREAT_BY_GRADE['F'];
       const price = Math.floor(tg.points / 2);
       if ((Number(c.points) || 0) < price) { showToast('Insufficient points', 'warn'); return; }
-      if (!confirm(`Requisition file ${anom.desig} (${anom.name}) for ${fmtPoints(price)} points?`)) return;
+      if (!confirm(`Requisition file ${anom.desig} (${anom.name}) for ${fmtGold(price)} points?`)) return;
       c.points -= price;
       if (!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
       if (!anom.grantedTo.includes(c.id)) anom.grantedTo.push(c.id);
@@ -1421,7 +1420,7 @@ function renderDmPanel(){
           </label>
         </div>
         <div class="dm-agent-actions">
-          <span class="dm-pts-display">${fmtPoints(c.points)} pts</span>
+          <span class="dm-pts-display">${fmtGold(c.points)} gold</span>
           <button class="dm-agent-reserve" data-i="${i}" title="Toggle reserve">${st==='reserve'?'⟲ Reinstate':'⇩ To Reserve'}</button>
           <button class="dm-agent-del" data-i="${i}" title="Terminate record">✕ Delete</button>
         </div>
@@ -1441,7 +1440,7 @@ function renderDmPanel(){
     award.innerHTML = THREAT_GRADES.map(t=>`
       <button class="grade-btn" data-grade="${t.grade}" style="--gc:${t.color}">
         <span class="grade-letter">${t.grade}</span>
-        <span class="grade-pts">${fmtPoints(t.points)}${t.grade==='S'?'+':''}</span>
+        <span class="grade-pts">${fmtGold(t.points)}${t.grade==='S'?'+':''}</span>
         <span class="grade-label">${t.label}</span>
       </button>`).join('');
     award.querySelectorAll('.grade-btn').forEach(b=> b.addEventListener('click',()=> awardMissionPoints(b.dataset.grade)));
@@ -1472,7 +1471,7 @@ function addAnomalyToCatalog(){
   if(!Array.isArray(state.anomalyCatalog)) state.anomalyCatalog = [];
   state.anomalyCatalog.unshift({
     id:        'anom-' + Date.now() + '-' + Math.random().toString(16).slice(2,5),
-    desig:     'MAW-',
+    desig:     'DT-',
     name:      '',
     threat:    'F',
     class:     'Euclid',
@@ -1495,16 +1494,16 @@ function renderDmAnomalyCatalog(){
     <div class="dm-anom-card" style="--tg:${tg.color}" data-anomid="${esc(a.id)}">
       <div class="dm-anom-head">
         <span class="anom-grade" style="background:${tg.color}">${a.threat}</span>
-        <input class="dm-anom-desig" data-i="${i}" data-k="desig" value="${esc(a.desig)}" placeholder="MAW-001">
+        <input class="dm-anom-desig" data-i="${i}" data-k="desig" value="${esc(a.desig)}" placeholder="DT-001">
         <input class="dm-anom-name" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="Entity name">
-        <div class="dm-anom-price"><span>Requisition Cost:</span> <b>${fmtPoints(half)}</b></div>
+        <div class="dm-anom-price"><span>Requisition Cost:</span> <b>${fmtGold(half)}</b></div>
         <button class="dm-anom-del" data-del="${i}" data-tt="Delete this anomaly permanently">🗑</button>
       </div>
       <div class="dm-anom-body">
         <div class="dm-anom-row">
           <label><span>Threat Grade</span>
             <select class="dm-anom-f" data-i="${i}" data-k="threat">
-              ${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label} (${fmtPoints(t.points)} bounty)</option>`).join('')}
+              ${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label} (${fmtGold(t.points)} bounty)</option>`).join('')}
             </select>
           </label>
           <label><span>Containment Class</span>
@@ -1671,10 +1670,10 @@ function renderDmSites(){
               </select>
             </label>
             <div class="dm-site-actions">
-              <button class="maw-btn small ${cur.current?'':'ghost'}" id="dmSiteScene">
+              <button class="dt-btn small ${cur.current?'':'ghost'}" id="dmSiteScene">
                 ${cur.current?'✓ Current Scene':'Set as Scene'}
               </button>
-              <button class="maw-btn ghost small" id="dmSiteDel">🗑</button>
+              <button class="dt-btn ghost small" id="dmSiteDel">🗑</button>
             </div>
           </div>
           <label class="dm-site-field">
@@ -1808,7 +1807,7 @@ function renderDmCases(){
               <option value="high"     ${cur.priority==='high'?'selected':''}>HIGH</option>
               <option value="critical" ${cur.priority==='critical'?'selected':''}>CRITICAL</option>
             </select>
-            <button class="maw-btn ghost small" id="dmCaseDel">🗑</button>
+            <button class="dt-btn ghost small" id="dmCaseDel">🗑</button>
           </div>
           <label class="dm-case-field">
             <span>Briefing (players see this)</span>
@@ -1821,7 +1820,7 @@ function renderDmCases(){
               <input type="text" class="dm-case-obj-text" data-oid="${esc(o.id)}" value="${esc(o.text)}" placeholder="Objective…">
               <button class="dm-case-obj-del" data-oid="${esc(o.id)}">✕</button>
             </div>`).join('')}
-            <button class="maw-btn ghost small" id="dmCaseObjAdd">+ Add Objective</button>
+            <button class="dt-btn ghost small" id="dmCaseObjAdd">+ Add Objective</button>
           </div>
           <div class="dm-case-sec">Authorized Viewers</div>
           <div class="dm-case-viewers">
@@ -1832,8 +1831,8 @@ function renderDmCases(){
                 <span>${esc(c.name || 'Unnamed')}</span>
               </label>`;
             }).join('')}
-            <button class="maw-btn ghost small" id="dmCaseAllView">All</button>
-            <button class="maw-btn ghost small" id="dmCaseNoneView">None</button>
+            <button class="dt-btn ghost small" id="dmCaseAllView">All</button>
+            <button class="dt-btn ghost small" id="dmCaseNoneView">None</button>
           </div>
           <label class="dm-case-field">
             <span>DM Notes (private)</span>
@@ -1966,10 +1965,10 @@ function renderDmInitiative(){
         </div>
         <div class="dm-init-actions">
           ${t.active
-            ? `<button class="maw-btn small" id="initNext">▶ Next Turn</button>
-               <button class="maw-btn ghost small" id="initPrev">◀ Prev</button>
-               <button class="maw-btn ghost small" id="initEnd">✕ End Combat</button>`
-            : `<button class="maw-btn" id="initStart">⚔ Begin Encounter</button>`
+            ? `<button class="dt-btn small" id="initNext">▶ Next Turn</button>
+               <button class="dt-btn ghost small" id="initPrev">◀ Prev</button>
+               <button class="dt-btn ghost small" id="initEnd">✕ End Combat</button>`
+            : `<button class="dt-btn" id="initStart">⚔ Begin Encounter</button>`
           }
         </div>
       </div>
@@ -1982,8 +1981,8 @@ function renderDmInitiative(){
           <option value="anomaly">Anomaly</option>
           <option value="npc">NPC</option>
         </select>
-        <button class="maw-btn small" id="initAddBtn">+ Add</button>
-        <button class="maw-btn ghost small" id="initAddAgents">+ All Active Agents</button>
+        <button class="dt-btn small" id="initAddBtn">+ Add</button>
+        <button class="dt-btn ghost small" id="initAddAgents">+ All Active Agents</button>
       </div>
 
       <div class="dm-init-list">
@@ -2114,8 +2113,8 @@ function renderDmDiagnostics(){
     </div>
     <p class="dm-broadcast-note" style="margin-top:.9rem">Firestore has a 1MB per-document limit. If state size approaches that, consider archiving old cases or clearing the anomaly catalog of resolved entries. All syncs go through <code>campaigns/${DOC}</code>.</p>
     <div class="dm-diag-actions">
-      <button id="diagPush" class="maw-btn small">▲ Force Sync Now</button>
-      <button id="diagLog" class="maw-btn ghost small">📋 Log State to Console</button>
+      <button id="diagPush" class="dt-btn small">▲ Force Sync Now</button>
+      <button id="diagLog" class="dt-btn ghost small">📋 Log State to Console</button>
     </div>
   `;
 
@@ -2124,7 +2123,7 @@ function renderDmDiagnostics(){
     catch(e) { showToast('Push failed: ' + (e.message||e), 'warn'); }
   });
   el('diagLog')?.addEventListener('click', () => {
-    console.log('MAW STATE:', state);
+    console.log('DT STATE:', state);
     showToast('State logged to browser console (F12)', 'info');
   });
 }
@@ -2155,7 +2154,7 @@ function awardMissionPoints(grade){
   if(el('dmMissionName')) el('dmMissionName').value='';
   pushState(true); render();
   const who = idx===-1?'all active agents':(state.characters[idx]?.name||'agent');
-  showToast(`Awarded ${fmtPoints(amount)} pts to ${who} · Grade ${grade}`,'buy');
+  showToast(`Awarded ${fmtGold(amount)} gold to ${who} · Grade ${grade}`,'buy');
   SFX.buy();
 }
 
@@ -2178,8 +2177,8 @@ function bulkApply(kind){
       case 'san-dmg':  c.sanity.current = clamp((c.sanity.current||0)-amt,0,c.sanity.max); verb=`−${amt} Sanity`; break;
       case 'san-heal': c.sanity.current = clamp((c.sanity.current||0)+amt,0,c.sanity.max); verb=`+${amt} Sanity`; break;
       case 'san-full': c.sanity.current = c.sanity.max; verb='Sanity restored'; break;
-      case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtPoints(amt)} pts`; break;
-      case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtPoints(amt)} pts`; break;
+      case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtGold(amt)} gold`; break;
+      case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtGold(amt)} gold`; break;
     }
   });
   pushState(true); render();
@@ -2205,7 +2204,7 @@ function renderDmShop(){
       <button class="ds-del" data-i="${i}">✕</button>
     </div>
     <input class="ds-desc" data-i="${i}" value="${esc(it.desc||'')}" placeholder="Short description (optional)">
-  `).join('') : `<div class="empty-note">No items stocked. Add requisitions below, or load the default MAW catalog.</div>`;
+  `).join('') : `<div class="empty-note">No items stocked. Add requisitions below, or load the default DT catalog.</div>`;
   host.querySelectorAll('.ds-name').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].name=inp.value; pushState(); }));
   host.querySelectorAll('.ds-desc').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].desc=inp.value; pushState(); }));
   host.querySelectorAll('.ds-price').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].price=Math.max(0,Number(inp.value)||0); pushState(); }));
@@ -2223,10 +2222,10 @@ function renderDmShop(){
 }
 function addShopItem(){ if(!Array.isArray(state.shop)) state.shop=[]; state.shop.push({tier:1,name:'',category:'Utility',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
 function loadDefaultCatalog(replace){
-  const def = (window.MAW_DEFAULT_SHOP||[]).map(x=>({ ...x, stock:null }));
+  const def = (window.DT_DEFAULT_SHOP||[]).map(x=>({ ...x, stock:null }));
   if(!def.length){ showToast('Default catalog not found','warn'); return; }
   if(replace){
-    if(!confirm(`Replace the entire catalog with the ${def.length}-item MAW default? Current items will be removed.`)) return;
+    if(!confirm(`Replace the entire catalog with the ${def.length}-item DT default? Current items will be removed.`)) return;
     state.shop = def;
   } else {
     // append only items not already present by name
@@ -2291,17 +2290,17 @@ let _lastBroadcastTs = 0;
 
 async function sendBroadcast(msg){
   if(!dmUnlocked) return;
-  try { await setDoc(doc(db,'maw-meta','broadcast'), { msg, ts:Date.now(), cleared:false }); }
+  try { await setDoc(doc(db,'dt-meta','broadcast'), { msg, ts:Date.now(), cleared:false }); }
   catch(e){ console.error(e); }
 }
 async function clearBroadcast(){
-  try { await setDoc(doc(db,'maw-meta','broadcast'), { msg:'', ts:Date.now(), cleared:true }); }
+  try { await setDoc(doc(db,'dt-meta','broadcast'), { msg:'', ts:Date.now(), cleared:true }); }
   catch(e){ console.error(e); }
 }
 function startBroadcastListener(){
   if(_broadcastUnsub) _broadcastUnsub();
   const _loadTime = Date.now();
-  _broadcastUnsub = onSnapshot(doc(db,'maw-meta','broadcast'), snap=>{
+  _broadcastUnsub = onSnapshot(doc(db,'dt-meta','broadcast'), snap=>{
     if(!snap.exists()) return;
     const d = snap.data();
     if(d.ts && d.ts > _lastBroadcastTs){
@@ -2402,7 +2401,7 @@ function showBroadcastScreen(msg){
     const pass = prompt('Administrator access code:');
     if(pass===null) return;
     if(pass !== DM_PASS){ showToast('Access denied','warn'); return; }
-    dmUnlocked = true; sessionStorage.setItem('maw-dm','1');
+    dmUnlocked = true; sessionStorage.setItem('dt-dm','1');
     render();
     // re-render the broadcast screen so DM controls now appear
     showBroadcastScreen(el('bcsMessage')?.textContent || msg);
@@ -2414,7 +2413,7 @@ function showBroadcastScreen(msg){
 // SOUND DESIGN — subtle terminal SFX (Web Audio, no asset files)
 // ================================================================
 let _audioCtx = null;
-let _sfxEnabled = localStorage.getItem('maw-sfx') !== '0';
+let _sfxEnabled = localStorage.getItem('dt-sfx') !== '0';
 function _ac(){
   if(_sfxEnabled===false) return null;
   if(!_audioCtx){ try{ _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
@@ -2445,7 +2444,7 @@ const SFX = {
 };
 function toggleSfx(){
   _sfxEnabled = !_sfxEnabled;
-  localStorage.setItem('maw-sfx', _sfxEnabled?'1':'0');
+  localStorage.setItem('dt-sfx', _sfxEnabled?'1':'0');
   const b=el('sfxToggle'); if(b){ b.classList.toggle('off',!_sfxEnabled); b.textContent = _sfxEnabled?'♪ SFX':'♪ SFX OFF'; }
   if(_sfxEnabled){ SFX.click(); startAmbient(); } else { stopAmbient(); }
   showToast(_sfxEnabled?'Audio enabled':'Audio muted','info');
@@ -2545,14 +2544,14 @@ async function sendKnock(){
   const c = getChar();
   const who = c.name || 'An agent';
   try {
-    await setDoc(doc(db,'maw-meta','knock'), { by:who, ts:Date.now() });
+    await setDoc(doc(db,'dt-meta','knock'), { by:who, ts:Date.now() });
     SFX.confirm();
     showToast('Signal sent to the Administrator','info');
   } catch(e){ showToast('Could not send signal','warn'); }
 }
 function startKnockListener(){
   if(_knockUnsub) _knockUnsub();
-  _knockUnsub = onSnapshot(doc(db,'maw-meta','knock'), snap=>{
+  _knockUnsub = onSnapshot(doc(db,'dt-meta','knock'), snap=>{
     if(!snap.exists()) return;
     const d = snap.data();
     if(!d.ts || d.ts <= _knockLoadTs) return;
@@ -2774,13 +2773,13 @@ function buildWelcome(){
   ov.id='welcomeOverlay'; ov.className='welcome-overlay';
   ov.innerHTML = `
     <div class="welcome-box">
-      <div class="welcome-logo"><img src="MW.png" alt="MAW" class="welcome-logo-img"></div>
+      <div class="welcome-logo"><img src="MW.png" alt="DT" class="welcome-logo-img"></div>
       <div class="welcome-title">MAKE A WISH<span>INCORPORATED</span></div>
       <div class="welcome-sub">PERSONNEL IDENTIFICATION REQUIRED</div>
       <div class="welcome-charlist" id="welcomeCharList"></div>
       <div class="welcome-actions">
-        <button class="maw-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
-        <button class="maw-btn dm" id="welcomeDmBtn">⚿ Administrator Access</button>
+        <button class="dt-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
+        <button class="dt-btn dm" id="welcomeDmBtn">⚿ Administrator Access</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -2801,7 +2800,7 @@ function buildWelcome(){
     btn.addEventListener('click', ()=>{ if(btn.disabled) return; claimCharacter(realIdx); el('welcomeOverlay')?.remove(); showToast(`Identity confirmed: ${c.name}`,'buy'); });
     list.appendChild(btn);
   });
-  el('welcomeSkipBtn')?.addEventListener('click', ()=>{ spectator=true; sessionStorage.setItem('maw-spectator','1'); el('welcomeOverlay')?.remove(); applySpectatorMode(); render(); });
+  el('welcomeSkipBtn')?.addEventListener('click', ()=>{ spectator=true; sessionStorage.setItem('dt-spectator','1'); el('welcomeOverlay')?.remove(); applySpectatorMode(); render(); });
   el('welcomeDmBtn')?.addEventListener('click', ()=>{ el('welcomeOverlay')?.remove(); openDmLogin(); });
 }
 function refreshWelcomeTaken(){
@@ -2821,7 +2820,7 @@ function claimCharacter(realIdx){
   state.characters.forEach(ch=>{ if(ch.claimedBy===MY_PRESENCE_ID) ch.claimedBy=''; });
   c.claimedBy = MY_PRESENCE_ID;
   state.selectedCharacter = realIdx;
-  localStorage.setItem('maw-my-idx', realIdx);
+  localStorage.setItem('dt-my-idx', realIdx);
   pushState(true); pushPresence(); render();
   renderIdentityBar();
 }
@@ -2860,7 +2859,7 @@ function applySpectatorMode(){
     b.id='spectatorBanner'; b.className='spectator-banner';
     b.innerHTML = `<span>👁 OBSERVER MODE — READ ONLY</span><button id="spectatorExit">Identify</button>`;
     document.body.appendChild(b);
-    el('spectatorExit')?.addEventListener('click', ()=>{ spectator=false; sessionStorage.removeItem('maw-spectator'); document.body.classList.remove('spectator-mode'); b.remove(); checkWelcome(); });
+    el('spectatorExit')?.addEventListener('click', ()=>{ spectator=false; sessionStorage.removeItem('dt-spectator'); document.body.classList.remove('spectator-mode'); b.remove(); checkWelcome(); });
   }
   disableAllInputs();
 }
@@ -2888,12 +2887,12 @@ function openDmLogin(){
 }
 function unlockDm(){
   if(el('dmPasswordInput')?.value !== DM_PASS){ showToast('Access denied','warn'); return; }
-  dmUnlocked = true; sessionStorage.setItem('maw-dm','1');
+  dmUnlocked = true; sessionStorage.setItem('dt-dm','1');
   el('dmLoginPanel')?.classList.add('hidden');
   el('dmFullPanel')?.classList.remove('hidden');
   render();
 }
-function lockDm(){ dmUnlocked=false; sessionStorage.removeItem('maw-dm'); el('dmOverlay')?.classList.add('hidden'); render(); }
+function lockDm(){ dmUnlocked=false; sessionStorage.removeItem('dt-dm'); el('dmOverlay')?.classList.add('hidden'); render(); }
 function closeDmOverlay(){ el('dmOverlay')?.classList.add('hidden'); }
 
 function applyCharacterAccents(){
@@ -3046,8 +3045,8 @@ async function migrateIfNeeded(){
       try {
         const existing = JSON.parse(mainSnap.data().data || '{}');
         const shopEmpty = !Array.isArray(existing.shop) || existing.shop.length === 0;
-        if(shopEmpty && window.MAW_DEFAULT_SHOP && window.MAW_DEFAULT_SHOP.length){
-          existing.shop = window.MAW_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
+        if(shopEmpty && window.DT_DEFAULT_SHOP && window.DT_DEFAULT_SHOP.length){
+          existing.shop = window.DT_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
           await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(existing) });
         }
       } catch(seedErr){ console.error('catalog seed check failed', seedErr); }
@@ -3055,8 +3054,8 @@ async function migrateIfNeeded(){
       return;
     }
     // No doc yet — seed fresh with the default requisitions catalog.
-    if(window.MAW_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
-      state.shop = window.MAW_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
+    if(window.DT_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
+      state.shop = window.DT_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
     }
     await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) });
     startListener();
@@ -3087,7 +3086,7 @@ startKnockListener();
 // ═══════════════════════════════════════════════════════════════════
 (function initTooltips(){
   const tt = document.createElement('div');
-  tt.className = 'maw-tooltip';
+  tt.className = 'dt-tooltip';
   tt.setAttribute('aria-hidden','true');
   document.body.appendChild(tt);
 

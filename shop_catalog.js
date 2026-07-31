@@ -1,99 +1,59 @@
-// ============================================================
-// MAKE A WISH INCORPORATED — Default Requisitions Catalog
-// Tier 1 = Probate · Tier 2 = Operative · Tier 3 = Custodian · Tier 4 = Overseer
-// Access is cumulative (higher tiers may purchase all lower-tier items).
-// ============================================================
 window.MAW_DEFAULT_SHOP = [
-  // ───────────────────── TIER 1 ─────────────────────
-  // Warding & Barriers
-  {tier:1,category:'Warding & Barriers',name:'Salt, Refined Barrier Grade (1kg)',price:50,desc:'MAW-processed barrier-grade salt. Disrupts cohesion of ~60% of catalogued entities. Lay lines, pour circles, scatter freely. Standard table salt is not equivalent.'},
-  {tier:1,category:'Warding & Barriers',name:'Iron Filings, Barrier Pouch (x5)',price:80,desc:'Cold-processed iron filings in pre-measured pouches. Disrupts fae-adjacent and iron-sensitive entities. Heat treatment removes the property — do not substitute.'},
-  {tier:1,category:'Warding & Barriers',name:'Silver Compound Barrier Strips (x10)',price:150,desc:'Pre-cut silver-compound adhesive strips for doorframes and boundaries. Passive barrier against silver-reactive entities. Faster than poured barriers.'},
-  {tier:1,category:'Warding & Barriers',name:'Ward Chalk, Compound Formula',price:100,desc:'Chalk mixed with iron powder and mineral compounds. Draw containment lines and sigils — no ritual needed. Holds Class 1–3 entities up to 8 hours. Clean Class 5+ contaminated surfaces first.'},
-  {tier:1,category:'Warding & Barriers',name:'Personal Ward Kit',price:750,desc:'Everything to ward a room or small apartment: strips, compound chalk, salt and iron pouches, instruction sheet. Class 1–2 entities. Does not cover your workplace — that\u2019s MAW\u2019s responsibility.'},
-  {tier:1,category:'Warding & Barriers',name:'Smoke Canister, Dispersal Grade (x4)',price:200,desc:'Compound aerosol that disrupts passive manifestation and clears residual contamination from a site. A clearance tool, not a weapon. Ventilate after use.'},
-  // Tech / Detection
-  {tier:1,category:'Tech & Detection',name:'EMF Reader, Model 5',price:400,desc:'Five-bar electromagnetic reader. Detects entity presence via EM disturbance. Level 4–5 in a non-electrical space indicates presence; 1–2 is background noise.'},
-  {tier:1,category:'Tech & Detection',name:'UV Flashlight',price:150,desc:'Reveals bio-luminescent residue left by Class 1–4 entities moving through a space. Standard mapping tool. Follow the trail.'},
-  {tier:1,category:'Tech & Detection',name:'Spirit Box',price:300,desc:'Sweeps AM/FM bands rapidly, generating white noise through which vocal/EM entities can respond. Responses may be fragmentary or misleading.'},
-  {tier:1,category:'Tech & Detection',name:'Night Vision Monocular',price:500,desc:'MAW-calibrated single-eye NV device. Picks up residual entity movement trails in low light. Standard dark-site kit.'},
-  {tier:1,category:'Tech & Detection',name:'DOTS Projector',price:350,desc:'Projects an infrared dot grid. Entity movement disrupts the pattern, revealing displacement in invisible conditions. Tracks presence in real time.'},
-  {tier:1,category:'Tech & Detection',name:'Parabolic Audio Recorder',price:600,desc:'High-sensitivity directional recorder, MAW firmware. Captures EVP and sub-human-frequency audio for shifted-frequency playback. Review away from the active site.'},
-  {tier:1,category:'Tech & Detection',name:'Thermal Camera',price:750,desc:'Detects cold spots, thermal displacement, and heat anomalies. Most entities cause a temperature drop; some cause heat. Both are significant.'},
-  {tier:1,category:'Tech & Detection',name:'MAW Communication Board',price:200,desc:'Structured two-way board for entities that influence objects or EM fields. Design limits the channel to communication only. Do not use improvised boards.'},
-  {tier:1,category:'Tech & Detection',name:'Anomaly-Rated Camera',price:600,desc:'Captures what is actually there, not what an anomaly wants registered. Evidence is admissible in MAW classification reviews and disputes.'},
-  // Combat
-  {tier:1,category:'Combat',name:'Silver Nitrate Syringe (x10)',price:300,desc:'Pre-loaded silver nitrate syringes for silver-reactive entities — corporeal anomalies, lycanthrope-class, silver-sensitive creatures. Do not inject humans; check the classification sheet.'},
-  {tier:1,category:'Combat',name:'Entity Repellent Spray',price:300,desc:'Iron/silver compound aerosol. Creates a temporary aversion zone Class 1–3 entities won\u2019t cross for 10–20 minutes. Buys time. Not a solution.'},
-  {tier:1,category:'Combat',name:'Iron-Tipped Bolts / Rounds (x20)',price:200,desc:'Cold-iron-tipped ammunition compatible with standard field weapons. Causes disruption beyond ballistic damage in iron-reactive entities.'},
-  // Containment
-  {tier:1,category:'Containment',name:'Containment Box, Small',price:300,desc:'Single-use vessel for low-class anomalous objects. Compound-lined, passive suppression, sealed lid. Holds anything up to shoebox size. Safe for transport.'},
-  {tier:1,category:'Containment',name:'Evidence Bag Set (x20)',price:100,desc:'Lined bags in three sizes for anomalous samples, residue, fragments. Reactive indicator strip changes colour if contents become active in transport.'},
-  // Protection
-  {tier:1,category:'Protection',name:'Barrier Gloves, Iron-Lined',price:400,desc:'Handling protection for Class 1–2 anomalous objects. Iron lining prevents contact transfer and basic metaphysical interaction. Not rated for Class 3+.'},
-  {tier:1,category:'Protection',name:'Perception Filter Patch (x2)',price:200,desc:'Single-use wrist patch. Dampens your anomalous signature ~30 min, harder for metaphysically-aware entities to detect. Not invisibility.'},
-  {tier:1,category:'Protection',name:'Iron-Core Warding Band',price:500,desc:'Wristband with a cold-iron core. Passive deflection against low-level influence, minor compulsion, and contact-based transfer. Wear it continuously in the field.'},
-  // Medical
-  {tier:1,category:'Medical',name:'Field Antiseptic Kit',price:100,desc:'Wound treatment plus a compound that neutralises minor anomaly-contact reactions. Covers normal bleeding injuries. Does not treat classified-entity bites — see medical.'},
-  {tier:1,category:'Medical',name:'Stabiliser Shot (x3)',price:300,desc:'Auto-injector suppressing acute exposure symptoms — disorientation, sensory bleed, mild hallucination — up to 2 hours. Lets you finish. Not a cure. See medical afterward.'},
-  {tier:1,category:'Medical',name:'Sedative, Field Grade (x4)',price:150,desc:'Fast-acting sedative for affected civilians, distressed witnesses, or teammates making bad decisions on no sleep. Not for use on entities.'},
-  // Utility
-  {tier:1,category:'Utility',name:'MAW Standard Torch',price:200,desc:'High-lumen, shatterproof, compound-cased torch. Resists minor EM interference. When it does flicker, assume it\u2019s something else.'},
-  {tier:1,category:'Utility',name:'Field Comm Unit',price:400,desc:'Short-range encrypted radio, shielded casing, resists low-level EM anomalies. One issued free per employee; replacing a lost unit costs you personally.'},
-  {tier:1,category:'Utility',name:'MAW Field Manual (Current Edition)',price:100,desc:'Protocols, entity classification reference, first-response containment guides, common-error chart. Free on day one. Replacements are not.'},
+  // ───────────────── CONSUMABLES ─────────────────
+  {tier:1,category:'Consumables',name:'Minor Health Potion',price:50,desc:'Restores 2d4+2 HP. A staple of any adventurer\'s kit.',icon:'🧪',rarity:'common'},
+  {tier:1,category:'Consumables',name:'Minor Mana Potion',price:75,desc:'Restores 15 Mana. Tastes like lightning and blueberries.',icon:'🧪',rarity:'common'},
+  {tier:1,category:'Consumables',name:'Stamina Draught',price:40,desc:'Removes the Exhaustion condition. Bitter but effective.',icon:'🧪',rarity:'common'},
+  {tier:1,category:'Consumables',name:'Antidote Vial',price:60,desc:'Cures Poison. Carry several in serpent-infested floors.',icon:'🧪',rarity:'common'},
+  {tier:2,category:'Consumables',name:'Health Potion',price:200,desc:'Restores 4d4+4 HP. Standard-grade alchemical healing.',icon:'🧪',rarity:'uncommon'},
+  {tier:2,category:'Consumables',name:'Mana Potion',price:250,desc:'Restores 40 Mana. Essential for long dungeon runs.',icon:'🧪',rarity:'uncommon'},
+  {tier:2,category:'Consumables',name:'Elixir of Clarity',price:350,desc:'Grants advantage on INT-based checks for 1 hour.',icon:'✨',rarity:'uncommon'},
+  {tier:3,category:'Consumables',name:'Greater Health Potion',price:800,desc:'Restores 8d4+8 HP. Top-shelf restoration.',icon:'🧪',rarity:'rare'},
+  {tier:3,category:'Consumables',name:'Greater Mana Potion',price:900,desc:'Restores 80 Mana. Liquid starlight.',icon:'🧪',rarity:'rare'},
+  {tier:3,category:'Consumables',name:'Phoenix Down',price:2000,desc:'Revives a fallen ally with 1 HP. Single use. Irreplaceable.',icon:'🪶',rarity:'rare'},
+  {tier:4,category:'Consumables',name:'Elixir of Life',price:5000,desc:'Fully restores HP and Mana. Removes all conditions.',icon:'💎',rarity:'epic'},
 
-  // ───────────────────── TIER 2 ─────────────────────
-  {tier:2,category:'Warding & Barriers',name:'Iron Barrier Kit, Reinforced (x3 sets)',price:1200,desc:'Pre-cut cold-iron plates and corner anchors for durable barrier lines. More permanent than poured filings. Rated against Class 4 iron-reactive entities.'},
-  {tier:2,category:'Warding & Barriers',name:'Silver-Salt Compound Barrier (x8 strips)',price:800,desc:'Combined silver+salt adhesive strips. Broader coverage than either alone — effective against silver- and salt-reactive entities simultaneously.'},
-  {tier:2,category:'Warding & Barriers',name:'Site Ward Kit, Full Building',price:2500,desc:'Covers a small-to-medium building: entry-point strips, internal compound chalk, dispersal canisters, structural layout guide. Class 1–4 entities.'},
-  {tier:2,category:'Warding & Barriers',name:'Smoke Canister, Concentrated (x3)',price:1500,desc:'Higher compound density. Class 1–4 entities, clears heavier contamination. Requires full evacuation — do not use in occupied structures.'},
-  {tier:2,category:'Tech & Detection',name:'Anomaly Proximity Scanner',price:2500,desc:'Detects anomalous signatures within 50m, classifies by approximate type and intensity, logs for review. Treat classification as intelligence, not confirmation.'},
-  {tier:2,category:'Tech & Detection',name:'Warded Recording Array',price:2000,desc:'Multi-directional A/V recorder immune to Class 1–4 interference. Cannot be influenced, muted, looped, or corrupted. What it records is what happened.'},
-  {tier:2,category:'Tech & Detection',name:'Site Survey Kit',price:2500,desc:'Ground-penetrating detectors, structural anomaly markers, portable ley-line reader. Maps a location\u2019s metaphysical layout before you commit a team.'},
-  {tier:2,category:'Tech & Detection',name:'Frequency Isolator Headset',price:1800,desc:'Filters ambient anomalous audio, isolates entity-generated frequencies from background contamination. Extended use causes auditory fatigue — take it off between sweeps.'},
-  {tier:2,category:'Tech & Detection',name:'Evidence Lockbox, Anomaly-Rated',price:3000,desc:'Secure digital storage. Footage, audio, and data inside cannot be altered, erased, or accessed by metaphysical means.'},
-  {tier:2,category:'Combat',name:'Suppression Baton',price:3500,desc:'Melee weapon with a compound-charged core. Suppression pulse on contact disrupts entity cohesion and interrupts active effects. Distresses Class 1–3. Recharges between uses.'},
-  {tier:2,category:'Combat',name:'Silver Nitrate Rounds (x20)',price:900,desc:'Silver nitrate ballistic rounds for standard sidearms. Effective against silver-reactive entities including most lycanthrope-class.'},
-  {tier:2,category:'Combat',name:'Flashbang, EM Burst (x4)',price:1200,desc:'Modified flashbang releasing a concentrated EM burst with the concussion. Disrupts EM-sensitive entities. Also disrupts all electronics in range, including yours.'},
-  {tier:2,category:'Containment',name:'Containment Box, Medium, Reinforced',price:3000,desc:'Reusable unit rated Class 1–4 objects. Compound-lined, pressure seal, passive suppression field prevents low-class items influencing surroundings in transit.'},
-  {tier:2,category:'Protection',name:'Memory Anchor (x2)',price:1800,desc:'Worn behind the ear. Protects against memory wipe, false memory, and perception alteration up to 6 hours. Recommended for cognitive-interference entities.'},
-  {tier:2,category:'Protection',name:'Compound Comm Upgrade, Team',price:1500,desc:'Upgrades team comms to an encrypted, compound-shielded, anomaly-resistant channel. Works where standard comms fail.'},
-  {tier:2,category:'Medical',name:'Advanced Trauma Kit',price:900,desc:'Covers anomaly-specific injuries: compound burns, entity-contact wounds, mild sensory displacement. Includes an authorised unlabelled compound for anomaly injuries. Ask in the debrief.'},
+  // ───────────────── WEAPONS ─────────────────
+  {tier:1,category:'Weapons',name:'Iron Shortsword',price:100,desc:'+1 to attack rolls. A reliable starter blade.',icon:'⚔',rarity:'common',stats:'+1 ATK'},
+  {tier:1,category:'Weapons',name:'Wooden Staff',price:80,desc:'+1 to spell attack rolls. A conduit for mana.',icon:'🪄',rarity:'common',stats:'+1 Spell ATK'},
+  {tier:1,category:'Weapons',name:'Hunting Bow',price:120,desc:'Range 80/320. +1 to ranged attack rolls.',icon:'🏹',rarity:'common',stats:'+1 ATK'},
+  {tier:2,category:'Weapons',name:'Steel Longsword',price:500,desc:'+2 to attack rolls. 1d10 slashing.',icon:'⚔',rarity:'uncommon',stats:'+2 ATK'},
+  {tier:2,category:'Weapons',name:'Mage\'s Focus Crystal',price:600,desc:'+2 to spell attacks and spell save DC.',icon:'🔮',rarity:'uncommon',stats:'+2 Spell ATK'},
+  {tier:2,category:'Weapons',name:'Knight Killer',price:750,desc:'Dagger. +3 to attack vs armored targets. Ignores 2 AC.',icon:'🗡',rarity:'uncommon',stats:'+3 vs Heavy Armor'},
+  {tier:3,category:'Weapons',name:'Flamebrand',price:2500,desc:'+3 to attack. +1d6 fire damage. Sheds bright light 40ft.',icon:'🔥',rarity:'rare',stats:'+3 ATK +1d6 fire'},
+  {tier:3,category:'Weapons',name:'Frostbite Bow',price:2800,desc:'+3 ranged. +1d6 cold damage. Slows target on hit.',icon:'❄',rarity:'rare',stats:'+3 ATK +1d6 cold'},
+  {tier:3,category:'Weapons',name:'Staff of the Archmage',price:3500,desc:'+3 spell attacks. Reduces spell mana cost by 20%.',icon:'🪄',rarity:'rare',stats:'+3 Spell, -20% Mana cost'},
+  {tier:4,category:'Weapons',name:'Excalibur',price:15000,desc:'+5 to attack. +2d6 radiant damage. Only the worthy may wield it.',icon:'⚔',rarity:'epic',stats:'+5 ATK +2d6 radiant'},
+  {tier:4,category:'Weapons',name:'Shadow Monarch\'s Dagger',price:20000,desc:'+5 to attack. Grants invisibility for 6 seconds after a kill.',icon:'🗡',rarity:'legendary',stats:'+5 ATK, Stealth Kill'},
 
-  // ───────────────────── TIER 3 ─────────────────────
-  {tier:3,category:'Warding & Barriers',name:'Iron-Silver Perimeter Array',price:5000,desc:'Deployable alternating iron/silver compound posts. Continuous barrier rated Class 1–5, covers up to 30m diameter. Faster than hand-laid barriers.'},
-  {tier:3,category:'Warding & Barriers',name:'Concentrated Aerosol Dispersal (x2)',price:8000,desc:'High-concentration compound dispersal for large-scale clearance. Class 1–5 environments. Full evacuation required; residue dissipates in ~4 hours.'},
-  {tier:3,category:'Tech & Detection',name:'Long-Range Anomaly Mapper',price:10000,desc:'Tripod scanner, 500m radius. Maps signatures in 3D, identifies ley-line intersections, flags entity movement patterns across a large area.'},
-  {tier:3,category:'Tech & Detection',name:'Temporal Anchor Spike (x2)',price:8000,desc:'Ground spike creating a 10m temporal stability field. Prevents time distortion, looping, acceleration. Does not reverse effects in progress — deploy before activation.'},
-  {tier:3,category:'Tech & Detection',name:'True-Perception Drops (x2)',price:5000,desc:'Compound eye drops from reverse-engineered anomalous material. 2 hours: see past all active illusions, perceptual filters, and concealment in line of sight. Brief disorientation.'},
-  {tier:3,category:'Tech & Detection',name:'Entity Tracker, Class 5 Rated',price:6000,desc:'Wearable module locking onto a specific entity\u2019s signature, directional readout within 1km. For when something has fled and you need to find it.'},
-  {tier:3,category:'Tech & Detection',name:'Infrasound Emitter',price:7000,desc:'Directional infrasound causing disorientation and distress in most entities. Non-lethal, effective at range. Affects humans in range too — coordinate first.'},
-  {tier:3,category:'Combat',name:'Compound-Charged Sidearm',price:10000,desc:'Pistol with compound-charged barrel/magazine. Rounds carry a suppression charge — effective against ballistic-immune entities. Charge depletes over ~40 rounds; needs a recharge kit.'},
-  {tier:3,category:'Combat',name:'Suppression Rounds, Heavy (x20)',price:3000,desc:'High-density suppression-charged rounds for any compound-rated firearm. Higher yield per round than standard issue.'},
-  {tier:3,category:'Combat',name:'Binding Compound, Class 5 (x3)',price:4000,desc:'Resin compound that sets into a rigid suppression shell on contact. Restrains and disrupts anomaly functions up to Class 5. Sets in 4 seconds. Solvent: Custodian+ only.'},
-  {tier:3,category:'Combat',name:'Metaphysical Nullifier (x1)',price:6000,desc:'Injectable that suppresses anomalous properties in an entity or affected person 30–90 min. Brings active threats to manageable. Entity effects vary; human effects reversible.'},
-  {tier:3,category:'Containment',name:'Containment Box, Large, Class 6 Rated',price:12000,desc:'Reusable heavy unit for Class 1–6 objects and small entities. Active suppression field, compound-sealed, rated for sustained metaphysical pressure. Two-person carry when loaded.'},
-  {tier:3,category:'Containment',name:'Mobile Anchor Seal',price:20000,desc:'Portable version of the fixed-site anchor. Deploys as a compound binding circle rated Class 7. Single use. Requires Overseer sign-off before purchase processes.'},
-  {tier:3,category:'Protection',name:'Compound Field Vest',price:12000,desc:'Reinforced vest with integrated compound warding. Light-body-armour protection plus passive deflection against entity attacks and directed anomalous effects.'},
-  {tier:3,category:'Protection',name:'Cognitive Shield Implant',price:15000,desc:'Subcutaneous compound chip behind the ear. Permanent passive protection against memory wipe, psychic intrusion, compulsion, and false memory. Never expires. MAW medical implants it.'},
-  {tier:3,category:'Anomalous Items',name:'Echo Stone',price:18000,desc:'Replicated MAW-OBJ-047. Replays the last 30 minutes of sound from its current location exactly as it occurred. 94% fidelity — the other 6% occasionally produces audio with no source. Log those.'},
-  {tier:3,category:'Anomalous Items',name:'Still Glass',price:22000,desc:'Replicated MAW-OBJ-112. Small mirror placed face-down freezes any entity in the immediate area up to 3 minutes — aware, unharmed, simply stopped. Class 1–6; Class 7+ may resist.'},
-  {tier:3,category:'Anomalous Items',name:'Severance Spike (x2)',price:15000,desc:'Replicated MAW-OBJ-203. Compound/anomalous spike driven into a surface severs an entity\u2019s metaphysical connection to a location it is anchored to. Detaches, does not destroy.'},
+  // ───────────────── ARMOR ─────────────────
+  {tier:1,category:'Armor',name:'Leather Armor',price:100,desc:'AC 11 + DEX mod. Light and flexible.',icon:'🛡',rarity:'common',stats:'AC 11+DEX'},
+  {tier:1,category:'Armor',name:'Cloth Robes',price:80,desc:'AC 10 + INT mod. +5 max Mana.',icon:'👘',rarity:'common',stats:'AC 10+INT, +5 Mana'},
+  {tier:2,category:'Armor',name:'Chainmail',price:400,desc:'AC 16. Heavy. Disadvantage on Stealth.',icon:'🛡',rarity:'uncommon',stats:'AC 16'},
+  {tier:2,category:'Armor',name:'Enchanted Robes',price:500,desc:'AC 12 + INT mod. +15 max Mana. Mana regen +2/turn.',icon:'👘',rarity:'uncommon',stats:'AC 12+INT, +15 Mana'},
+  {tier:3,category:'Armor',name:'Mithril Plate',price:3000,desc:'AC 18. No Stealth disadvantage. Featherlight.',icon:'🛡',rarity:'rare',stats:'AC 18'},
+  {tier:3,category:'Armor',name:'Archmage\'s Vestments',price:3200,desc:'AC 14 + INT mod. +30 max Mana. Spell resistance.',icon:'👘',rarity:'rare',stats:'AC 14+INT, +30 Mana'},
+  {tier:4,category:'Armor',name:'Dragon Scale Armor',price:12000,desc:'AC 20. Fire/Cold resistance. Legendary heirloom.',icon:'🛡',rarity:'epic',stats:'AC 20, Fire/Cold Resist'},
 
-  // ───────────────────── TIER 4 ─────────────────────
-  {tier:4,category:'Tech & Detection',name:'Dimensional Anchor Grenade (x2)',price:15000,desc:'Detonates to create a 20m dimensional lock for one hour. Prevents phasing, dimensional transit, spatial distortion, and most anomalous teleportation.'},
-  {tier:4,category:'Tech & Detection',name:'Ley-Line Tapper',price:30000,desc:'Taps a nearby ley-line intersection, broadcasting a compound dampening field in 200m. Reduces anomalous activity an estimated 60–80% while active. Requires an intersection in range.'},
-  {tier:4,category:'Tech & Detection',name:'Reality Anchor Array, Field Set',price:50000,desc:'Four-point array stabilising local reality within a perimeter. Prevents dimensional bleed, manifestation, and reality distortion. 10-minute setup — protect the team during deployment.'},
-  {tier:4,category:'Combat',name:'Compound Longarm, Heavy',price:25000,desc:'Heavy compound-charged rifle for suppression rounds. Extended range, higher charge yield, secondary emitter degrades entity defences on successive hits.'},
-  {tier:4,category:'Combat',name:'Full Suppression Compound, Injectable',price:18000,desc:'Renders an entity fully inert 2–8 hours — no activity, resistance, or awareness. The window you need to move something unmovable. Class 8+ not guaranteed.'},
-  {tier:4,category:'Combat',name:'Aerosol Grenade, Concentrated (x3)',price:10000,desc:'Grenade-delivery concentrated dispersal for active combat. Faster and more precise than a static canister. Still toxic to humans; coordinate before use.'},
-  {tier:4,category:'Containment',name:'Mobile Containment Unit, Class 9',price:60000,desc:'Vehicle-mounted system rated Class 9 entities and Tier 1 anomalous objects. Active suppression, sealed interior, monitoring, and a fail-safe that permanently seals on internal breach. Activated twice in MAW history — both as designed.'},
-  {tier:4,category:'Containment',name:'Void Seal',price:150000,desc:'Permanent. Applied to one location up to a large building. Seals it against all anomalous activity indefinitely — no entry, manifestation, or formation. Irreversible. Choose with full certainty.'},
-  {tier:4,category:'Protection',name:'Full Compound Suit',price:40000,desc:'Head-to-toe compound suit rated for Class 8 entity contact and sustained high-level exposure. Sealed against all known contamination. Restricts mobility — worth it when called for.'},
-  {tier:4,category:'Anomalous Items',name:'The Ledger',price:100000,desc:'Replicated MAW-OBJ-001, the first object ever catalogued. Write a name inside and a complete record of that individual\u2019s anomalous exposure history appears. The handwriting is always yours. Never inaccurate. We don\u2019t know how it retrieves it.'},
-  {tier:4,category:'Anomalous Items',name:'Window, 10 Minutes',price:75000,desc:'Replicated MAW-OBJ-077. Single-use. A 10-minute passive observation window into any specified location at any past point. View only — no audio, interaction, or alteration. Non-refundable in every meaningful sense.'},
-  {tier:4,category:'Anomalous Items',name:'The Unmarked Candle',price:80000,desc:'Replicated MAW-OBJ-214. Lit in a location, every entity present — visible, concealed, dormant, or hiding — is compelled to manifest for the burn. Exactly 7 minutes. Cannot be extinguished early. Be prepared for the full count.'},
-  {tier:4,category:'Anomalous Items',name:'Null Key',price:90000,desc:'Replicated MAW-OBJ-158. Opens any locked door, sealed room, warded barrier, or access point — physical, digital, or anomalous. Single use before it goes inert. What it was keeping out remains your responsibility.'},
-  {tier:4,category:'Anomalous Items',name:'The Anchor',price:120000,desc:'Replicated MAW-OBJ-009. Heavy iron disc with compound markings. Placed in a location, all entity movement within 50m slows to a crawl and nothing above Class 3 can leave while active. Affects your team too — deploy after personnel are clear.'},
-  {tier:4,category:'Anomalous Items',name:'Wish Ticket',price:500000,desc:'One wish. Any wish, will be fulfilled. The Mark of an Elite.'}
+  // ───────────────── ACCESSORIES ─────────────────
+  {tier:1,category:'Accessories',name:'Ring of Minor Protection',price:150,desc:'+1 AC. A simple warding ring.',icon:'💍',rarity:'common',stats:'+1 AC'},
+  {tier:1,category:'Accessories',name:'Amulet of Health',price:200,desc:'+5 max HP.',icon:'📿',rarity:'common',stats:'+5 HP'},
+  {tier:2,category:'Accessories',name:'Ring of Mana',price:400,desc:'+20 max Mana.',icon:'💍',rarity:'uncommon',stats:'+20 Mana'},
+  {tier:2,category:'Accessories',name:'Boots of Swiftness',price:500,desc:'+10ft movement speed. Advantage on DEX saves.',icon:'👢',rarity:'uncommon',stats:'+10ft Speed'},
+  {tier:3,category:'Accessories',name:'Cloak of Shadows',price:2000,desc:'+2 AC in dim light. Advantage on Stealth.',icon:'🧥',rarity:'rare',stats:'+2 AC (dim), Stealth Adv'},
+  {tier:3,category:'Accessories',name:'Crown of Intellect',price:2500,desc:'INT becomes 19 if lower. +10 max Mana.',icon:'👑',rarity:'rare',stats:'INT 19, +10 Mana'},
+  {tier:4,category:'Accessories',name:'Ring of the Monarch',price:10000,desc:'+3 to all saves. +30 HP. +30 Mana.',icon:'💍',rarity:'legendary',stats:'+3 saves, +30 HP/MP'},
+
+  // ───────────────── SKILL STONES ─────────────────
+  {tier:2,category:'Skill Stones',name:'Skill Stone: Fireball',price:1500,desc:'Teaches the Fireball spell. 8d6 fire damage in a 20ft sphere. Costs 30 Mana.',icon:'🔴',rarity:'rare',stats:'30 MP, 8d6 fire'},
+  {tier:2,category:'Skill Stones',name:'Skill Stone: Heal',price:1200,desc:'Teaches the Heal spell. Restores 4d8+WIS HP to one target. Costs 25 Mana.',icon:'🟢',rarity:'rare',stats:'25 MP, 4d8+WIS HP'},
+  {tier:2,category:'Skill Stones',name:'Skill Stone: Shield Bash',price:800,desc:'Teaches Shield Bash. Stuns target for 1 round. Costs 15 Mana.',icon:'🔵',rarity:'uncommon',stats:'15 MP, Stun 1rd'},
+  {tier:3,category:'Skill Stones',name:'Skill Stone: Meteor Strike',price:5000,desc:'Teaches Meteor Strike. 12d6 fire damage in 40ft. Costs 60 Mana.',icon:'🔴',rarity:'epic',stats:'60 MP, 12d6 fire'},
+  {tier:3,category:'Skill Stones',name:'Skill Stone: Resurrection',price:6000,desc:'Teaches Resurrection. Revives a dead ally to full HP. Costs 100 Mana.',icon:'🟡',rarity:'epic',stats:'100 MP, Full revive'},
+  {tier:3,category:'Skill Stones',name:'Skill Stone: Shadow Step',price:3000,desc:'Teaches Shadow Step. Teleport up to 60ft to an unoccupied space. Costs 20 Mana.',icon:'⚫',rarity:'rare',stats:'20 MP, 60ft teleport'},
+  {tier:4,category:'Skill Stones',name:'Skill Stone: Ruler\'s Authority',price:25000,desc:'Teaches Ruler\'s Authority. Telekinesis — move any object/creature up to 300lbs. Costs 40 Mana per use.',icon:'👁',rarity:'legendary',stats:'40 MP, Telekinesis'},
+
+  // ───────────────── LOOT BOXES ─────────────────
+  {tier:2,category:'Loot Boxes',name:'Blessed Random Box',price:1000,desc:'Obtain an item you WANT. The System reads your desires and manifests accordingly. Contents scale to your level.',icon:'📦',rarity:'rare'},
+  {tier:3,category:'Loot Boxes',name:'Cursed Random Box',price:500,desc:'Obtain an item you NEED. The System sees what you lack and provides — whether you like it or not. Results can be... unexpected.',icon:'📦',rarity:'uncommon'},
+  {tier:4,category:'Loot Boxes',name:'Monarch\'s Chest',price:10000,desc:'Guaranteed Legendary-tier item. Equipment, weapon, or skill stone. The rarest drops in the System.',icon:'👑',rarity:'legendary'},
 ];

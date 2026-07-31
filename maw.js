@@ -221,7 +221,7 @@ function blankChar(i) {
 let state = {
   characters: Array.from({length:6}, (_,i)=>blankChar(i)),
   selectedCharacter: 0,
-  activeTab: 'skills',
+  activeTab: 'status',
   showReserve: false,
   theme: null,
   shop: [],  // shared shop catalog managed by the DM
@@ -696,10 +696,11 @@ function renderTabs(){
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
   try {
     switch(state.activeTab){
+      case 'status':    renderStatusWindow(); renderStats(); renderDamageTypes(); renderCalcPanel(); break;
       case 'skills':    renderSkillsMatrix(); break;
       case 'loadout':   renderWeapons(); renderInventory(); break;
       case 'relations': renderRelationships(); break;
-      case 'anomalies': renderAnomalies(); break;
+      case 'monsters':  renderAnomalies(); break;
       case 'cases':     renderPlayerCases(); break;
       case 'abilities': renderAbilities(); renderCommendations(); break;
       case 'shop':      renderShop(); renderRequests(); break;
@@ -743,8 +744,8 @@ function renderHeader(){
   const rk = rankOf(c);
   s('topAgentName', c.name||'—');
   s('topAgentRole', c.role||c.codename||'Unassigned');
-  s('topRank', `${rk.tier} · ${rk.title}${rk.subtitle ? ' · ' + rk.subtitle : ''}`);
-  s('topPoints', fmtGold(c.points)+' gold');
+  s('topRank', `${rk.title} · ${rk.subtitle}`);
+  s('topGold', fmtGold(c.points));
   s('topHpMini', `${c.hp.current} / ${c.hp.max}`);
   s('topManaMini', `${c.mana.current} / ${c.mana.max}`);
   s('topArmorMini', c.armor);
@@ -771,13 +772,12 @@ function renderRankBadge(){
 function renderMainFields(){
   const c = getChar();
   const sv = (id,v)=>{ const e=el(id); if(e && document.activeElement!==e) e.value=(v==null?'':v); };
-  sv('charName',c.name); sv('charCodename',c.codename); sv('charRole',c.role);
-  sv('charClearance',c.clearance); sv('charAge',c.age); sv('charLevel',c.level);
-  sv('charBackground',c.background); sv('charDivision',c.division); sv('charSite',c.site);
+  sv('charName',c.name); sv('charCodename',c.title || c.codename);
+  sv('charAge',c.age); sv('charLevel',c.level);
+  sv('charBackground',c.background);
   sv('charSpeed',c.speed); sv('charArmor',c.armor); sv('charTempHp',c.tempHp);
   sv('currentHp',c.hp.current); sv('maxHp',c.hp.max);
   sv('currentMana',c.mana.current); sv('maxMana',c.mana.max);
-  sv('charPoints',c.points);
   const initDisp = el('initiativeDisplay'); if(initDisp) initDisp.value = fmtMod(calcInitiative(c));
   const pp = el('passivePerc'); if(pp) pp.textContent = passivePerception(c);
   // portrait
@@ -787,8 +787,18 @@ function renderMainFields(){
     else slot.style.removeProperty('--portrait-url');
     slot.classList.toggle('has-img', !!c.portrait);
   }
-  // rank select in profile
-  const rkSel = el('charRank'); if(rkSel && document.activeElement!==rkSel) rkSel.value = c.rank;
+  // Class dropdown — populate if empty
+  const roleSel = el('charRole');
+  if(roleSel){
+    if(!roleSel.options.length || roleSel.options.length < PLAYER_CLASSES.length){
+      roleSel.innerHTML = PLAYER_CLASSES.map(pc =>
+        `<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`
+      ).join('');
+    }
+    if(document.activeElement !== roleSel) roleSel.value = c.playerClass || 'knight';
+  }
+  // Rank dropdown
+  const rkSel = el('charClearance'); if(rkSel && document.activeElement!==rkSel) rkSel.value = c.rank;
   // state radios
   ['Active','Reserve','Dead'].forEach(st=>{
     const r = el('state'+st); if(r) r.checked = c.state===st.toLowerCase();
@@ -3130,15 +3140,21 @@ function bindFields(){
       flushPendingPush();
     }
   });
-  ii('charName','name'); ii('charCodename','codename'); ii('charRole','role');
-  ii('charClearance','clearance'); ii('charAge','age'); ii('charLevel','level');
-  ii('charBackground','background'); ii('charDivision','division'); ii('charSite','site');
+  ii('charName','name'); ii('charCodename','title');
+  ii('charAge','age'); ii('charLevel','level');
+  ii('charBackground','background');
   ii('charSpeed','speed'); ii('charArmor','armor'); ii('charTempHp','tempHp');
   ii('currentHp','currentHp'); ii('maxHp','maxHp');
   ii('currentMana','currentMana'); ii('maxMana','maxMana');
-  ii('charPoints','points'); ii('abilitiesText','abilitiesText'); ii('notesText','notesText');
+  ii('notesArea','notesText');
 
-  el('charRank')?.addEventListener('change', e=>{ getChar().rank=e.target.value; pushState(true); render(); });
+  // Class dropdown
+  el('charRole')?.addEventListener('change', e=>{
+    getChar().playerClass = e.target.value;
+    pushState(true); render();
+  });
+  // Rank dropdown
+  el('charClearance')?.addEventListener('change', e=>{ getChar().rank=e.target.value; pushState(true); render(); });
 
   // state radios
   ['Active','Reserve','Dead'].forEach(st=>{

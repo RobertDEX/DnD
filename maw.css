@@ -4518,3 +4518,246 @@ body::before {
   .resource-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   WELCOME SCREEN — DUNGEON TOWER system login
+   ═══════════════════════════════════════════════════════════════════ */
+.welcome-diamond {
+  font-size: 4rem;
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(74,139,245,.3);
+  animation: welcome-diamond-pulse 3s ease-in-out infinite;
+  display: block;
+  text-align: center;
+}
+@keyframes welcome-diamond-pulse {
+  0%, 100% { text-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(74,139,245,.3); transform: scale(1); }
+  50%      { text-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(74,139,245,.5); transform: scale(1.05); }
+}
+.welcome-title {
+  text-align: center;
+  font-family: var(--F1);
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  color: #fff;
+  text-shadow: 0 0 20px var(--accent-glow);
+}
+.welcome-title span {
+  display: block;
+  font-size: .7em;
+  letter-spacing: .5em;
+  color: var(--accent);
+  font-weight: 400;
+}
+.welcome-sub {
+  text-align: center;
+  font-family: var(--F4);
+  font-size: .6rem;
+  letter-spacing: .3em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: .8rem;
+  margin-bottom: 2rem;
+}
+
+/* Welcome character cards — system blue */
+.welcome-card {
+  background: linear-gradient(180deg, rgba(18,40,80,.8), rgba(14,32,65,.85)) !important;
+  border: 1px solid rgba(80,160,255,.3) !important;
+  border-radius: 6px !important;
+  transition: all .2s cubic-bezier(.2,.8,.2,1) !important;
+  position: relative;
+  overflow: hidden;
+}
+.welcome-card:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px -4px var(--accent-glow), inset 0 0 20px -10px var(--accent-glow) !important;
+  transform: translateY(-3px) !important;
+}
+.welcome-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.welcome-card:hover::before { opacity: 1; }
+
+.welcome-card .wc-initial {
+  font-family: var(--F1) !important;
+  font-weight: 900 !important;
+  color: var(--accent) !important;
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+.welcome-card .wc-name {
+  color: #fff !important;
+  font-family: var(--F2) !important;
+}
+.welcome-card .wc-rank {
+  color: var(--text-dim) !important;
+  font-family: var(--F4) !important;
+  letter-spacing: .12em !important;
+}
+
+/* ─── SHOP polish ─── */
+.shop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: .8rem;
+  border-bottom: 1px solid rgba(80,140,220,.2);
+}
+.shop-balance {
+  font-family: var(--F1);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--amber);
+  text-shadow: 0 0 10px rgba(194,162,58,.5);
+  letter-spacing: .06em;
+}
+.shop-tabs {
+  display: flex;
+  gap: .3rem;
+  margin-bottom: .8rem;
+}
+.shop-tab-btn {
+  font-family: var(--F1);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: .5rem 1.2rem;
+  background: rgba(8,16,32,.6);
+  border: 1px solid rgba(80,140,220,.2);
+  color: var(--text-dim);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all .15s;
+}
+.shop-tab-btn:hover {
+  background: rgba(30,70,140,.4);
+  border-color: rgba(80,140,220,.4);
+  color: var(--text);
+}
+.shop-tab-btn.active {
+  background: linear-gradient(180deg, rgba(30,70,140,.6), rgba(20,50,110,.5));
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 12px -4px var(--accent-glow);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+.shop-notice {
+  font-family: var(--F4);
+  font-size: .62rem;
+  letter-spacing: .1em;
+  color: var(--amber);
+  text-align: center;
+  padding: .4rem;
+}
+.shop-filter {
+  margin-bottom: .6rem;
+}
+
+/* ─── DM PANEL CLEANUP — tighter, cleaner layout ─── */
+.dm-full-panel {
+  gap: .8rem;
+}
+.dm-head {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.dm-head-title {
+  font-size: .9rem;
+  letter-spacing: .12em;
+}
+.dm-card {
+  border-radius: 6px;
+}
+.dm-card-title {
+  font-size: .6rem;
+  padding: .6rem .9rem;
+}
+.dm-card-body {
+  padding: .8rem .9rem;
+}
+
+/* Roster cards — tighter */
+.dm-agent {
+  padding: .6rem .8rem;
+  border-radius: 6px;
+  margin-bottom: .4rem;
+}
+.dm-agent-top {
+  margin-bottom: .3rem;
+}
+.dm-agent-pick {
+  font-size: .88rem;
+}
+.dm-agent-rank {
+  font-size: .58rem;
+}
+.dm-agent-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .4rem;
+  margin-bottom: .3rem;
+}
+.dm-mini > span {
+  font-size: .44rem;
+  letter-spacing: .12em;
+}
+.dm-mini input, .dm-mini select {
+  padding: .3rem .4rem;
+  font-size: .74rem;
+}
+.dm-agent-actions {
+  padding-top: .3rem;
+  gap: .4rem;
+}
+.dm-pts-display {
+  font-size: .72rem;
+}
+
+/* Quick actions — inline grid */
+.dm-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: .4rem;
+  align-items: end;
+}
+.dm-quick-actions select,
+.dm-quick-actions input {
+  min-width: 0;
+  padding: .4rem .5rem;
+  font-size: .78rem;
+}
+
+/* EXP presets — compact pill buttons */
+.dm-exp-presets {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+}
+.dm-exp-presets .maw-btn {
+  padding: .3rem .6rem;
+  font-size: .58rem;
+}
+
+/* Shop add row — cleaner grid */
+.dm-shop-add-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: .4rem;
+}
+.dm-shop-add-row input,
+.dm-shop-add-row select {
+  min-width: 0;
+  padding: .35rem .4rem;
+  font-size: .78rem;
+}

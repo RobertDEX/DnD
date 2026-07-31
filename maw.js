@@ -223,7 +223,7 @@ const THREAT_GRADES = [
 ];
 const THREAT_BY_GRADE = Object.fromEntries(THREAT_GRADES.map(t=>[t.grade,t]));
 
-// Anomaly containment classes (flavor for the bestiary-like anomaly log)
+// Monster types for the Tower bestiary
 const ANOMALY_CLASSES = ['Beast','Undead','Demon','Dragon','Elemental','Construct','Aberration','Humanoid'];
 
 // Damage types — mundane, elemental, divine, arcane. Each character
@@ -234,7 +234,7 @@ const DAMAGE_TYPES = [
   { id:'fire',      label:'Fire',      cat:'elemental',  icon:'🔥', desc:'Flames, lava, and burning heat.' },
   { id:'cold',      label:'Cold',      cat:'elemental',  icon:'❄', desc:'Ice, frost, and freezing cold.' },
   { id:'lightning', label:'Lightning',  cat:'elemental',  icon:'⚡', desc:'Electric bolts and chain lightning.' },
-  { id:'acid',      label:'Acid',      cat:'elemental',  icon:'☣', desc:'Corrosive substances and dissolving attacks.' },
+  { id:'acid',      label:'Acid',      cat:'elemental',  icon:'⚠', desc:'Corrosive substances and dissolving attacks.' },
   { id:'radiant',   label:'Radiant',   cat:'divine',     icon:'✦', desc:'Holy light, divine power, sacred energy.' },
   { id:'necrotic',  label:'Necrotic',  cat:'divine',     icon:'💀', desc:'Life-draining rot, death magic, undeath.' },
   { id:'psychic',   label:'Psychic',   cat:'arcane',     icon:'👁', desc:'Mind-rending attacks, psionic force.' },
@@ -248,7 +248,7 @@ const DMG_TYPES = ['Slashing','Bludgeoning','Piercing','Fire','Cold','Lightning'
 const TRAINING  = ['Untrained','Trained','Master'];
 const ITEM_CATEGORIES = ['Weapon','Armor','Accessory','Consumable','Skill Stone','Material','Misc'];
 
-// Requisitions catalog categories + tier access
+// Shop categories + tier access
 const SHOP_CATEGORIES = ['Consumables','Weapons','Armor','Accessories','Skill Stones','Loot Boxes'];
 const RANK_TO_TIER = { 'E':1, 'D':2, 'C':3, 'B':4, 'A':4, 'S':4 };   // an agent of rank R can access all tiers <= R
 const TIER_LABEL = { 1:'E-RANK', 2:'D-RANK', 3:'C-RANK', 4:'B-RANK+' };
@@ -323,13 +323,13 @@ let state = {
 // Commendation/achievement catalog (DM grants these)
 const COMMENDATIONS = [
   { id:'first_contain', icon:'◈', name:'First Kill',   desc:'Slew your first monster in the Tower.' },
-  { id:'survived_keter', icon:'☣', name:'Keter Survivor',     desc:'Survived direct contact with a Keter-class entity.' },
+  { id:'survived_keter', icon:'⚠', name:'Keter Survivor',     desc:'Survived direct contact with a Keter-class entity.' },
   { id:'tier4',         icon:'★', name:'Ascension',           desc:'Reached Tier IV — Overseer clearance.' },
   { id:'flawless',      icon:'✦', name:'Flawless Operation',  desc:'Completed a mission with no casualties or losses.' },
   { id:'scholar',       icon:'❖', name:'Field Scholar',       desc:'Documented 10+ anomalies in the log.' },
   { id:'big_game',      icon:'⬡', name:'Big Game',            desc:'Captured an A-grade or higher anomaly.' },
   { id:'sole_survivor', icon:'☩', name:'Sole Survivor',       desc:'The only agent to walk out of an operation.' },
-  { id:'loyal',         icon:'⚒', name:'Company Loyalist',    desc:'Exemplary service to Make a Wish Incorporated.' },
+  { id:'loyal',         icon:'⚒', name:'Tower Veteran',       desc:'Proven service in the Tower. Respected by all.' },
   { id:'sacrifice',     icon:'✝', name:'Ultimate Sacrifice',  desc:'Gave everything in the line of duty. (Posthumous)' }
 ];
 const COMMENDATION_BY_ID = Object.fromEntries(COMMENDATIONS.map(c=>[c.id,c]));
@@ -573,7 +573,7 @@ function normalize(raw){
     }
   });
   // Never force the roster back up to a fixed count — that re-spawned deleted agents.
-  // Only guarantee at least one personnel file exists so the sheet can render.
+  // Only guarantee at least one player file exists so the sheet can render.
   if(m.characters.length === 0) m.characters.push(blankChar(0));
   if(m.selectedCharacter>=m.characters.length) m.selectedCharacter = 0;
   if(!Array.isArray(m.shop)) m.shop = [];
@@ -943,7 +943,7 @@ function renderCharacterTabs(){
     btn.innerHTML = `
       <div class="ctab-top">
         <span class="ctab-rank" style="color:${rk.color}">${rk.id}</span>
-        <span class="ctab-name">${esc(c.name||`Agent ${i+1}`)}</span>
+        <span class="ctab-name">${esc(c.name||`Player ${i+1}`)}</span>
         ${isOwn?'<span class="ctab-badge you">YOU</span>':taken?'<span class="ctab-badge taken">●</span>':''}
       </div>
       <span class="ctab-sub">${esc(c.role||c.codename||'—')}</span>
@@ -1299,7 +1299,7 @@ function renderSkillsMatrix(){
               <button class="prof-dot ${sk.prof?'on':''}" data-skill="${esc(def.name)}" data-kind="prof" data-tt="Trained — proficient in this skill (+ prof bonus)"></button>
               <button class="prof-dot expert ${sk.expert?'on':''}" data-skill="${esc(def.name)}" data-kind="expert" data-tt="Specialist — expertise in this skill (×2 prof bonus)"></button>
             </div>
-            <div class="skill-name">${esc(def.name)}${isSense?' <span class="sense-tag" data-tt="Paranormal perception — the sixth sense of an investigator">◈</span>':''}</div>
+            <div class="skill-name">${esc(def.name)}${isSense?' <span class="sense-tag" data-tt="Mana perception — sense magical energies and hidden enchantments">◈</span>':''}</div>
             <div class="skill-total">${fmtMod(total)}</div>
           </div>`;
         }).join('')}
@@ -1400,7 +1400,7 @@ function renderInventory(){
   const host = el('inventoryList'); if(!host) return;
   if(!Array.isArray(c.inventory)) c.inventory=[];
   const totalVal = c.inventory.reduce((s,it)=> s + (Number(it.value)||0)*(Number(it.qty)||1), 0);
-  const tv = el('inventoryValue'); if(tv) tv.textContent = fmtGold(totalVal)+' gold';
+  const tv = el('inventoryValue'); if(tv) tv.textContent = fmtGold(totalVal);
   if(!c.inventory.length){ host.innerHTML = `<div class="empty-note">Inventory empty.</div>`; return; }
   host.innerHTML = c.inventory.map((it,i)=>`
     <div class="inv-item cat-${(it.category||'Misc').toLowerCase()}">
@@ -1450,14 +1450,14 @@ function sellItem(i){
 function renderShop(){
   const c = getChar();
   const host = el('shopList'); if(!host) return;
-  const bal = el('shopBalance'); if(bal) bal.textContent = fmtGold(c.points)+' gold';
+  const bal = el('shopBalance'); if(bal) bal.textContent = fmtGold(c.points);
   const myTier = RANK_TO_TIER[c.rank] || 1;
   // clearance banner
   const clr = el('shopClearance');
-  if(clr) clr.innerHTML = `CLEARANCE <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to Tier ${myTier} requisitions and below`;
+  if(clr) clr.innerHTML = `RANK <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to ${TIER_LABEL[myTier]} items and below`;
 
   if(!Array.isArray(state.shop) || !state.shop.length){
-    host.innerHTML = `<div class="empty-note">The requisitions catalog is empty.${dmUnlocked?' Open the DM Panel → Requisitions and press <b>Load DT Default Catalog</b> to stock it.':' The DM stocks it from the DM Panel.'}</div>`;
+    host.innerHTML = `<div class="empty-note">The shop is empty.${dmUnlocked?' Open the GM Console and press <b>Load Default Shop Catalog</b> to stock it.':' The GM stocks it from the GM Console.'}</div>`;
     return;
   }
 
@@ -1467,7 +1467,7 @@ function renderShop(){
     .filter(({item})=> (Number(item.tier)||1) <= myTier);
 
   if(!accessible.length){
-    host.innerHTML = `<div class="empty-note">No requisitions available at your clearance level.</div>`;
+    host.innerHTML = `<div class="empty-note">No items available at your rank.</div>`;
     return;
   }
 
@@ -1527,7 +1527,7 @@ function buyItem(i){
   pushState(true); renderShop(); renderInventory(); renderHeader();
   showToast(`Acquired ${item.name}`,'buy');
 }
-// map a requisitions category to an inventory category bucket
+// map a shop category to an inventory category bucket
 function mapShopCatToInv(cat){
   switch(cat){
     case 'Combat': return 'Weapon';
@@ -1637,7 +1637,7 @@ function renderRelationships(){
   const c = getChar();
   const host = el('relationshipsList'); if(!host) return;
   if(!Array.isArray(c.relationships)) c.relationships=[];
-  if(!c.relationships.length){ host.innerHTML = `<div class="empty-note">No personnel records.</div>`; return; }
+  if(!c.relationships.length){ host.innerHTML = `<div class="empty-note">No party contacts recorded.</div>`; return; }
   host.innerHTML = c.relationships.map((r,i)=>`
     <div class="rel-card">
       <div class="rel-head">
@@ -1726,7 +1726,7 @@ function renderAnomalies(){
           : `<div class="empty-note">
               <div class="empty-glyph">⬡</div>
               <div>NO ANOMALIES ON YOUR RECORD</div>
-              <span>Your DM assigns files to your clearance. Additional files can be requisitioned below at half the threat grade bounty.</span>
+              <span>Your DM assigns files to your rank. Additional files can be requisitioned below at half the threat grade bounty.</span>
             </div>`}
       </div>
     </section>
@@ -1736,7 +1736,7 @@ function renderAnomalies(){
         <span class="ash-icon amber">◈</span>
         <div class="ash-text">
           <div class="ash-label">Available for Requisition</div>
-          <div class="ash-hint">Pay half the threat grade bounty to add this file to your clearance</div>
+          <div class="ash-hint">Pay half the threat grade bounty to add this file to your rank</div>
         </div>
         <span class="ash-count amber">${available.length}</span>
       </header>
@@ -1838,7 +1838,7 @@ function renderDmTargetPicker(){
   sel.innerHTML = state.characters.map((c,i) => {
     const rk = rankOf(c);
     const st = c.state === 'dead' ? ' · KIA' : c.state === 'reserve' ? ' · Reserve' : '';
-    return `<option value="${i}" ${i===cur?'selected':''}>${esc(c.name || `Agent ${i+1}`)} — ${rk.id}${st}</option>`;
+    return `<option value="${i}" ${i===cur?'selected':''}>${esc(c.name || `Player ${i+1}`)} — ${rk.id}${st}</option>`;
   }).join('');
   // Rebind handler each call — sel.onchange doesn't stack
   sel.onchange = e => {
@@ -1859,7 +1859,7 @@ function renderDmPanel(){
       return `
       <div class="dm-agent state-${st} ${i===state.selectedCharacter?'sel':''}">
         <div class="dm-agent-top">
-          <button class="dm-agent-pick" data-i="${i}">${esc(c.name||`Agent ${i+1}`)}</button>
+          <button class="dm-agent-pick" data-i="${i}">${esc(c.name||`Player ${i+1}`)}</button>
           <span class="dm-agent-rank" style="color:${rk.color}">${rk.tier} · ${rk.title}</span>
           <span class="dm-agent-state-tag ${st}">${st==='active'?'ACTIVE':st==='reserve'?'RESERVE':'KIA'}</span>
         </div>
@@ -2183,7 +2183,7 @@ function renderDmSites(){
           </label>
           <label class="dm-site-toggle ${cur.contaminated?'on':''}">
             <input type="checkbox" id="dmSiteContam" ${cur.contaminated?'checked':''}>
-            <span class="dm-site-toggle-icon">☣</span>
+            <span class="dm-site-toggle-icon">⚠</span>
             <span class="dm-site-toggle-text">
               <b>Contamination Alert</b>
               <em>Marks the site with a warning stripe on all agent terminals</em>
@@ -2592,7 +2592,7 @@ function renderDmDiagnostics(){
         <div class="dm-diag-val ${nearLimit?'danger':''}">${kb} KB${nearLimit?' ⚠':''}</div>
       </div>
       <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Personnel Records</div>
+        <div class="dm-diag-lbl">Player Records</div>
         <div class="dm-diag-val">${chars} <span class="dm-diag-sub">(${named} named)</span></div>
       </div>
       <div class="dm-diag-cell">
@@ -2701,7 +2701,7 @@ function renderDmShop(){
       <button class="ds-del" data-i="${i}">✕</button>
     </div>
     <input class="ds-desc" data-i="${i}" value="${esc(it.desc||'')}" placeholder="Short description (optional)">
-  `).join('') : `<div class="empty-note">No items stocked. Add requisitions below, or load the default DT catalog.</div>`;
+  `).join('') : `<div class="empty-note">No items stocked. Add items below, or load the default shop catalog.</div>`;
   host.querySelectorAll('.ds-name').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].name=inp.value; pushState(); }));
   host.querySelectorAll('.ds-desc').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].desc=inp.value; pushState(); }));
   host.querySelectorAll('.ds-price').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].price=Math.max(0,Number(inp.value)||0); pushState(); }));
@@ -2713,7 +2713,7 @@ function renderDmShop(){
   const tgt = el('dmAwardTarget');
   if(tgt){
     const cur = tgt.value;
-    tgt.innerHTML = `<option value="-1">★ All Active Agents</option>` + state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Agent ${i+1}`)}</option>`).join('');
+    tgt.innerHTML = `<option value="-1">★ All Active Agents</option>` + state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
     if(cur) tgt.value = cur;
   }
 }
@@ -2738,8 +2738,8 @@ function loadDefaultCatalog(replace){
 // ── DM CHARACTER MANAGEMENT ──
 function dmDeleteAgent(i){
   const c = state.characters[i]; if(!c) return;
-  if(state.characters.length<=1){ showToast('Cannot delete the last personnel file','warn'); return; }
-  if(!confirm(`TERMINATE personnel record for ${c.name||`Agent ${i+1}`}?\n\nThis permanently deletes the file for everyone.`)) return;
+  if(state.characters.length<=1){ showToast('Cannot delete the last player','warn'); return; }
+  if(!confirm(`DELETE player record for ${c.name||`Player ${i+1}`}?\n\nThis permanently deletes the character for everyone.`)) return;
   state.characters.splice(i,1);
   if(state.selectedCharacter>=state.characters.length) state.selectedCharacter = state.characters.length-1;
   pushState(true); render();
@@ -2752,7 +2752,7 @@ function dmAddAgent(){
   state.selectedCharacter = state.characters.length-1;
   state.showReserve = true;
   pushState(true); render();
-  showToast('New personnel file created (Reserve)','buy');
+  showToast('New player created (Reserve)','buy');
 }
 
 // ================================================================
@@ -2834,7 +2834,7 @@ function showBroadcastScreen(msg){
       <div class="bcs-inner">
         <div class="bcs-head">
           <span class="bcs-dot"></span>
-          <span class="bcs-channel">MAKE A WISH INCORPORATED · INTERNAL BROADCAST</span>
+          <span class="bcs-channel">DUNGEON TOWER · SYSTEM BROADCAST</span>
           <span class="bcs-dot"></span>
         </div>
         <div class="bcs-tag">// PRIORITY TRANSMISSION //</div>
@@ -3081,11 +3081,11 @@ function applySiteAlert(){
   }
   if(s==='lockdown'){
     banner.className = 'site-alert lockdown';
-    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">SITE LOCKDOWN IN EFFECT — ALL PERSONNEL REMAIN AT STATIONS</span><span class="sa-icon">⚠</span>`;
+    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">SYSTEM ALERT — TOWER BREACH DETECTED — ALL PLAYERS ON GUARD</span><span class="sa-icon">⚠</span>`;
     SFX.alarm();
   } else {
     banner.className = 'site-alert uncontained';
-    banner.innerHTML = `<span class="sa-icon">☣</span><span class="sa-text">CONTAINMENT BREACH — UNCONTAINED ANOMALY ON SITE</span><span class="sa-icon">☣</span>`;
+    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">DUNGEON BREAK — MONSTERS BREACHING THE TOWER</span><span class="sa-icon">⚠</span>`;
     SFX.alarm();
   }
 }
@@ -3308,7 +3308,7 @@ function renderDmCommendations(){
   const targetSel = el('dmCommendTarget');
   if(targetSel){
     const cur = targetSel.value;
-    targetSel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Agent ${i+1}`)}</option>`).join('');
+    targetSel.innerHTML = state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
     if(cur) targetSel.value = cur;
   }
   host.innerHTML = COMMENDATIONS.map(m=>`
@@ -3359,9 +3359,9 @@ function buildWelcome(){
   ov.id='welcomeOverlay'; ov.className='welcome-overlay';
   ov.innerHTML = `
     <div class="welcome-box">
-      <div class="welcome-logo"><img src="MW.png" alt="DT" class="welcome-logo-img"></div>
-      <div class="welcome-title">MAKE A WISH<span>INCORPORATED</span></div>
-      <div class="welcome-sub">PERSONNEL IDENTIFICATION REQUIRED</div>
+      <div class="welcome-logo"><span class="welcome-diamond">◆</span></div>
+      <div class="welcome-title">DUNGEON<span>TOWER</span></div>
+      <div class="welcome-sub">PLAYER IDENTIFICATION REQUIRED</div>
       <div class="welcome-charlist" id="welcomeCharList"></div>
       <div class="welcome-actions">
         <button class="dt-btn ghost" id="welcomeSkipBtn">I'm just watching</button>
@@ -3984,7 +3984,7 @@ async function migrateIfNeeded(){
       startListener();
       return;
     }
-    // No doc yet — seed fresh with the default requisitions catalog.
+    // No doc yet — seed fresh with the default shop catalog.
     if(window.DT_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
       state.shop = window.DT_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
     }

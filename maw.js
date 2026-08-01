@@ -515,12 +515,12 @@ function announceDndLevelUp(c, newDndLevel) {
 }
 
 // Base stat point-buy: starts with 9 points, gains +2 at DnD levels 4/8/12/16/19 (ASI).
-// Total pool = 9 + (2 × number of ASI levels reached).
+// Total pool = baseStatPoints (default 9, DM can change) + (2 × number of ASI levels reached).
 // Points spent = sum(stats) - 48 (6 stats × 8 base).
 function totalBasePoints(c) {
   const dndLvl = c.level || 1;
   const asiLevels = [4,8,12,16,19].filter(l => dndLvl >= l).length;
-  return 9 + (asiLevels * 2);
+  return (Number(c.baseStatPoints) || 9) + (asiLevels * 2);
 }
 function basePointsSpent(c) {
   return STATS.reduce((sum, s) => sum + (Number(c.stats[s]) || 8), 0) - 48;
@@ -1967,6 +1967,9 @@ function renderDmPanel(){
           <label class="dm-mini"><span>Gold</span>
             <input class="dm-points" data-i="${i}" type="number" value="${c.points||0}">
           </label>
+          <label class="dm-mini"><span>Stat Pts</span>
+            <input class="dm-basepts" data-i="${i}" type="number" value="${c.baseStatPoints||9}" min="0">
+          </label>
           <label class="dm-mini"><span>Status</span>
             <select class="dm-state" data-i="${i}">
               <option value="active" ${st==='active'?'selected':''}>Active</option>
@@ -2012,6 +2015,10 @@ function renderDmPanel(){
       pushState(true); render();
     }));
     roster.querySelectorAll('.dm-points').forEach(inp=> inp.addEventListener('input',()=>{ state.characters[+inp.dataset.i].points=Math.max(0,Number(inp.value)||0); pushState(); renderHeader(); }));
+    roster.querySelectorAll('.dm-basepts').forEach(inp=> inp.addEventListener('input',()=>{
+      state.characters[+inp.dataset.i].baseStatPoints = Math.max(0, Number(inp.value)||0);
+      pushState(); render();
+    }));
     roster.querySelectorAll('.dm-state').forEach(s=> s.addEventListener('change',()=>{ state.characters[+s.dataset.i].state=s.value; pushState(true); render(); }));
     roster.querySelectorAll('.dm-agent-reserve').forEach(b=> b.addEventListener('click',()=>{ const c=state.characters[+b.dataset.i]; c.state = c.state==='reserve'?'active':'reserve'; pushState(true); render(); showToast(c.state==='reserve'?`${c.name||'Agent'} moved to reserve`:`${c.name||'Agent'} reinstated`,'info'); }));
     roster.querySelectorAll('.dm-agent-del').forEach(b=> b.addEventListener('click',()=> dmDeleteAgent(+b.dataset.i)));

@@ -4816,7 +4816,7 @@ body::before {
 .dm-agent-controls {
   grid-column: 1 / -1;
   display: grid !important;
-  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-columns: repeat(5, 1fr) !important;
   gap: .3rem !important;
   margin-bottom: .15rem !important;
 }

@@ -379,8 +379,12 @@ function effectiveStat(c, stat) {
 }
 
 // How many system stat points the character has available to spend.
-// Formula: (systemLevel - 1) * 3 points total, minus what's already allocated.
-function systemPointsTotal(c) { return Math.max(0, (Number(c.systemLevel) || 1) - 1) * 3; }
+// You get 3 points per DnD level above 1 (every 10 system levels).
+// DnD 20 (system 200) = 57 total points. Roughly +9 per stat if spread evenly.
+function systemPointsTotal(c) {
+  const dndLvl = dndLevelFromSystem(Number(c.systemLevel) || 1);
+  return Math.max(0, dndLvl - 1) * 3;
+}
 function systemPointsSpent(c) {
   const ss = c.systemStats || {};
   return Object.values(ss).reduce((sum, v) => sum + (Number(v) || 0), 0);

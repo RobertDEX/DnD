@@ -708,16 +708,21 @@ async function pushState(immediate=false){
   }
   // Guard: don't push completely empty state (no names AND no shop).
   // But DO allow pushing if there are system-level changes (EXP, gold, etc.)
+  // Strip local-only fields that should NOT sync across clients.
+  // Each player navigates their own tabs and selects their own character.
+  const pushData = { ...state };
+  delete pushData.activeTab;
+  delete pushData.selectedCharacter;
   if(immediate){
     setSyncDot('syncing');
-    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) }); setSyncDot('synced'); }
+    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(pushData) }); setSyncDot('synced'); }
     catch(e){ console.error(e); setSyncDot('error'); }
     return;
   }
   setSyncDot('syncing');
   clearTimeout(_pushDebounce);
   _pushDebounce = setTimeout(async ()=>{
-    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) }); setSyncDot('synced'); }
+    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(pushData) }); setSyncDot('synced'); }
     catch(e){ console.error(e); setSyncDot('error'); }
   }, 600);
 }
@@ -767,7 +772,7 @@ function startListener(){
       state.initiative    = remote.initiative    || { active:false, round:1, turnIdx:0, entries:[] };
       state.sceneName     = remote.sceneName     || '';
       state.broadcast     = remote.broadcast     || '';
-      state.activeTab     = remote.activeTab     || state.activeTab;
+      // DO NOT sync activeTab or selectedCharacter — those are local per-client
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
@@ -3903,7 +3908,7 @@ function bindFields(){
   el('addAbilityBtn')?.addEventListener('click', addAbility);
 
   // tab nav
-  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ state.activeTab=b.dataset.tab; SFX.tab(); pushState(); renderTabs(); }));
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ state.activeTab=b.dataset.tab; SFX.tab(); renderTabs(); }));
   // DM nav (sub-tabs inside DM panel)
   document.querySelectorAll('.dm-nav-btn[data-dm]').forEach(b=> b.addEventListener('click', ()=>{
     document.querySelectorAll('.dm-nav-btn').forEach(x=>x.classList.remove('active'));

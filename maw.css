@@ -5138,3 +5138,185 @@ body::before {
 .profile-col .stats-grid {
   grid-template-columns: repeat(3, 1fr) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FINAL POLISH PASS — micro-interactions, depth, life
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Panel inner glow on hover ─── */
+.panel {
+  transition: box-shadow .25s, border-color .25s;
+}
+.panel:hover {
+  border-color: rgba(80,160,255,.5);
+  box-shadow: 0 4px 24px -8px rgba(0,0,0,.5), 0 0 20px -8px var(--accent-glow), inset 0 0 30px -14px var(--accent-glow);
+}
+
+/* ─── Panel title — subtle glow on parent hover ─── */
+.panel:hover .panel-title {
+  color: rgba(180,210,255,.9);
+  text-shadow: 0 0 10px rgba(80,140,220,.5);
+  border-bottom-color: rgba(80,140,220,.35);
+}
+
+/* ─── Portrait — glow ring + image fit ─── */
+.portrait-slot.has-img {
+  background-size: cover;
+  background-position: center;
+}
+.portrait-label {
+  display: block;
+}
+.portrait-label:hover .portrait-slot {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px -4px var(--accent-glow), 0 0 40px -10px rgba(74,139,245,.3);
+}
+
+/* ─── Input fields — subtle inner border on focus ─── */
+input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="color"]),
+select, textarea {
+  transition: all .18s ease;
+}
+input:focus, select:focus, textarea:focus {
+  background: rgba(12,24,48,.9) !important;
+}
+
+/* ─── Stat block inner glow ─── */
+.stat-block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(74,139,245,.05), transparent 70%);
+  pointer-events: none;
+  transition: opacity .2s;
+  opacity: 0;
+}
+.stat-block:hover::before { opacity: 1; }
+
+/* ─── Resource block bars ─── */
+.resource-block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(74,139,245,.04), transparent 70%);
+  pointer-events: none;
+}
+.hp-block::before {
+  background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(217,79,79,.06), transparent 70%);
+}
+.mp-block::before {
+  background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(74,139,245,.06), transparent 70%);
+}
+
+/* ─── Tab bar — bottom border glow ─── */
+.tab-bar {
+  position: relative;
+}
+.tab-bar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(80,140,220,.3) 30%, rgba(80,140,220,.3) 70%, transparent 95%);
+}
+
+/* ─── Sidebar polish ─── */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.character-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.presence-bar {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+  margin-bottom: .3rem;
+}
+
+/* ─── Topbar gold accent ─── */
+.topbar .gold-val {
+  font-size: .9rem !important;
+}
+
+/* ─── Skills matrix polish ─── */
+.skills-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.skills-legend {
+  display: flex;
+  gap: 1rem;
+  font-family: var(--F4);
+  font-size: .52rem;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  margin-bottom: .6rem;
+}
+.lg { display: flex; align-items: center; gap: .3rem; }
+.lg.trained { color: var(--accent); }
+.lg.specialist { color: var(--amber); }
+
+/* ─── Inventory polish ─── */
+.inv-total {
+  font-family: var(--F4);
+  font-size: .56rem;
+  color: var(--text-dim);
+  float: right;
+}
+.inv-total strong {
+  color: var(--amber);
+}
+.inv-add-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto auto auto;
+  gap: .4rem;
+  margin-top: .6rem;
+  align-items: end;
+}
+.inv-add-row input, .inv-add-row select {
+  min-width: 0;
+  padding: .35rem .4rem;
+}
+
+/* ─── Anomaly/monster hint ─── */
+.anomaly-hint {
+  font-family: var(--F4);
+  font-size: .62rem;
+  color: var(--text-dim);
+  letter-spacing: .06em;
+  margin-bottom: .8rem;
+  line-height: 1.6;
+}
+
+/* ─── Text selection ─── */
+::selection {
+  background: rgba(74,139,245,.35);
+  color: #eaf6ff;
+}
+
+/* ─── Focus-visible for keyboard nav ─── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ─── Smooth page transitions ─── */
+.main {
+  animation: main-fade-in .4s ease;
+}
+@keyframes main-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Status Window center constraint ─── */
+.status-tab-layout {
+  max-width: 700px;
+  margin: 0 auto;
+}

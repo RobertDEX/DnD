@@ -947,18 +947,27 @@ function renderCharacterTabs(){
     const isOwn = c.claimedBy===MY_PRESENCE_ID;
     const taken = isTakenByLiveOther(c);
     const rk = rankOf(c);
+    const cls = CLASS_BY_ID[c.playerClass];
     const btn = document.createElement('button'); btn.type='button';
     btn.className = `character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isSel?' active':''}${isOwn?' owned':''}`;
-    const pct = c.hp.max>0?clamp(c.hp.current/c.hp.max*100,0,100):0;
-    const hpColor = pct>50?'#5a9a78':pct>25?'#c2a23a':'#d94f4f';
+    btn.style.setProperty('--char-color', rk.color);
+    const hpPct = c.hp.max>0?clamp(c.hp.current/c.hp.max*100,0,100):0;
+    const mpPct = c.mana.max>0?clamp(c.mana.current/c.mana.max*100,0,100):0;
+    const hpColor = hpPct>50?'#5a9a78':hpPct>25?'#c2a23a':'#d94f4f';
     btn.innerHTML = `
       <div class="ctab-top">
         <span class="ctab-rank" style="color:${rk.color}">${rk.id}</span>
         <span class="ctab-name">${esc(c.name||`Player ${i+1}`)}</span>
         ${isOwn?'<span class="ctab-badge you">YOU</span>':taken?'<span class="ctab-badge taken">●</span>':''}
       </div>
-      <span class="ctab-sub">${esc(c.role||c.codename||'—')}</span>
-      <div class="ctab-hp"><div class="ctab-hp-fill" style="width:${pct}%;background:${hpColor}"></div></div>`;
+      <div class="ctab-info">
+        <span class="ctab-class">${cls ? `${cls.icon}` : '—'}</span>
+        <span class="ctab-lvl">Lv.${c.systemLevel||1}</span>
+      </div>
+      <div class="ctab-bars">
+        <div class="ctab-bar hp"><div class="ctab-bar-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
+        <div class="ctab-bar mp"><div class="ctab-bar-fill" style="width:${mpPct}%;background:#4a8bf5"></div></div>
+      </div>`;
     if(dmUnlocked||spectator){
       btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
     } else {
@@ -1463,52 +1472,70 @@ function renderShop(){
   const host = el('shopList'); if(!host) return;
   const bal = el('shopBalance'); if(bal) bal.textContent = fmtGold(c.points);
   const myTier = RANK_TO_TIER[c.rank] || 1;
-  // clearance banner
-  const clr = el('shopClearance');
-  if(clr) clr.innerHTML = `RANK <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong> — access to ${TIER_LABEL[myTier]} items and below`;
+  const notice = el('shopNotice');
+  if(notice) notice.innerHTML = `Your rank: <strong style="color:${TIER_COLOR[myTier]}">${TIER_LABEL[myTier]}</strong>`;
 
   if(!Array.isArray(state.shop) || !state.shop.length){
     host.innerHTML = `<div class="empty-note">The shop is empty.${dmUnlocked?' Open the GM Console and press <b>Load Default Shop Catalog</b> to stock it.':' The GM stocks it from the GM Console.'}</div>`;
+    el('shopFilter') && (el('shopFilter').innerHTML = '');
     return;
   }
 
-  // Build a list of {item, realIndex} accessible at this tier, grouped by category
   const accessible = state.shop
     .map((item,i)=>({item,i}))
     .filter(({item})=> (Number(item.tier)||1) <= myTier);
 
   if(!accessible.length){
     host.innerHTML = `<div class="empty-note">No items available at your rank.</div>`;
+    el('shopFilter') && (el('shopFilter').innerHTML = '');
     return;
   }
 
-  // group by category (in catalog order), then by tier within
-  const cats = [...SHOP_CATEGORIES, 'Misc'].filter(cat => accessible.some(({item})=> (item.category||'Misc')===cat));
-  // include any custom categories not in the standard list
-  accessible.forEach(({item})=>{ const cc=item.category||'Misc'; if(!cats.includes(cc)) cats.push(cc); });
+  // Category filter buttons
+  const cats = [...new Set(accessible.map(({item})=> item.category||'Misc'))];
+  const filterHost = el('shopFilter');
+  if(filterHost){
+    filterHost.innerHTML = `<button class="shop-filter-btn active" data-cat="all">All</button>` +
+      cats.map(cat => `<button class="shop-filter-btn" data-cat="${esc(cat)}">${esc(cat)}</button>`).join('');
+    filterHost.querySelectorAll('.shop-filter-btn').forEach(btn => {
+      btn.addEventListener('click', ()=>{
+        filterHost.querySelectorAll('.shop-filter-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.dataset.cat;
+        host.querySelectorAll('.shop-cat-group').forEach(g => {
+          g.style.display = (cat==='all' || g.dataset.cat===cat) ? '' : 'none';
+        });
+      });
+    });
+  }
 
   host.innerHTML = cats.map(cat=>{
     const rows = accessible.filter(({item})=> (item.category||'Misc')===cat)
       .sort((a,b)=> (Number(a.item.tier)||1)-(Number(b.item.tier)||1) || (Number(a.item.price)||0)-(Number(b.item.price)||0));
     return `
-    <div class="shop-cat-group">
+    <div class="shop-cat-group" data-cat="${esc(cat)}">
       <div class="shop-cat-header">${esc(cat)}<span class="shop-cat-count">${rows.length}</span></div>
       ${rows.map(({item,i})=>{
         const price = Number(item.price)||0;
         const afford = (Number(c.points)||0) >= price;
         const out = item.stock!=null && item.stock<=0;
         const tier = Number(item.tier)||1;
-        const stock = item.stock==null?'∞':item.stock;
+        const rarity = item.rarity || 'common';
+        const rarCol = RARITY_COLORS[rarity] || RARITY_COLORS.common;
         return `
-        <div class="shop-item ${out?'out':''}" style="--tier-c:${TIER_COLOR[tier]}">
+        <div class="shop-item ${out?'out':''}" style="--rarity-c:${rarCol}">
+          <div class="shop-item-icon">${esc(item.icon||'◆')}</div>
           <div class="shop-item-main">
-            <div class="shop-item-name">${esc(item.name||'Item')}<span class="shop-tier-tag" style="color:${TIER_COLOR[tier]};border-color:${TIER_COLOR[tier]}">T${tier}</span></div>
-            <div class="shop-item-meta"><span class="shop-stock">Stock: ${out?'SOLD OUT':stock}</span></div>
+            <div class="shop-item-name">${esc(item.name||'Item')}</div>
+            <div class="shop-item-tags">
+              <span class="shop-rarity-tag" style="color:${rarCol};border-color:${rarCol}">${rarity.toUpperCase()}</span>
+              ${item.stats?`<span class="shop-stats-tag">${esc(item.stats)}</span>`:''}
+            </div>
             ${item.desc?`<div class="shop-item-desc">${esc(item.desc)}</div>`:''}
           </div>
           <div class="shop-item-buy">
-            <div class="shop-price">${fmtGold(price)}<span>gold</span></div>
-            ${canEdit()&&!out? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'REQUISITION':'INSUFFICIENT'}</button>` : (out?'<span class="shop-out-tag">OUT</span>':'')}
+            <div class="shop-price">${fmtGold(price)}</div>
+            ${canEdit()&&!out? `<button class="shop-buy-btn ${afford?'':'cant'}" data-i="${i}">${afford?'BUY':'—'}</button>` : (out?'<span class="shop-out-tag">SOLD</span>':'')}
           </div>
         </div>`;
       }).join('')}

@@ -5320,3 +5320,204 @@ input:focus, select:focus, textarea:focus {
   max-width: 700px;
   margin: 0 auto;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENHANCEMENT PASS — sidebar tabs, shop rarity, visual polish
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Character tab — enhanced with class icon + dual bars ─── */
+.ctab-top {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.ctab-rank {
+  font-family: var(--F1);
+  font-size: .9rem;
+  font-weight: 900;
+  line-height: 1;
+  min-width: 18px;
+  text-align: center;
+}
+.ctab-name {
+  font-family: var(--F2);
+  font-size: .82rem;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctab-info {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .15rem;
+}
+.ctab-class {
+  font-size: .7rem;
+  line-height: 1;
+}
+.ctab-lvl {
+  font-family: var(--F4);
+  font-size: .48rem;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+}
+.ctab-bars {
+  display: flex;
+  gap: 3px;
+  margin-top: .25rem;
+}
+.ctab-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(0,0,0,.5);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.ctab-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width .4s ease;
+}
+.ctab-badge {
+  font-family: var(--F4);
+  font-size: .4rem;
+  letter-spacing: .1em;
+  padding: .1rem .3rem;
+  border-radius: 2px;
+}
+.ctab-badge.you {
+  background: rgba(74,139,245,.2);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.ctab-badge.taken {
+  color: #4ade80;
+  font-size: .5rem;
+}
+.character-tab.dead { opacity: .35; }
+.character-tab.reserve { opacity: .55; }
+.character-tab.dead .ctab-name { text-decoration: line-through; }
+
+/* ─── Shop filter buttons ─── */
+.shop-filter {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+  margin-bottom: .8rem;
+}
+.shop-filter-btn {
+  font-family: var(--F4);
+  font-size: .5rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .3rem .6rem;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(80,140,220,.15);
+  color: var(--text-dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.shop-filter-btn:hover {
+  background: rgba(30,70,140,.3);
+  border-color: rgba(80,140,220,.35);
+  color: var(--text);
+}
+.shop-filter-btn.active {
+  background: linear-gradient(180deg, rgba(30,70,140,.5), rgba(20,50,110,.4));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 8px -2px var(--accent-glow);
+}
+
+/* ─── Shop items — rarity-colored, icon, tags ─── */
+.shop-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: .6rem;
+  align-items: start;
+  border-left-color: var(--rarity-c, var(--amber));
+}
+.shop-item-icon {
+  font-size: 1.4rem;
+  text-align: center;
+  padding-top: .2rem;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rarity-c) 50%, transparent));
+}
+.shop-item-tags {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-top: .2rem;
+}
+.shop-rarity-tag {
+  font-family: var(--F4);
+  font-size: .42rem;
+  letter-spacing: .1em;
+  padding: .1rem .4rem;
+  border: 1px solid;
+  border-radius: 2px;
+}
+.shop-stats-tag {
+  font-family: var(--F4);
+  font-size: .42rem;
+  letter-spacing: .06em;
+  padding: .1rem .4rem;
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(80,140,220,.15);
+  color: var(--text-dim);
+  border-radius: 2px;
+}
+.shop-cat-header {
+  font-family: var(--F1);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  padding: .5rem 0 .3rem;
+  border-bottom: 1px solid rgba(80,140,220,.15);
+  margin-bottom: .4rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+.shop-cat-count {
+  font-family: var(--F4);
+  font-size: .48rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.shop-price {
+  white-space: nowrap;
+}
+.shop-item-buy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .3rem;
+  min-width: 70px;
+}
+
+/* ─── Sell tab items ─── */
+.sell-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: .5rem;
+  align-items: center;
+  padding: .5rem .6rem;
+  background: rgba(8,16,32,.5);
+  border: 1px solid rgba(80,140,220,.12);
+  border-radius: var(--r);
+  margin-bottom: .2rem;
+}

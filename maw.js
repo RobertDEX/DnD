@@ -507,10 +507,9 @@ function announceDndLevelUp(c, newDndLevel) {
 
   showToast(msg, 'buy');
 
-  // Auto-increase base stat points for ASI levels (+2 points to distribute)
+  // Auto-announce ASI availability (points are handled by totalBasePoints automatically)
   if (isASI) {
-    c.baseStatPoints = (c.baseStatPoints || 0) + 2;
-    showToast(`+2 Ability Score points awarded to ${c.name||'Player'}. Spend them in the Profile tab.`, 'info');
+    showToast(`+2 Ability Score points available for ${c.name||'Player'}. Spend them in the Profile tab.`, 'info');
   }
 }
 

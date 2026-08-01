@@ -265,6 +265,21 @@ const MY_PRESENCE_ID = localStorage.getItem('dt-pid') || (() => {
 let dmUnlocked = sessionStorage.getItem('dt-dm') === '1';
 let spectator  = sessionStorage.getItem('dt-spectator') === '1';
 let _lastAppliedRaw = null;
+let _claimReconciled = false;  // runs once per session to drop stale claims
+
+// ── Debug tools — available as window.dtDebug in browser console ──
+window.dtDebug = {
+  state()        { return JSON.parse(JSON.stringify(state)); },
+  snapshotStatus(){ return { received: _firstSnapshotReceived, chars: state.characters.length, dmUnlocked, spectator }; },
+  char(i)        { return state.characters[i ?? state.selectedCharacter]; },
+  expTable(n=25) {
+    let cumul = 0;
+    for(let l=1;l<=n;l++){ const e=expForLevel(l); cumul+=e; console.log(`Lv.${l}→${l+1}: ${e} EXP (cumul: ${cumul}, DnD ${dndLevelFromSystem(l)})`); }
+  },
+  stateSize()    { return JSON.stringify(state).length; },
+  forceRender()  { render(); },
+  async forcePush(){ return pushState(true); },
+};
 let _firstSnapshotReceived = false;  // Firebase load-completed guard — see pushState
 let _welcomeShown = false;
 let _unsub = null;
@@ -781,6 +796,17 @@ function startListener(){
       state.siteAlert = remote.siteAlert;
       if(prevAlert !== state.siteAlert) applySiteAlert();
       _firstSnapshotReceived = true;   // Firebase data safely loaded — writes are now safe
+
+      // ── Stale-claim reconciliation ────────────────────────
+      if ((spectator || dmUnlocked) && !_claimReconciled) {
+        _claimReconciled = true;
+        const held = state.characters.some(c => c.claimedBy === MY_PRESENCE_ID);
+        if (held) {
+          releaseMyClaim(true);
+          console.log('[dt] released stale character claim (watcher/DM mode)');
+        }
+      }
+
       setSyncDot('synced');
 
       if(isTyping){
@@ -1012,6 +1038,9 @@ function renderRankBadge(){
 // ── MAIN FIELDS ──
 function renderMainFields(){
   const c = getChar();
+  // Skip if user is actively typing in one of our fields
+  const ae = document.activeElement;
+  const isTypingHere = ae && ae.closest && ae.closest('.profile-grid');
   const sv = (id,v)=>{ const e=el(id); if(e && document.activeElement!==e) e.value=(v==null?'':v); };
   sv('charName',c.name); sv('charCodename',c.title || c.codename);
   sv('charAge',c.age); sv('charLevel',c.level);
@@ -1886,8 +1915,20 @@ function renderDmTargetPicker(){
   };
 }
 
+// Focus guard: don't re-render the DM roster while the DM is typing in it.
+// This prevents Firebase snapshots from yanking focus out of input fields.
+let _dmFocused = false;
+(function(){
+  const ov = document.getElementById('dmOverlay');
+  if(!ov) return;
+  ov.addEventListener('focusin', ()=>{ _dmFocused = true; });
+  ov.addEventListener('focusout', ()=>{ setTimeout(()=>{ _dmFocused = false; }, 100); });
+})();
+
 function renderDmPanel(){
   if(!dmUnlocked) return;
+  // Skip roster re-render if DM is focused on a field inside the overlay
+  if(_dmFocused) return;
   // Player roster with rank + points controls
   const roster = el('dmRoster');
   if(roster){
@@ -3439,6 +3480,18 @@ function refreshWelcomeTaken(){
     else if(!taken && lbl){ lbl.remove(); }
   });
 }
+function releaseMyClaim(silent){
+  let released = false;
+  state.characters.forEach(c => {
+    if (c.claimedBy === MY_PRESENCE_ID) {
+      c.claimedBy = '';
+      released = true;
+    }
+  });
+  if (released && !silent) pushState(true);
+  return released;
+}
+
 function claimCharacter(realIdx){
   const c = state.characters[realIdx]; if(!c) return;
   state.characters.forEach(ch=>{ if(ch.claimedBy===MY_PRESENCE_ID) ch.claimedBy=''; });

@@ -330,7 +330,7 @@ let state = {
   showReserve: false,
   theme: null,
   shop: [],  // shared shop catalog managed by the DM
-  evidenceBoard: { nodes: [], links: [] },   // legacy — evidence board removed
+
   siteAlert: 'normal',                        // normal | lockdown | uncontained
   requests: []  // player item requests awaiting DM review
 };
@@ -605,9 +605,6 @@ function normalize(raw){
     desc: it.desc||''
   }));
   // Evidence board
-  if(!m.evidenceBoard || typeof m.evidenceBoard!=='object') m.evidenceBoard = { nodes:[], links:[] };
-  if(!Array.isArray(m.evidenceBoard.nodes)) m.evidenceBoard.nodes = [];
-  if(!Array.isArray(m.evidenceBoard.links)) m.evidenceBoard.links = [];
   // Site alert state
   if(!['normal','lockdown','uncontained'].includes(m.siteAlert)) m.siteAlert = 'normal';
   // Item requests
@@ -952,7 +949,7 @@ function renderTabs(){
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
   try {
     switch(state.activeTab){
-      case 'profile':   renderMainFields(); renderStats(); renderDamageTypes(); renderCalcPanel(); renderDeathSaves(); break;
+      case 'profile':   renderMainFields(); renderStats(); renderDamageTypes(); renderCalcPanel(); renderDeathSaves(); renderRankBadge(); break;
       case 'status':    renderStatusWindow(); break;
       case 'skills':    renderSkillsMatrix(); break;
       case 'loadout':   renderWeapons(); renderInventory(); break;
@@ -1057,6 +1054,10 @@ function renderMainFields(){
     else slot.style.removeProperty('--portrait-url');
     slot.classList.toggle('has-img', !!c.portrait);
   }
+  // Notes textarea
+  const notes = el('notesArea');
+  if(notes && document.activeElement !== notes) notes.value = c.notesText || '';
+
   // Class display — read-only, DM assigns at system level 10
   const classDisplay = el('charClassDisplay');
   if(classDisplay){

@@ -332,7 +332,7 @@ let state = {
   shop: [],  // shared shop catalog managed by the DM
   evidenceBoard: { nodes: [], links: [] },   // legacy — evidence board removed
   siteAlert: 'normal',                        // normal | lockdown | uncontained
-  requests: []  // player requisition requests awaiting DM review
+  requests: []  // player item requests awaiting DM review
 };
 
 // Commendation/achievement catalog (DM grants these)
@@ -610,7 +610,7 @@ function normalize(raw){
   if(!Array.isArray(m.evidenceBoard.links)) m.evidenceBoard.links = [];
   // Site alert state
   if(!['normal','lockdown','uncontained'].includes(m.siteAlert)) m.siteAlert = 'normal';
-  // Requisition requests
+  // Item requests
   if(!Array.isArray(m.requests)) m.requests = [];
   // Anomaly catalog — DM-authored master list. Each anomaly has an id
   // and a grantedTo:[charIds] array. Character sees it if their id is in there.
@@ -1582,9 +1582,9 @@ function buyItem(i){
   const itemTier = Number(item.tier)||1;
   if(itemTier > myTier){ showToast(`Requires ${TIER_LABEL[itemTier]} clearance`,'warn'); return; }
   const price=Number(item.price)||0;
-  if((Number(c.points)||0) < price){ showToast('Insufficient points','warn'); return; }
+  if((Number(c.points)||0) < price){ showToast('Insufficient gold','warn'); return; }
   if(item.stock!=null && item.stock<=0){ showToast('Sold out','warn'); return; }
-  if(!confirm(`Requisition ${item.name} for ${fmtGold(price)} gold?`)) return;
+  if(!confirm(`Buy ${item.name} for ${fmtGold(price)} gold?`)) return;
   c.points -= price;
   if(item.stock!=null) item.stock -= 1;
   if(!Array.isArray(c.inventory)) c.inventory=[];
@@ -1607,7 +1607,7 @@ function mapShopCatToInv(cat){
 }
 
 // ================================================================
-// REQUISITION REQUESTS — players ask for items not in the catalog
+// ITEM REQUESTS — players ask for items not in the catalog
 // ================================================================
 function submitRequest(){
   if(spectator) return;
@@ -1628,7 +1628,7 @@ function submitRequest(){
   if(el('reqItemNote')) el('reqItemNote').value='';
   pushState(true); renderRequests();
   SFX?.confirm?.();
-  showToast('Requisition request submitted for review','buy');
+  showToast('Item request submitted for review','buy');
 }
 // Player-side: see your own requests + their status
 function renderRequests(){
@@ -1754,8 +1754,8 @@ function renderAnomalies(){
         <span class="anom-class" data-tt="Monster type: ${a.class}">${esc(a.class||'Beast')}</span>
         ${opts.available
           ? `<button class="anom-buy ${canAfford?'':'disabled'}" data-buy="${esc(a.id)}"
-              data-tt="${canAfford ? 'Requisition this classified file — half the threat grade bounty' : 'Insufficient points'}">
-              REQUISITION · ${fmtGold(priceHalf)} gold
+              data-tt="${canAfford ? 'Purchase this monster file — half the threat grade bounty' : 'Insufficient gold'}">
+              PURCHASE · ${fmtGold(priceHalf)} gold
             </button>`
           : `<span class="anom-chev">▾</span>`}
       </div>
@@ -1793,7 +1793,7 @@ function renderAnomalies(){
           : `<div class="empty-note">
               <div class="empty-glyph">⬡</div>
               <div>NO ANOMALIES ON YOUR RECORD</div>
-              <span>Your DM assigns files to your rank. Additional files can be requisitioned below at half the threat grade bounty.</span>
+              <span>Your GM assigns monster files to your rank. Additional files can be purchased below at half the threat grade bounty.</span>
             </div>`}
       </div>
     </section>
@@ -1802,7 +1802,7 @@ function renderAnomalies(){
       <header class="anom-section-head available">
         <span class="ash-icon amber">◈</span>
         <div class="ash-text">
-          <div class="ash-label">Available for Requisition</div>
+          <div class="ash-label">Available for Purchase</div>
           <div class="ash-hint">Pay half the threat grade bounty to add this file to your rank</div>
         </div>
         <span class="ash-count amber">${available.length}</span>
@@ -1830,13 +1830,13 @@ function renderAnomalies(){
   host.querySelectorAll('[data-buy]').forEach(b => {
     b.addEventListener('click', e => {
       e.stopPropagation();
-      if (b.classList.contains('disabled')) { showToast('Insufficient points', 'warn'); return; }
+      if (b.classList.contains('disabled')) { showToast('Insufficient gold', 'warn'); return; }
       const id = b.dataset.buy;
       const anom = state.anomalyCatalog.find(a => a.id === id); if(!anom) return;
       const tg = THREAT_BY_GRADE[anom.threat] || THREAT_BY_GRADE['F'];
       const price = Math.floor(tg.points / 2);
-      if ((Number(c.points) || 0) < price) { showToast('Insufficient points', 'warn'); return; }
-      if (!confirm(`Requisition file ${anom.desig} (${anom.name}) for ${fmtGold(price)} points?`)) return;
+      if ((Number(c.points) || 0) < price) { showToast('Insufficient gold', 'warn'); return; }
+      if (!confirm(`Purchase file ${anom.desig} (${anom.name}) for ${fmtGold(price)} points?`)) return;
       c.points -= price;
       if (!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
       if (!anom.grantedTo.includes(c.id)) anom.grantedTo.push(c.id);
@@ -1848,7 +1848,7 @@ function renderAnomalies(){
 
 // Legacy no-op — creation is now DM-only via the catalog manager
 function addAnomaly(){
-  showToast('Anomaly files are now authored by your DM. Requisition available files from the log.', 'info');
+  showToast('Monster files are authored by your GM. Purchase available files from the log.', 'info');
 }
 
 // ================================================================
@@ -2072,7 +2072,7 @@ function renderDmAnomalyCatalog(){
         <span class="anom-grade" style="background:${tg.color}">${a.threat}</span>
         <input class="dm-anom-desig" data-i="${i}" data-k="desig" value="${esc(a.desig)}" placeholder="DT-001">
         <input class="dm-anom-name" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="Entity name">
-        <div class="dm-anom-price"><span>Requisition Cost:</span> <b>${fmtGold(half)}</b></div>
+        <div class="dm-anom-price"><span>Purchase Cost:</span> <b>${fmtGold(half)}</b></div>
         <button class="dm-anom-del" data-del="${i}" data-tt="Delete this anomaly permanently">🗑</button>
       </div>
       <div class="dm-anom-body">

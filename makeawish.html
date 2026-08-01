@@ -81,7 +81,6 @@
     <button class="tab-btn" data-tab="skills">Skills</button>
     <button class="tab-btn" data-tab="loadout">Loadout</button>
     <button class="tab-btn" data-tab="abilities">Spells & Skills</button>
-    <button class="tab-btn" data-tab="monsters">Bestiary</button>
     <button class="tab-btn" data-tab="cases">Quests</button>
     <button class="tab-btn" data-tab="relations">Party</button>
     <button class="tab-btn" data-tab="shop">Shop</button>
@@ -242,17 +241,18 @@
     <div id="commendationsList"></div>
   </div>
 
-  <!-- ═══ BESTIARY TAB ═══ -->
-  <div class="tab-content panel tab-panel anomaly-panel" data-tab="monsters">
-    <div class="panel-title">Monster Log</div>
-    <p class="anomaly-hint">Creatures encountered in the Tower. DM manages the master catalog; you see what you've encountered.</p>
-    <div id="anomalyList"></div>
-  </div>
-
   <!-- ═══ QUESTS TAB ═══ -->
-  <div class="tab-content panel tab-panel" data-tab="cases">
-    <div class="panel-title">Active Quests</div>
-    <div id="casesList"></div>
+  <div class="tab-content tab-panel" data-tab="cases">
+    <div class="quest-header">
+      <div class="panel-title" style="margin:0;border:0;padding:0">Quest Log</div>
+      <div class="quest-filters" id="questFilters"></div>
+    </div>
+    <div class="quest-stats" id="questStats"></div>
+    <div id="questList" class="quest-list"></div>
+    <div class="quest-completed-section">
+      <button class="maw-btn ghost small" id="questShowCompleted" style="margin-top:1rem">Show Completed Quests</button>
+      <div id="questCompletedList" class="quest-list" style="display:none"></div>
+    </div>
   </div>
 
   <!-- ═══ PARTY TAB ═══ -->

@@ -626,19 +626,26 @@ function normalize(raw){
   // Investigation Cases — DM-authored, granted to specific agents
   if(!Array.isArray(m.cases)) m.cases = [];
   m.cases = m.cases.map((k,ix) => ({
-    id:         String(k?.id ?? ('case-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
-    codename:   String(k?.codename ?? ''),
-    title:      String(k?.title ?? 'Untitled Case'),
-    briefing:   String(k?.briefing ?? ''),
-    status:     ['open','closed','failed','cold'].includes(k?.status) ? k.status : 'open',
-    priority:   ['low','normal','high','critical'].includes(k?.priority) ? k.priority : 'normal',
+    id:         String(k?.id ?? ('quest-'+Date.now()+'-'+ix+'-'+Math.random().toString(16).slice(2,5))),
+    name:       String(k?.name ?? k?.title ?? 'Untitled Quest'),
+    type:       ['main','side','daily','emergency','hunt'].includes(k?.type) ? k.type : 'side',
+    rank:       RANK_BY_ID[k?.rank] ? k.rank : 'E',
+    status:     ['available','active','completed','failed'].includes(k?.status) ? k.status : (k?.status==='open'?'active': k?.status==='closed'?'completed': 'available'),
+    desc:       String(k?.desc ?? k?.briefing ?? ''),
     objectives: Array.isArray(k?.objectives) ? k.objectives.map(o => ({
       id: String(o?.id ?? ('obj-'+Math.random().toString(16).slice(2,6))),
       text: String(o?.text ?? ''),
       done: !!o?.done
     })) : [],
-    visibleTo:  Array.isArray(k?.visibleTo) ? k.visibleTo.map(String) : [],
+    rewards:    {
+      exp:   Math.max(0, Number(k?.rewards?.exp) || 0),
+      gold:  Math.max(0, Number(k?.rewards?.gold) || 0),
+      items: Array.isArray(k?.rewards?.items) ? k.rewards.items.map(String) : []
+    },
+    assignedTo: k?.assignedTo === 'all' ? 'all' : (Array.isArray(k?.assignedTo) ? k.assignedTo.map(String) : (Array.isArray(k?.visibleTo) ? k.visibleTo : [])),
+    timeLimit:  String(k?.timeLimit ?? ''),
     dmNotes:    String(k?.dmNotes ?? ''),
+    completedBy: Array.isArray(k?.completedBy) ? k.completedBy.map(String) : [],
     created:    Number(k?.created) || Date.now()
   }));
 
@@ -927,7 +934,7 @@ function render(){
   try{ renderRelationships(); }catch(e){}
   try{ renderWeapons(); }catch(e){}
   try{ renderInventory(); }catch(e){}
-  try{ renderAnomalies(); }catch(e){}
+
   try{ renderAbilities(); }catch(e){}
   try{ renderShop(); }catch(e){}
   try{ renderRequests(); }catch(e){}
@@ -954,8 +961,7 @@ function renderTabs(){
       case 'skills':    renderSkillsMatrix(); break;
       case 'loadout':   renderWeapons(); renderInventory(); break;
       case 'relations': renderRelationships(); break;
-      case 'monsters':  renderAnomalies(); break;
-      case 'cases':     renderPlayerCases(); break;
+      case 'cases':     renderQuestLog(); break;
       case 'abilities': renderAbilities(); renderSkillStones(); renderCommendations(); break;
       case 'shop':      renderShop(); renderRequests(); break;
     }
@@ -2029,10 +2035,10 @@ function renderDmPanel(){
   try{ renderDmCommendations(); }catch(e){}
   try{ renderDmRequests(); }catch(e){}
   try{ syncSiteAlertButtons(); }catch(e){}
-  try{ renderDmAnomalyCatalog(); }catch(e){}
+
   try{ renderDmSites(); }catch(e){}
-  try{ renderDmCases(); }catch(e){}
-  try{ renderDmInitiative(); }catch(e){}
+
+
   try{ renderDmDiagnostics(); }catch(e){}
   el('dmAddAnomBtn')?.addEventListener('click', addAnomalyToCatalog);
   el('dmAddSiteBtn')?.addEventListener('click', addSite);
@@ -2484,42 +2490,136 @@ function renderDmCases(){
 }
 
 // Player-side view of cases visible to them
-function renderPlayerCases(){
-  const host = el('playerCasesList'); if(!host) return;
-  const c = getChar(); if(!c) { host.innerHTML = ''; return; }
-  const mine = (state.cases || []).filter(k => dmUnlocked || (k.visibleTo||[]).includes(c.id));
-  if (!mine.length) {
-    host.innerHTML = `<div class="empty-note dim"><div class="empty-glyph">▤</div><div>NO ACTIVE ASSIGNMENTS</div><span>Your handler has not briefed you on any cases yet.</span></div>`;
+// ═════════════════════════════════════════════════════════════════
+// QUEST LOG — player-side quest display
+// ═════════════════════════════════════════════════════════════════
+const QUEST_TYPES = {
+  main:      { label:'Main Quest',  icon:'⚔', color:'#d94f4f' },
+  side:      { label:'Side Quest',  icon:'◆', color:'#4a8bf5' },
+  daily:     { label:'Daily',       icon:'☀', color:'#4ade80' },
+  emergency: { label:'Emergency',   icon:'⚠', color:'#e8a72c' },
+  hunt:      { label:'Hunt',        icon:'🎯', color:'#c04a5a' }
+};
+
+function renderQuestLog(){
+  const c = getChar(); if(!c) return;
+  const host = el('questList'); if(!host) return;
+  const quests = (state.cases || []).filter(q =>
+    q.status !== 'completed' && q.status !== 'failed' &&
+    (dmUnlocked || q.assignedTo === 'all' || (Array.isArray(q.assignedTo) && q.assignedTo.includes(c.id)))
+  );
+
+  // Stats
+  const statsEl = el('questStats');
+  if(statsEl){
+    const active = quests.filter(q=>q.status==='active').length;
+    const available = quests.filter(q=>q.status==='available').length;
+    const completed = (state.cases||[]).filter(q=>q.status==='completed').length;
+    statsEl.innerHTML = `
+      <span class="qstat"><strong>${active}</strong> Active</span>
+      <span class="qstat"><strong>${available}</strong> Available</span>
+      <span class="qstat completed"><strong>${completed}</strong> Completed</span>
+    `;
+  }
+
+  // Filters
+  const filterEl = el('questFilters');
+  if(filterEl){
+    filterEl.innerHTML = Object.entries(QUEST_TYPES).map(([k,v])=>
+      `<button class="quest-type-filter" data-qtype="${k}" style="--qt-c:${v.color}">${v.icon} ${v.label}</button>`
+    ).join('') + `<button class="quest-type-filter active" data-qtype="all">All</button>`;
+    filterEl.querySelectorAll('.quest-type-filter').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        filterEl.querySelectorAll('.quest-type-filter').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const t = btn.dataset.qtype;
+        host.querySelectorAll('.quest-card').forEach(card=>{
+          card.style.display = (t==='all' || card.dataset.qtype===t) ? '' : 'none';
+        });
+      });
+    });
+  }
+
+  if(!quests.length){
+    host.innerHTML = `<div class="empty-note big">📜<br>NO ACTIVE QUESTS<br><span>The Game Master assigns quests from the GM Console.</span></div>`;
     return;
   }
-  const grouped = { open:[], cold:[], closed:[], failed:[] };
-  mine.forEach(k => (grouped[k.status] || grouped.open).push(k));
-  host.innerHTML = ['open','cold','closed','failed'].map(status => {
-    if (!grouped[status].length) return '';
-    const lbl = { open:'Active', cold:'Cold', closed:'Closed', failed:'Failed' }[status];
-    return `<div class="pc-group ${status}">
-      <div class="pc-groupname">${lbl}</div>
-      ${grouped[status].map(k => {
-        const doneCt = (k.objectives||[]).filter(o=>o.done).length;
-        const totCt  = (k.objectives||[]).length;
-        return `<details class="pc-card ${status} pri-${k.priority}">
-          <summary>
-            <span class="pc-pri" data-tt="Priority: ${k.priority}">●</span>
-            <span class="pc-code">${k.codename?esc(`[${k.codename}]`):''}</span>
-            <span class="pc-title">${esc(k.title)}</span>
-            ${totCt ? `<span class="pc-prog">${doneCt}/${totCt}</span>` : ''}
-          </summary>
-          <div class="pc-body">
-            ${k.briefing ? `<div class="pc-brief">${esc(k.briefing)}</div>` : ''}
-            ${(k.objectives||[]).length ? `<div class="pc-objs">
-              ${k.objectives.map(o => `<div class="pc-obj ${o.done?'done':''}">
-                <span class="pc-obj-check">${o.done?'✓':'○'}</span>
-                <span>${esc(o.text)}</span>
-              </div>`).join('')}
-            </div>` : ''}
-          </div>
-        </details>`;
-      }).join('')}
+
+  // Sort: active first, then by rank
+  const rankOrder = {S:0,A:1,B:2,C:3,D:4,E:5};
+  quests.sort((a,b)=>{
+    if(a.status==='active' && b.status!=='active') return -1;
+    if(b.status==='active' && a.status!=='active') return 1;
+    return (rankOrder[a.rank]||5) - (rankOrder[b.rank]||5);
+  });
+
+  host.innerHTML = quests.map(q=>{
+    const qt = QUEST_TYPES[q.type] || QUEST_TYPES.side;
+    const rk = RANK_BY_ID[q.rank] || RANKS[0];
+    const doneCt = (q.objectives||[]).filter(o=>o.done).length;
+    const totCt = (q.objectives||[]).length;
+    const pct = totCt > 0 ? Math.round(doneCt/totCt*100) : 0;
+    const isActive = q.status === 'active';
+
+    return `
+    <div class="quest-card ${q.status}" data-qtype="${q.type}" style="--qt-c:${qt.color};--qr-c:${rk.color}">
+      <div class="qc-head">
+        <span class="qc-type" style="color:${qt.color}">${qt.icon}</span>
+        <span class="qc-name">${esc(q.name)}</span>
+        <span class="qc-rank" style="color:${rk.color};border-color:${rk.color}">${rk.id}</span>
+        <span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span>
+      </div>
+      ${q.desc ? `<div class="qc-desc">${esc(q.desc)}</div>` : ''}
+      ${totCt ? `
+        <div class="qc-progress">
+          <div class="qc-progress-bar"><div class="qc-progress-fill" style="width:${pct}%"></div></div>
+          <span class="qc-progress-text">${doneCt}/${totCt}</span>
+        </div>
+        <div class="qc-objectives">
+          ${q.objectives.map(o=>`
+            <div class="qc-obj ${o.done?'done':''}">
+              <span class="qc-obj-check">${o.done?'✓':'○'}</span>
+              <span>${esc(o.text)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${(q.rewards.exp || q.rewards.gold || q.rewards.items.length) ? `
+        <div class="qc-rewards">
+          <span class="qc-rewards-label">REWARDS:</span>
+          ${q.rewards.exp ? `<span class="qc-reward exp">✦ ${fmtGold(q.rewards.exp)} EXP</span>` : ''}
+          ${q.rewards.gold ? `<span class="qc-reward gold">◆ ${fmtGold(q.rewards.gold)} Gold</span>` : ''}
+          ${q.rewards.items.map(it=>`<span class="qc-reward item">📦 ${esc(it)}</span>`).join('')}
+        </div>
+      ` : ''}
+      ${q.timeLimit ? `<div class="qc-time">⏱ ${esc(q.timeLimit)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Completed quests toggle
+  el('questShowCompleted')?.addEventListener('click',()=>{
+    const list = el('questCompletedList');
+    if(!list) return;
+    const showing = list.style.display !== 'none';
+    list.style.display = showing ? 'none' : '';
+    el('questShowCompleted').textContent = showing ? 'Show Completed Quests' : 'Hide Completed Quests';
+    if(!showing) renderCompletedQuests();
+  });
+}
+
+function renderCompletedQuests(){
+  const host = el('questCompletedList'); if(!host) return;
+  const completed = (state.cases||[]).filter(q=>q.status==='completed'||q.status==='failed');
+  if(!completed.length){ host.innerHTML='<div class="empty-note">No completed quests yet.</div>'; return; }
+  host.innerHTML = completed.map(q=>{
+    const qt = QUEST_TYPES[q.type]||QUEST_TYPES.side;
+    return `<div class="quest-card completed-card ${q.status}">
+      <div class="qc-head">
+        <span class="qc-type" style="color:${qt.color}">${qt.icon}</span>
+        <span class="qc-name">${esc(q.name)}</span>
+        <span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span>
+      </div>
+      ${(q.rewards.exp||q.rewards.gold)?`<div class="qc-rewards"><span class="qc-rewards-label">EARNED:</span>${q.rewards.exp?`<span class="qc-reward exp">✦${fmtGold(q.rewards.exp)}</span>`:''}${q.rewards.gold?`<span class="qc-reward gold">◆${fmtGold(q.rewards.gold)}</span>`:''}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -3697,18 +3797,40 @@ function buildDmPanelHtml(){
           </div>
 
           <div class="dm-card">
-            <div class="dm-card-title">⚔ Initiative</div>
-            <div class="dm-card-body" id="dmInitiative"></div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">📖 Bestiary</div>
-            <div class="dm-card-body" id="dmAnomalyCatalog"></div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">📜 Quests</div>
-            <div class="dm-card-body" id="dmCases"></div>
+            <div class="dm-card-title">📜 Quest Manager</div>
+            <div class="dm-card-body">
+              <div class="dm-mini-label">Create Quest</div>
+              <input type="text" id="dmQuestName" placeholder="Quest name" style="margin-bottom:.3rem">
+              <div class="dm-ss-form-row">
+                <select id="dmQuestType">
+                  <option value="main">Main Quest</option>
+                  <option value="side">Side Quest</option>
+                  <option value="daily">Daily Quest</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="hunt">Hunt Quest</option>
+                </select>
+                <select id="dmQuestRank">${RANKS.map(r=>`<option value="${r.id}">${r.id}-Rank</option>`).join('')}</select>
+              </div>
+              <textarea id="dmQuestDesc" placeholder="Quest description — what must the players do?" rows="2" style="margin-top:.3rem"></textarea>
+              <div class="dm-mini-label" style="margin-top:.4rem">Objectives (one per line)</div>
+              <textarea id="dmQuestObjectives" placeholder="Kill the floor boss&#10;Find the hidden key&#10;Rescue the NPC" rows="3"></textarea>
+              <div class="dm-mini-label" style="margin-top:.4rem">Rewards</div>
+              <div class="dm-ss-form-row">
+                <input type="number" id="dmQuestExp" placeholder="EXP" min="0">
+                <input type="number" id="dmQuestGold" placeholder="Gold" min="0">
+                <input type="text" id="dmQuestItems" placeholder="Items (comma sep)">
+              </div>
+              <div class="dm-ss-form-row" style="margin-top:.4rem">
+                <select id="dmQuestAssign">
+                  <option value="all">All Players</option>
+                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${c.id}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
+                </select>
+                <input type="text" id="dmQuestTimeLimit" placeholder="Time limit (optional)">
+                <button class="maw-btn small" id="dmQuestCreateBtn">📜 Create</button>
+              </div>
+              <div class="dm-mini-label" style="margin-top:1rem">Active Quests</div>
+              <div id="dmQuestList"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -3844,6 +3966,112 @@ function buildDmPanelHtml(){
   });
 
   renderDmSkillStoneInventories();
+
+  // Quest creation
+  el('dmQuestCreateBtn')?.addEventListener('click', ()=>{
+    const name = el('dmQuestName')?.value?.trim();
+    if(!name){ showToast('Give the quest a name','warn'); return; }
+    const objText = (el('dmQuestObjectives')?.value||'').split('\n').filter(l=>l.trim());
+    const itemsText = (el('dmQuestItems')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const quest = {
+      id: 'quest-' + Date.now() + '-' + Math.random().toString(16).slice(2,6),
+      name,
+      type: el('dmQuestType')?.value || 'side',
+      rank: el('dmQuestRank')?.value || 'E',
+      status: 'available',
+      desc: el('dmQuestDesc')?.value || '',
+      objectives: objText.map(text => ({
+        id: 'obj-' + Math.random().toString(16).slice(2,6),
+        text, done: false
+      })),
+      rewards: {
+        exp: Math.max(0, Number(el('dmQuestExp')?.value) || 0),
+        gold: Math.max(0, Number(el('dmQuestGold')?.value) || 0),
+        items: itemsText
+      },
+      assignedTo: el('dmQuestAssign')?.value === 'all' ? 'all' : [el('dmQuestAssign')?.value],
+      timeLimit: el('dmQuestTimeLimit')?.value || '',
+      dmNotes: '',
+      completedBy: [],
+      created: Date.now()
+    };
+    if(!Array.isArray(state.cases)) state.cases = [];
+    state.cases.push(quest);
+    pushState(true);
+    showToast(`📜 Quest "${name}" created!`, 'buy');
+    ['dmQuestName','dmQuestDesc','dmQuestObjectives','dmQuestExp','dmQuestGold','dmQuestItems','dmQuestTimeLimit'].forEach(id=>{
+      const e = el(id); if(e) e.value = '';
+    });
+    renderDmQuestList();
+  });
+  renderDmQuestList();
+}
+
+function renderDmQuestList(){
+  const host = el('dmQuestList'); if(!host) return;
+  const quests = state.cases || [];
+  if(!quests.length){ host.innerHTML='<div class="dm-empty">No quests created.</div>'; return; }
+  host.innerHTML = quests.map((q,i) => {
+    const qt = QUEST_TYPES[q.type] || QUEST_TYPES.side;
+    const doneCt = (q.objectives||[]).filter(o=>o.done).length;
+    const totCt = (q.objectives||[]).length;
+    return `
+    <div class="dm-quest-row" style="--qt-c:${qt.color}">
+      <div class="dm-quest-top">
+        <span style="color:${qt.color}">${qt.icon}</span>
+        <strong>${esc(q.name)}</strong>
+        <span class="dm-quest-rank" style="color:${(RANK_BY_ID[q.rank]||{}).color||'#7a8590'}">${q.rank}</span>
+        <select class="dm-quest-status" data-qi="${i}">
+          <option value="available" ${q.status==='available'?'selected':''}>Available</option>
+          <option value="active" ${q.status==='active'?'selected':''}>Active</option>
+          <option value="completed" ${q.status==='completed'?'selected':''}>Completed</option>
+          <option value="failed" ${q.status==='failed'?'selected':''}>Failed</option>
+        </select>
+        <button class="dm-quest-del" data-qi="${i}" title="Delete">✕</button>
+      </div>
+      ${totCt ? `<div class="dm-quest-objs">${q.objectives.map((o,oi)=>`
+        <label class="dm-quest-obj"><input type="checkbox" ${o.done?'checked':''} data-qi="${i}" data-oi="${oi}"> ${esc(o.text)}</label>
+      `).join('')}</div>` : ''}
+      ${q.rewards.exp||q.rewards.gold ? `<div class="dm-quest-rewards">Rewards: ${q.rewards.exp?`${fmtGold(q.rewards.exp)} EXP `:''}${q.rewards.gold?`${fmtGold(q.rewards.gold)} Gold`:''}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Wire status changes
+  host.querySelectorAll('.dm-quest-status').forEach(sel=>sel.addEventListener('change',()=>{
+    const q = state.cases[+sel.dataset.qi]; if(!q) return;
+    const oldStatus = q.status;
+    q.status = sel.value;
+    // Auto-grant rewards on completion
+    if(sel.value === 'completed' && oldStatus !== 'completed'){
+      const targets = q.assignedTo === 'all'
+        ? state.characters.filter(c=>c.state==='active')
+        : state.characters.filter(c=> (Array.isArray(q.assignedTo) ? q.assignedTo.includes(c.id) : false));
+      targets.forEach(c=>{
+        if(q.rewards.exp) gainExp(c, q.rewards.exp);
+        if(q.rewards.gold) c.points = (c.points||0) + q.rewards.gold;
+      });
+      if(q.rewards.exp || q.rewards.gold){
+        showToast(`Quest "${q.name}" completed! Rewards distributed: ${q.rewards.exp?fmtGold(q.rewards.exp)+' EXP ':''}${q.rewards.gold?fmtGold(q.rewards.gold)+' Gold':''}`, 'buy');
+      }
+    }
+    pushState(true); render(); renderDmQuestList();
+  }));
+
+  // Wire objective checkboxes
+  host.querySelectorAll('.dm-quest-obj input').forEach(cb=>cb.addEventListener('change',()=>{
+    const q = state.cases[+cb.dataset.qi]; if(!q) return;
+    const obj = q.objectives[+cb.dataset.oi]; if(!obj) return;
+    obj.done = cb.checked;
+    pushState(true); renderDmQuestList();
+  }));
+
+  // Wire delete
+  host.querySelectorAll('.dm-quest-del').forEach(btn=>btn.addEventListener('click',()=>{
+    if(!confirm('Delete this quest?')) return;
+    state.cases.splice(+btn.dataset.qi, 1);
+    pushState(true); renderDmQuestList();
+    showToast('Quest deleted','info');
+  }));
 }
 
 function renderDmExpStatus(){

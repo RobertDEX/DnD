@@ -390,7 +390,38 @@ function effectiveStat(c, stat) {
   const base = Number(c.stats[stat]) || 8;
   const sysKey = stat.toLowerCase();
   const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
-  return base + sysBonus;
+  const cls = getClassDef(c.playerClass);
+  const classBonus = Number(cls?.bonuses?.[stat]) || 0;
+  return base + sysBonus + classBonus;
+}
+
+function getAllClasses() {
+  const all = {};
+  PLAYER_CLASSES.forEach(c => { all[c.id] = c; });
+  if (Array.isArray(state?.customClasses)) {
+    state.customClasses.forEach(c => { if(c.id) all[c.id] = c; });
+  }
+  return all;
+}
+function getClassDef(id) { return getAllClasses()[id] || null; }
+
+function calcSuggestedMaxHp(c) {
+  const cls = getClassDef(c.playerClass);
+  const hitDie = cls?.hitDie || 8;
+  const conMod = mod(effectiveStat(c, 'CON'));
+  const dndLvl = c.level || 1;
+  const lvl1Hp = hitDie + conMod;
+  const perLevel = Math.max(1, Math.floor(hitDie / 2) + 1 + conMod);
+  return Math.max(1, lvl1Hp + perLevel * (dndLvl - 1));
+}
+
+function calcSuggestedMaxMana(c) {
+  const cls = getClassDef(c.playerClass);
+  if (!cls) return 10;
+  const manaStat = cls.primary === 'WIS' ? 'WIS' : cls.primary === 'CHA' ? 'CHA' : 'INT';
+  const manamod = mod(effectiveStat(c, manaStat));
+  const dndLvl = c.level || 1;
+  return Math.max(0, 10 + (manamod * 2 + 3) * dndLvl);
 }
 
 // How many system stat points the character has available to spend.
@@ -549,7 +580,7 @@ function normalize(raw){
         cha: Math.max(0, Number(bs.cha) || 0)
       };
       mc.baseStatPoints = Math.max(0, Number(c.baseStatPoints ?? 9));
-      mc.playerClass = (c.playerClass === 'none' || CLASS_BY_ID[c.playerClass]) ? c.playerClass : 'none';
+      mc.playerClass = (c.playerClass === 'none' || getClassDef(c.playerClass)) ? c.playerClass : 'none';
       mc.title = String(c.title || '');
       mc.exp = Math.max(0, Number(c.exp) || 0);
       mc.systemLevel = Math.max(1, Number(c.systemLevel) || 1);
@@ -975,7 +1006,7 @@ function renderCharacterTabs(){
     const isOwn = c.claimedBy===MY_PRESENCE_ID;
     const taken = isTakenByLiveOther(c);
     const rk = rankOf(c);
-    const cls = CLASS_BY_ID[c.playerClass];
+    const cls = getClassDef(c.playerClass);
     const btn = document.createElement('button'); btn.type='button';
     btn.className = `character-tab${c.state==='reserve'?' reserve':''}${c.state==='dead'?' dead':''}${isSel?' active':''}${isOwn?' owned':''}`;
     btn.style.setProperty('--char-color', rk.color);
@@ -1010,7 +1041,7 @@ function renderHeader(){
   const c = getChar();
   const s = (id,v)=>{ const e=el(id); if(e) e.textContent=v; };
   const rk = rankOf(c);
-  const cls = CLASS_BY_ID[c.playerClass];
+  const cls = getClassDef(c.playerClass);
   s('topPlayerName', c.name||'—');
   s('topPlayerRole', cls ? `${cls.icon} ${cls.label}` : 'No Class');
   s('topRank', `${rk.title} · Sys.Lv.${c.systemLevel||1}`);
@@ -1050,6 +1081,11 @@ function renderMainFields(){
   sv('charSpeed',c.speed); sv('charArmor',c.armor); sv('charTempHp',c.tempHp);
   sv('currentHp',c.hp.current); sv('maxHp',c.hp.max);
   sv('currentMana',c.mana.current); sv('maxMana',c.mana.max);
+  // Show suggested HP/MP based on class + CON/INT
+  const sugHp = el('suggestedHp');
+  if(sugHp) sugHp.textContent = `Suggested: ${calcSuggestedMaxHp(c)}`;
+  const sugMp = el('suggestedMp');
+  if(sugMp) sugMp.textContent = `Suggested: ${calcSuggestedMaxMana(c)}`;
   const initDisp = el('initiativeDisplay'); if(initDisp) initDisp.value = fmtMod(calcInitiative(c));
   const pp = el('passivePerc'); if(pp) pp.textContent = passivePerception(c);
   // portrait
@@ -1066,7 +1102,7 @@ function renderMainFields(){
   // Class display — read-only, DM assigns at system level 10
   const classDisplay = el('charClassDisplay');
   if(classDisplay){
-    const cls = CLASS_BY_ID[c.playerClass];
+    const cls = getClassDef(c.playerClass);
     const sysLvl = Number(c.systemLevel) || 1;
     if(cls){
       classDisplay.value = `${cls.icon} ${cls.label}`;
@@ -1127,10 +1163,15 @@ function renderStats(){
     const base = Number(c.stats[st]) || 8;
     const sysKey = st.toLowerCase();
     const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
-    const effective = base + sysBonus;
+    const cls = getClassDef(c.playerClass);
+    const classBonus = Number(cls?.bonuses?.[st]) || 0;
+    const effective = base + sysBonus + classBonus;
     const m = mod(effective);
     const modPos = m > 0;
     const modZero = m === 0;
+    const bonusParts = [];
+    if(sysBonus) bonusParts.push(`+${sysBonus} sys`);
+    if(classBonus) bonusParts.push(`+${classBonus} class`);
     return `
     <div class="stat-block ${modPos?'positive':''} ${modZero?'neutral':''}">
       <div class="stat-header">
@@ -1146,7 +1187,7 @@ function renderStats(){
         <input class="stat-score" id="stat_${st}" type="number" value="${base}" data-stat="${st}" aria-label="${st} base score">
         <button class="stat-adj plus" data-stat="${st}" data-action="plus" title="Increase base">+</button>
       </div>
-      ${sysBonus > 0 ? `<div class="stat-sys-bonus">+${sysBonus} system</div>` : ''}
+      ${bonusParts.length ? `<div class="stat-sys-bonus">${bonusParts.join(' ')}</div>` : ''}
       <div class="stat-effective">= ${effective}</div>
       <div class="stat-corner tl"></div>
       <div class="stat-corner br"></div>
@@ -1188,7 +1229,7 @@ function renderStats(){
 function renderStatusWindow(){
   const host = el('statusWindow'); if(!host) return;
   const c = getChar();
-  const cls = CLASS_BY_ID[c.playerClass];
+  const cls = getClassDef(c.playerClass);
   const rank = RANK_BY_ID[c.rank] || RANKS[0];
   const remaining = systemPointsRemaining(c);
   const total = systemPointsTotal(c);
@@ -1257,12 +1298,14 @@ function renderStatusWindow(){
       ${Object.entries(SYSTEM_STAT_LABELS).map(([key, label]) => {
         const val = Number(c.systemStats?.[key]) || 0;
         const canAdd = remaining > 0;
+        const hpTag = key === 'con' ? `<span class="sw-sys-tag hp-tag">+4 HP/pt</span>` : '';
+        const mpTag = key === 'int' ? `<span class="sw-sys-tag mp-tag">+4 MP/pt</span>` : '';
         return `
         <div class="sw-sys-row">
-          <span class="sw-sys-label">${label.toUpperCase()}:</span>
+          <span class="sw-sys-label">${label.toUpperCase()}:${hpTag}${mpTag}</span>
           <span class="sw-sys-value">${val}</span>
           <div class="sw-sys-adj">
-            <button class="sw-sys-btn plus" data-sysstat="${key}" ${canAdd?'':'disabled'} title="+1 ${label}">▲</button>
+            <button class="sw-sys-btn plus" data-sysstat="${key}" ${canAdd?'':'disabled'} title="+1 ${label}${key==='con'?' (+4 HP)':''}${key==='int'?' (+4 MP)':''}">▲</button>
             <button class="sw-sys-btn minus" data-sysstat="${key}" ${val<=0?'disabled':''} title="-1 ${label}">▼</button>
           </div>
         </div>`;
@@ -1302,12 +1345,26 @@ function renderStatusWindow(){
       const newVal = (Number(c.systemStats[key]) || 0) + dir;
       if (newVal < 0) return;
       c.systemStats[key] = newVal;
+
+      // System stat → HP/MP scaling
+      // Every point in Vitality (CON) = +4 Max HP
+      // Every point in Intelligence (INT) = +4 Max MP
+      if (key === 'con') {
+        c.hp.max = Math.max(0, (c.hp.max || 0) + (dir * 4));
+        c.hp.current = Math.min(c.hp.current, c.hp.max);
+      }
+      if (key === 'int') {
+        c.mana.max = Math.max(0, (c.mana.max || 0) + (dir * 4));
+        c.mana.current = Math.min(c.mana.current, c.mana.max);
+      }
+
       pushState(true);
       renderStatusWindow();
       renderStats();
       renderSkillsMatrix();
       renderCalcPanel();
       renderHeader();
+      renderMainFields();
     });
   });
 }
@@ -2006,10 +2063,10 @@ function renderDmPanel(){
             });
           }
         });
-        const cls = CLASS_BY_ID[s.value];
+        const cls = getClassDef(s.value);
         showToast(`${c.name||'Player'} is now a ${cls?.label||s.value}! Granted: ${basics.map(b=>b.name).join(', ')}`, 'buy');
       } else if(s.value !== 'none' && oldClass !== 'none'){
-        showToast(`${c.name||'Player'}'s class changed to ${CLASS_BY_ID[s.value]?.label||s.value}`, 'info');
+        showToast(`${c.name||'Player'}'s class changed to ${getClassDef(s.value)?.label||s.value}`, 'info');
       }
       pushState(true); render();
     }));
@@ -3755,6 +3812,40 @@ function buildDmPanelHtml(){
 
         <div class="dm-col-right">
           <div class="dm-card">
+            <div class="dm-card-title">🏷 Custom Classes</div>
+            <div class="dm-card-body">
+              <div class="dm-mini-label">Create Class</div>
+              <div class="dm-ss-form-row">
+                <input type="text" id="dmCCName" placeholder="Class name">
+                <input type="text" id="dmCCIcon" placeholder="Icon (emoji)" value="✦" style="max-width:60px">
+                <input type="color" id="dmCCColor" value="#5aa8f5" style="max-width:40px">
+              </div>
+              <div class="dm-ss-form-row" style="margin-top:.3rem">
+                <select id="dmCCPrimary">${STATS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+                <select id="dmCCHitDie"><option value="6">d6 (Caster)</option><option value="8" selected>d8 (Standard)</option><option value="10">d10 (Martial)</option><option value="12">d12 (Brute)</option><option value="14">d14 (Legendary)</option></select>
+                <label style="display:flex;align-items:center;gap:.3rem;font-size:.6rem;color:var(--text-dim)"><input type="checkbox" id="dmCCHidden"> Hidden</label>
+              </div>
+              <textarea id="dmCCDesc" placeholder="Class description" rows="2" style="margin-top:.3rem"></textarea>
+              <div class="dm-mini-label" style="margin-top:.4rem">Stat Bonuses (when class is assigned)</div>
+              <div class="dm-cc-bonuses">
+                ${STATS.map(s=>`<label class="dm-cc-bonus-field"><span>${s}</span><input type="number" id="dmCCBonus${s}" value="0" min="0" max="10"></label>`).join('')}
+              </div>
+              <div class="dm-mini-label" style="margin-top:.4rem">Basic Skills (2, granted on assignment)</div>
+              <div class="dm-ss-form-row" style="margin-top:.2rem">
+                <input type="text" id="dmCCSkill1Name" placeholder="Skill 1 name">
+                <input type="text" id="dmCCSkill1Cost" placeholder="MP cost">
+              </div>
+              <textarea id="dmCCSkill1Desc" placeholder="Skill 1 description" rows="1" style="margin-top:.2rem"></textarea>
+              <div class="dm-ss-form-row" style="margin-top:.3rem">
+                <input type="text" id="dmCCSkill2Name" placeholder="Skill 2 name">
+                <input type="text" id="dmCCSkill2Cost" placeholder="MP cost">
+              </div>
+              <textarea id="dmCCSkill2Desc" placeholder="Skill 2 description" rows="1" style="margin-top:.2rem"></textarea>
+              <button class="maw-btn small" id="dmCCCreateBtn" style="margin-top:.5rem">🏷 Create Class</button>
+              <div id="dmCCList" style="margin-top:.8rem"></div>
+            </div>
+          </div>
+          <div class="dm-card">
             <div class="dm-card-title">💎 Skill Stones</div>
             <div class="dm-card-body">
               <div class="dm-ss-form">
@@ -3973,6 +4064,45 @@ function buildDmPanelHtml(){
 
   renderDmSkillStoneInventories();
 
+  // Custom Class creation
+  el('dmCCCreateBtn')?.addEventListener('click', ()=>{
+    const name = el('dmCCName')?.value?.trim();
+    if(!name){ showToast('Give the class a name','warn'); return; }
+    const id = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,20) + '_' + Date.now().toString(36);
+    const bonuses = {};
+    STATS.forEach(s => {
+      const v = Number(el('dmCCBonus'+s)?.value) || 0;
+      if(v > 0) bonuses[s] = v;
+    });
+    const skills = [];
+    const sk1Name = el('dmCCSkill1Name')?.value?.trim();
+    if(sk1Name) skills.push({ name:sk1Name, type:'Active', cost:el('dmCCSkill1Cost')?.value||'—', cooldown:'—', desc:el('dmCCSkill1Desc')?.value||'' });
+    const sk2Name = el('dmCCSkill2Name')?.value?.trim();
+    if(sk2Name) skills.push({ name:sk2Name, type:'Active', cost:el('dmCCSkill2Cost')?.value||'—', cooldown:'—', desc:el('dmCCSkill2Desc')?.value||'' });
+
+    const newClass = {
+      id, label: name,
+      icon: el('dmCCIcon')?.value || '✦',
+      color: el('dmCCColor')?.value || '#5aa8f5',
+      primary: el('dmCCPrimary')?.value || 'STR',
+      desc: el('dmCCDesc')?.value || '',
+      bonuses,
+      hitDie: Number(el('dmCCHitDie')?.value) || 8,
+      hidden: el('dmCCHidden')?.checked || false,
+      custom: true
+    };
+    if(!Array.isArray(state.customClasses)) state.customClasses = [];
+    state.customClasses.push(newClass);
+    if(skills.length) CLASS_BASIC_SKILLS[id] = skills;
+    pushState(true);
+    showToast(`🏷 Custom class "${name}" created!`, 'buy');
+    ['dmCCName','dmCCDesc','dmCCSkill1Name','dmCCSkill1Cost','dmCCSkill1Desc','dmCCSkill2Name','dmCCSkill2Cost','dmCCSkill2Desc'].forEach(fid=>{ const e=el(fid); if(e) e.value=''; });
+    STATS.forEach(s=>{ const e=el('dmCCBonus'+s); if(e) e.value='0'; });
+    renderDmCustomClasses();
+    buildDmPanelHtml(); renderDmPanel();
+  });
+  renderDmCustomClasses();
+
   // Quest creation
   el('dmQuestCreateBtn')?.addEventListener('click', ()=>{
     const name = el('dmQuestName')?.value?.trim();
@@ -4011,6 +4141,32 @@ function buildDmPanelHtml(){
     renderDmQuestList();
   });
   renderDmQuestList();
+}
+
+function renderDmCustomClasses(){
+  const host = el('dmCCList'); if(!host) return;
+  const customs = state.customClasses || [];
+  if(!customs.length){ host.innerHTML='<div class="dm-empty">No custom classes. Built-in classes are always available.</div>'; return; }
+  host.innerHTML = customs.map((cc,i) => {
+    const bonusStr = Object.entries(cc.bonuses||{}).filter(([,v])=>v>0).map(([k,v])=>`+${v} ${k}`).join(', ') || 'None';
+    return `
+    <div class="dm-cc-row" style="border-left-color:${cc.color}">
+      <div class="dm-cc-top">
+        <span style="font-size:1rem">${cc.icon}</span>
+        <strong style="color:${cc.color}">${esc(cc.label)}</strong>
+        <span class="dm-cc-meta">d${cc.hitDie} · ${cc.primary} · ${cc.hidden?'Hidden':'Visible'}</span>
+        <button class="dm-quest-del" data-cci="${i}" title="Delete class">✕</button>
+      </div>
+      <div class="dm-cc-info">${esc(cc.desc||'No description')}</div>
+      <div class="dm-cc-bonuses-display">Bonuses: ${bonusStr}</div>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-cci]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(!confirm('Delete this custom class?')) return;
+    state.customClasses.splice(+btn.dataset.cci, 1);
+    pushState(true); renderDmCustomClasses();
+    showToast('Custom class deleted','info');
+  }));
 }
 
 function renderDmQuestList(){

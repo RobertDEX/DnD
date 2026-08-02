@@ -5870,3 +5870,94 @@ input:focus, select:focus, textarea:focus {
 .dm-quest-obj { display: flex; align-items: center; gap: .3rem; font-family: var(--F3); font-size: .72rem; color: var(--text); cursor: pointer; padding: .1rem 0; }
 .dm-quest-obj input { accent-color: var(--accent); }
 .dm-quest-rewards { font-family: var(--F4); font-size: .52rem; color: var(--text-dim); margin-top: .2rem; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CUSTOM CLASSES + CLASS BONUSES + HP SUGGESTION
+   ═══════════════════════════════════════════════════════════════════ */
+.dm-cc-bonuses {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: .3rem;
+}
+.dm-cc-bonus-field {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  text-align: center;
+}
+.dm-cc-bonus-field span {
+  font-family: var(--F1);
+  font-size: .5rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .1em;
+}
+.dm-cc-bonus-field input {
+  text-align: center;
+  padding: .25rem;
+  font-size: .72rem;
+  width: 100%;
+}
+.dm-cc-row {
+  padding: .5rem .6rem;
+  margin-bottom: .3rem;
+  background: rgba(8,16,32,.5);
+  border: 1px solid rgba(80,140,220,.12);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+}
+.dm-cc-top {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .82rem;
+}
+.dm-cc-top strong { flex: 1; }
+.dm-cc-meta {
+  font-family: var(--F4);
+  font-size: .48rem;
+  color: var(--text-dim);
+  letter-spacing: .08em;
+}
+.dm-cc-info {
+  font-family: var(--F3);
+  font-size: .68rem;
+  color: var(--text-dim);
+  margin-top: .2rem;
+}
+.dm-cc-bonuses-display {
+  font-family: var(--F4);
+  font-size: .52rem;
+  color: var(--accent);
+  margin-top: .2rem;
+}
+.res-suggest {
+  font-family: var(--F4) !important;
+  font-size: .48rem !important;
+  font-weight: 400 !important;
+  color: var(--text-dim) !important;
+  text-shadow: none !important;
+  letter-spacing: .06em;
+  margin-left: .5rem;
+}
+
+/* System stat HP/MP tags */
+.sw-sys-tag {
+  font-family: var(--F4);
+  font-size: .4rem;
+  letter-spacing: .06em;
+  padding: .1rem .3rem;
+  border-radius: 2px;
+  margin-left: .3rem;
+  vertical-align: middle;
+}
+.sw-sys-tag.hp-tag {
+  color: #d94f4f;
+  background: rgba(217,79,79,.12);
+  border: 1px solid rgba(217,79,79,.25);
+}
+.sw-sys-tag.mp-tag {
+  color: #4a8bf5;
+  background: rgba(74,139,245,.12);
+  border: 1px solid rgba(74,139,245,.25);
+}

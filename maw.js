@@ -251,7 +251,7 @@ const TRAINING  = ['Untrained','Trained','Master'];
 const ITEM_CATEGORIES = ['Weapon','Armor','Accessory','Consumable','Skill Stone','Material','Misc'];
 
 // Shop categories + tier access
-const SHOP_CATEGORIES = ['Consumables','Weapons','Armor','Accessories','Skill Stones','Loot Boxes'];
+const SHOP_CATEGORIES = ['Consumables','Weapons','Armor','Accessories','Skill Stones','Rune Stones','Loot Boxes','Materials','Utility'];
 const RANK_TO_TIER = { 'E':1, 'D':2, 'C':3, 'B':4, 'A':4, 'S':4 };   // an agent of rank R can access all tiers <= R
 const TIER_LABEL = { 1:'E-RANK', 2:'D-RANK', 3:'C-RANK', 4:'B-RANK+' };
 const TIER_COLOR = { 1:'#7a8590', 2:'#9aa6b2', 3:'#c2b067', 4:'#d94f4f' };
@@ -3748,6 +3748,10 @@ function openDmLogin(){
 
 function buildDmPanelHtml(){
   const content = el('dmContent'); if(!content) return;
+  const activeChars = state.characters.filter(c=>c.state==='active');
+  const charOpts = activeChars.map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('');
+  const charOptsAll = `<option value="all">All</option>` + charOpts;
+
   content.innerHTML = `
     <div class="dm-full-panel" id="dmFullPanel">
       <div class="dm-head">
@@ -3758,183 +3762,98 @@ function buildDmPanelHtml(){
           <button class="maw-btn ghost small" id="dmCloseBtn">✕</button>
         </div>
       </div>
-
-      <div class="dm-grid">
-        <div class="dm-col-left">
-          <div class="dm-card">
-            <div class="dm-card-title">◆ Roster</div>
-            <div class="dm-card-body dm-roster-compact" id="dmRoster"></div>
+      <div class="dm-tabs">
+        <button class="dm-tab active" data-dmtab="roster">◆ Roster</button>
+        <button class="dm-tab" data-dmtab="rewards">✦ Rewards</button>
+        <button class="dm-tab" data-dmtab="quests">📜 Quests</button>
+        <button class="dm-tab" data-dmtab="skills">💎 Skills</button>
+        <button class="dm-tab" data-dmtab="classes">🏷 Classes</button>
+        <button class="dm-tab" data-dmtab="world">🌐 World</button>
+      </div>
+      <div class="dm-tab-content active" data-dmtab="roster">
+        <div class="dm-card"><div class="dm-card-title">◆ Player Roster</div><div class="dm-card-body dm-roster-compact" id="dmRoster"></div></div>
+        <div class="dm-card"><div class="dm-card-title">⚡ Quick Actions</div><div class="dm-card-body">
+          <div class="dm-qa-row">
+            <select id="dmActionTarget">${state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}</select>
+            <select id="dmActionType"><option value="hp-dmg">HP −</option><option value="hp-heal">HP +</option><option value="hp-full">HP Full</option><option value="mp-dmg">MP −</option><option value="mp-heal">MP +</option><option value="mp-full">MP Full</option></select>
+            <input type="number" id="dmActionAmount" value="10" min="0">
+            <button class="maw-btn small" id="dmActionBtn">GO</button>
           </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">⚡ Quick Actions</div>
-            <div class="dm-card-body">
-              <div class="dm-qa-row">
-                <select id="dmActionTarget">${state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}</select>
-                <select id="dmActionType">
-                  <option value="hp-dmg">HP −</option><option value="hp-heal">HP +</option><option value="hp-full">HP Full</option>
-                  <option value="mp-dmg">MP −</option><option value="mp-heal">MP +</option><option value="mp-full">MP Full</option>
-                </select>
-                <input type="number" id="dmActionAmount" value="10" min="0">
-                <button class="maw-btn small" id="dmActionBtn">GO</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">✦ EXP</div>
-            <div class="dm-card-body">
-              <div class="dm-qa-row">
-                <select id="dmExpTarget">
-                  <option value="all">All</option>
-                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
-                </select>
-                <input type="number" id="dmExpAmount" value="100" min="1">
-                <button class="maw-btn small" id="dmExpBtn">Award</button>
-              </div>
-              <div class="dm-preset-row">${[50,100,250,500,1000,5000].map(n=>`<button class="dm-preset dm-exp-preset" data-exp="${n}">${n>=1000?(n/1000)+'k':n}</button>`).join('')}</div>
-              <div id="dmExpStatus" class="dm-exp-status"></div>
-            </div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">💰 Gold</div>
-            <div class="dm-card-body">
-              <div class="dm-qa-row">
-                <select id="dmGoldTarget">
-                  <option value="all">All</option>
-                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
-                </select>
-                <select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select>
-                <button class="maw-btn small" id="dmGoldBtn">Award</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="dm-col-right">
-          <div class="dm-card">
-            <div class="dm-card-title">🏷 Custom Classes</div>
-            <div class="dm-card-body">
-              <div class="dm-mini-label">Create Class</div>
-              <div class="dm-ss-form-row">
-                <input type="text" id="dmCCName" placeholder="Class name">
-                <input type="text" id="dmCCIcon" placeholder="Icon (emoji)" value="✦" style="max-width:60px">
-                <input type="color" id="dmCCColor" value="#5aa8f5" style="max-width:40px">
-              </div>
-              <div class="dm-ss-form-row" style="margin-top:.3rem">
-                <select id="dmCCPrimary">${STATS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-                <select id="dmCCHitDie"><option value="6">d6 (Caster)</option><option value="8" selected>d8 (Standard)</option><option value="10">d10 (Martial)</option><option value="12">d12 (Brute)</option><option value="14">d14 (Legendary)</option></select>
-                <label style="display:flex;align-items:center;gap:.3rem;font-size:.6rem;color:var(--text-dim)"><input type="checkbox" id="dmCCHidden"> Hidden</label>
-              </div>
-              <textarea id="dmCCDesc" placeholder="Class description" rows="2" style="margin-top:.3rem"></textarea>
-              <div class="dm-mini-label" style="margin-top:.4rem">Stat Bonuses (when class is assigned)</div>
-              <div class="dm-cc-bonuses">
-                ${STATS.map(s=>`<label class="dm-cc-bonus-field"><span>${s}</span><input type="number" id="dmCCBonus${s}" value="0" min="0" max="10"></label>`).join('')}
-              </div>
-              <div class="dm-mini-label" style="margin-top:.4rem">Basic Skills (2, granted on assignment)</div>
-              <div class="dm-ss-form-row" style="margin-top:.2rem">
-                <input type="text" id="dmCCSkill1Name" placeholder="Skill 1 name">
-                <input type="text" id="dmCCSkill1Cost" placeholder="MP cost">
-              </div>
-              <textarea id="dmCCSkill1Desc" placeholder="Skill 1 description" rows="1" style="margin-top:.2rem"></textarea>
-              <div class="dm-ss-form-row" style="margin-top:.3rem">
-                <input type="text" id="dmCCSkill2Name" placeholder="Skill 2 name">
-                <input type="text" id="dmCCSkill2Cost" placeholder="MP cost">
-              </div>
-              <textarea id="dmCCSkill2Desc" placeholder="Skill 2 description" rows="1" style="margin-top:.2rem"></textarea>
-              <button class="maw-btn small" id="dmCCCreateBtn" style="margin-top:.5rem">🏷 Create Class</button>
-              <div id="dmCCList" style="margin-top:.8rem"></div>
-            </div>
-          </div>
-          <div class="dm-card">
-            <div class="dm-card-title">💎 Skill Stones</div>
-            <div class="dm-card-body">
-              <div class="dm-ss-form">
-                <input type="text" id="dmSSName" placeholder="Skill name">
-                <div class="dm-ss-form-row">
-                  <select id="dmSSType"><option>Active</option><option>Passive</option><option>Ultimate</option></select>
-                  <input type="text" id="dmSSCost" placeholder="MP cost">
-                  <input type="text" id="dmSSCooldown" placeholder="Cooldown">
-                  <input type="text" id="dmSSElement" placeholder="Element">
-                </div>
-                <textarea id="dmSSDesc" placeholder="Description" rows="2"></textarea>
-                <div class="dm-ss-form-row">
-                  <select id="dmSSTarget">${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${i}">${esc(c.name||'P'+(i+1))}</option>`).join('')}</select>
-                  <button class="maw-btn small" id="dmSSAwardBtn">💎 Award</button>
-                </div>
-              </div>
-              <div id="dmSSInventories" style="margin-top:.6rem"></div>
-            </div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">🏪 Shop</div>
-            <div class="dm-card-body">
-              <div class="dm-qa-row" style="margin-bottom:.6rem">
-                <button class="maw-btn small" id="dmLoadDefaultShop">Load Catalog</button>
-                <button class="maw-btn ghost small" id="dmClearShop">Clear</button>
-              </div>
-              <input type="text" id="dmShopItemName" placeholder="Custom item name" style="margin-bottom:.3rem">
-              <div class="dm-qa-row">
-                <input type="number" id="dmShopItemPrice" placeholder="Price" min="0">
-                <select id="dmShopItemTier"><option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option></select>
-                <select id="dmShopItemCat">${SHOP_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
-                <button class="maw-btn small" id="dmShopAddBtn">＋</button>
-              </div>
-              <textarea id="dmShopItemDesc" placeholder="Description" rows="1" style="margin-top:.3rem"></textarea>
-            </div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">📡 Broadcast</div>
-            <div class="dm-card-body">
-              <input type="text" id="dmSceneName" placeholder="Scene / Floor name" value="${esc(state.sceneName||'')}" style="margin-bottom:.4rem">
-              <textarea id="dmBroadcast" rows="2" placeholder="System announcement…">${esc(state.broadcast||'')}</textarea>
-              <button class="maw-btn small" id="dmBroadcastBtn" style="margin-top:.4rem">Send</button>
-            </div>
-          </div>
-
-          <div class="dm-card">
-            <div class="dm-card-title">📜 Quest Manager</div>
-            <div class="dm-card-body">
-              <div class="dm-mini-label">Create Quest</div>
-              <input type="text" id="dmQuestName" placeholder="Quest name" style="margin-bottom:.3rem">
-              <div class="dm-ss-form-row">
-                <select id="dmQuestType">
-                  <option value="main">Main Quest</option>
-                  <option value="side">Side Quest</option>
-                  <option value="daily">Daily Quest</option>
-                  <option value="emergency">Emergency</option>
-                  <option value="hunt">Hunt Quest</option>
-                </select>
-                <select id="dmQuestRank">${RANKS.map(r=>`<option value="${r.id}">${r.id}-Rank</option>`).join('')}</select>
-              </div>
-              <textarea id="dmQuestDesc" placeholder="Quest description — what must the players do?" rows="2" style="margin-top:.3rem"></textarea>
-              <div class="dm-mini-label" style="margin-top:.4rem">Objectives (one per line)</div>
-              <textarea id="dmQuestObjectives" placeholder="Kill the floor boss&#10;Find the hidden key&#10;Rescue the NPC" rows="3"></textarea>
-              <div class="dm-mini-label" style="margin-top:.4rem">Rewards</div>
-              <div class="dm-ss-form-row">
-                <input type="number" id="dmQuestExp" placeholder="EXP" min="0">
-                <input type="number" id="dmQuestGold" placeholder="Gold" min="0">
-                <input type="text" id="dmQuestItems" placeholder="Items (comma sep)">
-              </div>
-              <div class="dm-ss-form-row" style="margin-top:.4rem">
-                <select id="dmQuestAssign">
-                  <option value="all">All Players</option>
-                  ${state.characters.filter(c=>c.state==='active').map((c,i)=>`<option value="${c.id}">${esc(c.name||'P'+(i+1))}</option>`).join('')}
-                </select>
-                <input type="text" id="dmQuestTimeLimit" placeholder="Time limit (optional)">
-                <button class="maw-btn small" id="dmQuestCreateBtn">📜 Create</button>
-              </div>
-              <div class="dm-mini-label" style="margin-top:1rem">Active Quests</div>
-              <div id="dmQuestList"></div>
-            </div>
-          </div>
-        </div>
+        </div></div>
+      </div>
+      <div class="dm-tab-content" data-dmtab="rewards">
+        <div class="dm-card"><div class="dm-card-title">✦ EXP Awards</div><div class="dm-card-body">
+          <div class="dm-qa-row"><select id="dmExpTarget">${charOptsAll}</select><input type="number" id="dmExpAmount" value="100" min="1"><button class="maw-btn small" id="dmExpBtn">Award</button></div>
+          <div class="dm-preset-row">${[50,100,250,500,1000,5000].map(n=>`<button class="dm-preset dm-exp-preset" data-exp="${n}">${n>=1000?String(n/1000)+'k':n}</button>`).join('')}</div>
+          <div id="dmExpStatus" class="dm-exp-status"></div>
+        </div></div>
+        <div class="dm-card"><div class="dm-card-title">💰 Gold Awards</div><div class="dm-card-body">
+          <div class="dm-qa-row"><select id="dmGoldTarget">${charOptsAll}</select><select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select><button class="maw-btn small" id="dmGoldBtn">Award</button></div>
+        </div></div>
+      </div>
+      <div class="dm-tab-content" data-dmtab="quests">
+        <div class="dm-card"><div class="dm-card-title">📜 Create Quest</div><div class="dm-card-body">
+          <input type="text" id="dmQuestName" placeholder="Quest name" style="margin-bottom:.3rem">
+          <div class="dm-ss-form-row"><select id="dmQuestType"><option value="main">Main</option><option value="side">Side</option><option value="daily">Daily</option><option value="emergency">Emergency</option><option value="hunt">Hunt</option></select><select id="dmQuestRank">${RANKS.map(r=>`<option value="${r.id}">${r.id}</option>`).join('')}</select></div>
+          <textarea id="dmQuestDesc" placeholder="Description" rows="2" style="margin-top:.3rem"></textarea>
+          <div class="dm-mini-label" style="margin-top:.4rem">Objectives (one per line)</div>
+          <textarea id="dmQuestObjectives" placeholder="Kill the boss&#10;Find the key" rows="3"></textarea>
+          <div class="dm-mini-label" style="margin-top:.4rem">Rewards</div>
+          <div class="dm-ss-form-row"><input type="number" id="dmQuestExp" placeholder="EXP"><input type="number" id="dmQuestGold" placeholder="Gold"><input type="text" id="dmQuestItems" placeholder="Items"></div>
+          <div class="dm-ss-form-row" style="margin-top:.4rem"><select id="dmQuestAssign"><option value="all">All</option>${activeChars.map(c=>`<option value="${c.id}">${esc(c.name||'Player')}</option>`).join('')}</select><input type="text" id="dmQuestTimeLimit" placeholder="Time limit"><button class="maw-btn small" id="dmQuestCreateBtn">📜 Create</button></div>
+        </div></div>
+        <div class="dm-card"><div class="dm-card-title">📋 Active Quests</div><div class="dm-card-body" id="dmQuestList"></div></div>
+      </div>
+      <div class="dm-tab-content" data-dmtab="skills">
+        <div class="dm-card"><div class="dm-card-title">💎 Create Skill Stone</div><div class="dm-card-body"><div class="dm-ss-form">
+          <input type="text" id="dmSSName" placeholder="Skill name">
+          <div class="dm-ss-form-row"><select id="dmSSType"><option>Active</option><option>Passive</option><option>Ultimate</option></select><input type="text" id="dmSSCost" placeholder="MP cost"><input type="text" id="dmSSCooldown" placeholder="Cooldown"><input type="text" id="dmSSElement" placeholder="Element"></div>
+          <textarea id="dmSSDesc" placeholder="Description" rows="2"></textarea>
+          <div class="dm-ss-form-row"><select id="dmSSTarget">${charOpts}</select><button class="maw-btn small" id="dmSSAwardBtn">💎 Award</button></div>
+        </div></div></div>
+        <div class="dm-card"><div class="dm-card-title">📦 Inventories</div><div class="dm-card-body" id="dmSSInventories"></div></div>
+      </div>
+      <div class="dm-tab-content" data-dmtab="classes">
+        <div class="dm-card"><div class="dm-card-title">🏷 Create Class</div><div class="dm-card-body">
+          <div class="dm-ss-form-row"><input type="text" id="dmCCName" placeholder="Name"><input type="text" id="dmCCIcon" placeholder="Icon" value="✦" style="max-width:60px"><input type="color" id="dmCCColor" value="#5aa8f5" style="max-width:40px"></div>
+          <div class="dm-ss-form-row" style="margin-top:.3rem"><select id="dmCCPrimary">${STATS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select><select id="dmCCHitDie"><option value="6">d6</option><option value="8" selected>d8</option><option value="10">d10</option><option value="12">d12</option></select><label style="font-size:.55rem;color:var(--text-dim);display:flex;align-items:center;gap:.2rem"><input type="checkbox" id="dmCCHidden">Hidden</label></div>
+          <textarea id="dmCCDesc" placeholder="Description" rows="2" style="margin-top:.3rem"></textarea>
+          <div class="dm-mini-label" style="margin-top:.4rem">Stat Bonuses</div>
+          <div class="dm-cc-bonuses">${STATS.map(s=>`<label class="dm-cc-bonus-field"><span>${s}</span><input type="number" id="dmCCBonus${s}" value="0" min="0" max="10"></label>`).join('')}</div>
+          <div class="dm-mini-label" style="margin-top:.4rem">Basic Skills</div>
+          <div class="dm-ss-form-row"><input type="text" id="dmCCSkill1Name" placeholder="Skill 1"><input type="text" id="dmCCSkill1Cost" placeholder="Cost"></div>
+          <textarea id="dmCCSkill1Desc" placeholder="Skill 1 desc" rows="1" style="margin-top:.2rem"></textarea>
+          <div class="dm-ss-form-row" style="margin-top:.3rem"><input type="text" id="dmCCSkill2Name" placeholder="Skill 2"><input type="text" id="dmCCSkill2Cost" placeholder="Cost"></div>
+          <textarea id="dmCCSkill2Desc" placeholder="Skill 2 desc" rows="1" style="margin-top:.2rem"></textarea>
+          <button class="maw-btn small" id="dmCCCreateBtn" style="margin-top:.5rem">🏷 Create</button>
+        </div></div>
+        <div class="dm-card"><div class="dm-card-title">📋 Classes</div><div class="dm-card-body" id="dmCCList"></div></div>
+      </div>
+      <div class="dm-tab-content" data-dmtab="world">
+        <div class="dm-card"><div class="dm-card-title">🏪 Shop</div><div class="dm-card-body">
+          <div class="dm-qa-row" style="margin-bottom:.5rem"><button class="maw-btn small" id="dmLoadDefaultShop">Load Catalog</button><button class="maw-btn ghost small" id="dmClearShop">Clear</button><span style="font-size:.55rem;color:var(--text-dim);margin-left:auto">${(state.shop||[]).length} items</span></div>
+          <input type="text" id="dmShopItemName" placeholder="Custom item" style="margin-bottom:.3rem">
+          <div class="dm-qa-row"><input type="number" id="dmShopItemPrice" placeholder="Price"><select id="dmShopItemTier"><option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option></select><select id="dmShopItemCat">${SHOP_CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select><button class="maw-btn small" id="dmShopAddBtn">＋</button></div>
+          <textarea id="dmShopItemDesc" placeholder="Description" rows="1" style="margin-top:.3rem"></textarea>
+        </div></div>
+        <div class="dm-card"><div class="dm-card-title">📡 Broadcast</div><div class="dm-card-body">
+          <input type="text" id="dmSceneName" placeholder="Scene / Floor" value="${esc(state.sceneName||'')}" style="margin-bottom:.4rem">
+          <textarea id="dmBroadcast" rows="2" placeholder="System announcement…">${esc(state.broadcast||'')}</textarea>
+          <button class="maw-btn small" id="dmBroadcastBtn" style="margin-top:.4rem">Send</button>
+        </div></div>
       </div>
     </div>
   `;
+
+  // Wire DM tab switching
+  content.querySelectorAll('.dm-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      content.querySelectorAll('.dm-tab').forEach(b=>b.classList.remove('active'));
+      content.querySelectorAll('.dm-tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      content.querySelector(`.dm-tab-content[data-dmtab="${btn.dataset.dmtab}"]`)?.classList.add('active');
+    });
+  });
 
   // Wire DM head buttons
   el('dmCloseBtn')?.addEventListener('click', closeDmOverlay);

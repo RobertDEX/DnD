@@ -5961,3 +5961,59 @@ input:focus, select:focus, textarea:focus {
   background: rgba(74,139,245,.12);
   border: 1px solid rgba(74,139,245,.25);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DM PANEL TABS — organized sections
+   ═══════════════════════════════════════════════════════════════════ */
+.dm-tabs {
+  display: flex;
+  gap: .25rem;
+  flex-wrap: wrap;
+  padding: .5rem 0;
+  border-bottom: 1px solid rgba(60,120,220,.2);
+  margin-bottom: .8rem;
+}
+.dm-tab {
+  font-family: var(--F1);
+  font-size: .52rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .45rem .8rem;
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(60,120,220,.15);
+  color: var(--text-dim);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all .15s;
+}
+.dm-tab:hover {
+  background: rgba(30,70,140,.3);
+  border-color: rgba(80,140,220,.35);
+  color: var(--text);
+}
+.dm-tab.active {
+  background: linear-gradient(180deg, rgba(30,70,140,.6), rgba(20,50,110,.5));
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 10px -3px var(--accent-glow);
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+.dm-tab-content {
+  display: none;
+  animation: fadeIn .25s ease;
+}
+.dm-tab-content.active {
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+}
+.dm-full-panel {
+  max-width: 800px !important;
+}
+.dm-shop-count {
+  font-family: var(--F4);
+  font-size: .52rem;
+  color: var(--text-dim);
+  margin-left: auto;
+}

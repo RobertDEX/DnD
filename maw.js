@@ -28,27 +28,27 @@ const STAT_LABELS = {
 const SKILL_DEFS = [
   {name:'STR Save',        stat:'STR', isSave:true},
   {name:'Athletics',       stat:'STR'},
-  {name:'Athletics',       stat:'STR'},
   {name:'DEX Save',        stat:'DEX', isSave:true},
   {name:'Acrobatics',      stat:'DEX'},
   {name:'Stealth',         stat:'DEX'},
   {name:'Sleight of Hand', stat:'DEX'},
   {name:'CON Save',        stat:'CON', isSave:true},
-  {name:'Tanking',          stat:'CON'},
+  {name:'Tanking',         stat:'CON'},
   {name:'INT Save',        stat:'INT', isSave:true},
   {name:'Investigation',   stat:'INT'},
-  {name:'Arcana',           stat:'INT'},
-  {name:'History',          stat:'INT'},
-  {name:'Medicine',        stat:'INT'},
+  {name:'Arcana',          stat:'INT'},
+  {name:'History',         stat:'INT'},
+  {name:'Medicine',        stat:'WIS'},
   {name:'WIS Save',        stat:'WIS', isSave:true},
   {name:'Mana Sense',      stat:'WIS'},
   {name:'Perception',      stat:'WIS'},
   {name:'Insight',         stat:'WIS'},
   {name:'Survival',        stat:'WIS'},
+  {name:'Nature',          stat:'WIS'},
+  {name:'Religion',        stat:'WIS'},
   {name:'CHA Save',        stat:'CHA', isSave:true},
   {name:'Intimidation',    stat:'CHA'},
   {name:'Persuasion',      stat:'CHA'},
-  {name:'Intimidation',    stat:'CHA'},
   {name:'Deception',       stat:'CHA'}
 ];
 
@@ -93,6 +93,8 @@ const SKILL_DESCS = {
   'Survival':    'Track, navigate unfamiliar terrain, endure the elements, find shelter.',
 
   // CHA
+  'Nature': 'Identify plants, beasts, terrain. Understand natural hazards and ecosystems.',
+  'Religion': 'Knowledge of gods, rites, prayers, holy symbols, and the undead. Recognize divine magic and sacred sites.',
   'Intimidation': 'Frighten enemies, demand surrender, project dominance and menace.',
   'Persuasion':    'Convince, negotiate, win over. Get civilians to comply.',
   'Intimidation':  'Threaten. Coerce. Dominate through fear.',
@@ -1917,7 +1919,7 @@ function addAnomaly(){
 // ================================================================
 // ABILITIES / TALENTS
 // ================================================================
-const TALENT_TYPES = ['Talent','Anomalous','Combat','Utility','Passive','Ritual'];
+const TALENT_TYPES = ['Active','Passive','Combat','Utility','Ultimate','Ritual'];
 function renderAbilities(){
   const c = getChar();
   const host = el('abilitiesList'); if(!host) return;
@@ -1967,7 +1969,7 @@ function renderDmTargetPicker(){
   const cur = state.selectedCharacter;
   sel.innerHTML = state.characters.map((c,i) => {
     const rk = rankOf(c);
-    const st = c.state === 'dead' ? ' · KIA' : c.state === 'reserve' ? ' · Reserve' : '';
+    const st = c.state === 'dead' ? ' · Dead' : c.state === 'reserve' ? ' · Reserve' : '';
     return `<option value="${i}" ${i===cur?'selected':''}>${esc(c.name || `Player ${i+1}`)} — ${rk.id}${st}</option>`;
   }).join('');
   // Rebind handler each call — sel.onchange doesn't stack
@@ -2003,7 +2005,7 @@ function renderDmPanel(){
         <div class="dm-agent-top">
           <button class="dm-agent-pick" data-i="${i}">${esc(c.name||`Player ${i+1}`)}</button>
           <span class="dm-agent-rank" style="color:${rk.color}">${rk.tier} · ${rk.title}</span>
-          <span class="dm-agent-state-tag ${st}">${st==='active'?'ACTIVE':st==='reserve'?'RESERVE':'KIA'}</span>
+          <span class="dm-agent-state-tag ${st}">${st==='active'?'ACTIVE':st==='reserve'?'RESERVE':'DEAD'}</span>
         </div>
         <div class="dm-agent-controls">
           <label class="dm-mini"><span>Rank</span>
@@ -4332,7 +4334,7 @@ function bindFields(){
     }
   });
   ii('charName','name'); ii('charCodename','title');
-  ii('charAge','age'); ii('charLevel','level');
+  ii('charAge','age');
   ii('charBackground','background');
   ii('charSpeed','speed'); ii('charArmor','armor'); ii('charTempHp','tempHp');
   ii('currentHp','currentHp'); ii('maxHp','maxHp');

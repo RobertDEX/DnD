@@ -768,16 +768,22 @@ async function pushState(immediate=false){
   const pushData = { ...state };
   delete pushData.activeTab;
   delete pushData.selectedCharacter;
+  const dataStr = JSON.stringify(pushData);
+  // Size guard — Firestore doc limit ~1MB
+  if(dataStr.length > 900000){
+    console.error('pushState: data too large!', (dataStr.length/1024).toFixed(0)+'KB');
+    showToast('⚠ Save data very large. Clear old quests/shop items.','warn');
+  }
   if(immediate){
     setSyncDot('syncing');
-    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(pushData) }); setSyncDot('synced'); }
+    try { await setDoc(doc(db,'campaigns',DOC), { data: dataStr }); setSyncDot('synced'); }
     catch(e){ console.error(e); setSyncDot('error'); }
     return;
   }
   setSyncDot('syncing');
   clearTimeout(_pushDebounce);
   _pushDebounce = setTimeout(async ()=>{
-    try { await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(pushData) }); setSyncDot('synced'); }
+    try { await setDoc(doc(db,'campaigns',DOC), { data: dataStr }); setSyncDot('synced'); }
     catch(e){ console.error(e); setSyncDot('error'); }
   }, 600);
 }
@@ -3883,14 +3889,27 @@ function buildDmPanelHtml(){
 
   // Shop management
   el('dmLoadDefaultShop')?.addEventListener('click', ()=>{
-    if(state.shop.length && !confirm('Replace current shop with default catalog?')) return;
-    state.shop = (window.MAW_DEFAULT_SHOP||[]).map(it=>({...it}));
-    pushState(true); render();
-    showToast(`Loaded ${state.shop.length} items into shop`, 'buy');
+    const catalog = window.MAW_DEFAULT_SHOP;
+    if(!catalog || !catalog.length){ showToast('Shop catalog not found','warn'); return; }
+    if(state.shop.length && !confirm(`Add ${catalog.length} items to shop? (Current: ${state.shop.length} items)`)) return;
+    // Merge — add items not already in shop (by name)
+    const existing = new Set((state.shop||[]).map(it=>it.name));
+    let added = 0;
+    catalog.forEach(it => {
+      if(!existing.has(it.name)){
+        state.shop.push({...it});
+        added++;
+      }
+    });
+    pushState(true);
+    // Don't call full render() — just update shop display
+    if(state.activeTab === 'shop') renderShop();
+    showToast(`Added ${added} new items (${existing.size} already existed). Shop: ${state.shop.length} total.`, 'buy');
   });
   el('dmClearShop')?.addEventListener('click', ()=>{
     if(!confirm('Clear all shop items?')) return;
-    state.shop = []; pushState(true); render();
+    state.shop = []; pushState(true);
+    if(state.activeTab === 'shop') renderShop();
     showToast('Shop cleared', 'info');
   });
   el('dmShopAddBtn')?.addEventListener('click', ()=>{

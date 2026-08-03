@@ -990,7 +990,21 @@ function render(){
 }
 
 function renderTabs(){
-  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===state.activeTab));
+  const c = getChar();
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===state.activeTab);
+    // Add badges
+    const old = b.querySelector('.tab-badge');
+    if(old) old.remove();
+    if(b.dataset.tab === 'cases'){
+      const activeQuests = (state.cases||[]).filter(q=>q.status==='active').length;
+      if(activeQuests > 0) b.insertAdjacentHTML('beforeend', `<span class="tab-badge">${activeQuests}</span>`);
+    }
+    if(b.dataset.tab === 'abilities' && c){
+      const stones = (c.skillStones||[]).length;
+      if(stones > 0) b.insertAdjacentHTML('beforeend', `<span class="tab-badge stones">${stones}</span>`);
+    }
+  });
   document.querySelectorAll('.tab-content[data-tab]').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
   try {
     switch(state.activeTab){
@@ -1020,6 +1034,7 @@ function renderCharacterTabs(){
     btn.style.setProperty('--char-color', rk.color);
     const hpPct = c.hp.max>0?clamp(c.hp.current/c.hp.max*100,0,100):0;
     const mpPct = c.mana.max>0?clamp(c.mana.current/c.mana.max*100,0,100):0;
+    const expPct = expNeededForNextLevel(c)>0?clamp(expIntoCurrentLevel(c)/expNeededForNextLevel(c)*100,0,100):0;
     const hpColor = hpPct>50?'#5a9a78':hpPct>25?'#c2a23a':'#d94f4f';
     btn.innerHTML = `
       <div class="ctab-top">
@@ -1034,6 +1049,7 @@ function renderCharacterTabs(){
       <div class="ctab-bars">
         <div class="ctab-bar hp"><div class="ctab-bar-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
         <div class="ctab-bar mp"><div class="ctab-bar-fill" style="width:${mpPct}%;background:#4a8bf5"></div></div>
+        <div class="ctab-bar exp"><div class="ctab-bar-fill" style="width:${expPct}%;background:#4ade80"></div></div>
       </div>`;
     if(dmUnlocked||spectator){
       btn.addEventListener('click', ()=>{ state.selectedCharacter=i; render(); });
@@ -1342,6 +1358,8 @@ function renderStatusWindow(){
         <span class="sw-value">${lvl < 20 ? `Lv.${(lvl)*10+1} (${(lvl)*10+1 - sysLvl} sys.levels away)` : 'MAX LEVEL'}</span>
       </div>
     </div>
+    ${cls ? `<div class="sw-class-bonuses">${Object.entries(cls.bonuses||{}).filter(([,v])=>v>0).map(([k,v])=>`<span class="sw-class-bonus-tag">+${v} ${k}</span>`).join('')}</div>` : ''}
+    ${systemPointsRemaining(c) > 0 ? `<div class="sw-milestone">▲ ${systemPointsRemaining(c)} SYSTEM POINTS AVAILABLE — ALLOCATE ABOVE ▲</div>` : ''}
   `;
 
   // Wire system stat +/- buttons
@@ -4324,6 +4342,32 @@ function bindFields(){
 
   // tab nav
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=> b.addEventListener('click', ()=>{ state.activeTab=b.dataset.tab; SFX.tab(); renderTabs(); }));
+
+  // Auto-set HP/MP buttons
+  el('autoSetHp')?.addEventListener('click', ()=>{
+    const c = getChar();
+    const suggested = calcSuggestedMaxHp(c);
+    c.hp.max = suggested; c.hp.current = suggested;
+    pushState(true); renderMainFields(); renderHeader(); renderStatusWindow();
+    showToast(`Max HP set to ${suggested}`, 'info');
+  });
+  el('autoSetMp')?.addEventListener('click', ()=>{
+    const c = getChar();
+    const suggested = calcSuggestedMaxMana(c);
+    c.mana.max = suggested; c.mana.current = suggested;
+    pushState(true); renderMainFields(); renderHeader(); renderStatusWindow();
+    showToast(`Max MP set to ${suggested}`, 'info');
+  });
+
+  // Keyboard shortcuts: Alt+1-9 for tabs
+  document.addEventListener('keydown', e=>{
+    if(!e.altKey || e.ctrlKey || e.metaKey) return;
+    const ae = document.activeElement;
+    if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')) return;
+    const tabs = ['profile','status','skills','loadout','abilities','cases','relations','shop','notes'];
+    const idx = Number(e.key) - 1;
+    if(idx >= 0 && idx < tabs.length){ e.preventDefault(); state.activeTab = tabs[idx]; renderTabs(); }
+  });
   // DM nav (sub-tabs inside DM panel)
   document.querySelectorAll('.dm-nav-btn[data-dm]').forEach(b=> b.addEventListener('click', ()=>{
     document.querySelectorAll('.dm-nav-btn').forEach(x=>x.classList.remove('active'));

@@ -1367,7 +1367,9 @@ function renderStatusWindow(){
   `;
   } catch(err) {
     console.error('renderStatusWindow error:', err);
-    host.innerHTML = '<div class="empty-note">Status window error. Try refreshing.</div>';
+    host.innerHTML = `<div style="position:relative;z-index:5;color:#ff6b6b;padding:2rem;font-family:monospace;font-size:.8rem">
+      <strong>Status Window Error</strong><br>${err.message}<br><pre>${err.stack}</pre>
+    </div>`;
     return;
   }
 

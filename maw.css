@@ -3114,6 +3114,11 @@ body{
     inset 0 0 60px -20px rgba(50, 120, 220, .3),
     0 8px 30px rgba(0, 0, 0, .6);
 }
+/* All direct children above the watermark */
+.status-window-panel > * {
+  position: relative;
+  z-index: 1;
+}
 
 /* Watermark pattern overlay */
 .status-window-panel::before {
@@ -3129,7 +3134,7 @@ body{
   word-break: break-all;
   pointer-events: none;
   transform: rotate(-5deg);
-  z-index: 0;
+  z-index: -1;
 }
 
 /* Ornamental corners */
@@ -3167,6 +3172,8 @@ body{
 
 /* Title */
 .sw-title {
+  position: relative;
+  z-index: 1;
   font-family: var(--F1);
   font-size: 1.8rem;
   font-weight: 900;

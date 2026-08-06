@@ -634,7 +634,10 @@ function normalize(raw){
     category: it.category||'Utility',
     price: Number(it.price)||0,
     stock: (it.stock===undefined?null:it.stock),
-    desc: it.desc||''
+    desc: it.desc||'',
+    icon: it.icon||'',
+    rarity: it.rarity||'common',
+    stats: it.stats||''
   }));
   // Evidence board
   // Site alert state
@@ -824,8 +827,9 @@ function startListener(){
           state.characters.push(remote.characters[state.characters.length]);
       }
       if(state.selectedCharacter >= state.characters.length) state.selectedCharacter = 0;
-      state.shop = remote.shop;
-      state.requests = remote.requests;
+      if(Array.isArray(remote.shop)) state.shop = remote.shop;
+      if(Array.isArray(remote.requests)) state.requests = remote.requests;
+      if(Array.isArray(remote.customClasses)) state.customClasses = remote.customClasses;
       state.theme = remote.theme;
       state.anomalyCatalog = remote.anomalyCatalog || [];
       state.cases         = remote.cases         || [];
@@ -836,7 +840,6 @@ function startListener(){
       // DO NOT sync activeTab or selectedCharacter — those are local per-client
       const prevAlert = state.siteAlert;
       state.siteAlert = remote.siteAlert;
-      if(prevAlert !== state.siteAlert) applySiteAlert();
       _firstSnapshotReceived = true;   // Firebase data safely loaded — writes are now safe
 
       // ── Stale-claim reconciliation ────────────────────────
@@ -964,8 +967,7 @@ function render(){
   try{ renderStats(); }catch(e){ console.error('stats',e); }
   try{ renderStatusWindow(); }catch(e){ console.error('statusWindow',e); }
   try{ renderDamageTypes(); }catch(e){ console.error('damageTypes',e); }
-  try{ renderSceneBanner(); }catch(e){}
-  try{ renderPlayerCases(); }catch(e){}
+  try{ renderQuestLog(); }catch(e){}
   try{ renderSkillsMatrix(); }catch(e){ console.error('skills',e); }
   try{ renderCalcPanel(); }catch(e){ console.error('calc',e); }
   try{ renderRankBadge(); }catch(e){}
@@ -975,8 +977,8 @@ function render(){
 
   try{ renderAbilities(); }catch(e){}
   try{ renderShop(); }catch(e){}
-  try{ renderRequests(); }catch(e){}
-  try{ renderCommendations(); }catch(e){}
+
+
   try{ renderDeathSaves(); }catch(e){}
   try{ renderDmPanel(); }catch(e){}
   try{ applyCharacterAccents(); }catch(e){}
@@ -1818,128 +1820,7 @@ function addRelationship(){ const c=getChar(); if(!Array.isArray(c.relationships
 //   1. FILED — anomalies granted to their character (view-only)
 //   2. AVAILABLE — catalog entries NOT yet granted, each with a purchase
 //      button that costs HALF the threat grade's bounty in Points.
-function renderAnomalies(){
-  const c = getChar();
-  const host = el('anomaliesList'); if(!host) return;
-  const catalog = state.anomalyCatalog || [];
-  const mine = catalog.filter(a => (a.grantedTo || []).includes(c.id));
-  const available = catalog.filter(a => !(a.grantedTo || []).includes(c.id));
-  const cnt = el('anomalyCount'); if(cnt) cnt.textContent = `${mine.length} FILED`;
-
-  // Hide the old "File New Anomaly" button — creation is now DM-only
-  const addBtn = el('addAnomalyBtn');
-  if(addBtn) addBtn.style.display = 'none';
-
-  const renderCard = (a, opts = {}) => {
-    const tg = THREAT_BY_GRADE[a.threat] || THREAT_BY_GRADE['F'];
-    const priceHalf = Math.floor(tg.points / 2);
-    const canAfford = (Number(c.points) || 0) >= priceHalf;
-    return `
-    <div class="anom-card ${opts.available?'available':''}" style="--tg:${tg.color}">
-      <div class="anom-head">
-        <span class="anom-grade" style="background:${tg.color}" data-tt="Threat Grade ${a.threat} — ${tg.label}">${a.threat||'F'}</span>
-        <span class="anom-desig">${esc(a.desig||'DT-???')}</span>
-        <span class="anom-name">${esc(a.name||'Unidentified')}</span>
-        <span class="anom-class" data-tt="Monster type: ${a.class}">${esc(a.class||'Beast')}</span>
-        ${opts.available
-          ? `<button class="anom-buy ${canAfford?'':'disabled'}" data-buy="${esc(a.id)}"
-              data-tt="${canAfford ? 'Purchase this monster file — half the threat grade bounty' : 'Insufficient gold'}">
-              PURCHASE · ${fmtGold(priceHalf)} gold
-            </button>`
-          : `<span class="anom-chev">▾</span>`}
-      </div>
-      <div class="anom-body">
-        <div class="anom-row">
-          <div class="anom-field"><span class="anom-field-lbl">Designation</span><div class="anom-field-val">${esc(a.desig||'—')}</div></div>
-          <div class="anom-field"><span class="anom-field-lbl">Name</span><div class="anom-field-val">${esc(a.name||'—')}</div></div>
-        </div>
-        <div class="anom-row">
-          <div class="anom-field"><span class="anom-field-lbl">Threat Grade</span><div class="anom-field-val">${a.threat||'F'} · ${tg.label}</div></div>
-          <div class="anom-field"><span class="anom-field-lbl">Type</span><div class="anom-field-val">${esc(a.class||'Beast')}</div></div>
-        </div>
-        <div class="anom-field"><span class="anom-field-lbl">Field Notes</span>
-          <div class="anom-desc-view ${a.redacted?'redacted':''}">${a.redacted
-            ? '<span class="redact-block">██████ ██████████ ██████ ████ ██████████ ████████ ██ ██████ ████████ ██████ ██████████ ████ ██████ ██████ ████████ ██████ ██████████ ██████████ ██████████ ████████ ██████ ██████████ ██████████ ██████</span><div class="redact-stamp">▲ CLASSIFIED — CLEARANCE INSUFFICIENT ▲</div>'
-            : esc(a.desc||'(No description on file.)')
-          }</div>
-        </div>
-      </div>
-    </div>`;
-  };
-
-  host.innerHTML = `
-    <section class="anom-section">
-      <header class="anom-section-head">
-        <span class="ash-icon">⬢</span>
-        <div class="ash-text">
-          <div class="ash-label">Filed to Your Clearance</div>
-          <div class="ash-hint">Anomaly files your DM has authorized you to access</div>
-        </div>
-        <span class="ash-count">${mine.length}</span>
-      </header>
-      <div class="anom-grid">
-        ${mine.length ? mine.map(a => renderCard(a)).join('')
-          : `<div class="empty-note">
-              <div class="empty-glyph">⬡</div>
-              <div>NO ANOMALIES ON YOUR RECORD</div>
-              <span>Your GM assigns monster files to your rank. Additional files can be purchased below at half the threat grade bounty.</span>
-            </div>`}
-      </div>
-    </section>
-
-    <section class="anom-section">
-      <header class="anom-section-head available">
-        <span class="ash-icon amber">◈</span>
-        <div class="ash-text">
-          <div class="ash-label">Available for Purchase</div>
-          <div class="ash-hint">Pay half the threat grade bounty to add this file to your rank</div>
-        </div>
-        <span class="ash-count amber">${available.length}</span>
-      </header>
-      <div class="anom-grid">
-        ${available.length ? available.map(a => renderCard(a, {available:true})).join('')
-          : `<div class="empty-note dim">
-              <div class="empty-glyph">◇</div>
-              <div>NO ADDITIONAL FILES IN CATALOG</div>
-              <span>Wait for your DM to publish more anomalies.</span>
-            </div>`}
-      </div>
-    </section>
-  `;
-
-  // Card expand/collapse via header click
-  host.querySelectorAll('.anom-head').forEach(h => {
-    h.addEventListener('click', e => {
-      if (e.target.closest('.anom-buy')) return;
-      h.parentElement.classList.toggle('open');
-    });
-  });
-
-  // Purchase handler
-  host.querySelectorAll('[data-buy]').forEach(b => {
-    b.addEventListener('click', e => {
-      e.stopPropagation();
-      if (b.classList.contains('disabled')) { showToast('Insufficient gold', 'warn'); return; }
-      const id = b.dataset.buy;
-      const anom = state.anomalyCatalog.find(a => a.id === id); if(!anom) return;
-      const tg = THREAT_BY_GRADE[anom.threat] || THREAT_BY_GRADE['F'];
-      const price = Math.floor(tg.points / 2);
-      if ((Number(c.points) || 0) < price) { showToast('Insufficient gold', 'warn'); return; }
-      if (!confirm(`Purchase file ${anom.desig} (${anom.name}) for ${fmtGold(price)} points?`)) return;
-      c.points -= price;
-      if (!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
-      if (!anom.grantedTo.includes(c.id)) anom.grantedTo.push(c.id);
-      pushState(true); render();
-      showToast(`Filed: ${anom.desig}`, 'success');
-    });
-  });
-}
-
 // Legacy no-op — creation is now DM-only via the catalog manager
-function addAnomaly(){
-  showToast('Monster files are authored by your GM. Purchase available files from the log.', 'info');
-}
-
 // ================================================================
 // ABILITIES / TALENTS
 // ================================================================
@@ -2119,7 +2000,7 @@ function renderDmPanel(){
   }
 
   // Shop management
-  renderDmShop();
+
   // New systems
   try{ renderDmCommendations(); }catch(e){}
   try{ renderDmRequests(); }catch(e){}
@@ -2129,7 +2010,6 @@ function renderDmPanel(){
 
 
   try{ renderDmDiagnostics(); }catch(e){}
-  el('dmAddAnomBtn')?.addEventListener('click', addAnomalyToCatalog);
   el('dmAddSiteBtn')?.addEventListener('click', addSite);
   el('dmAddCaseBtn')?.addEventListener('click', addCase);
 }
@@ -2139,150 +2019,9 @@ function renderDmPanel(){
 // Players see granted files in their Anomaly Log tab, and can purchase
 // ungranted ones at half the threat grade's bounty.
 // ═════════════════════════════════════════════════════════════════
-function addAnomalyToCatalog(){
-  if(!Array.isArray(state.anomalyCatalog)) state.anomalyCatalog = [];
-  state.anomalyCatalog.unshift({
-    id:        'anom-' + Date.now() + '-' + Math.random().toString(16).slice(2,5),
-    desig:     'DT-',
-    name:      '',
-    threat:    'F',
-    class:     'Euclid',
-    desc:      '',
-    grantedTo: []
-  });
-  pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
-}
-function renderDmAnomalyCatalog(){
-  const host = el('dmAnomalyCatalog'); if(!host) return;
-  const catalog = state.anomalyCatalog || [];
-  if (!catalog.length) {
-    host.innerHTML = `<div class="dm-empty" style="padding:1.5rem;text-align:center">No anomalies authored yet. Click <strong>Author New Anomaly</strong> to publish your first file.</div>`;
-    return;
-  }
-  host.innerHTML = catalog.map((a, i) => {
-    const tg = THREAT_BY_GRADE[a.threat] || THREAT_BY_GRADE['F'];
-    const half = Math.floor(tg.points / 2);
-    return `
-    <div class="dm-anom-card" style="--tg:${tg.color}" data-anomid="${esc(a.id)}">
-      <div class="dm-anom-head">
-        <span class="anom-grade" style="background:${tg.color}">${a.threat}</span>
-        <input class="dm-anom-desig" data-i="${i}" data-k="desig" value="${esc(a.desig)}" placeholder="DT-001">
-        <input class="dm-anom-name" data-i="${i}" data-k="name" value="${esc(a.name)}" placeholder="Entity name">
-        <div class="dm-anom-price"><span>Purchase Cost:</span> <b>${fmtGold(half)}</b></div>
-        <button class="dm-anom-del" data-del="${i}" data-tt="Delete this anomaly permanently">🗑</button>
-      </div>
-      <div class="dm-anom-body">
-        <div class="dm-anom-row">
-          <label><span>Threat Grade</span>
-            <select class="dm-anom-f" data-i="${i}" data-k="threat">
-              ${THREAT_GRADES.map(t=>`<option value="${t.grade}" ${a.threat===t.grade?'selected':''}>${t.grade} · ${t.label} (${fmtGold(t.points)} bounty)</option>`).join('')}
-            </select>
-          </label>
-          <label><span>Monster Type</span>
-            <select class="dm-anom-f" data-i="${i}" data-k="class">
-              ${ANOMALY_CLASSES.map(cn=>`<option ${a.class===cn?'selected':''}>${cn}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-        <label><span>Description · Behavior · Combat Notes</span>
-          <textarea class="dm-anom-f dm-anom-desc" data-i="${i}" data-k="desc" placeholder="Describe the anomaly. Its behavior. How it's contained. What the party should know.">${esc(a.desc)}</textarea>
-        </label>
-        <label class="dm-anom-redact ${a.redacted?'on':''}" data-tt="When classified, players see black bars instead of the description. Toggle off to reveal.">
-          <input type="checkbox" data-redact="${i}" ${a.redacted?'checked':''}>
-          <span class="dm-anom-redact-icon">▲</span>
-          <span class="dm-anom-redact-text">
-            <b>Classify description</b>
-            <em>Players see redaction bars until you clear it</em>
-          </span>
-        </label>
-        <div class="dm-anom-grants">
-          <div class="dm-anom-grants-label">Grant clearance to:</div>
-          <div class="dm-anom-grants-list">
-            ${state.characters.filter(cc => cc.state !== 'dead').map(cc => {
-              const on = (a.grantedTo || []).includes(cc.id);
-              return `<label class="dm-anom-grant ${on?'on':''}">
-                <input type="checkbox" data-grant="${i}" data-cid="${esc(cc.id)}" ${on?'checked':''}>
-                <span>${esc(cc.name || 'Unnamed')}</span>
-              </label>`;
-            }).join('')}
-            <button class="dm-anom-grant-all" data-grantall="${i}">All</button>
-            <button class="dm-anom-grant-none" data-grantnone="${i}">None</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  // Wire text fields
-  host.querySelectorAll('.dm-anom-f, .dm-anom-desig, .dm-anom-name').forEach(inp => {
-    const ev = inp.tagName === 'SELECT' ? 'change' : 'input';
-    inp.addEventListener(ev, () => {
-      const i = +inp.dataset.i, k = inp.dataset.k;
-      state.anomalyCatalog[i][k] = inp.value;
-      pushState(inp.tagName === 'SELECT');
-      if (k === 'threat' || k === 'desig' || k === 'name') { renderDmAnomalyCatalog(); renderAnomalies(); }
-    });
-  });
-  // Grant checkboxes
-  host.querySelectorAll('[data-grant]').forEach(cb => cb.addEventListener('change', e => {
-    const i = +e.target.dataset.grant;
-    const cid = e.target.dataset.cid;
-    const anom = state.anomalyCatalog[i]; if(!anom) return;
-    if(!Array.isArray(anom.grantedTo)) anom.grantedTo = [];
-    if (e.target.checked && !anom.grantedTo.includes(cid)) anom.grantedTo.push(cid);
-    if (!e.target.checked) anom.grantedTo = anom.grantedTo.filter(x => x !== cid);
-    e.target.closest('.dm-anom-grant').classList.toggle('on', e.target.checked);
-    pushState(true); renderAnomalies();
-  }));
-  host.querySelectorAll('[data-grantall]').forEach(b => b.addEventListener('click', () => {
-    const i = +b.dataset.grantall;
-    state.anomalyCatalog[i].grantedTo = state.characters.map(x => x.id);
-    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
-  }));
-  host.querySelectorAll('[data-grantnone]').forEach(b => b.addEventListener('click', () => {
-    const i = +b.dataset.grantnone;
-    state.anomalyCatalog[i].grantedTo = [];
-    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
-  }));
-  host.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-    const i = +b.dataset.del;
-    const anom = state.anomalyCatalog[i]; if(!anom) return;
-    if (!confirm(`Delete ${anom.desig} (${anom.name || 'unnamed'}) from the catalog? Everyone currently granted will lose it.`)) return;
-    state.anomalyCatalog.splice(i, 1);
-    pushState(true); renderDmAnomalyCatalog(); renderAnomalies();
-  }));
-  host.querySelectorAll('[data-redact]').forEach(cb => cb.addEventListener('change', e => {
-    const i = +e.target.dataset.redact;
-    state.anomalyCatalog[i].redacted = e.target.checked;
-    e.target.closest('.dm-anom-redact').classList.toggle('on', e.target.checked);
-    pushState(true); renderAnomalies();
-  }));
-}
-
 // ═════════════════════════════════════════════════════════════════
 // SCENE BANNER — current site indicator at top of every terminal
 // ═════════════════════════════════════════════════════════════════
-function currentSite(){ return (state.sites || []).find(s => s.current) || null; }
-function renderSceneBanner(){
-  const host = el('sceneBanner'); if(!host) return;
-  const site = currentSite();
-  if (!site) { host.style.display = 'none'; return; }
-  host.style.display = '';
-  host.className = `scene-banner ${site.contaminated ? 'contaminated' : ''}`;
-  host.innerHTML = `
-    <div class="scb-icon">⌖</div>
-    <div class="scb-body">
-      <div class="scb-line1">
-        <span class="scb-name">${esc(site.name)}</span>
-        ${site.designation ? `<span class="scb-desig">${esc(site.designation)}</span>` : ''}
-        ${site.contaminated ? `<span class="scb-warn">⚠ CONTAMINATED</span>` : ''}
-      </div>
-      ${site.atmosphere ? `<div class="scb-atmos">${esc(site.atmosphere)}</div>` : ''}
-    </div>
-    <div class="scb-region">${esc(site.region.toUpperCase())}</div>
-  `;
-}
-
 // ═════════════════════════════════════════════════════════════════
 // DM · SITE LOCATOR
 // ═════════════════════════════════════════════════════════════════
@@ -2381,7 +2120,6 @@ function renderDmSites(){
     const wasCurrent = c.current;
     state.sites.forEach(s => s.current = false);
     c.current = !wasCurrent;
-    pushState(true); renderDmSites(); renderSceneBanner();
     showToast(c.current ? `Scene: ${c.name}` : 'No current scene', 'success');
   });
   el('dmSiteDel')?.addEventListener('click', () => {
@@ -2389,25 +2127,21 @@ function renderDmSites(){
     if (!confirm(`Remove site "${c.name}"?`)) return;
     state.sites = state.sites.filter(x => x.id !== c.id);
     _dmSiteSelectedId = null;
-    pushState(true); renderDmSites(); renderSceneBanner();
   });
   el('dmSiteContam')?.addEventListener('change', e => {
     const c = dmActiveSite(); if(!c) return;
     c.contaminated = e.target.checked;
-    pushState(true); renderDmSites(); renderSceneBanner();
   });
   const bind = (id, field) => el(id)?.addEventListener('input', e => {
     const c = dmActiveSite(); if(!c) return;
     c[field] = e.target.value; pushState();
     if (['name','region','contaminated'].includes(field)) renderDmSites();
-    if (['name','atmosphere','designation','region','contaminated'].includes(field)) renderSceneBanner();
   });
   bind('dmSiteName','name'); bind('dmSiteDesig','designation');
   bind('dmSiteDesc','description'); bind('dmSiteAtmos','atmosphere');
   bind('dmSiteNotes','dmNotes');
   el('dmSiteRegion')?.addEventListener('change', e => {
     const c = dmActiveSite(); if(!c) return;
-    c.region = e.target.value; pushState(true); renderDmSites(); renderSceneBanner();
   });
 }
 
@@ -2433,9 +2167,9 @@ function addCase(){
   };
   state.cases.push(k);
   _dmCaseSelectedId = k.id;
-  pushState(true); renderDmCases();
+  pushState(true); renderDmQuestList();
 }
-function renderDmCases(){
+function renderDmQuestList(){
   const host = el('dmCasesRoot'); if(!host) return;
   const list = state.cases || [];
   const cur = dmActiveCase();
@@ -2516,47 +2250,47 @@ function renderDmCases(){
   `;
 
   host.querySelectorAll('.dm-case-row').forEach(r => r.addEventListener('click', () => {
-    _dmCaseSelectedId = r.dataset.caseid; renderDmCases();
+    _dmCaseSelectedId = r.dataset.caseid; renderDmQuestList();
   }));
   el('dmCaseDel')?.addEventListener('click', () => {
     const c = dmActiveCase(); if(!c) return;
     if (!confirm(`Delete case "${c.title}"?`)) return;
     state.cases = state.cases.filter(x => x.id !== c.id);
     _dmCaseSelectedId = null;
-    pushState(true); renderDmCases(); renderPlayerCases();
+    pushState(true); renderDmQuestList(); renderQuestLog();
   });
   const bind = (id, field) => el(id)?.addEventListener('input', e => {
     const c = dmActiveCase(); if(!c) return;
     c[field] = e.target.value; pushState();
-    if (['codename','title','priority','status'].includes(field)) renderDmCases();
-    renderPlayerCases();
+    if (['codename','title','priority','status'].includes(field)) renderDmQuestList();
+    renderQuestLog();
   });
   bind('dmCaseCode','codename'); bind('dmCaseTitle','title');
   bind('dmCaseBrief','briefing'); bind('dmCaseNotes','dmNotes');
   ['dmCaseStatus','dmCasePri'].forEach(id => el(id)?.addEventListener('change', e => {
     const c = dmActiveCase(); if(!c) return;
     c[id==='dmCaseStatus'?'status':'priority'] = e.target.value;
-    pushState(true); renderDmCases(); renderPlayerCases();
+    pushState(true); renderDmQuestList(); renderQuestLog();
   }));
   host.querySelectorAll('.dm-case-obj-text').forEach(inp => inp.addEventListener('input', e => {
     const c = dmActiveCase(); if(!c) return;
     const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
-    o.text = e.target.value; pushState(); renderPlayerCases();
+    o.text = e.target.value; pushState(); renderQuestLog();
   }));
   host.querySelectorAll('.dm-case-obj-cb').forEach(cb => cb.addEventListener('change', e => {
     const c = dmActiveCase(); if(!c) return;
     const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
-    o.done = e.target.checked; pushState(true); renderDmCases(); renderPlayerCases();
+    o.done = e.target.checked; pushState(true); renderDmQuestList(); renderQuestLog();
   }));
   host.querySelectorAll('.dm-case-obj-del').forEach(b => b.addEventListener('click', () => {
     const c = dmActiveCase(); if(!c) return;
     c.objectives = c.objectives.filter(x => x.id !== b.dataset.oid);
-    pushState(true); renderDmCases(); renderPlayerCases();
+    pushState(true); renderDmQuestList(); renderQuestLog();
   }));
   el('dmCaseObjAdd')?.addEventListener('click', () => {
     const c = dmActiveCase(); if(!c) return;
     c.objectives.push({ id:'obj-'+Date.now(), text:'', done:false });
-    pushState(true); renderDmCases();
+    pushState(true); renderDmQuestList();
   });
   host.querySelectorAll('[data-caseview]').forEach(cb => cb.addEventListener('change', e => {
     const c = dmActiveCase(); if(!c) return;
@@ -2564,17 +2298,17 @@ function renderDmCases(){
     if (e.target.checked && !c.visibleTo.includes(cid)) c.visibleTo.push(cid);
     if (!e.target.checked) c.visibleTo = c.visibleTo.filter(x => x !== cid);
     e.target.closest('.dm-case-viewer').classList.toggle('on', e.target.checked);
-    pushState(true); renderPlayerCases();
+    pushState(true); renderQuestLog();
   }));
   el('dmCaseAllView')?.addEventListener('click', () => {
     const c = dmActiveCase(); if(!c) return;
     c.visibleTo = state.characters.map(x => x.id);
-    pushState(true); renderDmCases(); renderPlayerCases();
+    pushState(true); renderDmQuestList(); renderQuestLog();
   });
   el('dmCaseNoneView')?.addEventListener('click', () => {
     const c = dmActiveCase(); if(!c) return;
     c.visibleTo = [];
-    pushState(true); renderDmCases(); renderPlayerCases();
+    pushState(true); renderDmQuestList(); renderQuestLog();
   });
 }
 
@@ -2716,129 +2450,6 @@ function renderCompletedQuests(){
 // ═════════════════════════════════════════════════════════════════
 // DM · INITIATIVE TRACKER
 // ═════════════════════════════════════════════════════════════════
-function renderDmInitiative(){
-  const host = el('dmInitiativeRoot'); if(!host) return;
-  const t = state.initiative || { active:false, round:1, turnIdx:0, entries:[] };
-  const sorted = t.entries.slice().sort((a,b) => b.init - a.init);
-  const activeId = sorted[t.turnIdx]?.id;
-
-  host.innerHTML = `
-    <div class="dm-init-shell">
-      <div class="dm-init-status">
-        <div class="dm-init-round">
-          <span class="dis-lbl">Round</span>
-          <span class="dis-val">${t.active ? t.round : '—'}</span>
-        </div>
-        <div class="dm-init-actions">
-          ${t.active
-            ? `<button class="dt-btn small" id="initNext">▶ Next Turn</button>
-               <button class="dt-btn ghost small" id="initPrev">◀ Prev</button>
-               <button class="dt-btn ghost small" id="initEnd">✕ End Combat</button>`
-            : `<button class="dt-btn" id="initStart">⚔ Begin Encounter</button>`
-          }
-        </div>
-      </div>
-
-      <div class="dm-init-add">
-        <input type="text" id="initAddName" placeholder="Combatant name" class="dia-name">
-        <input type="number" id="initAddRoll" placeholder="Init" class="dia-roll">
-        <select id="initAddKind" class="dia-kind">
-          <option value="agent">Agent</option>
-          <option value="anomaly">Anomaly</option>
-          <option value="npc">NPC</option>
-        </select>
-        <button class="dt-btn small" id="initAddBtn">+ Add</button>
-        <button class="dt-btn ghost small" id="initAddAgents">+ All Active Agents</button>
-      </div>
-
-      <div class="dm-init-list">
-        ${sorted.length ? sorted.map((e,i) => {
-          const isActive = e.id === activeId && t.active;
-          return `<div class="dm-init-row ${isActive?'active':''} kind-${e.kind}">
-            <div class="dir-init">${e.init}</div>
-            <div class="dir-name">${esc(e.name)}</div>
-            <div class="dir-kind">${e.kind.toUpperCase()}</div>
-            <div class="dir-hp">
-              ${e.hp !== null ? `<input type="number" class="dir-hp-in" data-hpid="${esc(e.id)}" value="${e.hp}" style="width:44px">
-              <span>/ ${e.hpMax !== null ? e.hpMax : '?'}</span>` : ''}
-            </div>
-            <button class="dir-del" data-initdel="${esc(e.id)}">✕</button>
-          </div>`;
-        }).join('') : '<div class="dm-empty" style="padding:1rem">No combatants. Add some to begin.</div>'}
-      </div>
-    </div>
-  `;
-
-  el('initStart')?.addEventListener('click', () => {
-    state.initiative.active = true;
-    state.initiative.round = 1;
-    state.initiative.turnIdx = 0;
-    pushState(true); renderDmInitiative();
-  });
-  el('initEnd')?.addEventListener('click', () => {
-    state.initiative.active = false;
-    pushState(true); renderDmInitiative();
-  });
-  el('initNext')?.addEventListener('click', () => {
-    const count = state.initiative.entries.length;
-    if (!count) return;
-    state.initiative.turnIdx++;
-    if (state.initiative.turnIdx >= count) {
-      state.initiative.turnIdx = 0;
-      state.initiative.round++;
-    }
-    pushState(true); renderDmInitiative();
-  });
-  el('initPrev')?.addEventListener('click', () => {
-    const count = state.initiative.entries.length;
-    if (!count) return;
-    state.initiative.turnIdx--;
-    if (state.initiative.turnIdx < 0) {
-      state.initiative.turnIdx = count - 1;
-      state.initiative.round = Math.max(1, state.initiative.round - 1);
-    }
-    pushState(true); renderDmInitiative();
-  });
-  el('initAddBtn')?.addEventListener('click', () => {
-    const name = el('initAddName')?.value.trim() || '—';
-    const init = Number(el('initAddRoll')?.value) || 10;
-    const kind = el('initAddKind')?.value || 'npc';
-    state.initiative.entries.push({
-      id: 'init-' + Date.now() + '-' + Math.random().toString(16).slice(2,4),
-      name, init, kind, hp:null, hpMax:null, hostile:kind!=='agent'
-    });
-    if (el('initAddName')) el('initAddName').value = '';
-    if (el('initAddRoll')) el('initAddRoll').value = '';
-    pushState(true); renderDmInitiative();
-  });
-  el('initAddAgents')?.addEventListener('click', () => {
-    state.characters.filter(c => c.state === 'active').forEach(c => {
-      // Skip if already present
-      if (state.initiative.entries.some(e => e.name === c.name && e.kind === 'agent')) return;
-      const initMod = mod(c.stats.DEX) + (Number(c.initiativeBonus)||0);
-      const roll = 1 + Math.floor(Math.random() * 20) + initMod;
-      state.initiative.entries.push({
-        id: 'init-' + Date.now() + '-' + Math.random().toString(16).slice(2,4),
-        name: c.name || 'Agent',
-        init: roll,
-        kind: 'agent',
-        hp: c.hp.current, hpMax: c.hp.max,
-        hostile: false
-      });
-    });
-    pushState(true); renderDmInitiative();
-  });
-  host.querySelectorAll('[data-initdel]').forEach(b => b.addEventListener('click', () => {
-    state.initiative.entries = state.initiative.entries.filter(e => e.id !== b.dataset.initdel);
-    if (state.initiative.turnIdx >= state.initiative.entries.length) state.initiative.turnIdx = 0;
-    pushState(true); renderDmInitiative();
-  }));
-  host.querySelectorAll('[data-hpid]').forEach(inp => inp.addEventListener('change', e => {
-    const entry = state.initiative.entries.find(x => x.id === e.target.dataset.hpid);
-    if (entry) { entry.hp = Number(e.target.value) || 0; pushState(true); }
-  }));
-}
-
 // ═════════════════════════════════════════════════════════════════
 // DM · FIREBASE DIAGNOSTICS
 // ═════════════════════════════════════════════════════════════════
@@ -2940,9 +2551,6 @@ function bulkApply(kind){
       case 'hp-dmg':   c.hp.current = clamp((c.hp.current||0)-amt,0,c.hp.max); verb=`−${amt} HP`; break;
       case 'hp-heal':  c.hp.current = clamp((c.hp.current||0)+amt,0,c.hp.max); verb=`+${amt} HP`; break;
       case 'hp-full':  c.hp.current = c.hp.max; verb='HP restored'; break;
-      case 'san-dmg':  c.mana.current = clamp((c.mana.current||0)-amt,0,c.mana.max); verb=`−${amt} Mana`; break;
-      case 'san-heal': c.mana.current = clamp((c.mana.current||0)+amt,0,c.mana.max); verb=`+${amt} Mana`; break;
-      case 'san-full': c.mana.current = c.mana.max; verb='Mana restored'; break;
       case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtGold(amt)} gold`; break;
       case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtGold(amt)} gold`; break;
     }
@@ -2987,23 +2595,6 @@ function renderDmShop(){
   }
 }
 function addShopItem(){ if(!Array.isArray(state.shop)) state.shop=[]; state.shop.push({tier:1,name:'',category:'Utility',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
-function loadDefaultCatalog(replace){
-  const def = (window.DT_DEFAULT_SHOP||[]).map(x=>({ ...x, stock:null }));
-  if(!def.length){ showToast('Default catalog not found','warn'); return; }
-  if(replace){
-    if(!confirm(`Replace the entire catalog with the ${def.length}-item DT default? Current items will be removed.`)) return;
-    state.shop = def;
-  } else {
-    // append only items not already present by name
-    const have = new Set(state.shop.map(i=>i.name));
-    const add = def.filter(i=>!have.has(i.name));
-    if(!add.length){ showToast('Default items already loaded','info'); return; }
-    state.shop = state.shop.concat(add);
-  }
-  pushState(true); renderDmShop(); renderShop();
-  showToast(`Catalog loaded · ${state.shop.length} items`,'buy');
-}
-
 // ── DM CHARACTER MANAGEMENT ──
 function dmDeleteAgent(i){
   const c = state.characters[i]; if(!c) return;
@@ -3337,31 +2928,9 @@ function showKnockAlert(who){
 // ================================================================
 // DYNAMIC SITE STATE — normal / lockdown / uncontained
 // ================================================================
-function applySiteAlert(){
-  const s = state.siteAlert || 'normal';
-  document.body.classList.remove('alert-lockdown','alert-uncontained');
-  let banner = el('siteAlertBanner');
-  if(s==='normal'){ banner?.remove(); return; }
-  document.body.classList.add(s==='lockdown'?'alert-lockdown':'alert-uncontained');
-  if(!banner){
-    banner = document.createElement('div');
-    banner.id = 'siteAlertBanner';
-    document.body.appendChild(banner);
-  }
-  if(s==='lockdown'){
-    banner.className = 'site-alert lockdown';
-    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">SYSTEM ALERT — TOWER BREACH DETECTED — ALL PLAYERS ON GUARD</span><span class="sa-icon">⚠</span>`;
-    SFX.alarm();
-  } else {
-    banner.className = 'site-alert uncontained';
-    banner.innerHTML = `<span class="sa-icon">⚠</span><span class="sa-text">DUNGEON BREAK — MONSTERS BREACHING THE TOWER</span><span class="sa-icon">⚠</span>`;
-    SFX.alarm();
-  }
-}
 function setSiteAlert(level){
   if(!dmUnlocked) return;
   state.siteAlert = level;
-  pushState(true); applySiteAlert();
   showToast(`Site status: ${level.toUpperCase()}`, level==='normal'?'info':'warn');
 }
 
@@ -4337,7 +3906,6 @@ function bindFields(){
   el('addInvBtn')?.addEventListener('click', addInventoryItem);
   el('invAddName')?.addEventListener('keydown', e=>{ if(e.key==='Enter') addInventoryItem(); });
   el('addRelBtn')?.addEventListener('click', addRelationship);
-  el('addAnomalyBtn')?.addEventListener('click', addAnomaly);
   el('addAbilityBtn')?.addEventListener('click', addAbility);
 
   // tab nav
@@ -4384,8 +3952,6 @@ function bindFields(){
   el('dmCloseBtn2')?.addEventListener('click', closeDmOverlay);
   el('dmLockBtn')?.addEventListener('click', lockDm);
   el('addShopItemBtn')?.addEventListener('click', addShopItem);
-  el('dmLoadCatalogBtn')?.addEventListener('click', ()=> loadDefaultCatalog(false));
-  el('dmResetCatalogBtn')?.addEventListener('click', ()=> loadDefaultCatalog(true));
   el('dmAddAgentBtn')?.addEventListener('click', dmAddAgent);
   el('dmBroadcastSendBtn')?.addEventListener('click', ()=>{
     const msg = el('dmBroadcastInput')?.value.trim();
@@ -4422,23 +3988,15 @@ async function migrateIfNeeded(){
   try {
     const mainSnap = await getDoc(doc(db,'campaigns',DOC));
     if(mainSnap.exists()){
-      // Doc exists. If its shop is empty but we have a default catalog, seed it once.
-      try {
-        const existing = JSON.parse(mainSnap.data().data || '{}');
-        const shopEmpty = !Array.isArray(existing.shop) || existing.shop.length === 0;
-        if(shopEmpty && window.DT_DEFAULT_SHOP && window.DT_DEFAULT_SHOP.length){
-          existing.shop = window.DT_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
-          await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(existing) });
-        }
-      } catch(seedErr){ console.error('catalog seed check failed', seedErr); }
+      // Doc exists. Start listening.
       startListener();
       return;
     }
-    // No doc yet — seed fresh with the default shop catalog.
-    if(window.DT_DEFAULT_SHOP && (!state.shop || !state.shop.length)){
-      state.shop = window.DT_DEFAULT_SHOP.map(x=>({ ...x, stock:null }));
-    }
-    await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(state) });
+    // No doc yet — create a blank one. Don't auto-load shop (DM does it manually).
+    const pushData = { ...state };
+    delete pushData.activeTab;
+    delete pushData.selectedCharacter;
+    await setDoc(doc(db,'campaigns',DOC), { data: JSON.stringify(pushData) });
     startListener();
   } catch(e){ console.error('init', e); startListener(); }
 }
@@ -4452,7 +4010,6 @@ startBroadcastListener();
 pushPresence();
 
 // New systems init
-applySiteAlert();
 // reflect saved SFX preference on the toggle
 (function(){ const b=el('sfxToggle'); if(b && !_sfxEnabled){ b.classList.add('off'); b.textContent='♪ SFX OFF'; } })();
 // idle corruption: any interaction resets the timer

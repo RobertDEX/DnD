@@ -1255,6 +1255,7 @@ function renderStats(){
 function renderStatusWindow(){
   const host = el('statusWindow'); if(!host) return;
   const c = getChar();
+  if(!c || !c.stats) { host.innerHTML = '<div class="empty-note">No character selected.</div>'; return; }
   const cls = getClassDef(c.playerClass);
   const rank = RANK_BY_ID[c.rank] || RANKS[0];
   const remaining = systemPointsRemaining(c);
@@ -1271,6 +1272,7 @@ function renderStatusWindow(){
   const expNeeded = expNeededForNextLevel(c);
   const expPct = expNeeded > 0 ? Math.min(100, (expCurrent / expNeeded) * 100) : 0;
 
+  try {
   host.innerHTML = `
     <div class="sw-ornament tl"></div>
     <div class="sw-ornament tr"></div>
@@ -1363,6 +1365,11 @@ function renderStatusWindow(){
     ${cls ? `<div class="sw-class-bonuses">${Object.entries(cls.bonuses||{}).filter(([,v])=>v>0).map(([k,v])=>`<span class="sw-class-bonus-tag">+${v} ${k}</span>`).join('')}</div>` : ''}
     ${systemPointsRemaining(c) > 0 ? `<div class="sw-milestone">▲ ${systemPointsRemaining(c)} SYSTEM POINTS AVAILABLE — ALLOCATE ABOVE ▲</div>` : ''}
   `;
+  } catch(err) {
+    console.error('renderStatusWindow error:', err);
+    host.innerHTML = '<div class="empty-note">Status window error. Try refreshing.</div>';
+    return;
+  }
 
   // Wire system stat +/- buttons
   host.querySelectorAll('.sw-sys-btn').forEach(btn => {

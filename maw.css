@@ -6147,3 +6147,282 @@ input:focus, select:focus, textarea:focus {
   color: rgba(100,160,220,.3);
   margin-left: .2rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DM GUI OVERHAUL — polished, organized, game-master feel
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── DM Header ─── */
+.dm-head {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: .8rem 1rem !important;
+  background: linear-gradient(180deg, rgba(20,45,90,.95), rgba(14,32,68,.95)) !important;
+  border: 1px solid rgba(74,139,245,.4) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px -6px rgba(0,0,0,.5), 0 0 16px -4px var(--accent-glow) !important;
+}
+.dm-head-title {
+  font-family: var(--F1) !important;
+  font-size: .85rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+  color: #fff !important;
+  text-shadow: 0 0 10px var(--accent-glow) !important;
+}
+.dm-head-actions {
+  display: flex;
+  gap: .4rem;
+}
+
+/* ─── DM Tabs — sharper, more contrast ─── */
+.dm-tabs {
+  display: flex !important;
+  gap: .3rem !important;
+  padding: .6rem 0 !important;
+  border-bottom: 2px solid rgba(60,120,220,.15) !important;
+  margin-bottom: 1rem !important;
+}
+.dm-tab {
+  font-size: .54rem !important;
+  padding: .5rem 1rem !important;
+  border-radius: 4px !important;
+  transition: all .18s !important;
+}
+.dm-tab.active {
+  background: linear-gradient(180deg, rgba(40,80,170,.7), rgba(25,60,130,.6)) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px -2px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.1) !important;
+}
+
+/* ─── DM Cards — richer glass panels ─── */
+.dm-card {
+  background: linear-gradient(180deg, rgba(14,32,68,.85), rgba(10,24,52,.9)) !important;
+  border: 1px solid rgba(60,120,220,.25) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+.dm-card-title {
+  font-family: var(--F1) !important;
+  font-size: .6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .15em !important;
+  color: var(--accent) !important;
+  text-shadow: 0 0 6px var(--accent-glow) !important;
+  padding: .6rem 1rem !important;
+  background: linear-gradient(180deg, rgba(20,45,90,.5), rgba(14,32,68,.3)) !important;
+  border-bottom: 1px solid rgba(60,120,220,.15) !important;
+}
+.dm-card-body {
+  padding: 1rem !important;
+}
+
+/* ─── Form elements inside DM panel ─── */
+.dm-card-body input,
+.dm-card-body select,
+.dm-card-body textarea {
+  background: rgba(4,10,24,.8) !important;
+  border: 1px solid rgba(50,100,200,.25) !important;
+  border-radius: 4px !important;
+  color: var(--text) !important;
+  font-family: var(--F3) !important;
+  padding: .45rem .6rem !important;
+  font-size: .78rem !important;
+  transition: border-color .15s, box-shadow .15s !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dm-card-body input:focus,
+.dm-card-body select:focus,
+.dm-card-body textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(74,139,245,.15), 0 0 12px -4px var(--accent-glow) !important;
+  outline: none !important;
+}
+.dm-card-body textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+
+/* ─── Section labels ─── */
+.dm-mini-label {
+  font-family: var(--F4) !important;
+  font-size: .5rem !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+  color: rgba(140,180,240,.6) !important;
+  margin-bottom: .4rem !important;
+  margin-top: .2rem !important;
+}
+
+/* ─── Quick action rows ─── */
+.dm-qa-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto auto !important;
+  gap: .4rem !important;
+  align-items: end !important;
+}
+.dm-qa-row select,
+.dm-qa-row input {
+  min-width: 0 !important;
+}
+
+/* ─── DM Buttons ─── */
+.dm-card-body .maw-btn {
+  font-family: var(--F1) !important;
+  font-size: .56rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .1em !important;
+  padding: .5rem 1rem !important;
+  border-radius: 4px !important;
+}
+.dm-card-body .maw-btn.small {
+  padding: .45rem .8rem !important;
+}
+
+/* ─── Preset pills ─── */
+.dm-preset-row {
+  display: flex !important;
+  gap: .3rem !important;
+  flex-wrap: wrap !important;
+  margin: .5rem 0 !important;
+}
+.dm-preset {
+  font-family: var(--F1) !important;
+  font-size: .5rem !important;
+  font-weight: 700 !important;
+  padding: .3rem .6rem !important;
+  background: rgba(4,10,24,.6) !important;
+  border: 1px solid rgba(50,100,200,.2) !important;
+  color: var(--text-dim) !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: all .12s !important;
+}
+.dm-preset:hover {
+  background: rgba(30,70,140,.4) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 8px -2px var(--accent-glow) !important;
+}
+
+/* ─── Form row helper ─── */
+.dm-ss-form-row {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)) !important;
+  gap: .4rem !important;
+  margin-top: .3rem !important;
+}
+
+/* ─── Roster cards ─── */
+.dm-agent {
+  background: linear-gradient(135deg, rgba(10,24,52,.7), rgba(6,16,38,.8)) !important;
+  border: 1px solid rgba(50,100,200,.2) !important;
+  border-radius: 6px !important;
+  padding: .6rem .8rem !important;
+  margin-bottom: .4rem !important;
+  transition: border-color .15s !important;
+}
+.dm-agent:hover {
+  border-color: rgba(74,139,245,.4) !important;
+}
+.dm-agent.sel {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px -4px var(--accent-glow) !important;
+}
+
+/* ─── DM Roster controls — 5-column grid ─── */
+.dm-agent-controls {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: .35rem !important;
+  margin: .4rem 0 .2rem !important;
+}
+.dm-mini {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+.dm-mini > span {
+  font-family: var(--F4) !important;
+  font-size: .42rem !important;
+  letter-spacing: .12em !important;
+  text-transform: uppercase !important;
+  color: rgba(140,180,240,.5) !important;
+}
+
+/* ─── Quest rows in DM ─── */
+.dm-quest-row {
+  background: linear-gradient(135deg, rgba(10,24,52,.6), rgba(6,16,38,.7)) !important;
+  border: 1px solid rgba(50,100,200,.15) !important;
+  border-left: 3px solid var(--qt-c, var(--accent)) !important;
+  border-radius: 6px !important;
+  padding: .6rem .8rem !important;
+  margin-bottom: .4rem !important;
+}
+.dm-quest-top {
+  display: flex !important;
+  align-items: center !important;
+  gap: .5rem !important;
+}
+.dm-quest-top strong {
+  flex: 1 !important;
+  font-family: var(--F2) !important;
+  font-size: .82rem !important;
+}
+.dm-quest-status {
+  font-size: .7rem !important;
+  padding: .25rem .5rem !important;
+  min-width: 100px !important;
+}
+.dm-quest-objs {
+  padding: .4rem 0 .2rem .8rem !important;
+}
+.dm-quest-obj {
+  font-size: .75rem !important;
+  padding: .2rem 0 !important;
+}
+.dm-quest-rewards {
+  font-family: var(--F4) !important;
+  font-size: .54rem !important;
+  color: var(--amber) !important;
+  margin-top: .3rem !important;
+  padding-top: .3rem !important;
+  border-top: 1px solid rgba(50,100,200,.1) !important;
+}
+
+/* ─── Empty state in DM ─── */
+.dm-empty {
+  font-family: var(--F4);
+  font-size: .62rem;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 1.5rem;
+  letter-spacing: .08em;
+  opacity: .6;
+}
+
+/* ─── Class bonus grid ─── */
+.dm-cc-bonuses {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: .35rem !important;
+  margin-top: .3rem !important;
+}
+.dm-cc-bonus-field {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: .15rem !important;
+}
+.dm-cc-bonus-field span {
+  font-family: var(--F1) !important;
+  font-size: .48rem !important;
+  font-weight: 900 !important;
+  color: var(--accent) !important;
+}
+.dm-cc-bonus-field input {
+  text-align: center !important;
+  max-width: 50px !important;
+}

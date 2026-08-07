@@ -1897,16 +1897,9 @@ function renderDmTargetPicker(){
 // Focus guard: don't re-render the DM roster while the DM is typing in it.
 // This prevents Firebase snapshots from yanking focus out of input fields.
 let _dmFocused = false;
-(function(){
-  const ov = document.getElementById('dmOverlay');
-  if(!ov) return;
-  ov.addEventListener('focusin', ()=>{ _dmFocused = true; });
-  ov.addEventListener('focusout', ()=>{ setTimeout(()=>{ _dmFocused = false; }, 100); });
-})();
 
 function renderDmPanel(){
   if(!dmUnlocked) return;
-  // Skip roster re-render if DM is focused on a field inside the overlay
   if(_dmFocused) return;
   // Player roster with rank + points controls
   const roster = el('dmRoster');
@@ -3024,12 +3017,12 @@ function buildDmPanelHtml(){
       </div>
       <div class="dm-tab-content" data-dmtab="rewards">
         <div class="dm-card"><div class="dm-card-title">✦ EXP Awards</div><div class="dm-card-body">
-          <div class="dm-qa-row"><select id="dmExpTarget">${charOptsAll}</select><input type="number" id="dmExpAmount" value="100" min="1"><button class="maw-btn small" id="dmExpBtn">Award</button></div>
+          <div class="dm-qa-row"><select id="dmExpTarget">${charOptsAll}</select><input type="number" id="dmExpAmount" value="100" min="1"><button class="maw-btn small" id="dmExpBtn">+ Award</button><button class="maw-btn ghost small" id="dmExpTakeBtn">− Take</button></div>
           <div class="dm-preset-row">${[50,100,250,500,1000,5000].map(n=>`<button class="dm-preset dm-exp-preset" data-exp="${n}">${n>=1000?String(n/1000)+'k':n}</button>`).join('')}</div>
           <div id="dmExpStatus" class="dm-exp-status"></div>
         </div></div>
         <div class="dm-card"><div class="dm-card-title">💰 Gold Awards</div><div class="dm-card-body">
-          <div class="dm-qa-row"><select id="dmGoldTarget">${charOptsAll}</select><select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select><button class="maw-btn small" id="dmGoldBtn">Award</button></div>
+          <div class="dm-qa-row"><select id="dmGoldTarget">${charOptsAll}</select><select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select><button class="maw-btn small" id="dmGoldBtn">+ Award</button><button class="maw-btn ghost small" id="dmGoldTakeBtn">− Take</button></div>
         </div></div>
       </div>
       <div class="dm-tab-content" data-dmtab="quests">
@@ -3095,6 +3088,13 @@ function buildDmPanelHtml(){
       content.querySelector(`.dm-tab-content[data-dmtab="${btn.dataset.dmtab}"]`)?.classList.add('active');
     });
   });
+
+  // Focus guard — prevent re-render while DM is typing
+  const dmPanel = el('dmFullPanel');
+  if(dmPanel){
+    dmPanel.addEventListener('focusin', ()=>{ _dmFocused = true; });
+    dmPanel.addEventListener('focusout', ()=>{ setTimeout(()=>{ _dmFocused = false; }, 150); });
+  }
 
   // Wire DM head buttons
   el('dmCloseBtn')?.addEventListener('click', closeDmOverlay);
@@ -3177,26 +3177,49 @@ function buildDmPanelHtml(){
     }
     pushState(true); render(); renderDmPanel();
   });
+  el('dmGoldTakeBtn')?.addEventListener('click', ()=>{
+    const target = el('dmGoldTarget')?.value;
+    const grade = el('dmGoldGrade')?.value||'E';
+    const thr = THREAT_BY_GRADE[grade]||THREAT_GRADES[0];
+    const amount = thr.points;
+    if(target === 'all'){
+      state.characters.filter(c=>c.state==='active').forEach(c=>{ c.points = Math.max(0, (c.points||0)-amount); });
+      showToast(`Took ${fmtGold(amount)} gold from all active players`, 'warn');
+    } else {
+      const c = state.characters[Number(target)]; if(!c) return;
+      c.points = Math.max(0, (c.points||0)-amount);
+      showToast(`Took ${fmtGold(amount)} gold from ${c.name||'Player'}`, 'warn');
+    }
+    pushState(true); render(); renderDmPanel();
+  });
 
   // EXP awards
-  function awardExpFromDm(){
+  function awardExpFromDm(take=false){
     const target = el('dmExpTarget')?.value;
-    const amount = Math.max(0, Number(el('dmExpAmount')?.value) || 0);
-    if(!amount){ showToast('Enter an EXP amount','warn'); return; }
+    const raw = Number(el('dmExpAmount')?.value) || 0;
+    if(!raw){ showToast('Enter an EXP amount','warn'); return; }
+    const amount = take ? -Math.abs(raw) : Math.abs(raw);
     const targets = target === 'all'
       ? state.characters.filter(c=>c.state==='active')
       : [state.characters[Number(target)]].filter(Boolean);
     targets.forEach(c => {
-      const oldLvl = c.systemLevel || 1;
-      const levelsGained = gainExp(c, amount);
-      if(levelsGained > 0){
-        showToast(`✦ ${c.name||'Player'} leveled up! System Lv.${oldLvl} → ${c.systemLevel}${c.level !== dndLevelFromSystem(oldLvl) ? ` (DnD Lv.${c.level}!)` : ''}`, 'buy');
+      if(amount > 0){
+        const oldLvl = c.systemLevel || 1;
+        const levelsGained = gainExp(c, amount);
+        if(levelsGained > 0){
+          showToast(`✦ ${c.name||'Player'} leveled up! System Lv.${oldLvl} → ${c.systemLevel}${c.level !== dndLevelFromSystem(oldLvl) ? ` (DnD Lv.${c.level}!)` : ''}`, 'buy');
+        }
+      } else {
+        // Take EXP — reduce but don't go below 0
+        c.exp = Math.max(0, (c.exp||0) + amount);
       }
     });
-    showToast(`+${fmtGold(amount)} EXP to ${target==='all'?'all players':targets[0]?.name||'Player'}`, 'info');
+    const verb = amount > 0 ? `+${fmtGold(amount)}` : `${fmtGold(amount)}`;
+    showToast(`${verb} EXP to ${target==='all'?'all players':targets[0]?.name||'Player'}`, amount>0?'info':'warn');
     pushState(true); render(); renderDmExpStatus();
   }
-  el('dmExpBtn')?.addEventListener('click', awardExpFromDm);
+  el('dmExpBtn')?.addEventListener('click', ()=>awardExpFromDm(false));
+  el('dmExpTakeBtn')?.addEventListener('click', ()=>awardExpFromDm(true));
   // Presets fill the amount input then award
   document.querySelectorAll('.dm-exp-preset').forEach(btn => btn.addEventListener('click', ()=>{
     const inp = el('dmExpAmount'); if(inp) inp.value = btn.dataset.exp;

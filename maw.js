@@ -2158,452 +2158,91 @@ function renderDmSites(){
 // DM · INVESTIGATION CASES
 // ═════════════════════════════════════════════════════════════════
 let _dmCaseSelectedId = null;
-function dmActiveCase(){
-  const list = state.cases || [];
-  if (!list.length) return null;
-  let k = list.find(x => x.id === _dmCaseSelectedId);
-  if (!k) { k = list[0]; _dmCaseSelectedId = k.id; }
-  return k;
-}
-function addCase(){
-  if(!Array.isArray(state.cases)) state.cases = [];
-  const k = {
-    id: 'case-' + Date.now(),
-    codename: '', title: 'New Case', briefing: '',
-    status: 'open', priority: 'normal',
-    objectives: [], visibleTo: [], dmNotes: '',
-    created: Date.now()
-  };
-  state.cases.push(k);
-  _dmCaseSelectedId = k.id;
-  pushState(true); renderDmQuestList();
-}
+// ═════════════════════════════════════════════════════════════════
+// DM · QUEST LIST RENDERER (used in GM Console → Quests tab)
+// ═════════════════════════════════════════════════════════════════
 function renderDmQuestList(){
-  const host = el('dmCasesRoot'); if(!host) return;
-  const list = state.cases || [];
-  const cur = dmActiveCase();
-  const grouped = { open:[], closed:[], failed:[], cold:[] };
-  list.forEach(k => (grouped[k.status] || grouped.open).push(k));
+  const host = el('dmQuestList'); if(!host) return;
+  const quests = state.cases || [];
+  if(!quests.length){ host.innerHTML='<div class="dm-empty">No quests created yet.</div>'; return; }
 
-  host.innerHTML = `
-    <div class="dm-case-shell">
-      <aside class="dm-case-side">
-        ${['open','cold','closed','failed'].map(status => {
-          if (!grouped[status].length) return '';
-          const lbl = { open:'Open', cold:'Cold', closed:'Closed', failed:'Failed' }[status];
-          return `<div class="dm-case-group">
-            <div class="dm-case-groupname ${status}">${lbl}</div>
-            ${grouped[status].map(k => {
-              const on = cur && k.id === cur.id;
-              const doneCt = (k.objectives||[]).filter(o=>o.done).length;
-              const totCt  = (k.objectives||[]).length;
-              return `<button type="button" class="dm-case-row ${status} ${on?'active':''} pri-${k.priority}" data-caseid="${esc(k.id)}">
-                <span class="dm-case-name">${esc(k.codename?`[${k.codename}] `:'')}${esc(k.title||'Untitled')}</span>
-                <span class="dm-case-sub">${totCt?`${doneCt}/${totCt}`:'—'} · ${(k.visibleTo||[]).length} viewers</span>
-              </button>`;
-            }).join('')}
-          </div>`;
-        }).join('') || '<div class="dm-empty" style="padding:1rem">No cases opened.</div>'}
-      </aside>
-      <div class="dm-case-main">
-        ${cur ? `
-          <div class="dm-case-head">
-            <input type="text" id="dmCaseCode" value="${esc(cur.codename)}" class="dm-case-code" placeholder="CODENAME">
-            <input type="text" id="dmCaseTitle" value="${esc(cur.title)}" class="dm-case-title" placeholder="Case title">
-            <select id="dmCaseStatus" class="dm-case-status">
-              <option value="open"   ${cur.status==='open'?'selected':''}>OPEN</option>
-              <option value="cold"   ${cur.status==='cold'?'selected':''}>COLD</option>
-              <option value="closed" ${cur.status==='closed'?'selected':''}>CLOSED</option>
-              <option value="failed" ${cur.status==='failed'?'selected':''}>FAILED</option>
-            </select>
-            <select id="dmCasePri" class="dm-case-pri pri-${cur.priority}">
-              <option value="low"      ${cur.priority==='low'?'selected':''}>LOW</option>
-              <option value="normal"   ${cur.priority==='normal'?'selected':''}>NORMAL</option>
-              <option value="high"     ${cur.priority==='high'?'selected':''}>HIGH</option>
-              <option value="critical" ${cur.priority==='critical'?'selected':''}>CRITICAL</option>
-            </select>
-            <button class="dt-btn ghost small" id="dmCaseDel">🗑</button>
-          </div>
-          <label class="dm-case-field">
-            <span>Briefing (players see this)</span>
-            <textarea id="dmCaseBrief" placeholder="What has the party been told? What is the setup? Where do they start?">${esc(cur.briefing)}</textarea>
-          </label>
-          <div class="dm-case-sec">Objectives</div>
-          <div class="dm-case-objs">
-            ${(cur.objectives||[]).map(o => `<div class="dm-case-obj" data-oid="${esc(o.id)}">
-              <input type="checkbox" ${o.done?'checked':''} class="dm-case-obj-cb" data-oid="${esc(o.id)}">
-              <input type="text" class="dm-case-obj-text" data-oid="${esc(o.id)}" value="${esc(o.text)}" placeholder="Objective…">
-              <button class="dm-case-obj-del" data-oid="${esc(o.id)}">✕</button>
-            </div>`).join('')}
-            <button class="dt-btn ghost small" id="dmCaseObjAdd">+ Add Objective</button>
-          </div>
-          <div class="dm-case-sec">Authorized Viewers</div>
-          <div class="dm-case-viewers">
-            ${state.characters.filter(c => c.state !== 'dead').map(c => {
-              const on = (cur.visibleTo||[]).includes(c.id);
-              return `<label class="dm-case-viewer ${on?'on':''}">
-                <input type="checkbox" data-caseview="${esc(c.id)}" ${on?'checked':''}>
-                <span>${esc(c.name || 'Unnamed')}</span>
-              </label>`;
-            }).join('')}
-            <button class="dt-btn ghost small" id="dmCaseAllView">All</button>
-            <button class="dt-btn ghost small" id="dmCaseNoneView">None</button>
-          </div>
-          <label class="dm-case-field">
-            <span>DM Notes (private)</span>
-            <textarea id="dmCaseNotes" class="dm-case-private" placeholder="Twists, complications, real stakes. Not shown to players.">${esc(cur.dmNotes)}</textarea>
-          </label>
-        ` : `<div class="dm-empty" style="padding:2rem">Open a case to begin.</div>`}
-      </div>
-    </div>
-  `;
-
-  host.querySelectorAll('.dm-case-row').forEach(r => r.addEventListener('click', () => {
-    _dmCaseSelectedId = r.dataset.caseid; renderDmQuestList();
-  }));
-  el('dmCaseDel')?.addEventListener('click', () => {
-    const c = dmActiveCase(); if(!c) return;
-    if (!confirm(`Delete case "${c.title}"?`)) return;
-    state.cases = state.cases.filter(x => x.id !== c.id);
-    _dmCaseSelectedId = null;
-    pushState(true); renderDmQuestList(); renderQuestLog();
-  });
-  const bind = (id, field) => el(id)?.addEventListener('input', e => {
-    const c = dmActiveCase(); if(!c) return;
-    c[field] = e.target.value; pushState();
-    if (['codename','title','priority','status'].includes(field)) renderDmQuestList();
-    renderQuestLog();
-  });
-  bind('dmCaseCode','codename'); bind('dmCaseTitle','title');
-  bind('dmCaseBrief','briefing'); bind('dmCaseNotes','dmNotes');
-  ['dmCaseStatus','dmCasePri'].forEach(id => el(id)?.addEventListener('change', e => {
-    const c = dmActiveCase(); if(!c) return;
-    c[id==='dmCaseStatus'?'status':'priority'] = e.target.value;
-    pushState(true); renderDmQuestList(); renderQuestLog();
-  }));
-  host.querySelectorAll('.dm-case-obj-text').forEach(inp => inp.addEventListener('input', e => {
-    const c = dmActiveCase(); if(!c) return;
-    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
-    o.text = e.target.value; pushState(); renderQuestLog();
-  }));
-  host.querySelectorAll('.dm-case-obj-cb').forEach(cb => cb.addEventListener('change', e => {
-    const c = dmActiveCase(); if(!c) return;
-    const o = c.objectives.find(x => x.id === e.target.dataset.oid); if(!o) return;
-    o.done = e.target.checked; pushState(true); renderDmQuestList(); renderQuestLog();
-  }));
-  host.querySelectorAll('.dm-case-obj-del').forEach(b => b.addEventListener('click', () => {
-    const c = dmActiveCase(); if(!c) return;
-    c.objectives = c.objectives.filter(x => x.id !== b.dataset.oid);
-    pushState(true); renderDmQuestList(); renderQuestLog();
-  }));
-  el('dmCaseObjAdd')?.addEventListener('click', () => {
-    const c = dmActiveCase(); if(!c) return;
-    c.objectives.push({ id:'obj-'+Date.now(), text:'', done:false });
-    pushState(true); renderDmQuestList();
-  });
-  host.querySelectorAll('[data-caseview]').forEach(cb => cb.addEventListener('change', e => {
-    const c = dmActiveCase(); if(!c) return;
-    const cid = e.target.dataset.caseview;
-    if (e.target.checked && !c.visibleTo.includes(cid)) c.visibleTo.push(cid);
-    if (!e.target.checked) c.visibleTo = c.visibleTo.filter(x => x !== cid);
-    e.target.closest('.dm-case-viewer').classList.toggle('on', e.target.checked);
-    pushState(true); renderQuestLog();
-  }));
-  el('dmCaseAllView')?.addEventListener('click', () => {
-    const c = dmActiveCase(); if(!c) return;
-    c.visibleTo = state.characters.map(x => x.id);
-    pushState(true); renderDmQuestList(); renderQuestLog();
-  });
-  el('dmCaseNoneView')?.addEventListener('click', () => {
-    const c = dmActiveCase(); if(!c) return;
-    c.visibleTo = [];
-    pushState(true); renderDmQuestList(); renderQuestLog();
-  });
-}
-
-// Player-side view of cases visible to them
-// ═════════════════════════════════════════════════════════════════
-// QUEST LOG — player-side quest display
-// ═════════════════════════════════════════════════════════════════
-const QUEST_TYPES = {
-  main:      { label:'Main Quest',  icon:'⚔', color:'#d94f4f' },
-  side:      { label:'Side Quest',  icon:'◆', color:'#4a8bf5' },
-  daily:     { label:'Daily',       icon:'☀', color:'#4ade80' },
-  emergency: { label:'Emergency',   icon:'⚠', color:'#e8a72c' },
-  hunt:      { label:'Hunt',        icon:'🎯', color:'#c04a5a' }
-};
-
-function renderQuestLog(){
-  const c = getChar(); if(!c) return;
-  const host = el('questList'); if(!host) return;
-  const quests = (state.cases || []).filter(q =>
-    q.status !== 'completed' && q.status !== 'failed' &&
-    (dmUnlocked || q.assignedTo === 'all' || (Array.isArray(q.assignedTo) && q.assignedTo.includes(c.id)))
-  );
-
-  // Stats
-  const statsEl = el('questStats');
-  if(statsEl){
-    const active = quests.filter(q=>q.status==='active').length;
-    const available = quests.filter(q=>q.status==='available').length;
-    const completed = (state.cases||[]).filter(q=>q.status==='completed').length;
-    statsEl.innerHTML = `
-      <span class="qstat"><strong>${active}</strong> Active</span>
-      <span class="qstat"><strong>${available}</strong> Available</span>
-      <span class="qstat completed"><strong>${completed}</strong> Completed</span>
-    `;
-  }
-
-  // Filters
-  const filterEl = el('questFilters');
-  if(filterEl){
-    filterEl.innerHTML = Object.entries(QUEST_TYPES).map(([k,v])=>
-      `<button class="quest-type-filter" data-qtype="${k}" style="--qt-c:${v.color}">${v.icon} ${v.label}</button>`
-    ).join('') + `<button class="quest-type-filter active" data-qtype="all">All</button>`;
-    filterEl.querySelectorAll('.quest-type-filter').forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        filterEl.querySelectorAll('.quest-type-filter').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        const t = btn.dataset.qtype;
-        host.querySelectorAll('.quest-card').forEach(card=>{
-          card.style.display = (t==='all' || card.dataset.qtype===t) ? '' : 'none';
-        });
-      });
-    });
-  }
-
-  if(!quests.length){
-    host.innerHTML = `<div class="empty-note big">📜<br>NO ACTIVE QUESTS<br><span>The Game Master assigns quests from the GM Console.</span></div>`;
-    return;
-  }
-
-  // Sort: active first, then by rank
-  const rankOrder = {S:0,A:1,B:2,C:3,D:4,E:5};
-  quests.sort((a,b)=>{
-    if(a.status==='active' && b.status!=='active') return -1;
-    if(b.status==='active' && a.status!=='active') return 1;
-    return (rankOrder[a.rank]||5) - (rankOrder[b.rank]||5);
-  });
-
-  host.innerHTML = quests.map(q=>{
+  host.innerHTML = quests.map((q,i) => {
     const qt = QUEST_TYPES[q.type] || QUEST_TYPES.side;
     const rk = RANK_BY_ID[q.rank] || RANKS[0];
     const doneCt = (q.objectives||[]).filter(o=>o.done).length;
     const totCt = (q.objectives||[]).length;
     const pct = totCt > 0 ? Math.round(doneCt/totCt*100) : 0;
-    const isActive = q.status === 'active';
-
     return `
-    <div class="quest-card ${q.status}" data-qtype="${q.type}" style="--qt-c:${qt.color};--qr-c:${rk.color}">
-      <div class="qc-head">
-        <span class="qc-type" style="color:${qt.color}">${qt.icon}</span>
-        <span class="qc-name">${esc(q.name)}</span>
-        <span class="qc-rank" style="color:${rk.color};border-color:${rk.color}">${rk.id}</span>
-        <span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span>
+    <div class="dm-quest-row" style="--qt-c:${qt.color}">
+      <div class="dm-quest-top">
+        <span style="color:${qt.color};font-size:1rem">${qt.icon}</span>
+        <strong>${esc(q.name)}</strong>
+        <span class="dm-quest-rank" style="color:${rk.color}">${rk.id}</span>
+        <select class="dm-quest-status" data-qi="${i}">
+          <option value="available" ${q.status==='available'?'selected':''}>Available</option>
+          <option value="active" ${q.status==='active'?'selected':''}>Active</option>
+          <option value="completed" ${q.status==='completed'?'selected':''}>Completed</option>
+          <option value="failed" ${q.status==='failed'?'selected':''}>Failed</option>
+        </select>
+        <button class="dm-quest-del" data-qi="${i}" title="Delete">✕</button>
       </div>
-      ${q.desc ? `<div class="qc-desc">${esc(q.desc)}</div>` : ''}
+      ${q.desc ? `<div style="font-size:.72rem;color:var(--text-dim);margin:.3rem 0 .2rem;padding-left:1.5rem">${esc(q.desc)}</div>` : ''}
       ${totCt ? `
-        <div class="qc-progress">
-          <div class="qc-progress-bar"><div class="qc-progress-fill" style="width:${pct}%"></div></div>
-          <span class="qc-progress-text">${doneCt}/${totCt}</span>
+        <div style="display:flex;align-items:center;gap:.5rem;margin:.3rem 0 .2rem;padding-left:1.5rem">
+          <div style="flex:1;height:4px;background:rgba(0,0,0,.4);border-radius:2px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${qt.color};border-radius:2px;transition:width .3s"></div>
+          </div>
+          <span style="font-family:var(--F4);font-size:.48rem;color:var(--text-dim)">${doneCt}/${totCt}</span>
         </div>
-        <div class="qc-objectives">
-          ${q.objectives.map(o=>`
-            <div class="qc-obj ${o.done?'done':''}">
-              <span class="qc-obj-check">${o.done?'✓':'○'}</span>
-              <span>${esc(o.text)}</span>
-            </div>
-          `).join('')}
+        <div class="dm-quest-objs">${q.objectives.map((o,oi)=>`
+          <label class="dm-quest-obj"><input type="checkbox" ${o.done?'checked':''} data-qi="${i}" data-oi="${oi}"> ${esc(o.text)}</label>
+        `).join('')}</div>
+      ` : ''}
+      ${(q.rewards.exp||q.rewards.gold||q.rewards.items?.length) ? `
+        <div class="dm-quest-rewards">
+          Rewards: ${q.rewards.exp?`✦ ${fmtGold(q.rewards.exp)} EXP `:''}${q.rewards.gold?`◆ ${fmtGold(q.rewards.gold)} Gold `:''}${(q.rewards.items||[]).map(it=>`📦 ${esc(it)}`).join(' ')}
         </div>
       ` : ''}
-      ${(q.rewards.exp || q.rewards.gold || q.rewards.items.length) ? `
-        <div class="qc-rewards">
-          <span class="qc-rewards-label">REWARDS:</span>
-          ${q.rewards.exp ? `<span class="qc-reward exp">✦ ${fmtGold(q.rewards.exp)} EXP</span>` : ''}
-          ${q.rewards.gold ? `<span class="qc-reward gold">◆ ${fmtGold(q.rewards.gold)} Gold</span>` : ''}
-          ${q.rewards.items.map(it=>`<span class="qc-reward item">📦 ${esc(it)}</span>`).join('')}
-        </div>
-      ` : ''}
-      ${q.timeLimit ? `<div class="qc-time">⏱ ${esc(q.timeLimit)}</div>` : ''}
     </div>`;
   }).join('');
 
-  // Completed quests toggle
-  el('questShowCompleted')?.addEventListener('click',()=>{
-    const list = el('questCompletedList');
-    if(!list) return;
-    const showing = list.style.display !== 'none';
-    list.style.display = showing ? 'none' : '';
-    el('questShowCompleted').textContent = showing ? 'Show Completed Quests' : 'Hide Completed Quests';
-    if(!showing) renderCompletedQuests();
-  });
-}
-
-function renderCompletedQuests(){
-  const host = el('questCompletedList'); if(!host) return;
-  const completed = (state.cases||[]).filter(q=>q.status==='completed'||q.status==='failed');
-  if(!completed.length){ host.innerHTML='<div class="empty-note">No completed quests yet.</div>'; return; }
-  host.innerHTML = completed.map(q=>{
-    const qt = QUEST_TYPES[q.type]||QUEST_TYPES.side;
-    return `<div class="quest-card completed-card ${q.status}">
-      <div class="qc-head">
-        <span class="qc-type" style="color:${qt.color}">${qt.icon}</span>
-        <span class="qc-name">${esc(q.name)}</span>
-        <span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span>
-      </div>
-      ${(q.rewards.exp||q.rewards.gold)?`<div class="qc-rewards"><span class="qc-rewards-label">EARNED:</span>${q.rewards.exp?`<span class="qc-reward exp">✦${fmtGold(q.rewards.exp)}</span>`:''}${q.rewards.gold?`<span class="qc-reward gold">◆${fmtGold(q.rewards.gold)}</span>`:''}</div>`:''}
-    </div>`;
-  }).join('');
-}
-
-// ═════════════════════════════════════════════════════════════════
-// DM · INITIATIVE TRACKER
-// ═════════════════════════════════════════════════════════════════
-// ═════════════════════════════════════════════════════════════════
-// DM · FIREBASE DIAGNOSTICS
-// ═════════════════════════════════════════════════════════════════
-function renderDmDiagnostics(){
-  const host = el('dmDiagRoot'); if(!host) return;
-  const bytes = JSON.stringify(state).length;
-  const kb = (bytes / 1024).toFixed(1);
-  const chars = state.characters?.length || 0;
-  const named = state.characters?.filter(c => c.name).length || 0;
-  const nearLimit = bytes > 800_000;
-
-  host.innerHTML = `
-    <div class="dm-diag-grid">
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Firestore Document</div>
-        <div class="dm-diag-val mono">campaigns/${DOC}</div>
-      </div>
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">State Size</div>
-        <div class="dm-diag-val ${nearLimit?'danger':''}">${kb} KB${nearLimit?' ⚠':''}</div>
-      </div>
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Player Records</div>
-        <div class="dm-diag-val">${chars} <span class="dm-diag-sub">(${named} named)</span></div>
-      </div>
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Anomaly Catalog</div>
-        <div class="dm-diag-val">${(state.anomalyCatalog||[]).length}</div>
-      </div>
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Investigation Cases</div>
-        <div class="dm-diag-val">${(state.cases||[]).length}</div>
-      </div>
-      <div class="dm-diag-cell">
-        <div class="dm-diag-lbl">Registered Sites</div>
-        <div class="dm-diag-val">${(state.sites||[]).length}</div>
-      </div>
-    </div>
-    <p class="dm-broadcast-note" style="margin-top:.9rem">Firestore has a 1MB per-document limit. If state size approaches that, consider archiving old cases or clearing the anomaly catalog of resolved entries. All syncs go through <code>campaigns/${DOC}</code>.</p>
-    <div class="dm-diag-actions">
-      <button id="diagPush" class="dt-btn small">▲ Force Sync Now</button>
-      <button id="diagLog" class="dt-btn ghost small">📋 Log State to Console</button>
-    </div>
-  `;
-
-  el('diagPush')?.addEventListener('click', async () => {
-    try { await pushState(true); showToast('State pushed to Firebase', 'success'); renderDmDiagnostics(); }
-    catch(e) { showToast('Push failed: ' + (e.message||e), 'warn'); }
-  });
-  el('diagLog')?.addEventListener('click', () => {
-    console.log('DT STATE:', state);
-    showToast('State logged to browser console (F12)', 'info');
-  });
-}
-function syncSiteAlertButtons(){
-  document.querySelectorAll('.site-alert-btn[data-alert]').forEach(b=>{
-    b.classList.toggle('active', b.dataset.alert===(state.siteAlert||'normal'));
-  });
-}
-
-function awardMissionPoints(grade){
-  const tg = THREAT_BY_GRADE[grade]; if(!tg) return;
-  const targetSel = el('dmAwardTarget');
-  const idx = targetSel ? parseInt(targetSel.value) : state.selectedCharacter;
-  const missionName = el('dmMissionName')?.value.trim() || `Grade ${grade} Operation`;
-  let amount = tg.points;
-  if(grade==='S'){
-    const custom = prompt('Grade S — enter point award (50,000+):', '50000');
-    if(custom==null) return;
-    amount = Math.max(50000, Number(custom)||50000);
-  }
-  const applyTo = idx===-1 ? state.characters.filter(c=>c.state==='active') : [state.characters[idx]];
-  applyTo.forEach(c=>{
-    if(!c) return;
-    c.points = (Number(c.points)||0) + amount;
-    if(!Array.isArray(c.missions)) c.missions=[];
-    c.missions.unshift({ name:missionName, grade, points:amount, ts:Date.now() });
-  });
-  if(el('dmMissionName')) el('dmMissionName').value='';
-  pushState(true); render();
-  const who = idx===-1?'all active agents':(state.characters[idx]?.name||'agent');
-  showToast(`Awarded ${fmtGold(amount)} gold to ${who} · Grade ${grade}`,'buy');
-  SFX.buy();
-}
-
-// ── BULK ACTIONS — apply to all active / all / selected ──
-function bulkApply(kind){
-  if(!dmUnlocked) return;
-  const scope = el('bulkScope')?.value || 'active';
-  const amt = Number(el('bulkAmount')?.value)||0;
-  let targets = state.characters;
-  if(scope==='active') targets = state.characters.filter(c=>c.state==='active');
-  else if(scope==='selected') targets = [state.characters[state.selectedCharacter]];
-  targets = targets.filter(Boolean);
-  if(!targets.length){ showToast('No targets in scope','warn'); return; }
-  let verb = '';
-  targets.forEach(c=>{
-    switch(kind){
-      case 'hp-dmg':   c.hp.current = clamp((c.hp.current||0)-amt,0,c.hp.max); verb=`−${amt} HP`; break;
-      case 'hp-heal':  c.hp.current = clamp((c.hp.current||0)+amt,0,c.hp.max); verb=`+${amt} HP`; break;
-      case 'hp-full':  c.hp.current = c.hp.max; verb='HP restored'; break;
-      case 'pts-give': c.points = (Number(c.points)||0)+amt; verb=`+${fmtGold(amt)} gold`; break;
-      case 'pts-take': c.points = Math.max(0,(Number(c.points)||0)-amt); verb=`−${fmtGold(amt)} gold`; break;
+  // Wire status changes
+  host.querySelectorAll('.dm-quest-status').forEach(sel=>sel.addEventListener('change',()=>{
+    const q = state.cases[+sel.dataset.qi]; if(!q) return;
+    const oldStatus = q.status;
+    q.status = sel.value;
+    // Auto-grant rewards on completion
+    if(sel.value === 'completed' && oldStatus !== 'completed'){
+      const targets = state.characters.filter(c=>c.state==='active');
+      targets.forEach(c=>{
+        if(q.rewards.exp) gainExp(c, q.rewards.exp);
+        if(q.rewards.gold) c.points = (c.points||0) + q.rewards.gold;
+      });
+      if(q.rewards.exp || q.rewards.gold){
+        showToast(`Quest "${q.name}" completed! Rewards: ${q.rewards.exp?fmtGold(q.rewards.exp)+' EXP ':''}${q.rewards.gold?fmtGold(q.rewards.gold)+' Gold':''}`, 'buy');
+      }
     }
-  });
-  pushState(true); render();
-  const scopeLabel = scope==='active'?'all active agents':scope==='all'?'entire roster':'selected agent';
-  showToast(`${verb} → ${scopeLabel} (${targets.length})`, kind.includes('dmg')||kind.includes('take')?'warn':'buy');
-  if(kind.includes('dmg')||kind.includes('take')) SFX.warn(); else SFX.confirm();
+    pushState(true); render(); renderDmQuestList();
+  }));
+
+  // Wire objective checkboxes
+  host.querySelectorAll('.dm-quest-obj input').forEach(cb=>cb.addEventListener('change',()=>{
+    const q = state.cases[+cb.dataset.qi]; if(!q) return;
+    const obj = q.objectives[+cb.dataset.oi]; if(!obj) return;
+    obj.done = cb.checked;
+    pushState(true); renderDmQuestList();
+  }));
+
+  // Wire delete
+  host.querySelectorAll('.dm-quest-del').forEach(btn=>btn.addEventListener('click',()=>{
+    const q = state.cases[+btn.dataset.qi];
+    if(!confirm(`Delete quest "${q?.name||'Untitled'}"?`)) return;
+    state.cases.splice(+btn.dataset.qi, 1);
+    pushState(true); renderDmQuestList();
+    showToast('Quest deleted','info');
+  }));
 }
 
-function renderDmShop(){
-  const host = el('dmShopList'); if(!host) return;
-  if(!Array.isArray(state.shop)) state.shop=[];
-  // header: count + reset/seed control
-  const meta = el('dmShopMeta');
-  if(meta) meta.textContent = `${state.shop.length} items stocked`;
-
-  host.innerHTML = state.shop.length ? state.shop.map((it,i)=>`
-    <div class="dm-shop-row" style="--tier-c:${TIER_COLOR[Number(it.tier)||1]}">
-      <input class="ds-name" data-i="${i}" value="${esc(it.name||'')}" placeholder="Item name">
-      <select class="ds-tier" data-i="${i}" title="Required tier">${[1,2,3,4].map(t=>`<option value="${t}" ${(Number(it.tier)||1)===t?'selected':''}>T${t}</option>`).join('')}</select>
-      <select class="ds-cat" data-i="${i}">${SHOP_CATEGORIES.map(t=>`<option ${it.category===t?'selected':''}>${t}</option>`).join('')}</select>
-      <input class="ds-price" data-i="${i}" type="number" value="${it.price||0}" placeholder="Price" title="Price in points">
-      <input class="ds-stock" data-i="${i}" type="number" value="${it.stock==null?'':it.stock}" placeholder="∞" title="Stock (blank = unlimited)">
-      <button class="ds-del" data-i="${i}">✕</button>
-    </div>
-    <input class="ds-desc" data-i="${i}" value="${esc(it.desc||'')}" placeholder="Short description (optional)">
-  `).join('') : `<div class="empty-note">No items stocked. Add items below, or load the default shop catalog.</div>`;
-  host.querySelectorAll('.ds-name').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].name=inp.value; pushState(); }));
-  host.querySelectorAll('.ds-desc').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].desc=inp.value; pushState(); }));
-  host.querySelectorAll('.ds-price').forEach(inp=> inp.addEventListener('input',()=>{ state.shop[+inp.dataset.i].price=Math.max(0,Number(inp.value)||0); pushState(); }));
-  host.querySelectorAll('.ds-stock').forEach(inp=> inp.addEventListener('input',()=>{ const v=inp.value.trim(); state.shop[+inp.dataset.i].stock = v===''?null:Math.max(0,Number(v)||0); pushState(); }));
-  host.querySelectorAll('.ds-cat').forEach(s=> s.addEventListener('change',()=>{ state.shop[+s.dataset.i].category=s.value; pushState(true); }));
-  host.querySelectorAll('.ds-tier').forEach(s=> s.addEventListener('change',()=>{ state.shop[+s.dataset.i].tier=Number(s.value)||1; pushState(true); renderDmShop(); }));
-  host.querySelectorAll('.ds-del').forEach(b=> b.addEventListener('click',()=>{ state.shop.splice(+b.dataset.i,1); pushState(true); renderDmShop(); renderShop(); }));
-  // populate award target dropdown
-  const tgt = el('dmAwardTarget');
-  if(tgt){
-    const cur = tgt.value;
-    tgt.innerHTML = `<option value="-1">★ All Active Agents</option>` + state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||`Player ${i+1}`)}</option>`).join('');
-    if(cur) tgt.value = cur;
-  }
-}
-function addShopItem(){ if(!Array.isArray(state.shop)) state.shop=[]; state.shop.push({tier:1,name:'',category:'Utility',price:100,stock:null,desc:''}); pushState(true); renderDmShop(); renderShop(); }
 // ── DM CHARACTER MANAGEMENT ──
 function dmDeleteAgent(i){
   const c = state.characters[i]; if(!c) return;

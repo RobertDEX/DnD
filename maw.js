@@ -400,9 +400,11 @@ function effectiveStat(c, stat) {
 function getAllClasses() {
   const all = {};
   PLAYER_CLASSES.forEach(c => { all[c.id] = c; });
-  if (Array.isArray(state?.customClasses)) {
-    state.customClasses.forEach(c => { if(c.id) all[c.id] = c; });
-  }
+  try {
+    if (Array.isArray(state?.customClasses)) {
+      state.customClasses.forEach(c => { if(c && c.id) all[c.id] = c; });
+    }
+  } catch(e) { console.error('getAllClasses custom error:', e); }
   return all;
 }
 function getClassDef(id) { return getAllClasses()[id] || null; }
@@ -980,7 +982,7 @@ function render(){
 
 
   try{ renderDeathSaves(); }catch(e){}
-  try{ renderDmPanel(); }catch(e){}
+  try{ renderDmPanel(); }catch(e){ console.error('renderDmPanel error:', e); }
   try{ applyCharacterAccents(); }catch(e){}
   try{ renderIdentityBar(); }catch(e){}
   try{ applyManaDamage(); }catch(e){}
@@ -1901,8 +1903,10 @@ let _dmFocused = false;
 function renderDmPanel(){
   if(!dmUnlocked) return;
   if(_dmFocused) return;
-  // Player roster with rank + points controls
   const roster = el('dmRoster');
+  if(!roster){ console.warn('renderDmPanel: dmRoster not found'); return; }
+  const chars = state.characters;
+  if(!chars || !chars.length){ roster.innerHTML = '<div class="dm-empty">No characters. Click + Player to add one.</div>'; return; }
   if(roster){
     roster.innerHTML = state.characters.map((c,i)=>{
       const rk = rankOf(c);
@@ -1924,9 +1928,12 @@ function renderDmPanel(){
               <optgroup label="Base Classes">
                 ${PLAYER_CLASSES.filter(pc=>!pc.hidden).map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
               </optgroup>
-              <optgroup label="★ Advanced Classes (Hidden)">
+              <optgroup label="★ Advanced Classes">
                 ${PLAYER_CLASSES.filter(pc=>pc.hidden).map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon} ${pc.label}</option>`).join('')}
               </optgroup>
+              ${(state.customClasses||[]).length ? `<optgroup label="✦ Custom Classes">
+                ${(state.customClasses||[]).map(pc=>`<option value="${pc.id}" ${c.playerClass===pc.id?'selected':''}>${pc.icon||'✦'} ${pc.label}</option>`).join('')}
+              </optgroup>` : ''}
             </select>
           </label>
           <label class="dm-mini"><span>Gold</span>

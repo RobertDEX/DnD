@@ -3121,7 +3121,8 @@ function buildDmPanelHtml(){
           <div id="dmExpStatus" class="dm-exp-status"></div>
         </div></div>
         <div class="dm-card"><div class="dm-card-title">💰 Gold Awards</div><div class="dm-card-body">
-          <div class="dm-qa-row"><select id="dmGoldTarget">${charOptsAll}</select><select id="dmGoldGrade">${THREAT_GRADES.map(t=>`<option value="${t.grade}">${t.grade}: ${fmtGold(t.points)}</option>`).join('')}</select><button class="maw-btn small" id="dmGoldBtn">+ Award</button><button class="maw-btn ghost small" id="dmGoldTakeBtn">− Take</button></div>
+          <div class="dm-qa-row"><select id="dmGoldTarget">${charOptsAll}</select><input type="number" id="dmGoldAmount" value="100" min="0" placeholder="Gold amount"><button class="maw-btn small" id="dmGoldBtn">+ Award</button><button class="maw-btn ghost small" id="dmGoldTakeBtn">− Take</button></div>
+          <div class="dm-preset-row">${[50,100,250,500,1000,5000].map(n=>`<button class="dm-preset dm-gold-preset" data-gold="${n}">${n>=1000?(n/1000)+'k':n}</button>`).join('')}</div>
         </div></div>
       </div>
       <div class="dm-tab-content" data-dmtab="quests">
@@ -3263,34 +3264,35 @@ function buildDmPanelHtml(){
   // Gold awards
   el('dmGoldBtn')?.addEventListener('click', ()=>{
     const target = el('dmGoldTarget')?.value;
-    const grade = el('dmGoldGrade')?.value||'E';
-    const thr = THREAT_BY_GRADE[grade]||THREAT_GRADES[0];
-    const amount = thr.points;
+    const amount = Math.max(0, Number(el('dmGoldAmount')?.value) || 0);
+    if(!amount){ showToast('Enter a gold amount','warn'); return; }
     if(target === 'all'){
       state.characters.filter(c=>c.state==='active').forEach(c=>{ c.points = (c.points||0)+amount; });
-      showToast(`Awarded ${fmtGold(amount)} gold to all active players`, 'buy');
+      showToast(`+${fmtGold(amount)} gold to all players`, 'info');
     } else {
       const c = state.characters[Number(target)]; if(!c) return;
       c.points = (c.points||0)+amount;
-      showToast(`Awarded ${fmtGold(amount)} gold to ${c.name||'Player'}`, 'buy');
+      showToast(`+${fmtGold(amount)} gold to ${c.name||'Player'}`, 'info');
     }
     pushState(true); render(); renderDmPanel();
   });
   el('dmGoldTakeBtn')?.addEventListener('click', ()=>{
     const target = el('dmGoldTarget')?.value;
-    const grade = el('dmGoldGrade')?.value||'E';
-    const thr = THREAT_BY_GRADE[grade]||THREAT_GRADES[0];
-    const amount = thr.points;
+    const amount = Math.max(0, Number(el('dmGoldAmount')?.value) || 0);
+    if(!amount){ showToast('Enter a gold amount','warn'); return; }
     if(target === 'all'){
-      state.characters.filter(c=>c.state==='active').forEach(c=>{ c.points = Math.max(0, (c.points||0)-amount); });
-      showToast(`Took ${fmtGold(amount)} gold from all active players`, 'warn');
+      state.characters.filter(c=>c.state==='active').forEach(c=>{ c.points = Math.max(0,(c.points||0)-amount); });
+      showToast(`\u2212${fmtGold(amount)} gold from all players`, 'warn');
     } else {
       const c = state.characters[Number(target)]; if(!c) return;
-      c.points = Math.max(0, (c.points||0)-amount);
-      showToast(`Took ${fmtGold(amount)} gold from ${c.name||'Player'}`, 'warn');
+      c.points = Math.max(0,(c.points||0)-amount);
+      showToast(`\u2212${fmtGold(amount)} gold from ${c.name||'Player'}`, 'warn');
     }
     pushState(true); render(); renderDmPanel();
   });
+  content.querySelectorAll('.dm-gold-preset').forEach(btn=>btn.addEventListener('click',()=>{
+    const e = el('dmGoldAmount'); if(e) e.value = btn.dataset.gold;
+  }));
 
   // EXP awards
   function awardExpFromDm(take=false){

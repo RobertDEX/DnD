@@ -252,6 +252,14 @@ const ITEM_CATEGORIES = ['Weapon','Armor','Accessory','Consumable','Skill Stone'
 
 // Shop categories + tier access
 const SHOP_CATEGORIES = ['Consumables','Weapons','Armor','Accessories','Skill Stones','Rune Stones','Loot Boxes','Materials','Utility'];
+
+const QUEST_TYPES = {
+  main:      { label:'Main Quest',  icon:'⚔', color:'#d94f4f' },
+  side:      { label:'Side Quest',  icon:'◆', color:'#4a8bf5' },
+  daily:     { label:'Daily',       icon:'☀', color:'#4ade80' },
+  emergency: { label:'Emergency',   icon:'⚠', color:'#e8a72c' },
+  hunt:      { label:'Hunt',        icon:'🎯', color:'#c04a5a' }
+};
 const RANK_TO_TIER = { 'E':1, 'D':2, 'C':3, 'B':4, 'A':4, 'S':4 };   // an agent of rank R can access all tiers <= R
 const TIER_LABEL = { 1:'E-RANK', 2:'D-RANK', 3:'C-RANK', 4:'B-RANK+' };
 const TIER_COLOR = { 1:'#7a8590', 2:'#9aa6b2', 3:'#c2b067', 4:'#d94f4f' };
@@ -2158,6 +2166,90 @@ function renderDmSites(){
 // DM · INVESTIGATION CASES
 // ═════════════════════════════════════════════════════════════════
 let _dmCaseSelectedId = null;
+// ═════════════════════════════════════════════════════════════════
+// QUEST LOG — player-side quest display
+// ═════════════════════════════════════════════════════════════════
+function renderQuestLog(){
+  const c = getChar(); if(!c) return;
+  const host = el('questList'); if(!host) return;
+  const quests = (state.cases || []).filter(q =>
+    q.status !== 'completed' && q.status !== 'failed'
+  );
+
+  const statsEl = el('questStats');
+  if(statsEl){
+    const active = (state.cases||[]).filter(q=>q.status==='active').length;
+    const available = (state.cases||[]).filter(q=>q.status==='available').length;
+    const completed = (state.cases||[]).filter(q=>q.status==='completed').length;
+    statsEl.innerHTML = `<span class="qstat"><strong>${active}</strong> Active</span><span class="qstat"><strong>${available}</strong> Available</span><span class="qstat completed"><strong>${completed}</strong> Completed</span>`;
+  }
+
+  const filterEl = el('questFilters');
+  if(filterEl){
+    filterEl.innerHTML = `<button class="quest-type-filter active" data-qtype="all">All</button>` +
+      Object.entries(QUEST_TYPES).map(([k,v])=>`<button class="quest-type-filter" data-qtype="${k}" style="--qt-c:${v.color}">${v.icon} ${v.label}</button>`).join('');
+    filterEl.querySelectorAll('.quest-type-filter').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        filterEl.querySelectorAll('.quest-type-filter').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const t = btn.dataset.qtype;
+        host.querySelectorAll('.quest-card').forEach(card=>{ card.style.display = (t==='all'||card.dataset.qtype===t)?'':'none'; });
+      });
+    });
+  }
+
+  if(!quests.length){
+    host.innerHTML = `<div class="empty-note big">📜<br>NO ACTIVE QUESTS<br><span>The Game Master assigns quests from the GM Console.</span></div>`;
+    return;
+  }
+
+  const rankOrder = {S:0,A:1,B:2,C:3,D:4,E:5};
+  quests.sort((a,b)=>{ if(a.status==='active'&&b.status!=='active')return-1; if(b.status==='active'&&a.status!=='active')return 1; return(rankOrder[a.rank]||5)-(rankOrder[b.rank]||5); });
+
+  host.innerHTML = quests.map(q=>{
+    const qt = QUEST_TYPES[q.type] || QUEST_TYPES.side;
+    const rk = RANK_BY_ID[q.rank] || RANKS[0];
+    const doneCt = (q.objectives||[]).filter(o=>o.done).length;
+    const totCt = (q.objectives||[]).length;
+    const pct = totCt > 0 ? Math.round(doneCt/totCt*100) : 0;
+    return `
+    <div class="quest-card ${q.status}" data-qtype="${q.type}" style="--qt-c:${qt.color};--qr-c:${rk.color}">
+      <div class="qc-head">
+        <span class="qc-type" style="color:${qt.color}">${qt.icon}</span>
+        <span class="qc-name">${esc(q.name)}</span>
+        <span class="qc-rank" style="color:${rk.color};border-color:${rk.color}">${rk.id}</span>
+        <span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span>
+      </div>
+      ${q.desc?`<div class="qc-desc">${esc(q.desc)}</div>`:''}
+      ${totCt?`
+        <div class="qc-progress"><div class="qc-progress-bar"><div class="qc-progress-fill" style="width:${pct}%"></div></div><span class="qc-progress-text">${doneCt}/${totCt}</span></div>
+        <div class="qc-objectives">${q.objectives.map(o=>`<div class="qc-obj ${o.done?'done':''}"><span class="qc-obj-check">${o.done?'✓':'○'}</span><span>${esc(o.text)}</span></div>`).join('')}</div>
+      `:''}
+      ${(q.rewards.exp||q.rewards.gold||(q.rewards.items||[]).length)?`
+        <div class="qc-rewards"><span class="qc-rewards-label">REWARDS:</span>
+          ${q.rewards.exp?`<span class="qc-reward exp">✦ ${fmtGold(q.rewards.exp)} EXP</span>`:''}
+          ${q.rewards.gold?`<span class="qc-reward gold">◆ ${fmtGold(q.rewards.gold)} Gold</span>`:''}
+          ${(q.rewards.items||[]).map(it=>`<span class="qc-reward item">📦 ${esc(it)}</span>`).join('')}
+        </div>`:''}
+      ${q.timeLimit?`<div class="qc-time">⏱ ${esc(q.timeLimit)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  el('questShowCompleted')?.addEventListener('click',()=>{
+    const list = el('questCompletedList'); if(!list) return;
+    const showing = list.style.display !== 'none';
+    list.style.display = showing ? 'none' : '';
+    el('questShowCompleted').textContent = showing ? 'Show Completed' : 'Hide Completed';
+    if(!showing){
+      const completed = (state.cases||[]).filter(q=>q.status==='completed'||q.status==='failed');
+      list.innerHTML = completed.length ? completed.map(q=>{
+        const qt = QUEST_TYPES[q.type]||QUEST_TYPES.side;
+        return `<div class="quest-card completed-card ${q.status}"><div class="qc-head"><span class="qc-type" style="color:${qt.color}">${qt.icon}</span><span class="qc-name">${esc(q.name)}</span><span class="qc-status-tag ${q.status}">${q.status.toUpperCase()}</span></div></div>`;
+      }).join('') : '<div class="empty-note">No completed quests yet.</div>';
+    }
+  });
+}
+
 // ═════════════════════════════════════════════════════════════════
 // DM · QUEST LIST RENDERER (used in GM Console → Quests tab)
 // ═════════════════════════════════════════════════════════════════

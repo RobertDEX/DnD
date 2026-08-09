@@ -6426,3 +6426,25 @@ input:focus, select:focus, textarea:focus {
   text-align: center !important;
   max-width: 50px !important;
 }
+
+/* ═══ Party Overview ═══ */
+.party-overview { display: flex; flex-direction: column; gap: .5rem; }
+.po-card {
+  background: linear-gradient(135deg, rgba(10,24,52,.7), rgba(6,16,38,.8));
+  border: 1px solid rgba(50,100,200,.2);
+  border-radius: 6px;
+  padding: .7rem .9rem;
+}
+.po-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.po-rank { font-family: var(--F1); font-size: 1rem; font-weight: 900; min-width: 18px; }
+.po-name { font-family: var(--F2); font-size: .9rem; font-weight: 600; color: #fff; flex: 1; }
+.po-class { font-family: var(--F4); font-size: .52rem; color: var(--text-dim); letter-spacing: .08em; }
+.po-level { font-family: var(--F1); font-size: .6rem; color: var(--accent); font-weight: 700; }
+.po-bars { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .4rem; }
+.po-bar-row { display: grid; grid-template-columns: 24px 1fr 50px; gap: .4rem; align-items: center; }
+.po-bar-label { font-family: var(--F1); font-size: .5rem; font-weight: 900; }
+.po-bar-track { height: 6px; background: rgba(0,0,0,.5); border-radius: 3px; overflow: hidden; }
+.po-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+.po-bar-val { font-family: var(--F4); font-size: .48rem; color: var(--text-dim); text-align: right; }
+.po-stats { display: flex; gap: .5rem; flex-wrap: wrap; }
+.po-stat { font-family: var(--F4); font-size: .46rem; letter-spacing: .06em; color: var(--text-dim); padding: .15rem .4rem; background: rgba(0,0,0,.3); border-radius: 2px; border: 1px solid rgba(50,100,200,.12); }

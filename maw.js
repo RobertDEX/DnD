@@ -1024,10 +1024,11 @@ function renderTabs(){
       case 'status':    renderStatusWindow(); break;
       case 'skills':    renderSkillsMatrix(); break;
       case 'loadout':   renderWeapons(); renderInventory(); break;
-      case 'relations': renderRelationships(); break;
+      case 'relations': renderPartyOverview(); renderRelationships(); break;
+      case 'notes': break;
       case 'cases':     renderQuestLog(); break;
-      case 'abilities': renderAbilities(); renderSkillStones(); renderCommendations(); break;
-      case 'shop':      renderShop(); renderRequests(); break;
+      case 'abilities': renderAbilities(); renderSkillStones(); break;
+      case 'shop':      renderShop(); break;
     }
   } catch(e){}
 }
@@ -1719,40 +1720,7 @@ function mapShopCatToInv(cat){
 // ================================================================
 // ITEM REQUESTS — players ask for items not in the catalog
 // ================================================================
-function submitRequest(){
-  if(spectator) return;
-  const c = getChar();
-  const name = el('reqItemName')?.value.trim();
-  const note = el('reqItemNote')?.value.trim();
-  if(!name){ showToast('Enter an item name','warn'); return; }
-  if(!Array.isArray(state.requests)) state.requests = [];
-  state.requests.push({
-    id: 'req-'+Date.now()+Math.random().toString(16).slice(2,5),
-    item: name, note: note||'',
-    by: c.name || 'Unknown Agent',
-    byId: c.claimedBy || MY_PRESENCE_ID,
-    status: 'pending',
-    ts: Date.now()
-  });
-  if(el('reqItemName')) el('reqItemName').value='';
-  if(el('reqItemNote')) el('reqItemNote').value='';
-  pushState(true); renderRequests();
-  SFX?.confirm?.();
-  showToast('Item request submitted for review','buy');
-}
 // Player-side: see your own requests + their status
-function renderRequests(){
-  const host = el('myRequestsList'); if(!host) return;
-  const c = getChar();
-  const mine = (state.requests||[]).filter(r=> r.byId===(c.claimedBy||MY_PRESENCE_ID) || r.by===c.name);
-  if(!mine.length){ host.innerHTML = `<div class="empty-note">No active requests.</div>`; return; }
-  host.innerHTML = mine.slice().reverse().map(r=>`
-    <div class="req-row status-${r.status}">
-      <span class="req-item">${esc(r.item)}</span>
-      ${r.note?`<span class="req-note">${esc(r.note)}</span>`:''}
-      <span class="req-status ${r.status}">${r.status==='pending'?'PENDING REVIEW':r.status==='approved'?'✓ APPROVED':'✕ DENIED'}</span>
-    </div>`).join('');
-}
 // DM-side: review queue
 function renderDmRequests(){
   const host = el('dmRequestsList'); if(!host) return;
@@ -1810,6 +1778,33 @@ function clearResolvedRequests(){
 // RELATIONSHIPS
 // ================================================================
 const REL_TYPES = ['Handler','Colleague','Asset','Rival','Threat','Superior','Subordinate','Contact','Unknown'];
+function renderPartyOverview(){
+  const host = el('partyOverview'); if(!host) return;
+  const active = state.characters.filter(c=>c.state==='active');
+  if(!active.length){ host.innerHTML='<div class="dm-empty">No active party members.</div>'; return; }
+  host.innerHTML = active.map(c=>{
+    const rk = rankOf(c);
+    const cls = getClassDef(c.playerClass);
+    const hpPct = c.hp.max>0?clamp(c.hp.current/c.hp.max*100,0,100):0;
+    const mpPct = c.mana.max>0?clamp(c.mana.current/c.mana.max*100,0,100):0;
+    const hpColor = hpPct>50?'#4ade80':hpPct>25?'#e8a72c':'#d94f4f';
+    return `
+    <div class="po-card">
+      <div class="po-head">
+        <span class="po-rank" style="color:${rk.color}">${rk.id}</span>
+        <span class="po-name">${esc(c.name||'Unknown')}</span>
+        <span class="po-class">${cls?`${cls.icon} ${cls.label}`:'No Class'}</span>
+        <span class="po-level">Lv.${c.systemLevel||1}</span>
+      </div>
+      <div class="po-bars">
+        <div class="po-bar-row"><span class="po-bar-label" style="color:${hpColor}">HP</span><div class="po-bar-track"><div class="po-bar-fill" style="width:${hpPct}%;background:${hpColor}"></div></div><span class="po-bar-val">${c.hp.current}/${c.hp.max}</span></div>
+        <div class="po-bar-row"><span class="po-bar-label" style="color:#4a8bf5">MP</span><div class="po-bar-track"><div class="po-bar-fill" style="width:${mpPct}%;background:#4a8bf5"></div></div><span class="po-bar-val">${c.mana.current}/${c.mana.max}</span></div>
+      </div>
+      <div class="po-stats">${['STR','DEX','CON','INT','WIS','CHA'].map(s=>`<span class="po-stat">${s} ${effectiveStat(c,s)}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderRelationships(){
   const c = getChar();
   const host = el('relationshipsList'); if(!host) return;
@@ -2865,22 +2860,6 @@ function getElementColor(element){
   return map[(element||'').toLowerCase()] || 'var(--accent)';
 }
 
-function renderCommendations(){
-  const c = getChar();
-  const host = el('commendationsList'); if(!host) return;
-  if(!Array.isArray(c.commendations)) c.commendations=[];
-  if(!c.commendations.length){
-    host.innerHTML = `<div class="empty-note">No commendations on record.</div>`;
-    return;
-  }
-  host.innerHTML = c.commendations.map(id=>{
-    const m = COMMENDATION_BY_ID[id]; if(!m) return '';
-    return `<div class="commend-badge" title="${esc(m.desc)}">
-      <span class="commend-icon">${m.icon}</span>
-      <span class="commend-name">${esc(m.name)}</span>
-    </div>`;
-  }).join('');
-}
 function renderDmCommendations(){
   const host = el('dmCommendList'); if(!host) return;
   const targetSel = el('dmCommendTarget');
@@ -3108,7 +3087,7 @@ function buildDmPanelHtml(){
         <div class="dm-card"><div class="dm-card-title">⚡ Quick Actions</div><div class="dm-card-body">
           <div class="dm-qa-row">
             <select id="dmActionTarget">${state.characters.map((c,i)=>`<option value="${i}">${esc(c.name||'Player '+(i+1))}</option>`).join('')}</select>
-            <select id="dmActionType"><option value="hp-dmg">HP −</option><option value="hp-heal">HP +</option><option value="hp-full">HP Full</option><option value="mp-dmg">MP −</option><option value="mp-heal">MP +</option><option value="mp-full">MP Full</option></select>
+            <select id="dmActionType"><option value="hp-dmg">HP −</option><option value="hp-heal">HP +</option><option value="hp-full">HP Full</option><option value="mp-dmg">MP −</option><option value="mp-heal">MP +</option><option value="mp-full">MP Full</option><option value="full-rest">★ Full Rest</option></select>
             <input type="number" id="dmActionAmount" value="10" min="0">
             <button class="maw-btn small" id="dmActionBtn">GO</button>
           </div>

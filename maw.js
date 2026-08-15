@@ -399,7 +399,8 @@ const SYSTEM_STAT_LABELS = {str:'Strength', dex:'Agility', con:'Vitality', int:'
 function effectiveStat(c, stat) {
   const base = Number(c.stats[stat]) || 8;
   const sysKey = stat.toLowerCase();
-  const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
+  const sysRaw = Number(c.systemStats?.[sysKey]) || 0;
+  const sysBonus = Math.floor(sysRaw / 6);  // every 6 system points = +1 DnD stat
   const cls = getClassDef(c.playerClass);
   const classBonus = Number(cls?.bonuses?.[stat]) || 0;
   return base + sysBonus + classBonus;
@@ -1198,7 +1199,8 @@ function renderStats(){
   grid.innerHTML = STATS.map(st=>{
     const base = Number(c.stats[st]) || 8;
     const sysKey = st.toLowerCase();
-    const sysBonus = Number(c.systemStats?.[sysKey]) || 0;
+    const sysRaw = Number(c.systemStats?.[sysKey]) || 0;
+    const sysBonus = Math.floor(sysRaw / 6);
     const cls = getClassDef(c.playerClass);
     const classBonus = Number(cls?.bonuses?.[st]) || 0;
     const effective = base + sysBonus + classBonus;
@@ -1206,7 +1208,7 @@ function renderStats(){
     const modPos = m > 0;
     const modZero = m === 0;
     const bonusParts = [];
-    if(sysBonus) bonusParts.push(`+${sysBonus} sys`);
+    if(sysBonus) bonusParts.push(`+${sysBonus} sys (${sysRaw}/3)`);
     if(classBonus) bonusParts.push(`+${classBonus} class`);
     return `
     <div class="stat-block ${modPos?'positive':''} ${modZero?'neutral':''}">

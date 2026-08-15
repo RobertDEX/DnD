@@ -55,10 +55,10 @@ window.MAW_DEFAULT_SHOP = [
   {tier:3,category:'Weapons',name:'Holy Avenger',price:4000,desc:'+3 ATK. +1d8 radiant. +2d8 vs undead/fiends. Paladin only.',icon:'⚔',rarity:'rare',stats:'+3 ATK +radiant'},
   {tier:3,category:'Weapons',name:'Bow of the Wind',price:3200,desc:'+3 ranged. Arrows ignore cover. Range 300/1200.',icon:'🏹',rarity:'rare',stats:'+3 ATK, Ignore Cover'},
   // Tier 4
-  {tier:4,category:'Weapons',name:'Excalibur',price:15000,desc:'+5 ATK. +2d6 radiant. Only the worthy may wield it.',icon:'⚔',rarity:'epic',stats:'+5 ATK +2d6 radiant'},
-  {tier:4,category:'Weapons',name:"Shadow Monarch's Dagger",price:20000,desc:'+5 ATK. Invisibility for 6s after a kill.',icon:'🗡',rarity:'legendary',stats:'+5 ATK, Stealth Kill'},
-  {tier:4,category:'Weapons',name:'Gungnir',price:18000,desc:'+5 ATK. Never misses. Thrown — infinite range, returns instantly.',icon:'🔱',rarity:'legendary',stats:'+5 ATK, Never Miss'},
-  {tier:4,category:'Weapons',name:'Staff of Eternity',price:22000,desc:'+5 spell attacks. Spells cost 50% less MP. +30 max MP.',icon:'🪄',rarity:'legendary',stats:'+5 Spell, -50% MP'},
+  {tier:4,category:'Weapons',name:'Excalibur',price:50000,desc:'+5 ATK. +3d8 radiant. Cuts through any armor (ignore AC bonuses from armor). Heals wielder 2d6 per kill. Only the worthy may lift it — STR or CHA 18+.',icon:'⚔',rarity:'legendary',stats:'+5, +3d8 radiant, Armor Pierce, Lifesteal'},
+  {tier:4,category:'Weapons',name:"Shadow Monarchs Dagger",price:45000,desc:'+5 ATK. +2d8 necrotic. After killing an enemy, become invisible for 1 round AND extract their shadow (shadow soldier, permanent). Ignores death saves — targets killed stay dead.',icon:'🗡',rarity:'legendary',stats:'+5, +2d8 necrotic, Shadow Extract, Invis on Kill'},
+  {tier:4,category:'Weapons',name:'Gungnir',price:50000,desc:'+5 ATK. 2d10 piercing + 2d6 force. NEVER MISSES — auto-hits, no roll needed. Thrown infinite range, returns instantly. Pierces all cover and barriers. On crit: target pinned (restrained) for 1 round.',icon:'🔱',rarity:'legendary',stats:'+5 ATK, Never Miss'},
+  {tier:4,category:'Weapons',name:'Staff of Eternity',price:55000,desc:'+5 spell ATK/DC. Spells cost 50% less MP. +50 max MP. Once per day: cast any spell you know without MP cost. Mana regenerates 5/round while holding.',icon:'🪄',rarity:'legendary',stats:'+5 Spell, -50% MP, +50 MP, Free Cast 1/day, Regen 5/rnd'},
 
   // ═══════════════════ ARMOR ═══════════════════
   // Tier 1
@@ -188,9 +188,9 @@ window.MAW_DEFAULT_SHOP = [
 ,{tier:3,category:'Weapons',name:'Whip of Thorns',price:2200,desc:'+3 ATK. Reach 15ft. 1d4+1d6 piercing. Can grapple at range.',icon:'🌿',rarity:'rare',stats:'+3, Reach 15ft, Grapple'}
 ,{tier:3,category:'Weapons',name:'Repeating Crossbow',price:2600,desc:'+3 ATK. 1d8 piercing. Fires 3 bolts per attack action.',icon:'🏹',rarity:'rare',stats:'+3, Triple Shot'}
 ,{tier:3,category:'Weapons',name:'Warhammer of Quaking',price:3000,desc:'+3 ATK. 1d10 bludgeon. On hit: 10ft tremor, DEX save or prone.',icon:'🔨',rarity:'rare',stats:'+3, AoE knockdown'}
-,{tier:4,category:'Weapons',name:'Void Blade',price:25000,desc:'+5 ATK. 2d8 force. Cuts through magic barriers and force fields.',icon:'⚔',rarity:'legendary',stats:'+5, 2d8 force, Anti-magic'}
-,{tier:4,category:'Weapons',name:'Mjolnir',price:22000,desc:'+5 ATK. 2d6 thunder+lightning. Thrown 60ft, returns. Only STR 20+ can lift.',icon:'🔨',rarity:'legendary',stats:'+5, 2d6 thunder+lightning'}
-,{tier:4,category:'Weapons',name:'Artemis Bow',price:20000,desc:'+5 ATK. 2d8 radiant. Arrows multiply — hit up to 3 targets in a line.',icon:'🏹',rarity:'legendary',stats:'+5, 2d8 radiant, Pierce 3'}
+,{tier:4,category:'Weapons',name:'Void Blade',price:48000,desc:'+5 ATK. 3d8 force. Cuts through ANY barrier, shield, or wall of force. Dispels magic on hit. Target cannot teleport or become invisible for 1 minute after being struck.',icon:'⚔',rarity:'legendary',stats:'+5, 3d8 force, Anti-Magic, Anti-Teleport'}
+,{tier:4,category:'Weapons',name:'Mjolnir',price:50000,desc:'+5 ATK. 3d6 thunder + 3d6 lightning. Thrown infinite range, returns instantly. On hit: target stunned 1 round (CON DC 20). Call lightning from sky: 60ft radius, 10d6 lightning, 1/day. Only STR 20+ can lift.',icon:'🔨',rarity:'legendary',stats:'+5, 3d6+3d6, Stun, Lightning Storm 1/day'}
+,{tier:4,category:'Weapons',name:'Artemis Bow',price:45000,desc:'+5 ATK. 3d8 radiant. Arrows are homing — never miss. Pierce through up to 5 targets. Range unlimited. Once per day: fire a solar arrow — 60ft line, 12d8 radiant, ignites everything.',icon:'🏹',rarity:'legendary',stats:'+5, 3d8, Homing, Pierce 5, Solar Arrow 1/day'}
 
 // ─── MORE ARMOR ───
 ,{tier:1,category:'Armor',name:'Padded Armor',price:50,desc:'AC 11 + DEX. Stealth disadvantage. Cheap protection.',icon:'🛡',rarity:'common',stats:'AC 11+DEX'}
@@ -247,4 +247,232 @@ window.MAW_DEFAULT_SHOP = [
 ,{tier:2,category:'Materials',name:'Enchanted Dust',price:120,desc:'Residue from destroyed magic items. Used in rune crafting.',icon:'✨',rarity:'uncommon'}
 ,{tier:3,category:'Materials',name:'Soul Fragment',price:1500,desc:'Captured essence of a powerful monster. Legendary crafting component.',icon:'💎',rarity:'rare'}
 ,{tier:4,category:'Materials',name:'Void Crystal',price:8000,desc:'Fragment of pure nothingness. Required for Tier 4 enchantments.',icon:'💠',rarity:'epic'}
+
+
+// ═══════════════════ CLASS SKILL STONES ═══════════════════
+
+// ─── KNIGHT STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Shield Wall',price:800,desc:'Raise shield. +4 AC for 1 round. Blocks all projectiles in a 10ft cone. 15 MP.',icon:'⚔',rarity:'uncommon',stats:'15 MP, +4 AC'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Taunt',price:600,desc:'Force all enemies within 30ft to target you for 1 round. WIS save DC 14. 10 MP.',icon:'⚔',rarity:'uncommon',stats:'10 MP, AoE Taunt'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Fortress',price:2500,desc:'Become immovable for 2 rounds. Immune to knockback, +6 AC, cannot move. 30 MP.',icon:'⚔',rarity:'rare',stats:'30 MP, +6 AC, Immovable'}
+,{tier:4,category:'Skill Stones',name:'Skill Stone: Unbreakable',price:12000,desc:'For 1 minute, you cannot drop below 1 HP. 80 MP.',icon:'⚔',rarity:'legendary',stats:'80 MP, Unkillable'}
+
+// ─── SORCERER STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Mana Bolt',price:500,desc:'Rapid-fire 3 bolts of force. Each deals 1d10+INT force damage. 15 MP.',icon:'🔮',rarity:'uncommon',stats:'15 MP, 3×1d10 force'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Arcane Shield',price:700,desc:'React to an attack. Gain temp HP equal to your INT score. 10 MP.',icon:'🔮',rarity:'uncommon',stats:'10 MP, Temp HP'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Chain Lightning',price:3000,desc:'Lightning bolt hits target then chains to 3 more within 30ft. 6d8 each. 40 MP.',icon:'🔮',rarity:'rare',stats:'40 MP, 4-target 6d8'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Blizzard',price:3500,desc:'40ft radius. 8d6 cold damage. All terrain becomes difficult. Lasts 1 minute. 50 MP.',icon:'🔮',rarity:'rare',stats:'50 MP, 8d6 cold AoE'}
+,{tier:4,category:'Skill Stones',name:'Skill Stone: Arcane Catastrophe',price:20000,desc:'Choose fire, ice, or lightning. 60ft radius, 15d6 damage. Everything in range. 100 MP.',icon:'🔮',rarity:'legendary',stats:'100 MP, 15d6 AoE'}
+
+// ─── PRIEST STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Holy Light',price:600,desc:'Heal one ally for 3d8+WIS HP. Remove one condition. 20 MP.',icon:'✝',rarity:'uncommon',stats:'20 MP, 3d8 heal'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Sanctuary',price:800,desc:'Create a 15ft safe zone. Allies inside regen 1d4 HP/turn for 1 minute. 25 MP.',icon:'✝',rarity:'uncommon',stats:'25 MP, AoE Regen'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Divine Judgement',price:3000,desc:'Beam of radiant light. 10d8 radiant to one target. Double vs undead. 45 MP.',icon:'✝',rarity:'rare',stats:'45 MP, 10d8 radiant'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Purify',price:2500,desc:'Remove ALL conditions from ALL allies within 30ft. 35 MP.',icon:'✝',rarity:'rare',stats:'35 MP, Mass Cleanse'}
+,{tier:4,category:'Skill Stones',name:'Skill Stone: Angels Descent',price:18000,desc:'Summon an angel for 1 minute. Heals 3d8/turn to all allies. Attacks enemies for 6d8 radiant. 90 MP.',icon:'✝',rarity:'legendary',stats:'90 MP, Angel Summon'}
+
+// ─── RANGER STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Multi-Shot',price:700,desc:'Fire 5 arrows at once. Each deals 1d8+DEX. Different or same target. 15 MP.',icon:'🏹',rarity:'uncommon',stats:'15 MP, 5×1d8'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Trap Master',price:600,desc:'Instantly place 3 traps in a 20ft area. 3d6 piercing + prone each. 15 MP.',icon:'🏹',rarity:'uncommon',stats:'15 MP, 3 Traps'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Arrow Rain',price:3000,desc:'Rain arrows on a 30ft radius. 8d6 piercing to all enemies. 40 MP.',icon:'🏹',rarity:'rare',stats:'40 MP, 8d6 AoE'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Eagle Eye',price:2000,desc:'For 1 minute, all ranged attacks have advantage and +10 range. Crit on 18-20. 30 MP.',icon:'🏹',rarity:'rare',stats:'30 MP, Ranged Buff'}
+
+// ─── ASSASSIN STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Backstab',price:700,desc:'Teleport behind target. Auto-crit. 4d6+DEX piercing. Must be in stealth. 15 MP.',icon:'🗡',rarity:'uncommon',stats:'15 MP, Auto-Crit'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Poison Cloud',price:600,desc:'10ft radius cloud. 3d6 poison/turn. CON save or Poisoned. Lasts 3 rounds. 15 MP.',icon:'🗡',rarity:'uncommon',stats:'15 MP, 3d6/turn AoE'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Death Mark',price:3500,desc:'Mark a target. For 1 minute, all your attacks against it deal +3d6 damage. 30 MP.',icon:'🗡',rarity:'rare',stats:'30 MP, +3d6 to target'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Shadow Dance',price:3000,desc:'For 3 rounds, after each kill you can teleport 30ft and enter stealth. 35 MP.',icon:'🗡',rarity:'rare',stats:'35 MP, Kill Chain'}
+,{tier:4,category:'Skill Stones',name:'Skill Stone: Assassinate',price:15000,desc:'If target is below 25% HP, instantly kill it (bosses: 10d10 instead). 60 MP.',icon:'🗡',rarity:'legendary',stats:'60 MP, Execute'}
+
+// ─── BERSERKER STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Frenzy',price:600,desc:'For 3 rounds, make one extra attack per turn. +2 damage per kill (stacks). 15 MP.',icon:'🪓',rarity:'uncommon',stats:'15 MP, Extra Attack'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: War Cry',price:500,desc:'All enemies in 30ft make WIS save or become Frightened for 1 round. 10 MP.',icon:'🪓',rarity:'uncommon',stats:'10 MP, AoE Fear'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Cleave',price:2500,desc:'Melee attack hits ALL enemies within 10ft. Full damage to each. 25 MP.',icon:'🪓',rarity:'rare',stats:'25 MP, AoE Melee'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Undying Rage',price:3500,desc:'For 1 minute, when you take fatal damage, stay at 1 HP instead. +5 damage. 40 MP.',icon:'🪓',rarity:'rare',stats:'40 MP, Anti-Death'}
+
+// ─── NECROMANCER STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Drain Life',price:700,desc:'Deal 4d6 necrotic to target. Heal for damage dealt. 20 MP.',icon:'💀',rarity:'uncommon',stats:'20 MP, 4d6 Lifesteal'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Raise Skeleton',price:600,desc:'Raise 2 skeleton warriors from corpses. Last until destroyed. 15 MP each.',icon:'💀',rarity:'uncommon',stats:'15 MP, 2 Summons'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Death Wave',price:3000,desc:'30ft cone. 8d8 necrotic. Heals your undead in the area. 45 MP.',icon:'💀',rarity:'rare',stats:'45 MP, 8d8 necrotic cone'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Corpse Explosion',price:2500,desc:'Detonate a corpse. 6d10 fire+necrotic in 20ft radius. 30 MP.',icon:'💀',rarity:'rare',stats:'30 MP, 6d10 AoE'}
+,{tier:4,category:'Skill Stones',name:'Skill Stone: Plague',price:16000,desc:'Curse spreads between enemies. 4d6 necrotic/turn. Spreads to adjacent on death. Lasts 1 min. 70 MP.',icon:'💀',rarity:'legendary',stats:'70 MP, Spreading DoT'}
+
+// ─── PALADIN STONES ───
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Radiant Smite',price:700,desc:'Empower weapon with divine light. +3d8 radiant on next 3 hits. 20 MP.',icon:'🛡',rarity:'uncommon',stats:'20 MP, +3d8 ×3'}
+,{tier:2,category:'Skill Stones',name:'Skill Stone: Aura of Courage',price:600,desc:'Allies within 20ft immune to Fear + Charm for 1 minute. 15 MP.',icon:'🛡',rarity:'uncommon',stats:'15 MP, Anti-CC Aura'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Holy Nova',price:3000,desc:'30ft burst. 6d8 radiant to enemies, 3d8 heal to allies. 40 MP.',icon:'🛡',rarity:'rare',stats:'40 MP, Heal+Damage'}
+,{tier:3,category:'Skill Stones',name:'Skill Stone: Divine Shield',price:2500,desc:'Shield an ally. They take 0 damage from the next 3 attacks. 35 MP.',icon:'🛡',rarity:'rare',stats:'35 MP, 3-hit Shield'}
+
+// ═══════════════════ MORE CONSUMABLES ═══════════════════
+,{tier:1,category:'Consumables',name:'Mana Water',price:30,desc:'Restores 8 Mana. Tastes terrible.',icon:'🧪',rarity:'common'}
+,{tier:2,category:'Consumables',name:'Elixir of Focus',price:300,desc:'Advantage on WIS checks and saves for 1 hour.',icon:'✨',rarity:'uncommon'}
+,{tier:2,category:'Consumables',name:'Potion of Luck',price:350,desc:'Reroll any 3 dice within 1 hour.',icon:'🍀',rarity:'uncommon'}
+,{tier:3,category:'Consumables',name:'Potion of Haste',price:1000,desc:'Double movement speed. Extra action each turn. Lasts 1 minute. Exhaustion after.',icon:'⚡',rarity:'rare'}
+,{tier:3,category:'Consumables',name:'Nectar of the Gods',price:2000,desc:'+2 to all stats for 1 hour. Your eyes glow.',icon:'🍯',rarity:'rare'}
+
+// ═══════════════════ MORE WEAPONS ═══════════════════
+,{tier:2,category:'Weapons',name:'Rapier of Precision',price:600,desc:'+2 ATK. Finesse. Crit on 19-20. 1d8 piercing.',icon:'🗡',rarity:'uncommon',stats:'+2, Crit 19-20'}
+,{tier:2,category:'Weapons',name:'Staff of Thorns',price:550,desc:'+2 spell ATK. Attackers take 1d4 piercing when they hit you in melee.',icon:'🪄',rarity:'uncommon',stats:'+2 Spell, Thorns'}
+,{tier:3,category:'Weapons',name:'Scythe of Souls',price:3500,desc:'+3 ATK. 2d6 slashing +1d8 necrotic. Heal 50% of necrotic dealt.',icon:'⚔',rarity:'rare',stats:'+3, 2d6+1d8, Lifesteal'}
+,{tier:3,category:'Weapons',name:'Hammer of Dawn',price:3200,desc:'+3 ATK. 1d12 bludgeon +1d6 radiant. On crit: blind target 1 round.',icon:'🔨',rarity:'rare',stats:'+3, 1d12+1d6, Blind'}
+,{tier:4,category:'Weapons',name:'Blade of Chaos',price:42000,desc:'+5 ATK. Each hit randomly deals 3d8 fire, cold, lightning, necrotic, radiant, or force. If you roll the same element twice in a row: CHAOS SURGE — double damage + 30ft AoE of that element. Blade whispers madness to you.',icon:'⚔',rarity:'legendary',stats:'+5, 3d8 random, Chaos Surge'}
+
+// ═══════════════════ MORE ARMOR ═══════════════════
+,{tier:2,category:'Armor',name:'Assassin Garb',price:450,desc:'AC 13 + DEX. Advantage on Stealth. +5ft movement speed.',icon:'🧥',rarity:'uncommon',stats:'AC 13+DEX, Stealth+'}
+,{tier:3,category:'Armor',name:'Berserker Harness',price:2500,desc:'AC 14. +2 melee damage. While raging: resistance to physical damage.',icon:'🛡',rarity:'rare',stats:'AC 14, +2 melee, Rage Res'}
+,{tier:3,category:'Armor',name:'Necromancer Robes',price:2800,desc:'AC 13 + INT. Necrotic resistance. Undead you control get +2 AC.',icon:'👘',rarity:'rare',stats:'AC 13+INT, Necro Res'}
+
+// ═══════════════════ MORE ACCESSORIES ═══════════════════
+,{tier:2,category:'Accessories',name:'Ring of the Berserker',price:400,desc:'While below 50% HP: +3 melee damage. While below 25%: advantage on attacks.',icon:'💍',rarity:'uncommon',stats:'Low HP bonus'}
+,{tier:2,category:'Accessories',name:'Amulet of the Healer',price:450,desc:'All healing you do is increased by 1d4.',icon:'📿',rarity:'uncommon',stats:'+1d4 Healing'}
+,{tier:3,category:'Accessories',name:'Cloak of the Assassin',price:2500,desc:'First attack from stealth deals +2d8 damage. Auto-stealth after killing a target.',icon:'🧥',rarity:'rare',stats:'+2d8 Stealth ATK'}
+,{tier:3,category:'Accessories',name:'Phylactery of Binding',price:3500,desc:'Store one soul. Summon the bound creature once per day as an ally for 10 minutes.',icon:'📿',rarity:'rare',stats:'Soul Summon 1/day'}
+
+// ═══════════════════ MORE RUNE STONES ═══════════════════
+,{tier:2,category:'Rune Stones',name:'Rune of Healing',price:500,desc:'Apply to weapon. On hit, heal self for 1d4 HP.',icon:'🔶',rarity:'uncommon',stats:'+1d4 self heal on hit'}
+,{tier:2,category:'Rune Stones',name:'Rune of Poison',price:500,desc:'Apply to weapon. +1d4 poison. CON save DC 13 or Poisoned 1 round.',icon:'🔶',rarity:'uncommon',stats:'+1d4 poison'}
+,{tier:3,category:'Rune Stones',name:'Rune of the Executioner',price:2000,desc:'Apply to weapon. +2d6 damage to targets below 30% HP.',icon:'🔴',rarity:'rare',stats:'+2d6 vs low HP'}
+,{tier:3,category:'Rune Stones',name:'Rune of Mana Siphon',price:2200,desc:'Apply to weapon. On hit, restore 3 MP.',icon:'🔴',rarity:'rare',stats:'+3 MP on hit'}
+
+
+
+// ═══════════════════ MORE WEAPONS — EXPANDED ARSENAL ═══════════════════
+
+// ─── Tier 1 — Starter weapons ───
+,{tier:1,category:'Weapons',name:'Club',price:10,desc:'1d4 bludgeoning. Simple, cheap, effective. Caveman approved.',icon:'🪵',rarity:'common',stats:'1d4'}
+,{tier:1,category:'Weapons',name:'Javelin',price:30,desc:'1d6 piercing. Thrown 30/120. Simple martial weapon.',icon:'🔱',rarity:'common',stats:'1d6, Thrown'}
+,{tier:1,category:'Weapons',name:'Whip',price:50,desc:'1d4 slashing. Finesse, reach 10ft. Style points.',icon:'🪢',rarity:'common',stats:'1d4, Reach 10ft'}
+
+// ─── Tier 2 — Solid upgrades ───
+,{tier:2,category:'Weapons',name:'Flamberge',price:650,desc:'+2 ATK. 2d6 slashing. Two-handed. Intimidating wavy blade.',icon:'⚔',rarity:'uncommon',stats:'+2, 2d6 slash'}
+,{tier:2,category:'Weapons',name:'Morning Star',price:500,desc:'+2 ATK. 1d8 piercing. On crit: 2d6 bonus bleed damage.',icon:'⚔',rarity:'uncommon',stats:'+2, Bleed on crit'}
+,{tier:2,category:'Weapons',name:'Throwing Axes (set of 4)',price:400,desc:'+2 ATK. 1d6 slashing each. Thrown 20/60. Draw and throw as bonus action.',icon:'🪓',rarity:'uncommon',stats:'+2, Quick Throw'}
+,{tier:2,category:'Weapons',name:'Composite Bow',price:600,desc:'+2 ATK. 1d8+STR piercing (uses STR, not DEX). Range 150/600.',icon:'🏹',rarity:'uncommon',stats:'+2, STR-based'}
+,{tier:2,category:'Weapons',name:'Chain Sickle',price:550,desc:'+2 ATK. 1d6 slashing. Reach 15ft. Can pull enemies 10ft toward you on hit.',icon:'⚔',rarity:'uncommon',stats:'+2, Pull 10ft'}
+,{tier:2,category:'Weapons',name:'Wand of Sparks',price:450,desc:'+2 spell ATK. Fire 3 sparks as an action (1d6 fire each, 60ft range).',icon:'🪄',rarity:'uncommon',stats:'+2, 3×1d6 fire'}
+
+// ─── Tier 3 — Serious firepower ───
+,{tier:3,category:'Weapons',name:'Masamune',price:4000,desc:'+3 ATK. 2d6 slashing. Finesse. On hit: next attack has advantage. Elegant katana.',icon:'⚔',rarity:'rare',stats:'+3, 2d6, Finesse, Chain Adv'}
+,{tier:3,category:'Weapons',name:'Trident of the Sea',price:3500,desc:'+3 ATK. 1d8+1d6 cold. Works underwater (no penalty). Can control water within 30ft.',icon:'🔱',rarity:'rare',stats:'+3, +1d6 cold, Water Control'}
+,{tier:3,category:'Weapons',name:'Bone Bow',price:3000,desc:'+3 ATK. 1d8 piercing +1d6 necrotic. Arrows made of shadow — infinite ammo. Silent.',icon:'🏹',rarity:'rare',stats:'+3, +1d6 necrotic, Silent, Infinite Ammo'}
+,{tier:3,category:'Weapons',name:'Gauntlets of the Titan',price:3500,desc:'+3 ATK. 2d6 bludgeoning unarmed. Can grapple as bonus action. Lift 5x normal weight.',icon:'🧤',rarity:'rare',stats:'+3, 2d6 unarmed, Grapple+'}
+,{tier:3,category:'Weapons',name:'Chakram of Returning',price:2800,desc:'+3 ATK. 1d8 slashing. Thrown 40/120. Hits up to 2 targets in flight. Always returns.',icon:'💫',rarity:'rare',stats:'+3, Multi-target, Returning'}
+,{tier:3,category:'Weapons',name:'Cursed Blade of Greed',price:2000,desc:'+3 ATK. 2d6 slashing. Earn double gold from kills. BUT: you cannot willingly drop this weapon.',icon:'⚔',rarity:'rare',stats:'+3, 2d6, 2x Gold, CURSED'}
+,{tier:3,category:'Weapons',name:'Spellblade',price:3800,desc:'+3 ATK. 1d8 slashing. Can channel any spell through it — melee spell delivery. +1d6 force on spell-infused hits.',icon:'⚔',rarity:'rare',stats:'+3, Spell Channel, +1d6 force'}
+
+// ─── Tier 4 — Endgame legendaries ───
+,{tier:4,category:'Weapons',name:'Ragnarok',price:60000,desc:'+5 ATK. 4d6 fire. On kill: explosion (20ft, 6d6 fire). Burns for 2d6/turn. The blade that ends worlds.',icon:'⚔',rarity:'legendary',stats:'+5, 4d6 fire, Kill Explosion, Burn'}
+,{tier:4,category:'Weapons',name:'Muramasa',price:55000,desc:'+5 ATK. 3d8 slashing. Each kill: +1 ATK permanently for this combat (max +10). Cursed: must attack nearest creature or take 3d6 psychic.',icon:'⚔',rarity:'legendary',stats:'+5, 3d8, Rampage +1/kill, CURSED'}
+,{tier:4,category:'Weapons',name:'Longinus',price:55000,desc:'+5 ATK. 2d10 piercing + 4d6 radiant. Thrown: pierces through EVERYTHING in a line (infinite). One-shots any creature with a divine or demonic origin. Returns after 1 round.',icon:'🔱',rarity:'legendary',stats:'+5, 2d10+4d6, Line Pierce, God-Slayer'}
+,{tier:4,category:'Weapons',name:'Yamato',price:52000,desc:'+5 ATK. 3d8 force. Cuts through dimensions. Bonus action: teleport 60ft. Can cut open portals. Finesse. Only DEX 20+ can wield.',icon:'⚔',rarity:'legendary',stats:'+5, 3d8 force, Teleport 60ft, Dimension Cut'}
+,{tier:4,category:'Weapons',name:'Gae Bolg',price:48000,desc:'+5 ATK. 2d10 piercing. When thrown at a single target: REVERSES CAUSALITY — the spear has already hit before being thrown. Ignores all defenses, reactions, and immunities. 1/day.',icon:'🔱',rarity:'legendary',stats:'+5, 2d10, Causality Reversal 1/day'}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// VAST COLLECTION EXPANSION
+// ═══════════════════════════════════════════════════════════════
+
+// ═══ WEAPONS — TIER 1 ═══
+,{tier:1,category:'Weapons',name:'Wooden Bow',price:40,desc:'Range 80/320. 1d6 piercing. Basic but reliable.',icon:'🏹',rarity:'common',stats:'1d6'}
+,{tier:1,category:'Weapons',name:'Handaxe',price:35,desc:'1d6 slashing. Light. Thrown 20/60.',icon:'🪓',rarity:'common',stats:'1d6, Light, Thrown'}
+,{tier:1,category:'Weapons',name:'Mace',price:45,desc:'1d6 bludgeoning. Effective vs skeletons.',icon:'⚔',rarity:'common',stats:'1d6'}
+,{tier:1,category:'Weapons',name:'Spear',price:30,desc:'1d6 piercing. Versatile (1d8). Thrown 20/60.',icon:'🔱',rarity:'common',stats:'1d6, Versatile'}
+,{tier:1,category:'Weapons',name:'Sickle',price:25,desc:'1d4 slashing. Light. Good for dual-wielding.',icon:'⚔',rarity:'common',stats:'1d4, Light'}
+,{tier:1,category:'Weapons',name:'Greatclub',price:15,desc:'1d8 bludgeoning. Two-handed. Just a big stick.',icon:'🪵',rarity:'common',stats:'1d8, Heavy'}
+
+// ═══ WEAPONS — TIER 2 ═══
+,{tier:2,category:'Weapons',name:'Silver Longsword',price:550,desc:'+2 ATK. 1d10 slashing. Bonus +1d6 vs lycanthropes and undead.',icon:'⚔',rarity:'uncommon',stats:'+2, +1d6 vs undead'}
+,{tier:2,category:'Weapons',name:'Warpick',price:450,desc:'+2 ATK. 1d8 piercing. Ignores 2 points of AC from armor.',icon:'⚔',rarity:'uncommon',stats:'+2, Armor Pierce'}
+,{tier:2,category:'Weapons',name:'Glaive of Reach',price:600,desc:'+2 ATK. 1d10 slashing. Reach 10ft. Opportunity attacks at 10ft.',icon:'🔱',rarity:'uncommon',stats:'+2, Reach 10ft'}
+,{tier:2,category:'Weapons',name:'Crossbow of Accuracy',price:650,desc:'+2 ATK. 1d10 piercing. Advantage on first attack each combat.',icon:'🏹',rarity:'uncommon',stats:'+2, First Strike Adv'}
+,{tier:2,category:'Weapons',name:'Dual Scimitars',price:700,desc:'+2 ATK each. 1d6 slashing. Finesse, light. Bonus action offhand.',icon:'⚔',rarity:'uncommon',stats:'+2, Dual, Finesse'}
+,{tier:2,category:'Weapons',name:'Battle Staff',price:500,desc:'+2 ATK/Spell. 1d8 bludgeoning. Can use as melee OR spell focus.',icon:'🪄',rarity:'uncommon',stats:'+2 Both, Dual-Purpose'}
+,{tier:2,category:'Weapons',name:'Jagged Greatsword',price:600,desc:'+2 ATK. 2d6 slashing. On crit: target bleeds 1d4/turn for 3 turns.',icon:'⚔',rarity:'uncommon',stats:'+2, 2d6, Bleed'}
+,{tier:2,category:'Weapons',name:'Boomerang Blade',price:550,desc:'+2 ATK. 1d6 slashing. Thrown 30/90. Returns to hand immediately.',icon:'💫',rarity:'uncommon',stats:'+2, Returning'}
+
+// ═══ WEAPONS — TIER 3 ═══
+,{tier:3,category:'Weapons',name:'Vorpal Katana',price:4000,desc:'+3 ATK. 2d6 slashing. On a nat 20: instant decapitation (most enemies die).',icon:'⚔',rarity:'rare',stats:'+3, 2d6, Vorpal'}
+,{tier:3,category:'Weapons',name:'Bow of Seeking',price:3200,desc:'+3 ATK. 1d8+1d6 force. Arrows curve around corners. Ignore half/three-quarters cover.',icon:'🏹',rarity:'rare',stats:'+3, Homing Arrows'}
+,{tier:3,category:'Weapons',name:'Dagger of Venom',price:2500,desc:'+3 ATK. 1d4+2d6 poison. 1/day: coat in king cobra venom — 8d6 poison, CON DC 18.',icon:'🗡',rarity:'rare',stats:'+3, Venom 1/day'}
+,{tier:3,category:'Weapons',name:'Staff of Frost',price:3500,desc:'+3 spell ATK. Can cast Cone of Cold (8d8) 1/day and Ice Storm (4d6+2d8) 2/day. No MP cost.',icon:'🪄',rarity:'rare',stats:'+3, Free Ice Spells'}
+,{tier:3,category:'Weapons',name:'Staff of Fire',price:3500,desc:'+3 spell ATK. Can cast Fireball (8d6) 2/day and Wall of Fire 1/day. No MP cost.',icon:'🪄',rarity:'rare',stats:'+3, Free Fire Spells'}
+,{tier:3,category:'Weapons',name:'Bloodthirster',price:3800,desc:'+3 ATK. 2d6 slashing. Heal for 50% of all damage dealt. CURSED: cannot be removed without Remove Curse.',icon:'⚔',rarity:'rare',stats:'+3, 50% Lifesteal, CURSED'}
+,{tier:3,category:'Weapons',name:'Dancing Sword',price:3500,desc:'+3 ATK. 1d8 slashing. Release it — fights on its own using your bonus action. 30ft range.',icon:'⚔',rarity:'rare',stats:'+3, Autonomous'}
+,{tier:3,category:'Weapons',name:'Net Launcher',price:2000,desc:'Range 30ft. Restrains target (STR DC 16 to escape). Can fire grappling hooks. +3 ATK.',icon:'🪢',rarity:'rare',stats:'Restrain, Grapple'}
+,{tier:3,category:'Weapons',name:'Thunder Cannon',price:4000,desc:'+3 ATK. 3d8 thunder. Range 60/120. LOUD. All creatures in 10ft of target DEX save or prone.',icon:'💥',rarity:'rare',stats:'+3, 3d8 thunder, Knockdown'}
+,{tier:3,category:'Weapons',name:'Anchor',price:2500,desc:'+3 ATK. 3d6 bludgeoning. Heavy, two-handed. On hit: target speed becomes 0 for 1 round.',icon:'⚓',rarity:'rare',stats:'+3, 3d6, Root'}
+
+// ═══ WEAPONS — TIER 4 ═══
+,{tier:4,category:'Weapons',name:'Ea - Star of Creation',price:75000,desc:'+5 ATK. 4d8 force. 1/day: ENUMA ELISH — 100ft line, 20d6 force, destroys all terrain. The weapon that split the world.',icon:'⚔',rarity:'legendary',stats:'+5, 4d8, World-Splitter 1/day'}
+,{tier:4,category:'Weapons',name:'Deaths Scythe',price:55000,desc:'+5 ATK. 3d10 necrotic. Kills harvest souls — gain temp HP equal to targets max HP. Undead you create from kills are twice as strong.',icon:'⚔',rarity:'legendary',stats:'+5, 3d10, Soul Harvest'}
+,{tier:4,category:'Weapons',name:'Kusanagi',price:48000,desc:'+5 ATK. 3d8 slashing + 2d6 wind. Creates blade-winds: 30ft cone, 8d6 slashing as bonus action. Controls wind and weather.',icon:'⚔',rarity:'legendary',stats:'+5, 3d8+2d6, Wind Control'}
+
+// ═══ ARMOR — TIER 1 ═══
+,{tier:1,category:'Armor',name:'Traveler Clothes',price:20,desc:'AC 10. No penalty. Blends in with civilians.',icon:'👕',rarity:'common',stats:'AC 10'}
+,{tier:1,category:'Armor',name:'Chain Shirt',price:80,desc:'AC 13 + DEX (max 2). Light jingling.',icon:'🛡',rarity:'common',stats:'AC 13+DEX(2)'}
+,{tier:1,category:'Armor',name:'Wooden Shield',price:40,desc:'+1 AC. Cheap. Breaks on a nat 1 defense.',icon:'🛡',rarity:'common',stats:'+1 AC, Fragile'}
+,{tier:1,category:'Armor',name:'Fur Cloak',price:50,desc:'AC 11 + DEX. Cold resistance.',icon:'🧥',rarity:'common',stats:'AC 11+DEX, Cold Res'}
+
+// ═══ ARMOR — TIER 2 ═══
+,{tier:2,category:'Armor',name:'Half Plate',price:500,desc:'AC 15 + DEX (max 2). Stealth disadvantage.',icon:'🛡',rarity:'uncommon',stats:'AC 15+DEX(2)'}
+,{tier:2,category:'Armor',name:'Elven Chain',price:600,desc:'AC 14 + DEX (max 2). No stealth penalty. Counts as light armor.',icon:'🛡',rarity:'uncommon',stats:'AC 14+DEX(2), Light'}
+,{tier:2,category:'Armor',name:'Spiked Armor',price:400,desc:'AC 14 + DEX (max 2). Grappled enemies take 1d4 piercing/turn.',icon:'🛡',rarity:'uncommon',stats:'AC 14, Spiked'}
+,{tier:2,category:'Armor',name:'Shield of the Guardian',price:500,desc:'+2 AC. Once/day: impose disadvantage on one attack targeting an adjacent ally.',icon:'🛡',rarity:'uncommon',stats:'+2 AC, Protect Ally'}
+,{tier:2,category:'Armor',name:'Mage Armor Ring',price:450,desc:'AC 13 + DEX. No physical armor needed. Works with robes.',icon:'💍',rarity:'uncommon',stats:'AC 13+DEX, Invisible'}
+,{tier:2,category:'Armor',name:'Barbarian Hide',price:350,desc:'AC 12 + DEX + CON mod. Medium armor, no stealth penalty.',icon:'🛡',rarity:'uncommon',stats:'AC 12+DEX+CON'}
+
+// ═══ ARMOR — TIER 3 ═══
+,{tier:3,category:'Armor',name:'Plate of the Dawn',price:4000,desc:'AC 19. +1 all saves. Radiant resistance. Sheds 10ft light.',icon:'🛡',rarity:'rare',stats:'AC 19, +1 Saves, Radiant Res'}
+,{tier:3,category:'Armor',name:'Armor of Resistance',price:3500,desc:'AC 16. Choose one damage type when attuning — resistance to that type permanently.',icon:'🛡',rarity:'rare',stats:'AC 16, Choose 1 Resist'}
+,{tier:3,category:'Armor',name:'Demon Leather',price:3000,desc:'AC 14 + DEX. Fire resistance. Intimidation advantage. Smells of sulfur.',icon:'🧥',rarity:'rare',stats:'AC 14+DEX, Fire Res'}
+,{tier:3,category:'Armor',name:'Shield of Missile Attraction',price:2500,desc:'+2 AC. All ranged attacks within 30ft target YOU instead. CURSED but great for tanks.',icon:'🛡',rarity:'rare',stats:'+2 AC, Taunt Ranged, CURSED'}
+,{tier:3,category:'Armor',name:'Robe of Stars',price:4000,desc:'AC 14 + WIS. +50 max MP. 1/day: become ethereal for 1 round (intangible).',icon:'👘',rarity:'rare',stats:'AC 14+WIS, +50 MP, Ethereal 1/day'}
+,{tier:3,category:'Armor',name:'Mirror Shield',price:3500,desc:'+2 AC. Reflect gaze attacks (medusa, beholder). 1/day: reflect a spell back at caster.',icon:'🛡',rarity:'rare',stats:'+2 AC, Reflect Gaze/Spell'}
+,{tier:3,category:'Armor',name:'Bone Armor',price:2800,desc:'AC 17. Necrotic resistance. Undead ignore you unless you attack them. Made from monster bones.',icon:'🛡',rarity:'rare',stats:'AC 17, Necrotic Res, Undead Stealth'}
+
+// ═══ ARMOR — TIER 4 ═══
+,{tier:4,category:'Armor',name:'Armor of Invincibility',price:40000,desc:'AC 22. Resistance to ALL damage. 1/day: become immune to damage for 1 round.',icon:'🛡',rarity:'legendary',stats:'AC 22, All Resist, Immunity 1/day'}
+,{tier:4,category:'Armor',name:'Shadow Monarchs Armor',price:50000,desc:'AC 20. +50 HP. Necrotic immunity. Shadow soldiers gain +3 ATK and +20 HP. You can see through their eyes.',icon:'🛡',rarity:'legendary',stats:'AC 20, +50 HP, Shadow Army Buff'}
+,{tier:4,category:'Armor',name:'Odin Plate',price:55000,desc:'AC 21. +2 all stats. Cannot be surprised. True sight 30ft. 1/day: foresee the next 6 seconds of combat.',icon:'🛡',rarity:'legendary',stats:'AC 21, +2 All Stats, Truesight, Foresight'}
+,{tier:4,category:'Armor',name:'Aegis of Athena',price:48000,desc:'Shield. +3 AC. Reflect ALL projectiles back at attacker. Grants advantage on WIS saves. Once/day: petrify one creature (DC 20 CON).',icon:'🛡',rarity:'legendary',stats:'+3 AC, Reflect All, Petrify 1/day'}
+
+// ═══ ACCESSORIES — TIER 1 ═══
+,{tier:1,category:'Accessories',name:'Iron Ring',price:30,desc:'+1 to one saving throw (choose when equipping).',icon:'💍',rarity:'common',stats:'+1 Save'}
+,{tier:1,category:'Accessories',name:'Compass',price:20,desc:'Always know which direction is north. Cannot become lost in the wilderness.',icon:'🧭',rarity:'common',stats:'Navigation'}
+,{tier:1,category:'Accessories',name:'Charm of Warmth',price:40,desc:'Immune to natural cold weather effects.',icon:'📿',rarity:'common',stats:'Cold Weather Immune'}
+,{tier:1,category:'Accessories',name:'Thieves Gloves',price:60,desc:'+2 to Sleight of Hand checks.',icon:'🧤',rarity:'common',stats:'+2 Sleight of Hand'}
+,{tier:1,category:'Accessories',name:'Feather Token',price:50,desc:'Fall slowly (feather fall effect). Single use.',icon:'🪶',rarity:'common',stats:'Feather Fall, 1 use'}
+
+// ═══ ACCESSORIES — TIER 2 ═══
+,{tier:2,category:'Accessories',name:'Goggles of Night',price:400,desc:'Darkvision 60ft. If you already have darkvision, extend it by 30ft.',icon:'🥽',rarity:'uncommon',stats:'Darkvision 60ft'}
+,{tier:2,category:'Accessories',name:'Ring of Jumping',price:350,desc:'Triple jump distance. Can high-jump without running start.',icon:'💍',rarity:'uncommon',stats:'3x Jump'}
+,{tier:2,category:'Accessories',name:'Gloves of Missile Snaring',price:500,desc:'When hit by ranged weapon attack, reduce damage by 1d10+DEX. If reduced to 0, catch it.',icon:'🧤',rarity:'uncommon',stats:'Catch Arrows'}
+,{tier:2,category:'Accessories',name:'Cape of the Mountebank',price:450,desc:'1/day: cast Dimension Door (teleport 500ft) as an action.',icon:'🧥',rarity:'uncommon',stats:'Teleport 500ft 1/day'}
+,{tier:2,category:'Accessories',name:'Headband of Intellect',price:500,desc:'INT becomes 19 (if lower).',icon:'👑',rarity:'uncommon',stats:'INT 19'}
+,{tier:2,category:'Accessories',name:'Necklace of Adaptation',price:400,desc:'Breathe in any environment (underwater, vacuum, poison gas).',icon:'📿',rarity:'uncommon',stats:'Breathe Anywhere'}
+,{tier:2,category:'Accessories',name:'Boots of Elvenkind',price:350,desc:'Your footsteps make no sound. Advantage on Stealth checks related to movement.',icon:'👢',rarity:'uncommon',stats:'Silent Movement'}
+,{tier:2,category:'Accessories',name:'Brooch of Shielding',price:500,desc:'Resistance to force damage. Immune to Magic Missile.',icon:'📿',rarity:'uncommon',stats:'Force Resist, MM Immune'}
+,{tier:2,category:'Accessories',name:'Stone of Good Luck',price:450,desc:'+1 to all ability checks and saving throws.',icon:'🪨',rarity:'uncommon',stats:'+1 Checks/Saves'}
+
+// ═══ ACCESSORIES — TIER 3 ═══
+,{tier:3,category:'Accessories',name:'Ring of Regeneration',price:4000,desc:'Regain 1d6 HP at the start of each of your turns (if above 0 HP).',icon:'💍',rarity:'rare',stats:'Regen 1d6/turn'}
+,{tier:3,category:'Accessories',name:'Cloak of the Bat',price:3500,desc:'Advantage on Stealth in dim light. Can transform into a bat 1/day for 1 hour. Fly 30ft in bat form.',icon:'🧥',rarity:'rare',stats:'Stealth+, Bat Form 1/day'}
+,{tier:3,category:'Accessories',name:'Mantle of Spell Resistance',price:4500,desc:'Advantage on saving throws against spells.',icon:'🧥',rarity:'rare',stats:'Spell Save Adv'}
+,{tier:3,category:'Accessories',name:'Gauntlets of Ogre Power',price:3000,desc:'STR becomes 21. Your carrying capacity doubles.',icon:'🧤',rarity:'rare',stats:'STR 21, 2x Carry'}
+,{tier:3,category:'Accessories',name:'Boots of Speed',price:4000,desc:'Bonus action: double movement speed for 10 minutes. 3 uses per long rest.',icon:'👢',rarity:'rare',stats:'2x Speed 3/day'}
+,{tier:3,category:'Accessories',name:'Necklace of Prayer Beads',price:3500,desc:'Contains 4 beads. Each can cast a healing/support spell once: Bless, Cure Wounds, Lesser Restoration, Revivify.',icon:'📿',rarity:'rare',stats:'4 Free Spells'}
+,{tier:3,category:'Accessories',name:'Ioun Stone of Protection',price:3000,desc:'Orbits your head. +1 AC.',icon:'💎',rarity:'rare',stats:'+1 AC, Floating'}
+,{tier:3,category:'Accessories',name:'Ioun Stone of Mastery',price:4000,desc:'Orbits your head. +1 Proficiency Bonus.',icon:'💎',rarity:'rare',stats:'+1 Prof Bonus'}
+,{tier:3,category:'Accessories',name:'Ring of Evasion',price:3500,desc:'3/day: when you fail a DEX save, you can choose to succeed instead.',icon:'💍',rarity:'rare',stats:'Auto-Save DEX 3/day'}
+,{tier:3,category:'Accessories',name:'Amulet of Proof Against Detection',price:2500,desc:'You cannot be targeted by divination magic or perceived through magical scrying.',icon:'📿',rarity:'rare',stats:'Anti-Scry'}
+
+// ═══ ACCESSORIES — TIER 4 ═══
+,{tier:4,category:'Accessories',name:'Ring of Three Wishes',price:100000,desc:'Contains 3 Wishes. Each can duplicate any spell, undo any event, or reshape reality. Use wisely.',icon:'💍',rarity:'legendary',stats:'3 Wishes'}
+,{tier:4,category:'Accessories',name:'Cloak of Invisibility',price:35000,desc:'Become invisible as an action. Lasts until you attack, cast a spell, or remove the cloak. Unlimited uses.',icon:'🧥',rarity:'legendary',stats:'Permanent Invisibility'}
+,{tier:4,category:'Accessories',name:'Boots of the Infinite',price:30000,desc:'Teleport to ANY location youve ever been as a bonus action. 3 uses per day. Cross planes.',icon:'👢',rarity:'legendary',stats:'Plane-shift Teleport 3/day'}
+,{tier:4,category:'Accessories',name:'Mask of the Dragon',price:40000,desc:'Breath weapon (60ft cone, 12d8 fire/cold/lightning choose). 3/day. Frightful Presence: all enemies in 120ft WIS save or Frightened.',icon:'🎭',rarity:'legendary',stats:'Dragon Breath 3/day, Fear Aura'}
+,{tier:4,category:'Accessories',name:'Crown of the Monarch',price:60000,desc:'+3 all stats. Charm immunity. 1/day: Dominate any creature (WIS DC 22). All allies in 60ft: +2 ATK, +2 saves.',icon:'👑',rarity:'legendary',stats:'+3 All, Dominate 1/day, Aura Buff'}
+,{tier:4,category:'Accessories',name:'Hand of Midas',price:45000,desc:'Touch any non-magical object and turn it to gold (worth 100g per lb). Touch an enemy: 10d10 force + they are Restrained in gold for 1 round.',icon:'🧤',rarity:'legendary',stats:'Gold Touch, 10d10 Restrain'}
+
 ];

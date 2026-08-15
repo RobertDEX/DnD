@@ -1584,10 +1584,12 @@ function renderInventory(){
 }
 function addInventoryItem(){
   const c=getChar(); const name=el('invAddName')?.value.trim(); const qty=Math.max(1,Number(el('invAddQty')?.value)||1);
+  const value = Math.max(0, Number(el('invVal')?.value)||0);
+  const category = el('invCat')?.value || 'Misc';
   if(!name) return;
   if(!Array.isArray(c.inventory)) c.inventory=[];
-  c.inventory.push({name,qty,category:'Misc',value:0});
-  el('invAddName').value=''; el('invAddQty').value='1';
+  c.inventory.push({name, qty, category, value});
+  el('invAddName').value=''; el('invAddQty').value='1'; if(el('invVal')) el('invVal').value='0';
   pushState(true); renderInventory();
   el('invAddName')?.focus();
 }

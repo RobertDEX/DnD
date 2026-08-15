@@ -436,12 +436,11 @@ function calcSuggestedMaxMana(c) {
   return Math.max(0, 10 + (manamod * 2 + 3) * dndLvl);
 }
 
-// How many system stat points the character has available to spend.
-// You get 3 points per DnD level above 1 (every 10 system levels).
-// DnD 20 (system 200) = 57 total points. Roughly +9 per stat if spread evenly.
+// System stat points: 3 points per system level above 1.
+// Lv.1 = 0pts, Lv.2 = 3pts, Lv.6 = 15pts, Lv.50 = 147pts, Lv.200 = 597pts.
 function systemPointsTotal(c) {
-  const dndLvl = dndLevelFromSystem(Number(c.systemLevel) || 1);
-  return Math.max(0, dndLvl - 1) * 3;
+  const sysLvl = Number(c.systemLevel) || 1;
+  return Math.max(0, sysLvl - 1) * 3;
 }
 function systemPointsSpent(c) {
   const ss = c.systemStats || {};
